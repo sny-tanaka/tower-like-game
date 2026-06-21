@@ -1,0 +1,18 @@
+// colors
+$black: #000000;
+$gray: #e5e5e5;
+$white: #ffffff;
+$primary: #2196f3;
+$secondary: #00bcd4;
+$text-dark: #2c3e50;
+$shadow-light: rgba(0, 0, 0, 0.1);
+
+// responsive
+$breakpoint: (
+  sp: 'screen and (max-width: 991px)',
+);
+@mixin media($bp) {
+  @media #{map-get($breakpoint, $bp)} {
+    @content;
+  }
+}

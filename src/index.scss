@@ -1,0 +1,3 @@
+// グローバルスタイルのエントリポイント。
+// 変数・mixin は _variables.scss で定義している。
+// 各コンポーネントは style.module.scss で @use 'variables' as var; して使う。
