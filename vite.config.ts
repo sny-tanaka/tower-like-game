@@ -5,8 +5,8 @@ import { VitePWA } from 'vite-plugin-pwa';
 import { defineConfig } from 'vitest/config';
 
 // GitHub Pages のサブパス公開に合わせる。リポジトリ名と一致させること。
-// 例: https://<user>.github.io/__REPO_NAME__/
-const BASE = '/__REPO_NAME__/';
+// 例: https://<user>.github.io/tower-like-game/
+const BASE = '/tower-like-game/';
 
 export default defineConfig({
   base: BASE,
@@ -17,9 +17,9 @@ export default defineConfig({
       injectRegister: 'auto',
       includeAssets: ['favicon.ico', 'robots.txt', 'icon-192.png', 'icon-512.png'],
       manifest: {
-        name: '__APP_NAME__',
-        short_name: '__APP_SHORT_NAME__',
-        description: '__APP_DESCRIPTION__',
+        name: 'Tower Like Game',
+        short_name: 'Tower',
+        description: 'タワーを育てるゲーム',
         theme_color: '#000000',
         background_color: '#ffffff',
         display: 'standalone',

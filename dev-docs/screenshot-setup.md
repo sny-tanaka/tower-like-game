@@ -108,7 +108,7 @@ console.log('撮影完了: /tmp/home.png');
 ### 4. 特定 URL を撮る（dev server 経由等）
 
 ```js
-await page.goto(`http://localhost:5173/__REPO_NAME__/`);
+await page.goto(`http://localhost:5173/tower-like-game/`);
 await page.evaluate(() => document.fonts.ready);
 await page.screenshot({ path: '/tmp/app.png' });
 ```
@@ -122,4 +122,4 @@ ipconfig getifaddr en0   # Wi-Fi 経由のプライベート IP（例: 192.168.1
 ```
 
 - Storybook: `http://<private IP>:6006/?path=/story/<story-id>`
-- 実ゲーム / dev: `http://<private IP>:5173/__REPO_NAME__/`
+- 実ゲーム / dev: `http://<private IP>:5173/tower-like-game/`
