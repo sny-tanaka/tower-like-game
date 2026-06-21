@@ -245,5 +245,5 @@ cost(Lv → Lv+1) = base × growth^Lv
 
 ## 未確定事項（TBD）
 
-- 数値が 1e15 を超えた際の **K/M/B/T...** 単位表記の切替えルール（02-currencies.md と整合）
+- 数値表示はアルファベット表記（A-Z → AA-ZZ → AAA-...）の無限スケール対応で確定（02-currencies.md 参照）
 - 攻撃速度の UI 表示（attacks/sec をそのまま見せるか、cooldown 秒で見せるか）
