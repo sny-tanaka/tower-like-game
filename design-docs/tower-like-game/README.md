@@ -21,7 +21,7 @@
 | 02 | [02-currencies.md](02-currencies.md) | 通貨 3 種（ネジ / ボルト / 超合金）の入手と用途 |
 | 03 | [03-machine.md](03-machine.md) | マシン本体 16 項目の永続強化 + ダメージ計算式 |
 | 04 | [04-run-workshop.md](04-run-workshop.md) | ラン中ワークショップ 4 項目（乗算バフ）|
-| 05 | [05-weapons.md](05-weapons.md) | 武器 4 種（Bow / Cannon / Tome / Blades）の通常攻撃・固有ステ・アクティブ |
+| 05 | [05-weapons.md](05-weapons.md) | 武器 4 種（Laser / Cannon / Thunder / Cutter）の通常攻撃・固有ステ・アクティブ |
 | 06 | [06-patches.md](06-patches.md) | パッチ収集 / 同 Tier 合成（Tier 無限）/ 効果スケール |
 | 07 | [07-enemies-tiers.md](07-enemies-tiers.md) | 動的 Tier 計算式 / 敵タイプ / ボス |
 | 08 | [08-data-model.md](08-data-model.md) | IndexedDB スキーマ / マイグレーション / バックアップ |
