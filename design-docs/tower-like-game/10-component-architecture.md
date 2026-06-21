@@ -252,15 +252,39 @@
 
 ## デザイントークン
 
-具体的な値は **claude design に委譲**。本章では存在する変数の **カテゴリだけ** 定める。
+### トンマナの参照元
+
+**トンマナは既に用意済みのアイコン画像に準拠する**。具体値は claude design がアイコンから抽出する。
+
+| ファイル | 用途 |
+|---|---|
+| [`icon-large.png`](../../icon-large.png) | **トンマナ参照の本体**（6.5MB の高解像度版）。色・モチーフ・グロー強度の抽出元 |
+| [`public/icon-512.png`](../../public/icon-512.png) | PWA アイコン（中解像度） |
+| [`public/icon-192.png`](../../public/icon-192.png) | PWA アイコン（小解像度） |
+| [`public/favicon.ico`](../../public/favicon.ico) | favicon |
+
+### アイコン画像から読み取れる特徴（観察ベース、claude design の判断材料）
+
+- **基調色**: ダーク（黒〜濃紺の背景）
+- **アクセント色**: ネオンシアン（#00D9FF 系） / ネオン紫 (#A855F7 系) のグラデーション
+- **モチーフ**: ジオメトリックなタワー（多面体・ピラミッド・三角形・六角形）、グリッド線、ホログラム的な背景パターン
+- **質感**: グロー / 発光ライン / 微細なパーティクル
+- **スタイル**: サイバーフューチャー / テックグロー
+- **エモーション**: クール、緊張感、無限スケールの神秘性
+
+UI 全体・Fx・アイコン・タイポ選定すべてこのトンマナに合わせる。
+
+### トークンのカテゴリ
+
+具体値はアイコンを抽出元として claude design が決める。本章では存在する変数の **カテゴリのみ** 定義する。
 
 | カテゴリ | 例 |
 |---|---|
-| Color | bg / surface / primary / danger / hp / cd / tier-badge / patch-tier (T 別) |
-| Typography | heading-1 / heading-2 / body / caption / numeric (等幅) |
+| Color | bg (dark) / surface / primary (cyan) / secondary (purple) / danger / hp / cd / tier-badge / patch-tier (T 別) |
+| Typography | heading-1 / heading-2 / body / caption / numeric (等幅、テック調) |
 | Spacing | xs / s / m / l / xl (4/8/12/16/24 px ベース等) |
 | Radius | s / m / l |
-| Shadow | low / mid / high |
+| Shadow | low / mid / high / **glow-cyan / glow-purple**（ネオングロー専用） |
 | Motion | fast / mid / slow / easing-default |
 | Layer (z-index) | base / sheet / dialog / overlay / toast / screen-saver |
 

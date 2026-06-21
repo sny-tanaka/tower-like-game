@@ -35,6 +35,14 @@
 - **デザイントークンはコード内に値を直書きしない**。色・余白・タイポは SCSS 変数 / CSS カスタムプロパティ経由。
 - 詳細仕様は [`design-docs/tower-like-game/10-component-architecture.md`](./design-docs/tower-like-game/10-component-architecture.md) を参照。
 
+### トンマナ
+
+UI のトンマナ（配色 / モチーフ / 質感）は **既に用意済みのアイコン画像に準拠する**。
+
+- 参照元: [`icon-large.png`](./icon-large.png)（本体）/ [`public/icon-512.png`](./public/icon-512.png) / [`public/icon-192.png`](./public/icon-192.png)
+- 観察される特徴: ダーク基調 + ネオンシアン/紫グラデ + ジオメトリックなタワーモチーフ（サイバーフューチャー調）
+- claude design はこのアイコンから具体的なカラーパレット・タイポ・グロー強度を抽出して設計する
+
 ## アニメーション・演出・エフェクトは Fx コンポーネントに閉じ込める
 
 CSS アニメーション・トランジション・パーティクル・画面振動などのすべての演出は、
