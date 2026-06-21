@@ -26,6 +26,7 @@
 | 07 | [07-enemies-tiers.md](07-enemies-tiers.md) | 動的 Tier 計算式 / 敵タイプ / ボス |
 | 08 | [08-data-model.md](08-data-model.md) | IndexedDB スキーマ / マイグレーション / バックアップ |
 | 09 | [09-ui-screens.md](09-ui-screens.md) | 画面一覧（7 画面）/ タブ構成 / ダイアログ系 |
+| 10 | [10-component-architecture.md](10-component-architecture.md) | Atomic Design ベースのコンポーネント設計と命名規則 |
 
 ## 設計の核（一文要約）
 

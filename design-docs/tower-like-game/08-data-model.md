@@ -111,13 +111,13 @@ type MachineRecord = {
 ```ts
 type WeaponsRecord = {
   id: 'singleton';
-  weaponLv: number;       // 全武器共通の強化 Lv
-  selectedWeapon: 'laser' | 'cannon' | 'thunder' | 'cutter';  // 装備中
+  weaponLv: number;                                          // 全武器共通の強化 Lv
+  initialWeapon: 'laser' | 'cannon' | 'thunder' | 'cutter';  // ラン開始時の初期装備
 };
 ```
 
-- `selectedWeapon` はラン開始時の装備武器（最終選択）の保存
-- ラン中の切替はないので、ラン外で 1 つ選んで保存
+- `initialWeapon` は **ラン開始時の装備武器**（出撃準備画面で選択した値）
+- ラン中の武器切替はメモリ上のみで保持し、永続化しない（次ラン開始は `initialWeapon` から）
 
 ### `patches`
 

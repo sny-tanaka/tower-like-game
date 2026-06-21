@@ -15,6 +15,26 @@
 自由記述させたい場合は、推測案を 1〜2 個 option として提示し、ユーザーが "Other" から
 自由入力できる UI に任せる。テキストで「〜を教えてください」と聞いて返信を待つのは禁止。
 
+## UI 実装は Atomic Design でコンポーネント単位に構築する
+
+画面を「1 枚ずつ静的に」作るのは禁止。すべての UI は **再利用可能なコンポーネント** に分解し、
+合成して画面を作る。デザインも実装も同じコンポーネント階層で整理する。
+
+### 階層（Atomic Design）
+
+- **Atom** (`src/components/atoms/`): UI Primitive。Button / Icon / Text / NumericDisplay / ProgressBar / Tab など。状態を持たない、props だけで制御。
+- **Molecule** (`src/components/molecules/`): 複数 Atom の組合せ。UpgradeCard / PatchCard / WeaponSlotIcon など。状態は基本外から渡す。
+- **Organism** (`src/components/organisms/`): 機能単位の塊。MachineUpgradeTabs / BattleHUD / RunWorkshopBottomSheet など。store からデータを引いてよい。
+- **Page** (`src/pages/<screen>/`): 画面 1 枚。Organism を配置するだけ。状態は Organism に委ねる。
+
+### ルール
+
+- **新規 UI を実装する前に既存 Atom / Molecule で組めないか必ず確認**。なければ最小単位を Atom として切り出してから合成。
+- **画面ファイルに直接 div / span / button をベタ書きしない**。レイアウト用の `<div>` 以外は必ずコンポーネント経由。
+- **Storybook ストーリーは Atom / Molecule で必ず書く**。Organism は主要状態のみ。
+- **デザイントークンはコード内に値を直書きしない**。色・余白・タイポは SCSS 変数 / CSS カスタムプロパティ経由。
+- 詳細仕様は [`design-docs/tower-like-game/10-component-architecture.md`](./design-docs/tower-like-game/10-component-architecture.md) を参照。
+
 ## 作業体制（エージェントの役割分担）— 全作業に適用
 
 本リポジトリの作業は、原則として以下の体制で進めること。
