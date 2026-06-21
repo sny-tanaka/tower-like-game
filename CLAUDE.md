@@ -35,6 +35,29 @@
 - **デザイントークンはコード内に値を直書きしない**。色・余白・タイポは SCSS 変数 / CSS カスタムプロパティ経由。
 - 詳細仕様は [`design-docs/tower-like-game/10-component-architecture.md`](./design-docs/tower-like-game/10-component-architecture.md) を参照。
 
+## アニメーション・演出・エフェクトは Fx コンポーネントに閉じ込める
+
+CSS アニメーション・トランジション・パーティクル・画面振動などのすべての演出は、
+**Fx コンポーネント (`src/components/fx/<FxName>/`)** に閉じ込めて実装する。
+
+### 絶対ルール
+
+- **CSS アニメーション (`@keyframes` / `animation:`) は Fx 内にだけ書く**。他のコンポーネントには絶対に書かない。
+- 同じ演出を複数箇所で書くのは禁止。**重複を見つけたら共通 Fx に統合する**。
+- **マウント = 再生開始、アンマウント = 停止**。Fx 内に「再生中フラグ」は持たない（親が条件付きレンダリングで制御）。
+- 再生し直したい場合は `key` を変えて **再マウント** する。
+- 完了通知が必要なら `onAnimationEnd` / `onTransitionEnd` を `onDone` props として親に伝える。
+- 命名は末尾 `Fx`（`DamagePopFx`, `LevelUpFx`, `ScreenShakeFx`）。
+- `prefers-reduced-motion` 対応として、Fx 内で motion 削減モードを考慮する。
+
+### Fx を作る前のチェック
+
+1. すでに同種の Fx が `src/components/fx/` にないか確認する
+2. 既存 Fx を **props で再利用**できないか検討する（色違い・サイズ違いは props で吸収）
+3. 新規作成する場合のみ追加。**重複は厳禁**
+
+詳細・既存 Fx 一覧は [`design-docs/tower-like-game/10-component-architecture.md`](./design-docs/tower-like-game/10-component-architecture.md) の Fx セクション参照。
+
 ## 作業体制（エージェントの役割分担）— 全作業に適用
 
 本リポジトリの作業は、原則として以下の体制で進めること。

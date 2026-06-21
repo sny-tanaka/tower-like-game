@@ -20,6 +20,7 @@
 - **Molecule も基本は持たない**: 一時的な開閉などはローカル state でよい
 - **Organism は store からデータを引く**: Zustand などのグローバルストアにアクセス可
 - **Page はレイアウト責務のみ**: 状態は Organism に委ねる
+- **Fx はアニメ・演出を 1 つだけ閉じ込める**: マウントで再生開始、アンマウントで停止
 
 ## 共通 Atom 一覧
 
@@ -141,6 +142,100 @@
 | `TitleHeader` | ロゴ |
 | `TitleActions` | 「続きから」「新規開始」「設定」 |
 
+## Fx コンポーネント
+
+アニメーション・演出・エフェクトは **すべて Fx コンポーネント** として独立した単位に閉じ込める。
+**CSS アニメーション（`@keyframes` / `animation:` プロパティ）を画面・Atom・Molecule・Organism 内に直接書かない**。Fx を介して使う。
+
+### 設計原則
+
+- **1 Fx = 1 演出**: 1 つのアニメーション / トランジション / 視覚効果だけを持つ
+- **マウント = 再生開始 / アンマウント = 停止**: 親が条件付きレンダリングで Fx を出し入れすることで演出を制御
+  - 「再生中フラグ」を Fx 内に持たない（store / 親の state で管理）
+  - 同じ Fx を再度マウントすれば再生し直される
+- **CSS アニメーションは Fx 内にだけ書く**: `@keyframes` は Fx の `style.module.scss` に閉じる。他のコンポーネントが Fx と同じアニメを書くのは禁止（重複防止）
+- **`prefers-reduced-motion` 対応**: ユーザーが motion 削減を望む場合、Fx は no-op に切り替えるか、トランスフォームのみで動かす
+- **タイマー・トランジション完了の検知**: `onAnimationEnd` / `onTransitionEnd` でアンマウント要求を親へ伝える（コールバック props）
+
+### ディレクトリと命名
+
+- 配置: `src/components/fx/<FxName>/index.tsx` + `style.module.scss`
+- 命名: 末尾を `Fx` で揃える（`DamagePopFx`, `ScreenShakeFx`, `LevelUpFx`）
+- Atom / Molecule / Organism からは `import` で参照、CSS の重複定義は禁止
+
+### 共通 Fx 一覧
+
+#### 戦闘演出 (Fx)
+
+| Fx | 起点 | 内容 |
+|---|---|---|
+| `DamagePopFx` | 敵がダメージを受けた瞬間 | 数値が上方向にポップしてフェードアウト |
+| `CritDamagePopFx` | クリ発動 | 通常より大きい・色違いのポップ |
+| `EnemyHitFx` | 敵被弾位置 | フラッシュ + 小爆発 |
+| `EnemyDeathFx` | 敵撃破位置 | パーティクル発散 + アイコン消滅 |
+| `BlastFx` | Cannon 着弾点 | 範囲ダメの円形爆発 |
+| `LaserBeamFx` | Laser 発射 | 細い線が一瞬伸びる |
+| `ChainBoltFx` | Thunder Plasma Discharge | ジグザグ電撃が連鎖 |
+| `OverdriveAuraFx` | Cutter Overdrive 発動中 | マシン周囲の残像オーラ |
+| `MegaBeamFx` | Laser Mega Beam | 太いビームが画面端まで伸びる |
+| `VolleyFx` | Cannon Volley | 5 発放射状に飛ぶ |
+| `FreezeFx` | 凍結発動 | 敵に氷晶が貼り付く |
+| `BurnFx` | 燃焼発動 | 敵から炎が立ち上がる |
+| `InstantKillFx` | インスタントキル発動 | 即死フラッシュ |
+
+#### 画面演出 (Fx)
+
+| Fx | 起点 | 内容 |
+|---|---|---|
+| `ScreenShakeFx` | 大ダメ・大爆発・ボス出現 | 画面全体の揺れ |
+| `DamageVignetteFx` | マシン被ダメ | 画面端に赤ビネット |
+| `HealFlashFx` | HP リジェネ・回復パッチ発動 | HP バーが緑にフェード |
+| `WaveStartFx` | ウェーブ開始 | 上 HUD にウェーブ番号がスライドイン |
+| `EliteAppearanceFx` | エリート出現 | フラッシュ + 名前バナー |
+| `BossAppearanceFx` | Tier ボス出現 | 大型フラッシュ + 名前バナー + 効果音 |
+| `TierClearFx` | Tier クリア | 画面全体のフィナーレ演出 |
+
+#### 獲得・強化演出 (Fx)
+
+| Fx | 起点 | 内容 |
+|---|---|---|
+| `CoinPickupFx` | ネジ獲得 | 数値が下 HUD に吸い込まれる |
+| `BoltPickupFx` | ボルト獲得 | 上 HUD に吸い込まれる |
+| `AlloyPickupFx` | 超合金獲得 | 上 HUD に吸い込まれる |
+| `PatchDropFx` | パッチドロップ | 特殊な落下アイテム演出 |
+| `LevelUpFx` | 強化購入時 | カードにキラキラ |
+| `MergeSuccessFx` | パッチ合成成功 | 2 枚が 1 枚に合体する演出 |
+
+#### 状態・トランジション (Fx)
+
+| Fx | 起点 | 内容 |
+|---|---|---|
+| `BottomSheetSlideFx` | ボトムシート開閉 | 下からスライド |
+| `DialogFadeFx` | ダイアログ開閉 | フェード + スケール |
+| `OverlayFadeFx` | オーバーレイ開閉 | 背景フェード |
+| `TabSwitchFx` | タブ切替 | コンテンツのクロスフェード |
+| `ScreenTransitionFx` | 画面遷移 | スクリーン間のスライド or フェード |
+| `ScreenSaverFx` | スクリーンセーバー起動 | フルスクリーンの軽量アニメ |
+| `ToastSlideFx` | トースト出現 | 画面端からスライド |
+
+### 使い方の例（コード方針）
+
+```tsx
+// 親 (Organism) で条件付きマウント
+{isDamaged && <DamageVignetteFx onDone={() => setIsDamaged(false)} />}
+
+// 親が key を変えて再マウント（連続発動時）
+{damageEvents.map((ev) => (
+  <DamagePopFx key={ev.id} x={ev.x} y={ev.y} value={ev.value} />
+))}
+```
+
+### Fx を作る前のチェック
+
+1. すでに同種の Fx が `src/components/fx/` にないか確認
+2. 既存 Fx を props で再利用できないか検討（色違い・サイズ違いは props で）
+3. 新規作成する場合のみ追加。重複は厳禁
+
 ## Page 一覧
 
 | Page | パス想定 |
@@ -179,6 +274,7 @@ src/
 │   ├── atoms/          # Button, Icon, Text, NumericDisplay, etc
 │   ├── molecules/      # UpgradeCard, PatchCard, WeaponSlotIcon, etc
 │   ├── organisms/      # MachineUpgradeTabs, BattleHUD, ResultDialog, etc
+│   ├── fx/             # DamagePopFx, ScreenShakeFx, LevelUpFx, etc（CSS animation はここのみ）
 │   └── shell/          # AppShell, PageHeader, MainNav
 ├── pages/              # 旧 page、現状は Screen と呼ぶ
 │   ├── title/
