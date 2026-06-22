@@ -1,0 +1,508 @@
+import { describe, expect, it } from 'vitest';
+import { create } from 'zustand';
+
+import { BigNum } from '@/lib/bignum';
+import { createBattleSlice } from '@/store/slices/battle';
+import type { BattleSlice } from '@/store/slices/battle';
+import { createCurrenciesSlice } from '@/store/slices/currencies';
+import type { CurrenciesSlice } from '@/store/slices/currencies';
+import { createEquippedPatchesSlice } from '@/store/slices/equippedPatches';
+import type { EquippedPatchesSlice } from '@/store/slices/equippedPatches';
+import { createMachineSlice } from '@/store/slices/machine';
+import type { MachineSlice } from '@/store/slices/machine';
+import { createPatchesSlice } from '@/store/slices/patches';
+import type { PatchesSlice } from '@/store/slices/patches';
+import { createProfileSlice } from '@/store/slices/profile';
+import type { ProfileSlice } from '@/store/slices/profile';
+import { createSettingsSlice } from '@/store/slices/settings';
+import type { SettingsSlice } from '@/store/slices/settings';
+import { createWeaponsSlice } from '@/store/slices/weapons';
+import type { WeaponsSlice } from '@/store/slices/weapons';
+
+// ---------------------------------------------------------------------------
+// Helper: per-test isolated store creation
+// ---------------------------------------------------------------------------
+
+type TestStore = ProfileSlice &
+  CurrenciesSlice &
+  MachineSlice &
+  WeaponsSlice &
+  PatchesSlice &
+  EquippedPatchesSlice &
+  SettingsSlice &
+  BattleSlice;
+
+function makeStore() {
+  return create<TestStore>()((...a) => ({
+    ...createProfileSlice(...a),
+    ...createCurrenciesSlice(...a),
+    ...createMachineSlice(...a),
+    ...createWeaponsSlice(...a),
+    ...createPatchesSlice(...a),
+    ...createEquippedPatchesSlice(...a),
+    ...createSettingsSlice(...a),
+    ...createBattleSlice(...a),
+  }));
+}
+
+// ---------------------------------------------------------------------------
+// profile slice
+// ---------------------------------------------------------------------------
+
+describe('profile slice', () => {
+  it('初期値はすべて 0', () => {
+    const s = makeStore().getState();
+    expect(s.highestTier).toBe(0);
+    expect(s.highestWave).toBe(0);
+    expect(s.totalPlayTimeSec).toBe(0);
+    expect(s.totalRuns).toBe(0);
+    expect(s.totalEnemiesKilled).toBe(0);
+    expect(s.createdAt).toBe(0);
+    expect(s.lastPlayedAt).toBe(0);
+  });
+
+  it('updateHighest: より高い Tier で更新される', () => {
+    const store = makeStore();
+    store.getState().updateHighest(3, 5);
+    expect(store.getState().highestTier).toBe(3);
+    expect(store.getState().highestWave).toBe(5);
+  });
+
+  it('updateHighest: 同 Tier でより高い Wave のみ更新', () => {
+    const store = makeStore();
+    store.getState().updateHighest(2, 3);
+    store.getState().updateHighest(2, 7);
+    expect(store.getState().highestTier).toBe(2);
+    expect(store.getState().highestWave).toBe(7);
+  });
+
+  it('updateHighest: 低い Tier では上書きしない', () => {
+    const store = makeStore();
+    store.getState().updateHighest(5, 10);
+    store.getState().updateHighest(3, 99);
+    expect(store.getState().highestTier).toBe(5);
+    expect(store.getState().highestWave).toBe(10);
+  });
+
+  it('addPlayTimeSec: 累積される', () => {
+    const store = makeStore();
+    store.getState().addPlayTimeSec(100);
+    store.getState().addPlayTimeSec(50);
+    expect(store.getState().totalPlayTimeSec).toBe(150);
+  });
+
+  it('incrementRuns: 1 ずつ増加', () => {
+    const store = makeStore();
+    store.getState().incrementRuns();
+    store.getState().incrementRuns();
+    expect(store.getState().totalRuns).toBe(2);
+  });
+
+  it('addEnemiesKilled: 累積される', () => {
+    const store = makeStore();
+    store.getState().addEnemiesKilled(10);
+    store.getState().addEnemiesKilled(5);
+    expect(store.getState().totalEnemiesKilled).toBe(15);
+  });
+
+  it('resetProfile: 全フィールドが初期化される', () => {
+    const store = makeStore();
+    store.getState().updateHighest(5, 10);
+    store.getState().incrementRuns();
+    store.getState().resetProfile(9999);
+    const s = store.getState();
+    expect(s.highestTier).toBe(0);
+    expect(s.totalRuns).toBe(0);
+    expect(s.createdAt).toBe(9999);
+    expect(s.lastPlayedAt).toBe(9999);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// currencies slice
+// ---------------------------------------------------------------------------
+
+describe('currencies slice', () => {
+  it('初期値は ZERO', () => {
+    const s = makeStore().getState();
+    expect(s.bolt.isZero()).toBe(true);
+    expect(s.alloy.isZero()).toBe(true);
+  });
+
+  it('addBolt: 追加される', () => {
+    const store = makeStore();
+    store.getState().addBolt(BigNum.fromNumber(500));
+    store.getState().addBolt(BigNum.fromNumber(300));
+    expect(store.getState().bolt.toString()).toBe('800');
+  });
+
+  it('spendBolt: 残高が減る', () => {
+    const store = makeStore();
+    store.getState().addBolt(BigNum.fromNumber(1000));
+    const ok = store.getState().spendBolt(BigNum.fromNumber(300));
+    expect(ok).toBe(true);
+    expect(store.getState().bolt.toString()).toBe('700');
+  });
+
+  it('spendBolt: 残高不足で false を返し state は変わらない', () => {
+    const store = makeStore();
+    store.getState().addBolt(BigNum.fromNumber(100));
+    const ok = store.getState().spendBolt(BigNum.fromNumber(200));
+    expect(ok).toBe(false);
+    expect(store.getState().bolt.toString()).toBe('100');
+  });
+
+  it('spendBolt: ちょうど残高と同額なら成功', () => {
+    const store = makeStore();
+    store.getState().addBolt(BigNum.fromNumber(500));
+    const ok = store.getState().spendBolt(BigNum.fromNumber(500));
+    expect(ok).toBe(true);
+    expect(store.getState().bolt.isZero()).toBe(true);
+  });
+
+  it('addAlloy / spendAlloy: bolt と独立して動作', () => {
+    const store = makeStore();
+    store.getState().addAlloy(BigNum.fromNumber(200));
+    const ok = store.getState().spendAlloy(BigNum.fromNumber(200));
+    expect(ok).toBe(true);
+    expect(store.getState().alloy.isZero()).toBe(true);
+    expect(store.getState().bolt.isZero()).toBe(true);
+  });
+
+  it('resetCurrencies: 両通貨が ZERO になる', () => {
+    const store = makeStore();
+    store.getState().addBolt(BigNum.fromNumber(100));
+    store.getState().addAlloy(BigNum.fromNumber(200));
+    store.getState().resetCurrencies();
+    expect(store.getState().bolt.isZero()).toBe(true);
+    expect(store.getState().alloy.isZero()).toBe(true);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// machine slice
+// ---------------------------------------------------------------------------
+
+describe('machine slice', () => {
+  it('初期値: 全キーが lv=0', () => {
+    const s = makeStore().getState();
+    expect(s.machineLevels.maxHp).toBe(0);
+    expect(s.machineLevels.patchSlots).toBe(0);
+    expect(Object.keys(s.machineLevels).length).toBe(16);
+  });
+
+  it('incrementMachineLv: 指定キーの Lv が 1 上がる', () => {
+    const store = makeStore();
+    store.getState().incrementMachineLv('maxHp');
+    store.getState().incrementMachineLv('maxHp');
+    expect(store.getState().machineLevels.maxHp).toBe(2);
+    expect(store.getState().machineLevels.defense).toBe(0);
+  });
+
+  it('setMachineLv: 直接セットできる', () => {
+    const store = makeStore();
+    store.getState().setMachineLv('critRate', 7);
+    expect(store.getState().machineLevels.critRate).toBe(7);
+  });
+
+  it('resetMachine: 全 Lv が 0 に戻る', () => {
+    const store = makeStore();
+    store.getState().incrementMachineLv('maxHp');
+    store.getState().setMachineLv('defense', 5);
+    store.getState().resetMachine();
+    expect(store.getState().machineLevels.maxHp).toBe(0);
+    expect(store.getState().machineLevels.defense).toBe(0);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// weapons slice
+// ---------------------------------------------------------------------------
+
+describe('weapons slice', () => {
+  it('初期値: weaponLv=0, initialWeapon=laser', () => {
+    const s = makeStore().getState();
+    expect(s.weaponLv).toBe(0);
+    expect(s.initialWeapon).toBe('laser');
+  });
+
+  it('incrementWeaponLv: 1 ずつ増加', () => {
+    const store = makeStore();
+    store.getState().incrementWeaponLv();
+    store.getState().incrementWeaponLv();
+    expect(store.getState().weaponLv).toBe(2);
+  });
+
+  it('setWeaponLv: 直接セットできる', () => {
+    const store = makeStore();
+    store.getState().setWeaponLv(10);
+    expect(store.getState().weaponLv).toBe(10);
+  });
+
+  it('setInitialWeapon: 変更できる', () => {
+    const store = makeStore();
+    store.getState().setInitialWeapon('cannon');
+    expect(store.getState().initialWeapon).toBe('cannon');
+  });
+
+  it('resetWeapons: 初期値に戻る', () => {
+    const store = makeStore();
+    store.getState().setWeaponLv(5);
+    store.getState().setInitialWeapon('thunder');
+    store.getState().resetWeapons();
+    expect(store.getState().weaponLv).toBe(0);
+    expect(store.getState().initialWeapon).toBe('laser');
+  });
+});
+
+// ---------------------------------------------------------------------------
+// patches slice
+// ---------------------------------------------------------------------------
+
+describe('patches slice', () => {
+  it('初期値: 空 Map', () => {
+    const s = makeStore().getState();
+    expect(s.patches.size).toBe(0);
+  });
+
+  it('addPatch: エントリが追加される', () => {
+    const store = makeStore();
+    store.getState().addPatch('instantKill', 1);
+    expect(store.getState().patches.size).toBe(1);
+    expect(store.getState().patches.get('instantKill#1')?.count).toBe(1);
+  });
+
+  it('addPatch: 同一キーは count が累積される', () => {
+    const store = makeStore();
+    store.getState().addPatch('instantKill', 1, 2);
+    store.getState().addPatch('instantKill', 1, 3);
+    expect(store.getState().patches.get('instantKill#1')?.count).toBe(5);
+  });
+
+  it('consumePatch: count が減る', () => {
+    const store = makeStore();
+    store.getState().addPatch('bossKiller', 2, 5);
+    const ok = store.getState().consumePatch('bossKiller', 2, 2);
+    expect(ok).toBe(true);
+    expect(store.getState().patches.get('bossKiller#2')?.count).toBe(3);
+  });
+
+  it('consumePatch: count が 0 になったらエントリ削除', () => {
+    const store = makeStore();
+    store.getState().addPatch('doubleShot', 1, 1);
+    store.getState().consumePatch('doubleShot', 1, 1);
+    expect(store.getState().patches.has('doubleShot#1')).toBe(false);
+  });
+
+  it('consumePatch: 在庫不足で false, state 変わらず', () => {
+    const store = makeStore();
+    store.getState().addPatch('burnHit', 1, 2);
+    const ok = store.getState().consumePatch('burnHit', 1, 3);
+    expect(ok).toBe(false);
+    expect(store.getState().patches.get('burnHit#1')?.count).toBe(2);
+  });
+
+  it('consumePatch: 存在しないパッチで false', () => {
+    const store = makeStore();
+    const ok = store.getState().consumePatch('freezeHit', 1, 1);
+    expect(ok).toBe(false);
+  });
+
+  it('resetPatches: 全エントリが消える', () => {
+    const store = makeStore();
+    store.getState().addPatch('boltCast', 1);
+    store.getState().addPatch('bonusDrop', 2);
+    store.getState().resetPatches();
+    expect(store.getState().patches.size).toBe(0);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// equippedPatches slice
+// ---------------------------------------------------------------------------
+
+describe('equippedPatches slice', () => {
+  it('初期値: 空 Map', () => {
+    const s = makeStore().getState();
+    expect(s.equippedPatches.size).toBe(0);
+  });
+
+  it('equipPatch: スロットにパッチが装着される', () => {
+    const store = makeStore();
+    const ok = store.getState().equipPatch(0, 'instantKill', 1);
+    expect(ok).toBe(true);
+    expect(store.getState().equippedPatches.get(0)?.name).toBe('instantKill');
+  });
+
+  it('equipPatch: 同名パッチを別スロットに装着しようとすると false', () => {
+    const store = makeStore();
+    store.getState().equipPatch(0, 'bossKiller', 1);
+    const ok = store.getState().equipPatch(1, 'bossKiller', 2);
+    expect(ok).toBe(false);
+    expect(store.getState().equippedPatches.size).toBe(1);
+  });
+
+  it('equipPatch: 同スロット上書きは同名でも OK', () => {
+    const store = makeStore();
+    store.getState().equipPatch(0, 'bossKiller', 1);
+    const ok = store.getState().equipPatch(0, 'bossKiller', 2);
+    expect(ok).toBe(true);
+    expect(store.getState().equippedPatches.get(0)?.tier).toBe(2);
+  });
+
+  it('unequipPatch: スロットが空になる', () => {
+    const store = makeStore();
+    store.getState().equipPatch(2, 'doubleShot', 1);
+    store.getState().unequipPatch(2);
+    expect(store.getState().equippedPatches.has(2)).toBe(false);
+  });
+
+  it('clearEquippedPatches: 全スロットが空になる', () => {
+    const store = makeStore();
+    store.getState().equipPatch(0, 'instantKill', 1);
+    store.getState().equipPatch(1, 'doubleShot', 1);
+    store.getState().clearEquippedPatches();
+    expect(store.getState().equippedPatches.size).toBe(0);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// settings slice
+// ---------------------------------------------------------------------------
+
+describe('settings slice', () => {
+  it('初期値: defaultGameSpeed=1, bgmVolume=0.8, seVolume=0.8, vibration=true', () => {
+    const s = makeStore().getState();
+    expect(s.defaultGameSpeed).toBe(1);
+    expect(s.bgmVolume).toBe(0.8);
+    expect(s.seVolume).toBe(0.8);
+    expect(s.vibrationEnabled).toBe(true);
+  });
+
+  it('setDefaultGameSpeed: 変更できる', () => {
+    const store = makeStore();
+    store.getState().setDefaultGameSpeed(3);
+    expect(store.getState().defaultGameSpeed).toBe(3);
+  });
+
+  it('setBgmVolume: 0〜1 にクランプされる', () => {
+    const store = makeStore();
+    store.getState().setBgmVolume(1.5);
+    expect(store.getState().bgmVolume).toBe(1);
+    store.getState().setBgmVolume(-0.5);
+    expect(store.getState().bgmVolume).toBe(0);
+  });
+
+  it('setSeVolume: 0〜1 にクランプされる', () => {
+    const store = makeStore();
+    store.getState().setSeVolume(0.5);
+    expect(store.getState().seVolume).toBe(0.5);
+  });
+
+  it('setVibrationEnabled: 変更できる', () => {
+    const store = makeStore();
+    store.getState().setVibrationEnabled(false);
+    expect(store.getState().vibrationEnabled).toBe(false);
+  });
+
+  it('resetSettings: デフォルト値に戻る', () => {
+    const store = makeStore();
+    store.getState().setDefaultGameSpeed(2);
+    store.getState().setBgmVolume(0.3);
+    store.getState().setVibrationEnabled(false);
+    store.getState().resetSettings();
+    expect(store.getState().defaultGameSpeed).toBe(1);
+    expect(store.getState().bgmVolume).toBe(0.8);
+    expect(store.getState().vibrationEnabled).toBe(true);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// battle slice
+// ---------------------------------------------------------------------------
+
+describe('battle slice', () => {
+  it('初期値: isRunActive=false, screw=ZERO', () => {
+    const s = makeStore().getState();
+    expect(s.isRunActive).toBe(false);
+    expect(s.screw.isZero()).toBe(true);
+    expect(s.machineHp).toBe(0);
+  });
+
+  it('startRun: ラン中状態に遷移する', () => {
+    const store = makeStore();
+    store.getState().startRun({ initialWeapon: 'cannon', machineMaxHp: 1000, gameSpeed: 2 });
+    const s = store.getState();
+    expect(s.isRunActive).toBe(true);
+    expect(s.machineHp).toBe(1000);
+    expect(s.machineMaxHp).toBe(1000);
+    expect(s.currentWeapon).toBe('cannon');
+    expect(s.gameSpeed).toBe(2);
+    expect(s.currentTier).toBe(1);
+    expect(s.currentWave).toBe(1);
+  });
+
+  it('endRun: デフォルト状態に戻る', () => {
+    const store = makeStore();
+    store.getState().startRun({ initialWeapon: 'laser', machineMaxHp: 500, gameSpeed: 1 });
+    store.getState().addScrew(BigNum.fromNumber(100));
+    store.getState().endRun();
+    expect(store.getState().isRunActive).toBe(false);
+    expect(store.getState().screw.isZero()).toBe(true);
+  });
+
+  it('addScrew / spendScrew: ネジの増減', () => {
+    const store = makeStore();
+    store.getState().startRun({ initialWeapon: 'laser', machineMaxHp: 100, gameSpeed: 1 });
+    store.getState().addScrew(BigNum.fromNumber(500));
+    const ok = store.getState().spendScrew(BigNum.fromNumber(200));
+    expect(ok).toBe(true);
+    expect(store.getState().screw.toString()).toBe('300');
+  });
+
+  it('spendScrew: 不足で false', () => {
+    const store = makeStore();
+    store.getState().startRun({ initialWeapon: 'laser', machineMaxHp: 100, gameSpeed: 1 });
+    const ok = store.getState().spendScrew(BigNum.fromNumber(1));
+    expect(ok).toBe(false);
+  });
+
+  it('damageHp: HP が減り、0 未満にはならない', () => {
+    const store = makeStore();
+    store.getState().startRun({ initialWeapon: 'laser', machineMaxHp: 100, gameSpeed: 1 });
+    store.getState().damageHp(30);
+    expect(store.getState().machineHp).toBe(70);
+    store.getState().damageHp(200);
+    expect(store.getState().machineHp).toBe(0);
+  });
+
+  it('advanceWave / advanceTier: Wave と Tier が増加する', () => {
+    const store = makeStore();
+    store.getState().startRun({ initialWeapon: 'laser', machineMaxHp: 100, gameSpeed: 1 });
+    store.getState().advanceWave();
+    store.getState().advanceWave();
+    expect(store.getState().currentWave).toBe(3);
+    store.getState().advanceTier();
+    expect(store.getState().currentTier).toBe(2);
+    expect(store.getState().currentWave).toBe(1);
+  });
+
+  it('switchWeapon: 武器が変わる', () => {
+    const store = makeStore();
+    store.getState().startRun({ initialWeapon: 'laser', machineMaxHp: 100, gameSpeed: 1 });
+    store.getState().switchWeapon('thunder');
+    expect(store.getState().currentWeapon).toBe('thunder');
+  });
+
+  it('tickCooldowns: CD が deltaSecGameTime 分減少し 0 未満にならない', () => {
+    const store = makeStore();
+    store.getState().setWeaponSwitchCd(5);
+    store.getState().setActiveCd(3);
+    store.getState().tickCooldowns(2);
+    expect(store.getState().weaponSwitchCdSec).toBe(3);
+    expect(store.getState().activeCdSec).toBe(1);
+    store.getState().tickCooldowns(10);
+    expect(store.getState().weaponSwitchCdSec).toBe(0);
+    expect(store.getState().activeCdSec).toBe(0);
+  });
+});
