@@ -1,0 +1,44 @@
+.root {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-s);
+}
+
+/* 上段: タイトル + レベル */
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-xs);
+}
+
+/* 中段: 現効果値 */
+.value {
+  text-align: center;
+  padding: var(--sp-xxs) 0;
+}
+
+/* 下段: ボタン列 */
+.buttons {
+  display: flex;
+  gap: var(--sp-xs);
+}
+
+.buttonCol {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--sp-xxs);
+  flex: 1;
+}
+
+/* コスト数値 */
+.costLabel {
+  display: block;
+  text-align: center;
+  line-height: var(--lh-tight);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  width: 100%;
+}
