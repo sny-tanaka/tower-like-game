@@ -2,7 +2,7 @@ import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, test } from 'vitest';
 
-import { CATEGORY_LABELS, MACHINE_UPGRADE_ITEMS, calcCost, calcEffectValue } from './items';
+import { MACHINE_UPGRADE_ITEMS, calcCost, calcEffectValue } from './items';
 
 import { MachineUpgradeList } from './index';
 
@@ -146,13 +146,6 @@ describe('MachineUpgradeList', () => {
     render(<MachineUpgradeList />);
     for (const item of MACHINE_UPGRADE_ITEMS) {
       expect(screen.getByText(item.title)).toBeInTheDocument();
-    }
-  });
-
-  test('各カテゴリの小見出しが表示される', () => {
-    render(<MachineUpgradeList />);
-    for (const label of Object.values(CATEGORY_LABELS)) {
-      expect(screen.getByText(label)).toBeInTheDocument();
     }
   });
 

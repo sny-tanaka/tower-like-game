@@ -5,3 +5,23 @@
 
 // デザイントークンをグローバルに読み込む（:root に CSS カスタムプロパティを注入）
 @use './styles/tokens';
+
+// ============================================================
+// グローバルスクロール制御
+// AppShell が高さ 100vh + overflow: hidden で画面を固定し、内側の
+// <main> だけが overflow: auto でスクロール対象になる。html/body 側を
+// 100% 高さ + overflow: hidden に縛らないと、Mobile Safari 等で
+// バウンス / 画面全体スクロールが起きる。
+// ============================================================
+:root,
+html,
+body {
+  height: 100%;
+  overflow: hidden;
+  overscroll-behavior: none;
+}
+
+#root {
+  height: 100%;
+  overflow: hidden;
+}
