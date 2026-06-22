@@ -18,7 +18,6 @@ function makeProps(overrides?: Partial<Parameters<typeof BattleHudTop>[0]>) {
     totalWaves: 30,
     secondsRemaining: 18,
     secondsTotal: 26,
-    enemiesRemaining: 0,
     ...overrides,
   };
 }
@@ -50,9 +49,10 @@ describe('BattleHudTop', () => {
     expect(hpRow).toBeInTheDocument();
   });
 
-  it('残敵数が指定されると aria-label に反映される', () => {
-    render(<BattleHudTop {...makeProps({ enemiesRemaining: 18 })} />);
-    expect(screen.getByLabelText('残敵 18')).toBeInTheDocument();
+  it('HP バーが描画される (design ref 準拠の縦並び 3 段)', () => {
+    const { container } = render(<BattleHudTop {...makeProps()} />);
+    // ProgressBar Atom が role=progressbar を提供
+    expect(container.querySelector('[role="progressbar"]')).toBeInTheDocument();
   });
 
   it('WaveProgressBar が waveNumber を表示する', () => {

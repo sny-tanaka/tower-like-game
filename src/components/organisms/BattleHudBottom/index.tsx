@@ -8,6 +8,11 @@ import { SegmentedControl } from '@/components/atoms/SegmentedControl';
 import { BottomSheetHandle } from '@/components/molecules/BottomSheetHandle';
 import { WeaponSlotIcon } from '@/components/molecules/WeaponSlotIcon';
 import type { WeaponType } from '@/components/molecules/WeaponSlotIcon';
+import {
+  RUN_WORKSHOP_ITEMS,
+  type RunWorkshopKey,
+  type RunWorkshopLevels,
+} from '@/components/organisms/RunWorkshopBottomSheet/items';
 import type { BigNum } from '@/lib/bignum/BigNum';
 
 // ---------------------------------------------------------------------------
@@ -53,8 +58,13 @@ export interface BattleHudBottomProps {
   onOpenMenu: () => void;
   /** スクリーンセーバーを開く */
   onOpenScreenSaver: () => void;
-  /** ラン内ワークショップ (BottomSheet) を開く。ハンドルをタップで発火 */
-  onOpenWorkshop?: () => void;
+  /** ラン内ワークショップ (BottomSheet) の開閉状態。ハンドル tap で onToggleWorkshop が発火 */
+  isWorkshopOpen?: boolean;
+  onToggleWorkshop?: () => void;
+  /** ワークショップの現在 Lv (4 項目) */
+  workshopLevels?: RunWorkshopLevels;
+  /** ワークショップ強化ボタン押下時のコールバック */
+  onWorkshopUpgrade?: (key: RunWorkshopKey) => void;
 }
 
 // ---------------------------------------------------------------------------
@@ -77,7 +87,10 @@ export function BattleHudBottom({
   onTogglePause,
   onOpenMenu,
   onOpenScreenSaver,
-  onOpenWorkshop,
+  isWorkshopOpen = false,
+  onToggleWorkshop,
+  workshopLevels,
+  onWorkshopUpgrade,
 }: BattleHudBottomProps) {
   const activeOnCd = activeCd > 0;
   // 自動モード時はアクティブボタン無効
@@ -88,16 +101,48 @@ export function BattleHudBottom({
 
   return (
     <div className={styles.root}>
-      {/* BottomSheet ハンドル: tap でラン中ワークショップを開く */}
-      {onOpenWorkshop != null && (
+      {/* BottomSheet ハンドル: tap でラン中ワークショップ行を展開 / 収納 */}
+      {onToggleWorkshop != null && (
         <button
           type="button"
           className={styles.sheetHandleTrigger}
-          onClick={onOpenWorkshop}
-          aria-label="ラン中ワークショップを開く"
+          onClick={onToggleWorkshop}
+          aria-label={isWorkshopOpen ? 'ワークショップを閉じる' : 'ワークショップを開く'}
+          aria-expanded={isWorkshopOpen}
         >
-          <BottomSheetHandle />
+          <BottomSheetHandle dragging={isWorkshopOpen} />
         </button>
+      )}
+      {/* ワークショップ展開行: 武器ボタンの上に表示。各ボタンは Lv +1 で強化 */}
+      {isWorkshopOpen && (
+        <div
+          className={styles.workshopRow}
+          role="group"
+          aria-label="ラン中ワークショップ"
+        >
+          {RUN_WORKSHOP_ITEMS.map((item) => {
+            const lv = workshopLevels?.[item.key] ?? 0;
+            return (
+              <button
+                key={item.key}
+                type="button"
+                className={styles.workshopButton}
+                onClick={() => onWorkshopUpgrade?.(item.key)}
+                aria-label={`${item.title} 強化 (Lv ${lv})`}
+              >
+                <Icon
+                  name={item.iconName}
+                  size={18}
+                  color="var(--c-secondary)"
+                />
+                <span className={styles.workshopLabel}>
+                  {item.title.replace('倍率', '').replace(' 倍率', '')}
+                </span>
+                <span className={styles.workshopLv}>{`Lv ${lv}`}</span>
+              </button>
+            );
+          })}
+        </div>
       )}
       {/* ──── 上段: 武器スロット (中央) + アクティブ (右大円) ──── */}
       <div className={styles.topRow}>

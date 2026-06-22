@@ -122,6 +122,49 @@
   }
 }
 
+/* ワークショップ inline 展開行: 4 ボタン横並び、武器スロット行の **上** に挿入 */
+.workshopRow {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: var(--sp-xs);
+  padding: var(--sp-xs) var(--sp-m) 0;
+}
+
+.workshopButton {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding: 6px 4px;
+  background: var(--c-bg-elev);
+  border: 1px solid var(--c-border-faint);
+  border-radius: var(--r-s);
+  color: var(--c-text);
+  cursor: pointer;
+  transition: border-color var(--mo-fast) var(--ease-default),
+    background var(--mo-fast) var(--ease-default);
+
+  &:hover {
+    border-color: var(--c-secondary);
+    background: var(--c-surface);
+  }
+}
+
+.workshopLabel {
+  font-family: var(--ff-display);
+  font-size: 10px;
+  letter-spacing: var(--ls-loose);
+  text-transform: uppercase;
+  color: var(--c-text-mid);
+  white-space: nowrap;
+}
+
+.workshopLv {
+  font-family: var(--ff-numeric);
+  font-size: 10px;
+  color: var(--c-text-dim);
+}
+
 /* ──── 下段: 通貨 + 速度 + システム ──── */
 .bottomRow {
   display: flex;

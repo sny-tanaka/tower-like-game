@@ -11,8 +11,7 @@ import { BattleHudTop } from '@/components/organisms/BattleHudTop';
 import { BattleMenuOverlay } from '@/components/organisms/BattleMenuOverlay';
 import { ResultDialog } from '@/components/organisms/ResultDialog';
 import type { ResultReward, ResultStatus } from '@/components/organisms/ResultDialog';
-import { RunWorkshopBottomSheet } from '@/components/organisms/RunWorkshopBottomSheet';
-import type { RunWorkshopLevels } from '@/components/organisms/RunWorkshopBottomSheet';
+import type { RunWorkshopLevels } from '@/components/organisms/RunWorkshopBottomSheet/items';
 import { ScreenSaverDialog } from '@/components/organisms/ScreenSaverDialog';
 import { BigNum } from '@/lib/bignum/BigNum';
 import { useStore } from '@/store/index';
@@ -143,10 +142,10 @@ export function Page() {
     navigate('preparation');
   };
 
-  const handleWorkshopUpgrade = (key: keyof RunWorkshopLevels, delta: 1 | 5 | 'max') => {
+  const handleWorkshopUpgrade = (key: keyof RunWorkshopLevels) => {
     setRunWorkshopLevels((prev) => ({
       ...prev,
-      [key]: prev[key] + (delta === 'max' ? 1 : delta),
+      [key]: prev[key] + 1,
     }));
     // TODO: スクリーン購入処理は 8-8 で実装
   };
@@ -181,7 +180,6 @@ export function Page() {
             secondsRemaining={WAVE_SECONDS_REMAINING}
             secondsTotal={WAVE_SECONDS_TOTAL}
             isBossWave={currentWave === TOTAL_WAVES}
-            enemiesRemaining={DUMMY_ENEMIES_REMAINING}
           />
         }
         footer={
@@ -203,9 +201,12 @@ export function Page() {
             onTogglePause={handleTogglePause}
             onOpenMenu={handleOpenMenu}
             onOpenScreenSaver={handleOpenScreenSaver}
-            onOpenWorkshop={() => {
-              setIsWorkshopOpen(true);
+            isWorkshopOpen={isWorkshopOpen}
+            onToggleWorkshop={() => {
+              setIsWorkshopOpen((prev) => !prev);
             }}
+            workshopLevels={runWorkshopLevels}
+            onWorkshopUpgrade={handleWorkshopUpgrade}
           />
         }
       >
@@ -224,17 +225,6 @@ export function Page() {
         className={styles.overlayLayer}
         aria-live="polite"
       >
-        {/* ラン内ワークショップ */}
-        <RunWorkshopBottomSheet
-          open={isWorkshopOpen}
-          screw={screw}
-          levels={runWorkshopLevels}
-          onUpgrade={handleWorkshopUpgrade}
-          onClose={() => {
-            setIsWorkshopOpen(false);
-          }}
-        />
-
         {/* バトルメニュー */}
         <BattleMenuOverlay
           open={isMenuOpen}
