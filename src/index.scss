@@ -1,3 +1,127 @@
 // グローバルスタイルのエントリポイント。
 // 変数・mixin は _variables.scss で定義している。
 // 各コンポーネントは style.module.scss で @use 'variables' as var; して使う。
+
+// ============================================================
+// デザイントークン (CSS Custom Properties)
+// サイバーフューチャー調: ダーク基調 + ネオンシアン/紫グラデ
+// ============================================================
+:root {
+  // Background
+  --c-bg-deep: #020609;
+  --c-bg-base: #060d14;
+  --c-bg-elev: #0b1520;
+  --c-surface: #101e2e;
+
+  // Text
+  --c-text: #e8f4ff;
+  --c-text-mid: #8aaec8;
+  --c-text-dim: #4a6a85;
+  --c-text-disabled: #2a3d50;
+
+  // Primary (cyan)
+  --c-primary: #00d9ff;
+  --c-primary-hi: #66ecff;
+  --c-primary-deep: #007fa6;
+  --c-primary-bg: rgba(0, 217, 255, 0.12);
+
+  // Secondary (purple)
+  --c-secondary: #a855f7;
+  --c-secondary-hi: #c488ff;
+  --c-secondary-deep: #6b21d4;
+  --c-secondary-bg: rgba(168, 85, 247, 0.12);
+
+  // Semantic
+  --c-danger: #ff4444;
+  --c-success: #00e676;
+  --c-warning: #ffab00;
+
+  // Bar
+  --c-hp: #00e676;
+  --c-hp-low: #ff4444;
+  --c-cd: #00d9ff;
+  --c-wave: #ffab00;
+  --c-shield: #4fc3f7;
+
+  // Currency
+  --c-screw: #b0bec5;
+  --c-bolt: #ffab00;
+  --c-alloy: #a855f7;
+
+  // Border
+  --c-border: rgba(0, 217, 255, 0.2);
+  --c-border-mid: rgba(0, 217, 255, 0.35);
+
+  // Tier
+  --c-tier-1: #64b5f6;
+  --c-tier-2: #81c784;
+  --c-tier-3: #fff176;
+  --c-tier-4: #ffb74d;
+  --c-tier-5: #ff7043;
+  --c-tier-6: #ef5350;
+  --c-tier-7: #ec407a;
+  --c-tier-8: #ab47bc;
+  --c-tier-9: #7e57c2;
+  --c-tier-10: #42a5f5;
+
+  // Patch tier
+  --c-patch-t1: #64b5f6;
+  --c-patch-t2: #81c784;
+  --c-patch-t3: #fff176;
+  --c-patch-t4: #ffb74d;
+  --c-patch-t5: #ef5350;
+
+  // Font families
+  --ff-display: 'Chakra Petch', sans-serif;
+  --ff-body: 'Inter', sans-serif;
+  --ff-numeric: 'JetBrains Mono', monospace;
+
+  // Spacing
+  --sp-xxs: 2px;
+  --sp-xs: 4px;
+  --sp-s: 8px;
+  --sp-m: 12px;
+  --sp-l: 16px;
+  --sp-xl: 24px;
+  --sp-xxl: 32px;
+
+  // Radius
+  --r-xs: 2px;
+  --r-s: 4px;
+  --r-m: 8px;
+  --r-l: 12px;
+  --r-pill: 9999px;
+
+  // Shadow
+  --sh-low: 0 2px 4px rgba(0, 0, 0, 0.4);
+  --sh-mid: 0 4px 12px rgba(0, 0, 0, 0.6);
+  --sh-high: 0 8px 24px rgba(0, 0, 0, 0.8);
+
+  // Glow
+  --glow-cyan-sm: 0 0 6px rgba(0, 217, 255, 0.4);
+  --glow-cyan-md: 0 0 12px rgba(0, 217, 255, 0.6);
+  --glow-cyan-lg: 0 0 24px rgba(0, 217, 255, 0.8);
+  --glow-purple-sm: 0 0 6px rgba(168, 85, 247, 0.4);
+  --glow-purple-md: 0 0 12px rgba(168, 85, 247, 0.6);
+  --glow-purple-lg: 0 0 24px rgba(168, 85, 247, 0.8);
+
+  // Motion
+  --mo-fast: 120ms;
+  --mo-mid: 240ms;
+  --mo-slow: 400ms;
+  --mo-pulse: 1800ms;
+  --ease-default: cubic-bezier(0.4, 0, 0.2, 1);
+  --ease-in: cubic-bezier(0.4, 0, 1, 1);
+  --ease-out: cubic-bezier(0, 0, 0.2, 1);
+  --ease-back: cubic-bezier(0.34, 1.56, 0.64, 1);
+
+  // z-index
+  --z-base: 0;
+  --z-fx-field: 50;
+  --z-hud: 80;
+  --z-sheet: 100;
+  --z-dialog: 200;
+  --z-overlay: 300;
+  --z-toast: 400;
+  --z-screen-saver: 500;
+}
