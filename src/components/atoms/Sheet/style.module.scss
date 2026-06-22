@@ -1,0 +1,43 @@
+/* Sheet 固有 @keyframes — Fx 化しない */
+@keyframes slideIn {
+  from {
+    transform: translateY(100%);
+  }
+  to {
+    transform: translateY(0);
+  }
+}
+
+.sheet {
+  position: fixed;
+  z-index: var(--z-sheet);
+  left: 0;
+  right: 0;
+  bottom: 0;
+}
+
+.position-bottom {
+  /* bottom は .sheet で設定済み */
+}
+
+.backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  /* 背景は半透明にしない（Overlay を別途重ねる想定のため） */
+  background: transparent;
+}
+
+.content {
+  background: var(--c-bg-elev);
+  border-radius: var(--r-l) var(--r-l) 0 0;
+  box-shadow: var(--sh-high);
+  padding-bottom: max(env(safe-area-inset-bottom), 12px);
+  animation: slideIn var(--mo-slow) var(--ease-default) both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .content {
+    animation: none;
+  }
+}

@@ -1,0 +1,35 @@
+/* Overlay 固有 @keyframes — Fx 化しない */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.overlay {
+  position: fixed;
+  inset: 0;
+  z-index: var(--z-overlay);
+  /* --c-bg-deep (#04060d) の 70% 不透明 */
+  background: rgba(4, 6, 13, 0.7);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  animation: fadeIn var(--mo-mid) var(--ease-default) both;
+}
+
+.content {
+  /* 内側の Dialog 等を中央配置 */
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .overlay {
+    animation: none;
+  }
+}
