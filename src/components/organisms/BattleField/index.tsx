@@ -46,7 +46,7 @@ export interface DeathEvent {
 export interface BattleFieldProps {
   /** 表示中の敵リスト */
   enemies: SpawnedEnemy[];
-  /** マシン中心パーセント座標 (default: { x: 50, y: 90 }) */
+  /** マシン中心パーセント座標 (default: { x: 50, y: 50 } — THE TOWER オマージュで中央配置) */
   machinePosition?: { x: number; y: number };
   /** DamagePop 描画イベント */
   damageEvents: DamageEvent[];
@@ -121,7 +121,7 @@ function kindToColor(kind: EnemyKind): string {
  */
 export function BattleField({
   enemies,
-  machinePosition = { x: 50, y: 90 },
+  machinePosition = { x: 50, y: 50 },
   damageEvents,
   hitEvents,
   deathEvents,
@@ -142,14 +142,13 @@ export function BattleField({
       role="img"
       aria-label="バトルフィールド"
     >
-      {/* 索敵円 */}
+      {/* 索敵円（aspect-ratio: 1/1 で常に正円） */}
       <div
         className={styles.rangeCircle}
         style={{
           left: `${machineX}%`,
           top: `${machineY}%`,
           width: `${rangeDiameterPct}%`,
-          height: `${rangeDiameterPct}%`,
         }}
         aria-hidden
       />

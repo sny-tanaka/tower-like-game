@@ -18,6 +18,8 @@
   position: absolute;
   transform: translate(-50%, -50%);
   border-radius: 50%;
+  /* width 基準で正方形を維持（親の縦横比に依らず常に円） */
+  aspect-ratio: 1 / 1;
   border: 1px solid rgba(78, 228, 246, 0.25);
   background: radial-gradient(
     circle,
