@@ -1,45 +1,50 @@
 import { createContext, useCallback, useContext, useEffect, useState } from 'react';
-import type { ReactNode } from 'react';
+import type { ReactElement, ReactNode } from 'react';
 
-// 画面を discriminated union で型安全に表現する。
+// 画面を string literal union で型安全に表現する。
 // URL を増やさない方針: ゲーム / 単一画面ツール向けの SPA。
 // 新しい画面は Screen union をここに追加し、App.tsx の switch を増やす。
-export type Screen = { name: 'home' } | { name: 'notFound' };
+export type Screen =
+  | 'title'
+  | 'preparation'
+  | 'machine'
+  | 'armory'
+  | 'patches'
+  | 'settings'
+  | 'battle';
 
-export type ScreenName = Screen['name'];
-
-interface NavigationContextValue {
+export interface NavigationContextValue {
   screen: Screen;
-  navigate: (screen: Screen) => void;
+  navigate: (target: Screen) => void;
 }
 
 const NavigationContext = createContext<NavigationContextValue | null>(null);
 
-export const NavigationProvider = ({
+export function NavigationProvider({
   children,
   initialScreen,
 }: {
   children: ReactNode;
   initialScreen?: Screen;
-}) => {
-  const [screen, setScreen] = useState<Screen>(initialScreen ?? { name: 'home' });
+}): ReactElement {
+  const [screen, setScreen] = useState<Screen>(initialScreen ?? 'title');
 
-  const navigate = useCallback((next: Screen) => {
-    setScreen(next);
+  const navigate = useCallback((target: Screen) => {
+    setScreen(target);
   }, []);
 
   return (
     <NavigationContext.Provider value={{ screen, navigate }}>{children}</NavigationContext.Provider>
   );
-};
+}
 
-export const useNavigation = (): NavigationContextValue => {
+export function useNavigation(): NavigationContextValue {
   const ctx = useContext(NavigationContext);
   if (!ctx) {
     throw new Error('useNavigation は NavigationProvider の内部でのみ使用できます');
   }
   return ctx;
-};
+}
 
 /**
  * Redirect — render 中の遷移を安全に行うヘルパー。
@@ -49,8 +54,8 @@ export const useNavigation = (): NavigationContextValue => {
 export function Redirect({ to }: { to: Screen }) {
   const { screen, navigate } = useNavigation();
   useEffect(() => {
-    if (screen.name !== to.name) navigate(to);
-    // to は呼び出し側で固定リテラルのため name を依存にする
+    if (screen !== to) navigate(to);
+    // to は呼び出し側で固定リテラルのため依存に含める
   }, [screen, navigate, to]);
   return null;
 }
