@@ -162,6 +162,9 @@ export function Page() {
   const TOTAL_WAVES = 30;
   const WAVE_SECONDS_TOTAL = 30;
   const WAVE_SECONDS_REMAINING = 30;
+  // design ref と揃えて視覚装飾ピン (6 体) を残敵数として一旦表示する。
+  // 実バトル配線時にここを enemies.length へ差し替える。
+  const DUMMY_ENEMIES_REMAINING = 18;
 
   return (
     <div className={styles.root}>
@@ -178,7 +181,7 @@ export function Page() {
             secondsRemaining={WAVE_SECONDS_REMAINING}
             secondsTotal={WAVE_SECONDS_TOTAL}
             isBossWave={currentWave === TOTAL_WAVES}
-            enemiesRemaining={0}
+            enemiesRemaining={DUMMY_ENEMIES_REMAINING}
           />
         }
         footer={

@@ -1,5 +1,4 @@
 #!/usr/bin/env node
-/* eslint-env node */
 /**
  * src/**\/*.scss に書かれた `var(--xxx)` のうち、
  * src/styles/tokens.scss で定義されていない名前を使ってる箇所を検出して fail する。

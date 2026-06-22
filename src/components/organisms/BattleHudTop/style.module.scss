@@ -17,9 +17,9 @@
 /* ── 左カラム: Tier + HP ── */
 .leftCol {
   display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: var(--sp-xxs);
+  flex-direction: row;
+  align-items: center;
+  gap: var(--sp-xs);
   min-width: 0;
 }
 
@@ -55,12 +55,14 @@
   border: 0;
 }
 
-/* ── 右カラム: 残敵 + target アイコン ── */
+/* ── 右カラム: 残敵 + target アイコン (縦並び) ── */
 .rightCol {
   display: inline-flex;
+  flex-direction: column;
   align-items: center;
-  gap: var(--sp-xxs);
+  gap: 2px;
   flex-shrink: 0;
+  line-height: 1;
 }
 
 .enemiesNum {

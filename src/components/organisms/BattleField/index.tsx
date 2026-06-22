@@ -178,8 +178,8 @@ export function BattleField({
   const machineY = machinePosition.y;
 
   // 索敵円の直径は range の 2 倍（パーセント単位の縦幅を基準）
+  // design ref に合わせて 1 本のリングのみ描画
   const rangeDiameterPct = range * 2;
-  const innerRingDiameterPct = rangeDiameterPct * 0.45;
 
   return (
     <div
@@ -194,17 +194,6 @@ export function BattleField({
           left: `${machineX}%`,
           top: `${machineY}%`,
           width: `${rangeDiameterPct}%`,
-        }}
-        aria-hidden
-      />
-
-      {/* 内側のリング (デザイン演出用) */}
-      <div
-        className={styles.innerRing}
-        style={{
-          left: `${machineX}%`,
-          top: `${machineY}%`,
-          width: `${innerRingDiameterPct}%`,
         }}
         aria-hidden
       />
@@ -266,7 +255,7 @@ export function BattleField({
         );
       })}
 
-      {/* マシン (三角 + 二重リング) */}
+      {/* マシン (三角 + 単一リング) */}
       <div
         className={styles.machine}
         style={{
@@ -279,13 +268,9 @@ export function BattleField({
           className={styles.machineRingOuter}
           aria-hidden
         />
-        <span
-          className={styles.machineRingInner}
-          aria-hidden
-        />
         <Icon
           name="triangle"
-          size={28}
+          size={22}
           color="var(--c-primary)"
         />
       </div>

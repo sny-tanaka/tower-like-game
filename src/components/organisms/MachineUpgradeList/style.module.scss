@@ -3,6 +3,6 @@
 .root {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
-  gap: var(--sp-s);
+  gap: var(--sp-m);
   padding: var(--sp-m);
 }

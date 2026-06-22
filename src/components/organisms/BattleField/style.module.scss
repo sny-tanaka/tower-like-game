@@ -30,29 +30,18 @@
   z-index: var(--z-base);
 }
 
-/* 内側のリング (装飾) */
-.innerRing {
-  position: absolute;
-  transform: translate(-50%, -50%);
-  border-radius: 50%;
-  aspect-ratio: 1 / 1;
-  border: 1px dashed rgba(78, 228, 246, 0.18);
-  pointer-events: none;
-  z-index: var(--z-base);
-}
-
-/* ===== マシン (三角 + 二重リング) ===== */
+/* ===== マシン (三角 + 単一リング) ===== */
 .machine {
   position: absolute;
   transform: translate(-50%, -50%);
   z-index: 10;
   pointer-events: none;
-  width: 88px;
-  height: 88px;
+  width: 64px;
+  height: 64px;
   display: flex;
   align-items: center;
   justify-content: center;
-  filter: drop-shadow(var(--glow-cyan-md));
+  filter: drop-shadow(var(--glow-cyan-sm));
 }
 
 .machineRingOuter {
@@ -61,16 +50,8 @@
   border-radius: 50%;
   border: 1.5px solid var(--c-primary);
   box-shadow:
-    0 0 12px rgba(78, 228, 246, 0.6),
-    inset 0 0 12px rgba(78, 228, 246, 0.25);
-  pointer-events: none;
-}
-
-.machineRingInner {
-  position: absolute;
-  inset: 14px;
-  border-radius: 50%;
-  border: 1px solid rgba(78, 228, 246, 0.45);
+    0 0 10px rgba(78, 228, 246, 0.55),
+    inset 0 0 10px rgba(78, 228, 246, 0.2);
   pointer-events: none;
 }
 

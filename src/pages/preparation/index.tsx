@@ -30,21 +30,33 @@ const TABS: ReadonlyArray<TabBarItem<PreparationTab>> = [
 // Page
 // ---------------------------------------------------------------------------
 
+export interface PreparationPageProps {
+  /**
+   * 選択中 Tier の初期値。
+   * 未指定の場合は `highestTier`（最低 1）を初期値にする。
+   * Story / テストで挙動を固定したいときに利用する。
+   */
+  initialSelectedTier?: number;
+}
+
 /**
  * PreparationScreen — 出撃準備画面。
  *
  * 3 タブ（Tier 選択 / 初期装備武器 / パッチ確認）を TabBar で切替。
  * フッターは LaunchButton + BottomNav の 2 段固定。
  */
-export function Page() {
+export function Page(props: PreparationPageProps) {
+  const { initialSelectedTier } = props;
   const { navigate } = useNavigation();
 
   // アクティブなタブ
   const [activeTab, setActiveTab] = useState<PreparationTab>('tier');
 
-  // 選択中 Tier（初期値は highestTier or 1）
+  // 選択中 Tier（初期値は props > highestTier > 1 の優先順）
   const highestTier = useStore((s) => s.highestTier);
-  const [selectedTier, setSelectedTier] = useState<number>(Math.max(1, highestTier));
+  const [selectedTier, setSelectedTier] = useState<number>(
+    initialSelectedTier != null ? initialSelectedTier : Math.max(1, highestTier)
+  );
 
   // LaunchButton に渡すサマリー情報
   const initialWeapon = useStore((s) => s.initialWeapon);

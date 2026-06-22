@@ -18,9 +18,17 @@ const meta: Meta<typeof Page> = {
 export default meta;
 type Story = StoryObj<typeof Page>;
 
-/** デフォルト（全 Lv 0, ボルト 0） */
+/** デフォルト（全 Lv 0, ボルト 1.23B シード — design ref 準拠表示） */
 export const Default: Story = {
-  name: 'デフォルト — 全 Lv 0',
+  name: 'デフォルト — 全 Lv 0 (ボルト 1.23B)',
+  decorators: [
+    (Story) => {
+      const { addBolt } = useStore.getState();
+      // 1.23B 表示 (BigNum: B = 1e6 tier) → 1.23 × 1_000_000 = 1_230_000
+      addBolt(BigNum.fromNumber(1_230_000));
+      return <Story />;
+    },
+  ],
 };
 
 /** ボルト豊富（全項目 +1 可能） */

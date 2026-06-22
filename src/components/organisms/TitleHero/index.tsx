@@ -5,18 +5,18 @@ import { Icon } from '@/components/atoms/Icon';
 export interface TitleHeroProps {
   /** ヒーロー全体サイズ (px)。default 180 */
   size?: number;
-  /** 中央アイコン名。default 'tower' */
-  iconName?: 'tower' | 'shield' | 'laser' | 'spark';
+  /** 中央アイコン名。default 'triangle' */
+  iconName?: 'triangle' | 'tower' | 'shield' | 'laser' | 'spark';
 }
 
 /**
  * TitleHero — タイトル画面の中央エンブレム Organism
  *
  * 同心円リング (cyan dashed / purple dotted / radial glow) と
- * 4 隅のアクセント、中央のタワーアイコンを重ねた静的な紋章。
+ * 4 隅のアクセント、中央の三角形アイコンを重ねた静的な紋章。
  * デザインは [TitleScreen.html] の `hero` 部分に準拠。
  */
-export function TitleHero({ size = 180, iconName = 'tower' }: TitleHeroProps) {
+export function TitleHero({ size = 180, iconName = 'triangle' }: TitleHeroProps) {
   return (
     <div
       className={styles.root}

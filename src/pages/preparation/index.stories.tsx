@@ -20,6 +20,9 @@ type Story = StoryObj<typeof Page>;
 
 /** デフォルト: T10 まで開放済 + T7 選択中 + 通貨 3 種に値あり (design ref と同条件) */
 export const Default: Story = {
+  args: {
+    initialSelectedTier: 7,
+  },
   decorators: [
     (Story) => {
       const { addBolt, addAlloy, addScrew, updateHighest } = useStore.getState();

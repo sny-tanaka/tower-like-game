@@ -112,15 +112,27 @@ export function PatchEquipTab({
     // 空きスロットは今後 PatchInventoryTab と連携 (現状は何もしない)
   };
 
+  const lockedCount = MAX_PATCH_SLOTS - unlockedCount;
+
   return (
     <div className={styles.root}>
       <div className={styles.header}>
-        <Text variant="heading-3">装着スロット</Text>
+        <div className={styles.headerTitleRow}>
+          <Text variant="heading-3">装着スロット</Text>
+          <Text
+            variant="caption"
+            color="mid"
+            className={styles.headerCount}
+          >
+            {equipped.size}/{unlockedCount}
+          </Text>
+        </div>
         <Text
           variant="caption"
           color="dim"
         >
-          {equipped.size} / {unlockedCount} 装着中
+          ({MAX_PATCH_SLOTS} スロット中 {lockedCount} ロック・{equipped.size} / {unlockedCount}{' '}
+          装着中)
         </Text>
       </div>
 

@@ -1,9 +1,15 @@
 @use 'variables' as var;
 
 // フッター 2 段（LaunchButton + BottomNav）のラッパー
+// 上段: LaunchButton (自前で blur + 上罫線を持つ)
+// 下段: BottomNav (固定タブバー)
+// AppShell.footer 側の safe-area padding に加え、2 段確実に見切れないよう
+// 最小限の下余白を担保する。
 .footer {
   display: flex;
   flex-direction: column;
+  // BottomNav タブラベルが下端で切れないよう safe-area の保険
+  padding-bottom: env(safe-area-inset-bottom, 0);
 }
 
 // タブコンテンツのスクロール領域

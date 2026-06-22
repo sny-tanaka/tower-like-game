@@ -7,8 +7,29 @@
 
 .header {
   display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--sp-xxs);
+}
+
+.headerTitleRow {
+  display: flex;
   align-items: baseline;
   gap: var(--sp-s);
+}
+
+.headerCount {
+  display: inline-flex;
+  align-items: center;
+  padding: 1px var(--sp-xs);
+  background: var(--c-primary-bg);
+  border: 1px solid var(--c-primary);
+  border-radius: var(--r-pill);
+  color: var(--c-primary);
+  font-family: var(--ff-numeric);
+  font-weight: var(--fw-semibold);
+  letter-spacing: var(--ls-num);
+  line-height: 1;
 }
 
 .slotGrid {

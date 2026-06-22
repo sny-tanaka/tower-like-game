@@ -1,8 +1,8 @@
 .root {
   display: flex;
   flex-direction: column;
-  gap: 7px;
-  padding: 10px 10px 8px;
+  gap: 10px;
+  padding: 14px 12px 12px;
   background: var(--c-bg-elev);
   border: 1px solid var(--c-border-faint);
   border-radius: var(--r-m);
@@ -14,13 +14,13 @@
 .header {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 8px;
   min-width: 0;
 }
 
 .iconWrap {
-  width: 24px;
-  height: 24px;
+  width: 26px;
+  height: 26px;
   border-radius: var(--r-xs);
   background: var(--c-bg-base);
   border: 1px solid var(--c-border-faint);
@@ -34,7 +34,7 @@
   flex: 1;
   min-width: 0;
   font-family: var(--ff-display);
-  font-size: 12.5px;
+  font-size: 13.5px;
   font-weight: var(--fw-semibold);
   line-height: 1.2;
   color: var(--c-text);
@@ -72,7 +72,7 @@
 
 .valueBefore {
   font-family: var(--ff-numeric);
-  font-size: 12px;
+  font-size: 13px;
   font-weight: var(--fw-medium);
   color: var(--c-text-dim);
   flex: 0 1 auto;
@@ -81,7 +81,7 @@
 
 .valueAfter {
   font-family: var(--ff-numeric);
-  font-size: 13.5px;
+  font-size: 15px;
   font-weight: var(--fw-semibold);
   letter-spacing: var(--ls-num);
   line-height: var(--lh-tight);
@@ -109,10 +109,10 @@
 
 /* === ボタン本体 === */
 .btn {
-  height: 24px;
-  padding: 0 2px;
+  height: 28px;
+  padding: 0 4px;
   font-family: var(--ff-display);
-  font-size: 10.5px;
+  font-size: 11px;
   font-weight: var(--fw-semibold);
   letter-spacing: 0.04em;
   text-transform: uppercase;
@@ -180,8 +180,8 @@
 
 .costNum {
   font-family: var(--ff-numeric);
-  font-size: 11px;
-  font-weight: var(--fw-medium);
+  font-size: 11.5px;
+  font-weight: var(--fw-semibold);
   line-height: 1;
   color: var(--c-text);
   white-space: nowrap;

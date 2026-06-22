@@ -80,11 +80,11 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  border-radius: var(--r-m);
-  background: linear-gradient(135deg, rgba(78, 228, 246, 0.12), rgba(78, 228, 246, 0.02));
-  border: 1px solid rgba(78, 228, 246, 0.35);
+  border-radius: var(--r-l);
+  background: linear-gradient(135deg, rgba(78, 228, 246, 0.22), rgba(78, 228, 246, 0.06));
+  border: 1.5px solid rgba(78, 228, 246, 0.55);
   color: var(--c-primary);
-  filter: drop-shadow(0 0 6px rgba(78, 228, 246, 0.45));
+  filter: drop-shadow(0 0 8px rgba(78, 228, 246, 0.5));
   flex-shrink: 0;
 }
 
@@ -142,11 +142,11 @@
 .statChip {
   display: flex;
   flex-direction: column;
-  gap: 2px;
-  padding: 4px 8px;
-  background: var(--c-bg-base);
-  border: 1px solid var(--c-border-faint);
-  border-radius: var(--r-xs);
+  gap: 3px;
+  padding: 6px 10px;
+  background: var(--c-bg-deep);
+  border: 1px solid var(--c-border);
+  border-radius: var(--r-s);
   min-width: 0;
 }
 
@@ -159,8 +159,8 @@
 
 .statValue {
   font-family: var(--ff-numeric);
-  font-size: 14px;
-  font-weight: var(--fw-semibold);
+  font-size: 15px;
+  font-weight: 600;
   letter-spacing: var(--ls-num);
   color: var(--c-text);
   line-height: 1.1;
