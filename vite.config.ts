@@ -58,6 +58,7 @@ export default defineConfig({
     alias: {
       '@': path.resolve(__dirname, './src'),
     },
+    dedupe: ['react', 'react-dom'],
   },
   css: {
     preprocessorOptions: {
@@ -81,5 +82,12 @@ export default defineConfig({
     css: true,
     // 並列実装中の他 agent 用 worktree を走査対象から除外（自分のリポでの test/lint 二重スキャンを防止）
     exclude: ['node_modules', 'dist', 'docs', '.claude/worktrees/**'],
+    server: {
+      deps: {
+        // worktree に部分的な node_modules が存在する場合に React 重複を防止するため
+        // react / react-dom / zustand を vite のモジュールグラフでバンドルする
+        inline: ['react', 'react-dom', 'zustand'],
+      },
+    },
   },
 });
