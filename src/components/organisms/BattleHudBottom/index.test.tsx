@@ -93,22 +93,24 @@ describe('BattleHudBottom', () => {
   });
 
   describe('手動/自動トグル', () => {
-    it('isAutoActive=false のとき Toggle は未チェック状態', () => {
+    it('isAutoActive=false のとき MANUAL ラベルの切替ボタンは未押下状態', () => {
       render(<BattleHudBottom {...makeProps({ isAutoActive: false })} />);
-      const toggle = screen.getByRole('switch', { name: /自動/i });
-      expect(toggle).toHaveAttribute('aria-checked', 'false');
+      const toggle = screen.getByRole('button', { name: /自動モードに切り替え/ });
+      expect(toggle).toHaveAttribute('aria-pressed', 'false');
+      expect(toggle).toHaveTextContent('MANUAL');
     });
 
-    it('isAutoActive=true のとき Toggle はチェック状態', () => {
+    it('isAutoActive=true のとき AUTO ラベルの切替ボタンは押下状態', () => {
       render(<BattleHudBottom {...makeProps({ isAutoActive: true })} />);
-      const toggle = screen.getByRole('switch', { name: /自動/i });
-      expect(toggle).toHaveAttribute('aria-checked', 'true');
+      const toggle = screen.getByRole('button', { name: /手動モードに切り替え/ });
+      expect(toggle).toHaveAttribute('aria-pressed', 'true');
+      expect(toggle).toHaveTextContent('AUTO');
     });
 
-    it('Toggle をクリックすると onToggleAuto が呼ばれる', async () => {
+    it('切替ボタンをクリックすると onToggleAuto(!isAutoActive) が呼ばれる', async () => {
       const onToggleAuto = vi.fn();
-      render(<BattleHudBottom {...makeProps({ onToggleAuto })} />);
-      const toggle = screen.getByRole('switch', { name: /自動/i });
+      render(<BattleHudBottom {...makeProps({ onToggleAuto, isAutoActive: false })} />);
+      const toggle = screen.getByRole('button', { name: /自動モードに切り替え/ });
       await userEvent.click(toggle);
       expect(onToggleAuto).toHaveBeenCalledWith(true);
     });

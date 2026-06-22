@@ -203,6 +203,9 @@ export function Page() {
             onTogglePause={handleTogglePause}
             onOpenMenu={handleOpenMenu}
             onOpenScreenSaver={handleOpenScreenSaver}
+            onOpenWorkshop={() => {
+              setIsWorkshopOpen(true);
+            }}
           />
         }
       >

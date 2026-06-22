@@ -5,7 +5,7 @@ import { CurrencyAmount } from '@/components/atoms/CurrencyAmount';
 import { Icon } from '@/components/atoms/Icon';
 import { IconButton } from '@/components/atoms/IconButton';
 import { SegmentedControl } from '@/components/atoms/SegmentedControl';
-import { Toggle } from '@/components/atoms/Toggle';
+import { BottomSheetHandle } from '@/components/molecules/BottomSheetHandle';
 import { WeaponSlotIcon } from '@/components/molecules/WeaponSlotIcon';
 import type { WeaponType } from '@/components/molecules/WeaponSlotIcon';
 import type { BigNum } from '@/lib/bignum/BigNum';
@@ -53,6 +53,8 @@ export interface BattleHudBottomProps {
   onOpenMenu: () => void;
   /** スクリーンセーバーを開く */
   onOpenScreenSaver: () => void;
+  /** ラン内ワークショップ (BottomSheet) を開く。ハンドルをタップで発火 */
+  onOpenWorkshop?: () => void;
 }
 
 // ---------------------------------------------------------------------------
@@ -75,6 +77,7 @@ export function BattleHudBottom({
   onTogglePause,
   onOpenMenu,
   onOpenScreenSaver,
+  onOpenWorkshop,
 }: BattleHudBottomProps) {
   const activeOnCd = activeCd > 0;
   // 自動モード時はアクティブボタン無効
@@ -85,6 +88,17 @@ export function BattleHudBottom({
 
   return (
     <div className={styles.root}>
+      {/* BottomSheet ハンドル: tap でラン中ワークショップを開く */}
+      {onOpenWorkshop != null && (
+        <button
+          type="button"
+          className={styles.sheetHandleTrigger}
+          onClick={onOpenWorkshop}
+          aria-label="ラン中ワークショップを開く"
+        >
+          <BottomSheetHandle />
+        </button>
+      )}
       {/* ──── 上段: 武器スロット (中央) + アクティブ (右大円) ──── */}
       <div className={styles.topRow}>
         {/* 武器スロット × 4 */}
@@ -131,26 +145,22 @@ export function BattleHudBottom({
             </CircularProgress>
           </button>
 
-          {/* MANUAL / AUTO ラベル */}
-          <span
-            className={[styles.modeLabel, isAutoActive ? styles.modeLabelAuto : '']
+          {/* MANUAL / AUTO 切替ボタン (pill 形・click で toggle) */}
+          <button
+            type="button"
+            className={[styles.modeToggle, isAutoActive ? styles.modeToggleOn : '']
               .filter(Boolean)
               .join(' ')}
-            aria-hidden
+            onClick={() => onToggleAuto(!isAutoActive)}
+            aria-pressed={isAutoActive}
+            aria-label={
+              isAutoActive
+                ? 'アクティブスキルを手動モードに切り替え'
+                : 'アクティブスキルを自動モードに切り替え'
+            }
           >
             {isAutoActive ? 'AUTO' : 'MANUAL'}
-          </span>
-
-          {/* 自動 Toggle (a11y / テスト用に維持。design.png に合わせ visually-hidden) */}
-          <div className={styles.toggleHidden}>
-            <Toggle
-              checked={isAutoActive}
-              onChange={onToggleAuto}
-              label="自動"
-              size="sm"
-              accent="secondary"
-            />
-          </div>
+          </button>
         </div>
       </div>
 
