@@ -1,0 +1,61 @@
+.wrapper {
+  display: block;
+}
+
+.card {
+  min-height: 52px;
+}
+
+/* 空スロット */
+.empty {
+  .card {
+    border-style: dashed;
+    background: transparent;
+    opacity: 0.6;
+  }
+}
+
+.emptyContent {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 36px;
+}
+
+/* 装着中 */
+.filled {
+  .card {
+    border-color: var(--c-border);
+  }
+}
+
+.filledContent {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-s);
+  position: relative;
+}
+
+.patchIcon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: var(--r-xs);
+  background: var(--c-surface);
+  flex-shrink: 0;
+}
+
+.patchInfo {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-xxs);
+  flex: 1;
+  min-width: 0;
+}
+
+.removeBtn {
+  flex-shrink: 0;
+  margin-left: auto;
+}

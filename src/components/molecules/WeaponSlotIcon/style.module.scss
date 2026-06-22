@@ -1,0 +1,71 @@
+.root {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 52px;
+  height: 52px;
+  min-width: 44px;
+  min-height: 44px;
+  border-radius: var(--r-m);
+  background: var(--c-surface);
+  border: 1px solid var(--c-border);
+  cursor: pointer;
+  padding: 0;
+  transition:
+    background-color var(--mo-fast),
+    box-shadow var(--mo-fast),
+    border-color var(--mo-fast);
+
+  &:hover:not(:disabled) {
+    background: var(--c-surface-hi);
+    border-color: var(--c-border-hi);
+  }
+
+  &:disabled {
+    cursor: not-allowed;
+    opacity: 0.4;
+  }
+}
+
+.equipped {
+  border-color: var(--c-primary);
+  box-shadow: var(--glow-cyan-md);
+  background: var(--c-primary-bg);
+}
+
+.onCd {
+  .iconWrap {
+    opacity: 0.4;
+  }
+}
+
+.iconWrap {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+}
+
+.cdOverlay {
+  position: absolute;
+  inset: 0;
+  border-radius: var(--r-m);
+  background: rgba(0, 0, 0, 0.45);
+  pointer-events: none;
+}
+
+.cdProgress {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .root {
+    transition: none;
+  }
+}
