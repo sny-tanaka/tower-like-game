@@ -1,0 +1,38 @@
+.root {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+/* カテゴリセクション */
+.section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+/* カテゴリ小見出し */
+.categoryHeader {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: 0 var(--space-1);
+}
+
+/* ◇ アクセントダイアモンド */
+.categoryDiamond {
+  display: inline-block;
+  width: 5px;
+  height: 5px;
+  background: var(--c-primary);
+  box-shadow: var(--glow-cyan-sm);
+  transform: rotate(45deg);
+  flex-shrink: 0;
+}
+
+/* 2 列グリッド */
+.grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: var(--space-2);
+}
