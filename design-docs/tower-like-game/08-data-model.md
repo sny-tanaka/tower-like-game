@@ -60,12 +60,16 @@ type ProfileRecord = {
 ラン中通貨「ネジ」は永続化しないので含めない。
 
 ```ts
+import type { BigNumJSON } from '@/lib/bignum';
+
 type CurrenciesRecord = {
   id: 'singleton';
-  bolt: number;    // ボルト
-  alloy: number;   // 超合金
+  bolt: BigNumJSON;    // ボルト（無限スケールのため BigNumJSON = number[]）
+  alloy: BigNumJSON;   // 超合金
 };
 ```
+
+> インフレ対象の数値は `number` ではなく `BigNumJSON` (= `number[]`、3 桁ブロック配列) で保存する。詳細は [11-bignum.md](./11-bignum.md) 参照。
 
 ### `machine`
 
