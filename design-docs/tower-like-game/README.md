@@ -29,6 +29,7 @@
 | 10 | [10-component-architecture.md](10-component-architecture.md) | Atomic Design ベースのコンポーネント設計と命名規則 |
 | 11 | [11-bignum.md](11-bignum.md) | 無限桁数値管理（3 桁ブロック配列 BigNum、分数経由で小数倍率も精密） |
 | 12 | [12-sounds.md](12-sounds.md) | サウンドエフェクト / BGM 一覧と実装優先度（🔴 必須 / 🟡 あると嬉しい / 🟢 後回し）|
+| 13 | [13-design-handoff.md](13-design-handoff.md) | claude design からのハンドオフ規約（Layout / 110 トークン / Fx API / 画面 × Organism マップ / 実装チェックリスト）|
 
 ## 設計の核（一文要約）
 
