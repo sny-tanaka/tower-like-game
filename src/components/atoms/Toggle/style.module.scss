@@ -45,7 +45,7 @@ $knob-offset-sm: 3px;
   flex-shrink: 0;
 
   &.off {
-    background: var(--c-border-mid, var(--c-border));
+    background: var(--c-border);
     box-shadow: none;
   }
 
@@ -67,7 +67,7 @@ $knob-offset-sm: 3px;
 
   // accent=disabled は常にグレー (glow なし)
   &.accent_disabled {
-    background: var(--c-border-mid, var(--c-border));
+    background: var(--c-border);
     box-shadow: none;
   }
 

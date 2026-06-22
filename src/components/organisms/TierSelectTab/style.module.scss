@@ -1,26 +1,26 @@
 .wrapper {
   display: flex;
   flex-direction: column;
-  gap: var(--sp-3);
+  gap: var(--sp-m);
 }
 
 .header {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: var(--sp-2);
+  gap: var(--sp-s);
 }
 
 .grid {
   display: grid;
   grid-template-columns: repeat(5, 1fr);
-  gap: var(--sp-2);
+  gap: var(--sp-s);
 }
 
 .tierBtn {
   position: relative;
   aspect-ratio: 1;
-  padding: var(--sp-1);
+  padding: var(--sp-xs);
   background: var(--c-bg-elev);
   border: 1px solid var(--c-border);
   border-radius: var(--r-s);

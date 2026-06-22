@@ -71,6 +71,7 @@ export function Page() {
       header={
         <PageHeader
           title="設定"
+          onBack={() => navigate('title')}
           currencies={[]}
           tabBar={
             <TabBar

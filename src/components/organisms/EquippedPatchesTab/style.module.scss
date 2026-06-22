@@ -1,13 +1,13 @@
 .wrapper {
   display: flex;
   flex-direction: column;
-  gap: var(--sp-3);
+  gap: var(--sp-m);
 }
 
 .header {
   display: flex;
   align-items: center;
-  gap: var(--sp-2);
+  gap: var(--sp-s);
 }
 
 .headerLabel {
@@ -16,14 +16,14 @@
 }
 
 .empty {
-  padding: var(--sp-6);
+  padding: var(--sp-xl);
   background: var(--c-bg-elev);
   border: 1px dashed var(--c-border);
   border-radius: var(--r-m);
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: var(--sp-2);
+  gap: var(--sp-s);
 }
 
 .emptyIcon {
@@ -33,10 +33,10 @@
 .grid {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
-  gap: var(--sp-2);
+  gap: var(--sp-s);
 }
 
 .note {
   font-size: 11px;
-  margin-top: var(--sp-1);
+  margin-top: var(--sp-xs);
 }

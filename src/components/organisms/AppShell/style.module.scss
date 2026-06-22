@@ -1,3 +1,7 @@
+/* claude design ref と同じ全画面背景パターン:
+   - 上端から cyan radial / 下端から purple radial の vignette
+   - 40px 間隔の薄い cyan grid (default) / 24px (battle)
+   - ベースは --c-bg-deep (#04060d) */
 .shell {
   display: flex;
   flex-direction: column;
@@ -6,8 +10,13 @@
   max-height: 100dvh;
   max-height: 100vh; /* フォールバック */
   overflow: hidden;
-  background: var(--c-bg-base);
   color: var(--c-text);
+  background:
+    radial-gradient(ellipse at 50% 0%, rgba(78, 228, 246, 0.06), transparent 60%),
+    radial-gradient(ellipse at 50% 100%, rgba(169, 107, 255, 0.05), transparent 60%),
+    linear-gradient(rgba(78, 228, 246, 0.025) 1px, transparent 1px) 0 0 / 40px 40px,
+    linear-gradient(90deg, rgba(78, 228, 246, 0.025) 1px, transparent 1px) 0 0 / 40px 40px,
+    var(--c-bg-deep);
 }
 
 /* header */
@@ -50,7 +59,12 @@
   padding-right: max(env(safe-area-inset-right), 0px);
 }
 
-/* battle variant: グリッドを密に */
-.battle .main {
-  background: var(--c-bg-deep);
+/* battle variant: グリッドを密 (24px) + cyan 線をやや濃く */
+.shell.battle {
+  background:
+    radial-gradient(ellipse at 50% 0%, rgba(78, 228, 246, 0.06), transparent 60%),
+    radial-gradient(ellipse at 50% 100%, rgba(169, 107, 255, 0.05), transparent 60%),
+    linear-gradient(rgba(78, 228, 246, 0.05) 1px, transparent 1px) 0 0 / 24px 24px,
+    linear-gradient(90deg, rgba(78, 228, 246, 0.05) 1px, transparent 1px) 0 0 / 24px 24px,
+    var(--c-bg-deep);
 }

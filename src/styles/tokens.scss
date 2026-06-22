@@ -43,6 +43,7 @@
 
   /* ========== Color: semantic ========== */
   --c-danger:      #ff4d6d;
+  --c-danger-raw:  255, 77, 109;  /* rgba() で alpha 付きに使う用 */
   --c-danger-deep: #c4253d;
   --c-success:     #46e2a0;
   --c-warning:     #f6b94a;
