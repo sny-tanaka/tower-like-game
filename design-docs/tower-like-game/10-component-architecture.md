@@ -11,7 +11,7 @@
 |---|---|---|
 | **Atom** | これ以上分解しない最小単位。UI Primitive | Button, Icon, Text, Bar, Tab |
 | **Molecule** | 複数 Atom の組合せ。1 機能だが状態は外から渡される | UpgradeCard, PatchCard, WeaponSlotIcon |
-| **Organism** | 複数 Molecule の塊。1 つのドメイン機能を担う | RunWorkshopBottomSheet, MachineUpgradeTabs, BattleHUD |
+| **Organism** | 複数 Molecule の塊。1 つのドメイン機能を担う | RunWorkshopBottomSheet, MachineUpgradeList, BattleHudBottom |
 | **Page** | 画面 1 枚に対応。Organism を配置し、状態（store / props）を流し込む | BattleScreen, MachineScreen, TitleScreen |
 
 ### コンポーネントの責務ルール
@@ -32,8 +32,8 @@
 | `IconButton` | icon, label (aria), size, disabled, onClick | アイコンのみのタップターゲット |
 | `Icon` | name, size, color | SVG アイコン |
 | `Text` | variant (heading/body/caption/label), children | 文字列 |
-| `NumericDisplay` | value, unit (アルファベット表記対応), decimals | 数値（K/M/B ではなく A/B/C... 表記） |
-| `CurrencyAmount` | currency (screw/bolt/alloy), value | 通貨 + 値（アイコン込み） |
+| `NumericDisplay` | value, size, accentColor (`scale` 既定 / `primary` / `secondary` / `danger`), glow, style | 数値表示（A→B→…→Z→AA アルファベット表記）。既定 `accentColor='scale'` で桁ごとに動的色（A=cyan H195 → Z=purple H295 を oklch 線形補間）。表示上限は **10 桁 (例: `150.5B`)** を最大長として、UpgradeCard 等のコンパクトレイアウトはこの長さに収まるよう設計 |
+| `CurrencyAmount` | currency (screw/bolt/alloy), value, size, delta | 通貨アイコン + 値 |
 | `ProgressBar` | value, max, color (hp/cd/wave/etc) | バー |
 | `CircularProgress` | value, max, size | クールタイム用円弧 |
 | `Badge` | text, color | エリート/ボス/Tier 表示 |
@@ -55,22 +55,22 @@
 | Atom | props | 用途 |
 |---|---|---|
 | `Card` | children | 一般的なカード枠 |
-| `Sheet` | children | ボトムシート / オーバーレイの素地 |
-| `Overlay` | onClose, children | 全画面オーバーレイ（背景タップで close） |
+| `Sheet` | children | ボトムシート / オーバーレイの素地。**スライドインの `@keyframes` は本コンポーネント内に持つ**（Fx 化しない） |
+| `Overlay` | onClose, children | 全画面ディムバックドロップ（背景タップで close）。**フェードの `@keyframes` は本コンポーネント内**。「閉じる × ボタン」は Overlay の責務ではなく内側の Dialog の責務 |
 
 ## Molecule 一覧
 
 | Molecule | 構成 | 用途 |
 |---|---|---|
-| `UpgradeCard` | Text + NumericDisplay + Button×3(+1/+5/Max) + CurrencyAmount | マシン強化項目 1 つ、武器強化 1 つ、ラン中 WS 項目 1 つ |
+| `UpgradeCard` | Text + NumericDisplay + Button×3(+1/+5/Max) + コスト数値 | マシン強化項目 1 つ、武器強化 1 つ、ラン中 WS 項目 1 つ。**ボタン下のコスト表示に通貨アイコンは付けない**（カード単位で通貨が固定のため。セクション見出しまたは accent 色で通貨が分かる前提） |
 | `PatchCard` | Icon + Text + Badge(Tier) + NumericDisplay(count) | パッチ 1 種 |
 | `WeaponSlotIcon` | Icon + Badge(現装備) + CircularProgress(CD) | バトル下 HUD の武器切替アイコン 1 つ |
-| `WeaponPreview` | Icon + Text + NumericDisplay×複数 | 出撃準備の武器選択タブ、武器庫の武器詳細タブ |
+| `WeaponPreview` | Icon + Text + NumericDisplay×複数 | 出撃準備の武器選択、武器庫の武器詳細表示。**`locked` 状態は持たない（武器は全解放仕様）** |
 | `PatchSlot` | Card + PatchCard or 空表示 | 装着スロット 1 個 |
 | `EnemyHpBar` | Text + ProgressBar | エリート/ボスの HP バー |
 | `WaveProgressBar` | ProgressBar + Badge(milestone) | ウェーブ残り秒数 |
 | `TabBar` | Tab × N | 画面内タブ |
-| `ConfirmDialog` | Text + Button×2 (yes/no) | 撤退確認・リセット確認 |
+| `ConfirmDialog` | Text + Button×2 (yes/no) | 撤退確認・リセット確認。`variant='danger'` 時は赤発光 |
 | `Toast` | Text + Icon (info/error) | 一時通知 |
 | `BottomSheetHandle` | Icon | ボトムシートのドラッグハンドル |
 
@@ -80,9 +80,9 @@
 
 | Organism | 役割 |
 |---|---|
-| `AppShell` | 全画面のスケルトン（背景 / safe-area / 共通ヘッダ） |
-| `PageHeader` | 画面タイトル + 戻る + 通貨表示（その画面で使うもののみ） |
-| `MainNav` | 出撃準備画面からマシン強化 / 武器庫 / パッチ庫 / 設定 / タイトルへの導線 |
+| `AppShell` | 全画面のスケルトン（背景 / safe-area / `header` / `main` (scrollable) / `footer` のスロット）。`height: 100vh` で画面高さ固定、`<main>` は flex column + `overflow: auto`、フッタに `BottomNav` を集約 |
+| `PageHeader` | 画面タイトル + 戻る + 通貨表示（その画面で使うもののみ）。TabBar とまとめて backdrop-filter blur で半透明固定 |
+| `BottomNav` | **標準モバイル風 5 タブ**（出撃準備 / マシン / 武器庫 / パッチ / 設定）。BattleScreen / TitleScreen 以外の全画面で `AppShell.footer` に固定 |
 
 ### 出撃準備画面 (`PreparationScreen`)
 
@@ -97,14 +97,15 @@
 
 | Organism | 役割 |
 |---|---|
-| `MachineUpgradeTabs` | 防御 / 攻撃 / アクティブ / 経済 / スロットの 5 タブ |
-| `MachineUpgradeList` | 該当タブの UpgradeCard リスト |
+| `MachineUpgradeList` | **全 16 項目混在の 2 列リスト**（カテゴリタブで分けず、スクロールで一覧）。`UpgradeCard` を配置 |
+
+> 仕様書初版では「防御 / 攻撃 / アクティブ / 経済 / スロット」の 5 タブ構成だったが、カテゴリ毎に項目数が偏るためタブ分けは冗長と判断し、デザイン段階で**タブを廃止**。全項目を 1 画面に混在表示。
 
 ### 武器庫画面 (`ArmoryScreen`)
 
 | Organism | 役割 |
 |---|---|
-| `WeaponDetailsTab` | 4 武器の WeaponPreview を切替 |
+| `WeaponDetailsTab` | **4 武器の WeaponPreview を縦並びで全部表示**（武器ごとの情報量が少ないためタブ内タブを廃止、スクロールで OK） |
 | `WeaponLevelUpgradeTab` | 共通武器強化 Lv の UpgradeCard |
 
 ### パッチ庫画面 (`PatchScreen`)
@@ -129,10 +130,10 @@
 |---|---|
 | `BattleField` | マシン + 敵 + 攻撃エフェクト + 索敵円の描画レイヤ |
 | `BattleHudTop` | HP バー + Tier + Wave + WaveProgressBar |
-| `BattleHudBottom` | ネジ + WeaponSlotIcon×4 + ActiveSkillButton + 速度 + 一時停止 + メニュー + スクリーンセーバー |
+| `BattleHudBottom` | ネジ + WeaponSlotIcon×4 + ActiveSkillButton（**直下に「アクティブ手動/自動」トグル**） + 速度 + 一時停止 + メニュー + スクリーンセーバー（アイコンは `ice`） |
 | `RunWorkshopBottomSheet` | 4 つの UpgradeCard |
-| `BattleMenuOverlay` | 撤退 / 手動・自動切替 / 簡易音量 |
-| `ResultDialog` | ヘッダ + 統計 + 獲得 + Button×2 |
+| `BattleMenuOverlay` | 撤退 / 簡易音量（**手動/自動 切替はここから移動、BattleHudBottom 内に常駐**） |
+| `ResultDialog` | ヘッダ + 統計 + 獲得 + **「出撃準備へ」ボタン 1 つ**（タイトル戻りは BottomNav 経由） |
 | `ScreenSaverDialog` | フルスクリーンアニメ + タップ復帰 |
 
 ### タイトル画面 (`TitleScreen`)
@@ -144,8 +145,16 @@
 
 ## Fx コンポーネント
 
-アニメーション・演出・エフェクトは **すべて Fx コンポーネント** として独立した単位に閉じ込める。
-**CSS アニメーション（`@keyframes` / `animation:` プロパティ）を画面・Atom・Molecule・Organism 内に直接書かない**。Fx を介して使う。
+アニメーション・演出・エフェクトのうち、**「再利用可能な演出のみ」を Fx コンポーネント** として独立した単位に閉じ込める。
+
+### Fx として実装するもの / しないもの
+
+| 種類 | 例 | 配置 |
+|---|---|---|
+| **Fx として実装** | 戦闘演出 (DamagePop / EnemyDeath / Blast / Beam) / 画面演出 (ScreenShake / DamageVignette) / 出現 (WaveStart / AppearanceBanner) / 獲得 (Pickup / LevelUp) | `src/components/fx/<Name>Fx/` |
+| **コンポーネント固有アニメ** | ボトムシートのスライドイン / ダイアログのフェード / オーバーレイのフェード / タブ切替 / トーストのスライド / 画面遷移 | 当該コンポーネント内に `@keyframes` を持つ |
+
+「複数のコンポーネント / 複数の局面で再利用される演出のみ Fx 化」が判断基準。**ボトムシートのスライドイン**のようにそのコンポーネント固有のアニメは、Fx ではなく当該コンポーネント内に閉じる（Sheet / ConfirmDialog / Overlay / TabBar / Toast / AppShell など）。
 
 ### 設計原則
 
@@ -153,9 +162,19 @@
 - **マウント = 再生開始 / アンマウント = 停止**: 親が条件付きレンダリングで Fx を出し入れすることで演出を制御
   - 「再生中フラグ」を Fx 内に持たない（store / 親の state で管理）
   - 同じ Fx を再度マウントすれば再生し直される
-- **CSS アニメーションは Fx 内にだけ書く**: `@keyframes` は Fx の `style.module.scss` に閉じる。他のコンポーネントが Fx と同じアニメを書くのは禁止（重複防止）
-- **`prefers-reduced-motion` 対応**: ユーザーが motion 削減を望む場合、Fx は no-op に切り替えるか、トランスフォームのみで動かす
-- **タイマー・トランジション完了の検知**: `onAnimationEnd` / `onTransitionEnd` でアンマウント要求を親へ伝える（コールバック props）
+- **再利用可能な演出の `@keyframes` は Fx 内にだけ書く**。同じ演出を複数コンポーネントで重複定義するのは禁止。コンポーネント固有のアニメは当該コンポーネント内に閉じてよい
+- **`prefers-reduced-motion` 対応**: `@media (prefers-reduced-motion: reduce)` で全アニメ無効化
+- **タイマー・トランジション完了の検知**: `onAnimationEnd` / `onTransitionEnd` でアンマウント要求を親へ伝える（`onDone` props）
+
+### Fx の API 規約
+
+すべての Fx に共通:
+
+- バトル系: `position: absolute` + 親内パーセント座標 `(x, y)`
+- 画面演出系: `position: absolute; inset: 0`
+- `duration` ms と `onDone()` を受ける（アニメ終了通知 → 親で unmount）
+- `@keyframes` 名は `useMemo` で生成した unique id でスコープ
+- `@media (prefers-reduced-motion: reduce)` で全アニメ無効化
 
 ### ディレクトリと命名
 
@@ -169,8 +188,7 @@
 
 | Fx | 起点 | 内容 |
 |---|---|---|
-| `DamagePopFx` | 敵がダメージを受けた瞬間 | 数値が上方向にポップしてフェードアウト |
-| `CritDamagePopFx` | クリ発動 | 通常より大きい・色違いのポップ |
+| `DamagePopFx` | 敵がダメージを受けた瞬間 | 数値が上方向にポップしてフェードアウト。**`crit` prop でクリ表現**（旧 `CritDamagePopFx` は統合） |
 | `EnemyHitFx` | 敵被弾位置 | フラッシュ + 小爆発 |
 | `EnemyDeathFx` | 敵撃破位置 | パーティクル発散 + アイコン消滅 |
 | `BlastFx` | Cannon 着弾点 | 範囲ダメの円形爆発 |
@@ -178,7 +196,7 @@
 | `ChainBoltFx` | Thunder Plasma Discharge | ジグザグ電撃が連鎖 |
 | `OverdriveAuraFx` | Cutter Overdrive 発動中 | マシン周囲の残像オーラ |
 | `MegaBeamFx` | Laser Mega Beam | 太いビームが画面端まで伸びる |
-| `VolleyFx` | Cannon Volley | 5 発放射状に飛ぶ |
+| `VolleyFx` | Cannon Volley | 全方位 72° 刻み 5 発（`spreadDeg` で扇形にも対応） |
 | `FreezeFx` | 凍結発動 | 敵に氷晶が貼り付く |
 | `BurnFx` | 燃焼発動 | 敵から炎が立ち上がる |
 | `InstantKillFx` | インスタントキル発動 | 即死フラッシュ |
@@ -191,32 +209,31 @@
 | `DamageVignetteFx` | マシン被ダメ | 画面端に赤ビネット |
 | `HealFlashFx` | HP リジェネ・回復パッチ発動 | HP バーが緑にフェード |
 | `WaveStartFx` | ウェーブ開始 | 上 HUD にウェーブ番号がスライドイン |
-| `EliteAppearanceFx` | エリート出現 | フラッシュ + 名前バナー |
-| `BossAppearanceFx` | Tier ボス出現 | 大型フラッシュ + 名前バナー + 効果音 |
+| `AppearanceBannerFx` | エリート / ボス出現 | フラッシュ + 名前バナー。**`kind: 'elite' \| 'boss'` で表現分岐**（旧 `EliteAppearanceFx` / `BossAppearanceFx` は統合） |
 | `TierClearFx` | Tier クリア | 画面全体のフィナーレ演出 |
+| `ScreenSaverFx` | スクリーンセーバー起動 | フルスクリーンの軽量アニメ |
 
 #### 獲得・強化演出 (Fx)
 
 | Fx | 起点 | 内容 |
 |---|---|---|
-| `CoinPickupFx` | ネジ獲得 | 数値が下 HUD に吸い込まれる |
-| `BoltPickupFx` | ボルト獲得 | 上 HUD に吸い込まれる |
-| `AlloyPickupFx` | 超合金獲得 | 上 HUD に吸い込まれる |
-| `PatchDropFx` | パッチドロップ | 特殊な落下アイテム演出 |
+| `PickupFx` | 通貨 / アイテム獲得 | HUD に吸い込まれる演出。**`icon` + `color` props で 通貨 3 種（screw / bolt / alloy）を吸収**（旧 `CoinPickupFx` / `BoltPickupFx` / `AlloyPickupFx` は統合） |
 | `LevelUpFx` | 強化購入時 | カードにキラキラ |
-| `MergeSuccessFx` | パッチ合成成功 | 2 枚が 1 枚に合体する演出 |
 
-#### 状態・トランジション (Fx)
+> ※ `MergeSuccessFx`（パッチ合成成功）/ `PatchDropFx`（パッチドロップ）は専用 Fx を**未実装**。`LevelUpFx` + `PickupFx` の組合せで代用可能（必要になった段階で追加判断）。
 
-| Fx | 起点 | 内容 |
-|---|---|---|
-| `BottomSheetSlideFx` | ボトムシート開閉 | 下からスライド |
-| `DialogFadeFx` | ダイアログ開閉 | フェード + スケール |
-| `OverlayFadeFx` | オーバーレイ開閉 | 背景フェード |
-| `TabSwitchFx` | タブ切替 | コンテンツのクロスフェード |
-| `ScreenTransitionFx` | 画面遷移 | スクリーン間のスライド or フェード |
-| `ScreenSaverFx` | スクリーンセーバー起動 | フルスクリーンの軽量アニメ |
-| `ToastSlideFx` | トースト出現 | 画面端からスライド |
+#### コンポーネント固有アニメ（Fx ではなく当該コンポーネント内）
+
+仕様書初版では Fx として挙げていたが、デザイン段階で **当該コンポーネント内に閉じる方針** に変更:
+
+| 旧 Fx 名（廃止） | 配置先 |
+|---|---|
+| `BottomSheetSlideFx` | `Sheet` 内に `@keyframes` |
+| `DialogFadeFx` | `ConfirmDialog` 内 |
+| `OverlayFadeFx` | `Overlay` 内 |
+| `TabSwitchFx` | `TabBar` 内 |
+| `ToastSlideFx` | `Toast` 内 |
+| `ScreenTransitionFx` | `AppShell` 内 |
 
 ### 使い方の例（コード方針）
 
@@ -276,19 +293,37 @@ UI 全体・Fx・アイコン・タイポ選定すべてこのトンマナに合
 
 ### トークンのカテゴリ
 
-具体値はアイコンを抽出元として claude design が決める。本章では存在する変数の **カテゴリのみ** 定義する。
+具体値はアイコンを抽出元として claude design が決め、CSS Custom Properties として `styles.css` に **110 トークン** が定義済み。実装時は **値を直書きせず、必ず `var(--*)` でトークン名を参照** する。
+詳細な参照ガイド・z-index 階層・実装規約は [13-design-handoff.md](./13-design-handoff.md) を参照。
 
-| カテゴリ | 例 |
+| カテゴリ | 主要 token（抜粋） |
 |---|---|
-| Color | bg (dark) / surface / primary (cyan) / secondary (purple) / danger / hp / cd / tier-badge / patch-tier (T 別) |
-| Typography | heading-1 / heading-2 / body / caption / numeric (等幅、テック調) |
-| Spacing | xs / s / m / l / xl (4/8/12/16/24 px ベース等) |
-| Radius | s / m / l |
-| Shadow | low / mid / high / **glow-cyan / glow-purple**（ネオングロー専用） |
-| Motion | fast / mid / slow / easing-default |
-| Layer (z-index) | base / sheet / dialog / overlay / toast / screen-saver |
+| Background | `--c-bg-deep` / `--c-bg-base` / `--c-bg-elev` / `--c-surface` |
+| Text | `--c-text` / `--c-text-mid` / `--c-text-dim` / `--c-text-disabled` |
+| Primary (cyan) | `--c-primary` / `--c-primary-hi` / `--c-primary-deep` / `--c-primary-bg` |
+| Secondary (purple) | `--c-secondary` / `--c-secondary-hi` / `--c-secondary-deep` / `--c-secondary-bg` |
+| Semantic | `--c-danger` / `--c-success` / `--c-warning` |
+| Bar | `--c-hp` / `--c-hp-low` / `--c-cd` / `--c-wave` / `--c-shield` |
+| Currency | `--c-screw` / `--c-bolt` / `--c-alloy` |
+| Tier | `--c-tier-1` … `--c-tier-10`, `--c-patch-t1` … `--c-patch-t5` |
+| Font | `--ff-display` (Chakra Petch) / `--ff-body` (Inter) / `--ff-numeric` (JetBrains Mono) |
+| Spacing | `--sp-xxs` … `--sp-xxl` (2 / 4 / 8 / 12 / 16 / 24 / 32 px) |
+| Radius | `--r-xs` / `-s` / `-m` / `-l` / `-pill` |
+| Shadow | `--sh-low` / `-mid` / `-high` |
+| Glow | `--glow-cyan-sm` / `-md` / `-lg`、`--glow-purple-sm` / `-md` / `-lg` |
+| Motion | `--mo-fast` / `-mid` / `-slow` / `-pulse` + `--ease-default` / `-in` / `-out` / `-back` |
+| z-index | `--z-base` / `-fx-field` / `-hud` / `-sheet` / `-dialog` / `-overlay` / `-toast` / `-screen-saver` |
 
-これらは SCSS 変数 or CSS カスタムプロパティで定義し、コンポーネントは値ではなくトークン名で参照する。
+### アイコン体系
+
+| 種類 | 実装 | 配置 |
+|---|---|---|
+| Currency (`screw` / `bolt` / `alloy`) | 画像生成 AI 製の SVG | `assets/icons/*.svg` を `Icon.jsx` 内で `inline-svg` kind として `dangerouslySetInnerHTML` 埋め込み |
+| Weapon (`laser` / `cannon` / `thunder` / `cutter`) | 同上の SVG | 同上。差し替えは `ICON_PATHS` テーブル更新 |
+| UI / Game (`close` / `menu` / `settings` / `tower` / `shield` / `heart` / `flame` / `ice` / `lightning` / `skull` / `spark` / `target` 等) | 本体 JSX 内のジオメトリック合成（三角・六角・菱形・円・線のみ） | `Icon.jsx` 内に直接 |
+
+**「複雑な SVG は禁止」**: UI/Game アイコンは三角・六角・菱形・円・線まで。
+**画面焼き付き防止（スクリーンセーバー）のアイコン**: `tower` だと本作のマシンと紛らわしいため、`ice` を採用。
 
 ## ディレクトリ構造（案）
 
