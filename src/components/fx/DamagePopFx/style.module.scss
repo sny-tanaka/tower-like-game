@@ -1,0 +1,6 @@
+.root {
+  position: absolute;
+  pointer-events: none;
+  z-index: var(--z-fx-field);
+  // translate(-50%, -50%) は keyframes 内で行う
+}
