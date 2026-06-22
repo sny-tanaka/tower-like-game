@@ -1,0 +1,66 @@
+$switch-w: 44px;
+$switch-h: 24px;
+$knob-size: 18px;
+$knob-offset: 3px;
+
+.wrapper {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-s);
+  cursor: pointer;
+
+  &.disabled {
+    opacity: 0.4;
+    pointer-events: none;
+    cursor: not-allowed;
+  }
+}
+
+.switch {
+  position: relative;
+  width: $switch-w;
+  height: $switch-h;
+  border-radius: var(--r-pill);
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  transition: background var(--mo-fast) var(--ease-default),
+    box-shadow var(--mo-fast) var(--ease-default);
+  flex-shrink: 0;
+
+  &.off {
+    background: var(--c-border-mid);
+    box-shadow: none;
+  }
+
+  &.on {
+    background: var(--c-primary);
+    box-shadow: var(--glow-cyan-sm);
+  }
+
+  &:disabled {
+    cursor: not-allowed;
+  }
+}
+
+.knob {
+  position: absolute;
+  top: $knob-offset;
+  left: $knob-offset;
+  width: $knob-size;
+  height: $knob-size;
+  border-radius: var(--r-pill);
+  background: var(--c-text);
+  transition: transform var(--mo-fast) var(--ease-default);
+
+  .on & {
+    transform: translateX($switch-w - $knob-size - $knob-offset * 2);
+  }
+}
+
+.label {
+  font-family: var(--ff-body);
+  font-size: 14px;
+  color: var(--c-text-mid);
+  user-select: none;
+}
