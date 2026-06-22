@@ -28,6 +28,7 @@
 | 09 | [09-ui-screens.md](09-ui-screens.md) | 画面一覧（7 画面）/ タブ構成 / ダイアログ系 |
 | 10 | [10-component-architecture.md](10-component-architecture.md) | Atomic Design ベースのコンポーネント設計と命名規則 |
 | 11 | [11-bignum.md](11-bignum.md) | 無限桁数値管理（3 桁ブロック配列 BigNum、分数経由で小数倍率も精密） |
+| 12 | [12-sounds.md](12-sounds.md) | サウンドエフェクト / BGM 一覧と実装優先度（🔴 必須 / 🟡 あると嬉しい / 🟢 後回し）|
 
 ## 設計の核（一文要約）
 
