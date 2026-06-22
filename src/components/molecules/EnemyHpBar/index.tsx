@@ -11,11 +11,39 @@ import { BigNum } from '@/lib/bignum/BigNum';
 // 型定義
 // ---------------------------------------------------------------------------
 
+/** エネミーのバリアント */
+export type EnemyHpBarVariant = 'normal' | 'elite' | 'boss';
+
+/** HP バーのサイズ */
+export type EnemyHpBarSize = 'sm' | 'md' | 'lg';
+
 export interface EnemyHpBarProps {
   name: string;
-  currentHp: BigNum | number;
-  maxHp: BigNum | number;
+  /** HP バーのバリアント。normal: 通常 / elite: 強敵 / boss: ボス */
+  variant?: EnemyHpBarVariant;
+  /** 現在 HP */
+  current?: BigNum | number;
+  /** 最大 HP */
+  max?: BigNum | number;
+  /** Tier 番号（variant="normal" のみ表示） */
+  tier?: number;
+  /** バーサイズ。sm: 通常 / md: エリート / lg: ボス。デフォルト md */
+  size?: EnemyHpBarSize;
+  /** HP 数値を表示するか。デフォルト true */
+  showValue?: boolean;
+  // ---- deprecated ----
+  /**
+   * @deprecated variant を使用してください。後方互換のため残す。
+   */
   type?: 'elite' | 'boss';
+  /**
+   * @deprecated current を使用してください。後方互換のため残す。
+   */
+  currentHp?: BigNum | number;
+  /**
+   * @deprecated max を使用してください。後方互換のため残す。
+   */
+  maxHp?: BigNum | number;
 }
 
 // ---------------------------------------------------------------------------
@@ -33,13 +61,39 @@ function hpRatio1000(current: BigNum, max: BigNum): number {
 }
 
 // ---------------------------------------------------------------------------
+// サイズマップ
+// ---------------------------------------------------------------------------
+
+const SIZE_CLASS: Record<EnemyHpBarSize, string> = {
+  sm: styles.sizeSm,
+  md: styles.sizeMd,
+  lg: styles.sizeLg,
+};
+
+// ---------------------------------------------------------------------------
 // コンポーネント
 // ---------------------------------------------------------------------------
 
-export function EnemyHpBar({ name, currentHp, maxHp, type }: EnemyHpBarProps) {
+export function EnemyHpBar({
+  name,
+  variant: variantProp,
+  current: currentProp,
+  max: maxProp,
+  tier,
+  size = 'md',
+  showValue = true,
+  type,
+  currentHp,
+  maxHp,
+}: EnemyHpBarProps) {
+  // deprecated props へのフォールバック
+  const variant: EnemyHpBarVariant = variantProp ?? type ?? 'normal';
+  const currentRaw = currentProp ?? currentHp ?? 0;
+  const maxRaw = maxProp ?? maxHp ?? 0;
+
   const currentBn: BigNum =
-    typeof currentHp === 'number' ? BigNum.fromNumber(currentHp) : currentHp;
-  const maxBn: BigNum = typeof maxHp === 'number' ? BigNum.fromNumber(maxHp) : maxHp;
+    typeof currentRaw === 'number' ? BigNum.fromNumber(currentRaw) : currentRaw;
+  const maxBn: BigNum = typeof maxRaw === 'number' ? BigNum.fromNumber(maxRaw) : maxRaw;
 
   // 比率（0 〜 1000）
   const ratio1000 = hpRatio1000(currentBn, maxBn);
@@ -50,11 +104,14 @@ export function EnemyHpBar({ name, currentHp, maxHp, type }: EnemyHpBarProps) {
   // ProgressBar の color
   const barColor = isLow ? 'hp-low' : 'hp';
 
-  // wrapper のグロースタイル（type によって変化）
+  // ProgressBar のサイズ
+  const barSize = size === 'lg' ? 'lg' : size === 'sm' ? 'sm' : 'md';
+
+  // wrapper のグロースタイル（variant によって変化）
   let rootStyle: CSSProperties | undefined;
-  if (type === 'boss') {
+  if (variant === 'boss') {
     rootStyle = { boxShadow: 'var(--glow-danger-md)' };
-  } else if (type === 'elite') {
+  } else if (variant === 'elite') {
     rootStyle = { boxShadow: 'var(--glow-purple-md)' };
   }
 
@@ -62,14 +119,15 @@ export function EnemyHpBar({ name, currentHp, maxHp, type }: EnemyHpBarProps) {
     <div
       className={[
         styles.root,
-        type === 'boss' ? styles.boss : '',
-        type === 'elite' ? styles.elite : '',
+        variant === 'boss' ? styles.boss : '',
+        variant === 'elite' ? styles.elite : '',
+        SIZE_CLASS[size],
       ]
         .filter(Boolean)
         .join(' ')}
       style={rootStyle}
     >
-      {/* 上段: 名前 + タイプバッジ */}
+      {/* 上段: 名前 + タイプバッジ / Tier */}
       <div className={styles.header}>
         <Text
           variant="label"
@@ -77,13 +135,23 @@ export function EnemyHpBar({ name, currentHp, maxHp, type }: EnemyHpBarProps) {
         >
           {name}
         </Text>
-        {type !== undefined && (
-          <Badge
-            text={type.toUpperCase()}
-            variant={type}
-            glow={type === 'boss'}
-          />
-        )}
+        <div className={styles.headerRight}>
+          {variant === 'normal' && tier !== undefined && (
+            <Text
+              variant="numeric-s"
+              color="dim"
+            >
+              T{tier}
+            </Text>
+          )}
+          {(variant === 'elite' || variant === 'boss') && (
+            <Badge
+              text={variant.toUpperCase()}
+              variant={variant}
+              glow={variant === 'boss'}
+            />
+          )}
+        </div>
       </div>
 
       {/* HP バー */}
@@ -91,19 +159,21 @@ export function EnemyHpBar({ name, currentHp, maxHp, type }: EnemyHpBarProps) {
         value={ratio1000}
         max={1000}
         color={barColor}
-        size="md"
+        size={barSize}
         glow={isLow}
       />
 
       {/* HP 数値 */}
-      <div className={styles.hpText}>
-        <Text
-          variant="numeric-s"
-          color={isLow ? 'danger' : 'mid'}
-        >
-          {currentBn.toDisplay()} / {maxBn.toDisplay()}
-        </Text>
-      </div>
+      {showValue && (
+        <div className={styles.hpText}>
+          <Text
+            variant="numeric-s"
+            color={isLow ? 'danger' : 'mid'}
+          >
+            {currentBn.toDisplay()} / {maxBn.toDisplay()}
+          </Text>
+        </div>
+      )}
     </div>
   );
 }

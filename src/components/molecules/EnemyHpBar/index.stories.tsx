@@ -4,7 +4,6 @@ import { EnemyHpBar } from './index';
 
 import { BigNum } from '@/lib/bignum/BigNum';
 
-
 const meta: Meta<typeof EnemyHpBar> = {
   title: 'Molecules/EnemyHpBar',
   component: EnemyHpBar,
@@ -20,56 +19,105 @@ type Story = StoryObj<typeof EnemyHpBar>;
 export const Default: Story = {
   args: {
     name: 'ゴブリン兵長',
-    currentHp: BigNum.fromNumber(800),
-    maxHp: BigNum.fromNumber(1000),
+    current: BigNum.fromNumber(800),
+    max: BigNum.fromNumber(1000),
+    variant: 'normal',
   },
 };
 
 export const Elite: Story = {
   args: {
-    name: 'エリートオーク',
-    currentHp: BigNum.fromNumber(6000),
-    maxHp: BigNum.fromNumber(10000),
-    type: 'elite',
+    name: '装甲斥候 mk.III',
+    current: BigNum.fromNumber(1280),
+    max: BigNum.fromNumber(1500),
+    variant: 'elite',
   },
 };
 
 export const Boss: Story = {
   args: {
-    name: 'ドラゴンロード',
-    currentHp: BigNum.fromNumber(50000),
-    maxHp: BigNum.fromNumber(100000),
-    type: 'boss',
+    name: 'Tier 5 ボス: 双角ヴァングィア',
+    current: BigNum.fromNumber(4_500_000),
+    max: BigNum.fromNumber(5_200_000),
+    variant: 'boss',
+    size: 'lg',
   },
+};
+
+export const Normal: Story = {
+  name: 'normal（Tier 表示）',
+  render: () => (
+    <div style={{ display: 'grid', gap: '10px', minWidth: '320px' }}>
+      <EnemyHpBar
+        variant="normal"
+        tier={3}
+        name="ジャンク兵 ×8"
+        current={840}
+        max={1200}
+        size="sm"
+      />
+      <EnemyHpBar
+        variant="normal"
+        tier={7}
+        name="高 Tier 通常敵"
+        current={520}
+        max={1200}
+        size="sm"
+      />
+    </div>
+  ),
+};
+
+export const ShowValueFalse: Story = {
+  name: 'showValue=false（バーのみ）',
+  render: () => (
+    <div style={{ display: 'grid', gap: '10px', minWidth: '320px' }}>
+      <EnemyHpBar
+        variant="elite"
+        name="装甲斥候 mk.III"
+        current={1280}
+        max={1500}
+        showValue={false}
+      />
+      <EnemyHpBar
+        variant="boss"
+        name="Tier 5 ボス"
+        current={4_500_000}
+        max={5_200_000}
+        showValue={false}
+      />
+    </div>
+  ),
 };
 
 export const LowHp: Story = {
   args: {
     name: 'ゴブリン兵長',
-    currentHp: BigNum.fromNumber(200),
-    maxHp: BigNum.fromNumber(1000),
+    current: BigNum.fromNumber(200),
+    max: BigNum.fromNumber(1000),
   },
 };
 
 export const BossLowHp: Story = {
   args: {
     name: 'ドラゴンロード',
-    currentHp: BigNum.fromNumber(5000),
-    maxHp: BigNum.fromNumber(100000),
-    type: 'boss',
+    current: BigNum.fromNumber(5000),
+    max: BigNum.fromNumber(100000),
+    variant: 'boss',
   },
 };
 
 export const BigNumValues: Story = {
   args: {
     name: '伝説のタイタン',
-    currentHp: BigNum.fromNumber(1_500_000_000),
-    maxHp: BigNum.fromNumber(2_000_000_000),
-    type: 'boss',
+    current: BigNum.fromNumber(1_500_000_000),
+    max: BigNum.fromNumber(2_000_000_000),
+    variant: 'boss',
+    size: 'lg',
   },
 };
 
-export const AllTypes: Story = {
+export const AllVariants: Story = {
   render: () => (
     <div
       style={{
@@ -78,31 +126,36 @@ export const AllTypes: Story = {
         gap: '16px',
         padding: '16px',
         background: 'var(--c-bg-deep)',
-        minWidth: '280px',
+        minWidth: '320px',
       }}
     >
       <EnemyHpBar
+        variant="normal"
+        tier={3}
         name="通常敵"
-        currentHp={BigNum.fromNumber(700)}
-        maxHp={BigNum.fromNumber(1000)}
+        current={BigNum.fromNumber(700)}
+        max={BigNum.fromNumber(1000)}
+        size="sm"
       />
       <EnemyHpBar
+        variant="elite"
         name="エリート敵"
-        currentHp={BigNum.fromNumber(3000)}
-        maxHp={BigNum.fromNumber(5000)}
-        type="elite"
+        current={BigNum.fromNumber(3000)}
+        max={BigNum.fromNumber(5000)}
       />
       <EnemyHpBar
+        variant="boss"
         name="ボス敵"
-        currentHp={BigNum.fromNumber(80000)}
-        maxHp={BigNum.fromNumber(100000)}
-        type="boss"
+        current={BigNum.fromNumber(80000)}
+        max={BigNum.fromNumber(100000)}
+        size="lg"
       />
       <EnemyHpBar
+        variant="boss"
         name="瀕死のボス"
-        currentHp={BigNum.fromNumber(15000)}
-        maxHp={BigNum.fromNumber(100000)}
-        type="boss"
+        current={BigNum.fromNumber(15000)}
+        max={BigNum.fromNumber(100000)}
+        size="lg"
       />
     </div>
   ),

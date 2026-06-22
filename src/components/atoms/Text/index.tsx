@@ -1,4 +1,4 @@
-import type { ElementType, ReactNode } from 'react';
+import type { CSSProperties, ElementType, ReactNode } from 'react';
 
 import styles from './style.module.scss';
 
@@ -13,7 +13,19 @@ export type TextVariant =
   | 'numeric-m'
   | 'numeric-s';
 
-export type TextColor = 'default' | 'mid' | 'dim' | 'disabled' | 'primary' | 'secondary' | 'danger';
+export type TextColor =
+  | 'default'
+  | 'text'
+  | 'mid'
+  | 'dim'
+  | 'disabled'
+  | 'primary'
+  | 'secondary'
+  | 'danger'
+  | 'success'
+  | 'warning';
+
+export type TextAlign = 'left' | 'center' | 'right';
 
 export interface TextProps {
   variant?: TextVariant;
@@ -21,6 +33,12 @@ export interface TextProps {
   as?: ElementType;
   color?: TextColor;
   className?: string;
+  /** 1 行に収めて末尾を省略（overflow: hidden + text-overflow: ellipsis） */
+  truncate?: boolean;
+  /** テキスト整列 */
+  align?: TextAlign;
+  /** インラインスタイル（Storybook 等からの上書き用） */
+  style?: CSSProperties;
 }
 
 /** variant に対応するデフォルトの HTML タグ */
@@ -45,16 +63,35 @@ function defaultTag(variant: TextVariant): ElementType {
   }
 }
 
-export function Text({ variant = 'body', children, as, color = 'default', className }: TextProps) {
+export function Text({
+  variant = 'body',
+  children,
+  as,
+  color = 'default',
+  className,
+  truncate,
+  align,
+  style,
+}: TextProps) {
   const Tag = as ?? defaultTag(variant);
 
   const variantKey = variant.replace(/-/g, '_');
+  // color の 'text' は 'default' の別名として扱う
+  const colorKey = color === 'text' ? 'default' : color;
 
   return (
     <Tag
-      className={[styles.text, styles[`variant_${variantKey}`], styles[`color_${color}`], className]
+      className={[
+        styles.text,
+        styles[`variant_${variantKey}`],
+        styles[`color_${colorKey}`],
+        truncate ? styles.truncate : '',
+        align ? styles[`align_${align}`] : '',
+        className,
+      ]
         .filter(Boolean)
         .join(' ')}
+      style={style}
     >
       {children}
     </Tag>

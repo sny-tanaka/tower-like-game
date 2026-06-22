@@ -44,3 +44,17 @@
 .deltaLg {
   font-size: var(--fs-num-l);
 }
+
+/* subtle: 購入不可・条件未達 */
+.subtle {
+  opacity: 0.5;
+}
+
+/* showLabel: 通貨名ラベル */
+.currencyLabel {
+  font-family: var(--ff-numeric);
+  font-size: var(--fs-label);
+  color: var(--c-text-dim);
+  letter-spacing: var(--ls-num);
+  margin-left: var(--sp-xxs);
+}

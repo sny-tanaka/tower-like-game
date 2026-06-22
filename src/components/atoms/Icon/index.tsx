@@ -28,6 +28,8 @@ export type IconName =
   | 'check'
   | 'plus'
   | 'minus'
+  | 'info'
+  | 'arrow-up'
   | 'screw'
   | 'bolt'
   | 'alloy'
@@ -461,6 +463,49 @@ export function Icon({ name, size = 16, color = 'currentColor', className }: Ico
             x2="20"
             y2="12"
             strokeWidth="2.5"
+          />
+        </svg>
+      );
+
+    case 'info':
+      return (
+        <svg {...svgProps}>
+          <circle
+            cx="12"
+            cy="12"
+            r="9"
+          />
+          <line
+            x1="12"
+            y1="8"
+            x2="12"
+            y2="8"
+            strokeWidth="2.5"
+            strokeLinecap="round"
+          />
+          <line
+            x1="12"
+            y1="11"
+            x2="12"
+            y2="17"
+            strokeWidth="2"
+          />
+        </svg>
+      );
+
+    case 'arrow-up':
+      return (
+        <svg {...svgProps}>
+          <line
+            x1="12"
+            y1="19"
+            x2="12"
+            y2="5"
+            strokeWidth="2"
+          />
+          <polyline
+            points="6,11 12,5 18,11"
+            strokeWidth="2"
           />
         </svg>
       );

@@ -166,3 +166,113 @@ export const Open: Story = {
     </div>
   ),
 };
+
+export const DimSoft: Story = {
+  name: 'dimLevel: soft（背景が透ける）',
+  render: () => (
+    <div style={{ minHeight: '100vh', background: 'var(--c-bg-base)', position: 'relative' }}>
+      <div style={{ padding: '24px', color: 'var(--c-text)', fontFamily: 'var(--ff-body)' }}>
+        背景コンテンツ — 半透明で透ける
+      </div>
+      <Overlay dimLevel="soft">
+        <div
+          style={{
+            background: 'var(--c-bg-elev)',
+            border: '1px solid var(--c-primary)',
+            borderRadius: 'var(--r-m)',
+            padding: '20px 24px',
+            textAlign: 'center',
+            color: 'var(--c-primary)',
+            fontFamily: 'var(--ff-display)',
+          }}
+        >
+          SOFT DIM
+        </div>
+      </Overlay>
+    </div>
+  ),
+};
+
+export const DimHeavy: Story = {
+  name: 'dimLevel: heavy（背景がほぼ見えない）',
+  render: () => (
+    <div style={{ minHeight: '100vh', background: 'var(--c-bg-base)', position: 'relative' }}>
+      <div style={{ padding: '24px', color: 'var(--c-text)', fontFamily: 'var(--ff-body)' }}>
+        背景コンテンツ（ほぼ見えない）
+      </div>
+      <Overlay dimLevel="heavy">
+        <div
+          style={{
+            background: 'var(--c-bg-elev)',
+            borderRadius: 'var(--r-m)',
+            padding: '20px 24px',
+            textAlign: 'center',
+            color: 'var(--c-text)',
+            fontFamily: 'var(--ff-display)',
+          }}
+        >
+          HEAVY DIM
+        </div>
+      </Overlay>
+    </div>
+  ),
+};
+
+export const WithBlur: Story = {
+  name: 'blur: 4px',
+  render: () => (
+    <div style={{ minHeight: '100vh', background: 'var(--c-bg-base)', position: 'relative' }}>
+      <div style={{ padding: '24px', color: 'var(--c-text)', fontFamily: 'var(--ff-body)' }}>
+        背景コンテンツ（ぼかしあり）
+      </div>
+      <Overlay
+        dimLevel="normal"
+        blur={4}
+      >
+        <div
+          style={{
+            background: 'var(--c-bg-elev)',
+            borderRadius: 'var(--r-m)',
+            padding: '20px 24px',
+            textAlign: 'center',
+            color: 'var(--c-primary)',
+            fontFamily: 'var(--ff-display)',
+          }}
+        >
+          blur: 4px
+        </div>
+      </Overlay>
+    </div>
+  ),
+};
+
+export const AlignTop: Story = {
+  name: 'align: top（Toast 想定）',
+  render: () => (
+    <div style={{ minHeight: '100vh', background: 'var(--c-bg-base)', position: 'relative' }}>
+      <div style={{ padding: '24px', color: 'var(--c-text)', fontFamily: 'var(--ff-body)' }}>
+        背景コンテンツ
+      </div>
+      <Overlay
+        dimLevel="soft"
+        align="top"
+        style={{ paddingTop: '16px' }}
+      >
+        <div
+          style={{
+            background: 'var(--c-bg-elev)',
+            border: '1px solid var(--c-primary)',
+            borderRadius: 'var(--r-m)',
+            padding: '12px 20px',
+            textAlign: 'center',
+            color: 'var(--c-primary)',
+            fontFamily: 'var(--ff-display)',
+            fontSize: '11px',
+          }}
+        >
+          align: top — 上端寄り
+        </div>
+      </Overlay>
+    </div>
+  ),
+};

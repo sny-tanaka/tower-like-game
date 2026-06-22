@@ -18,6 +18,12 @@ export interface CurrencyAmountProps {
   value: BigNum | number;
   size?: NumericDisplaySize;
   delta?: '+' | '-';
+  /** 通貨名ラベル（例: "screw"）を数値の後に表示 */
+  showLabel?: boolean;
+  /** 購入不可・条件未達のグレーアウト表示 */
+  subtle?: boolean;
+  /** アイコン + 数値の並び順。"start"（デフォルト）= アイコン先行、"end" = 数値先行 */
+  align?: 'start' | 'end';
 }
 
 // ---------------------------------------------------------------------------
@@ -75,16 +81,25 @@ function DeltaPrefix({ delta, sizeClass }: DeltaPrefixProps) {
 // コンポーネント
 // ---------------------------------------------------------------------------
 
-export function CurrencyAmount({ currency, value, size = 'md', delta }: CurrencyAmountProps) {
+export function CurrencyAmount({
+  currency,
+  value,
+  size = 'md',
+  delta,
+  showLabel,
+  subtle,
+  align = 'start',
+}: CurrencyAmountProps) {
   const bn: BigNum = typeof value === 'number' ? BigNum.fromNumber(value) : value;
 
   const config = CURRENCY_CONFIG[currency];
-  const colorVar = `var(${config.cssVar})`;
+  const colorVar = subtle ? 'var(--c-text-disabled)' : `var(${config.cssVar})`;
 
-  // delta がある場合は delta の色を優先
-  const accentStyle: CSSProperties = delta
-    ? { color: delta === '+' ? 'var(--c-success)' : 'var(--c-danger)' }
-    : { color: colorVar };
+  // delta がある場合は delta の色を優先（subtle の場合は無効化）
+  const accentStyle: CSSProperties =
+    delta && !subtle
+      ? { color: delta === '+' ? 'var(--c-success)' : 'var(--c-danger)' }
+      : { color: colorVar };
 
   const deltaSizeClass = {
     sm: styles.deltaSm,
@@ -92,19 +107,18 @@ export function CurrencyAmount({ currency, value, size = 'md', delta }: Currency
     lg: styles.deltaLg,
   }[size];
 
-  return (
-    <span
-      className={styles.root}
-      role="img"
-      aria-label={`${config.label} ${bn.toDisplay()}`}
-    >
-      <Icon
-        name={currency}
-        size={ICON_SIZE_MAP[size]}
-        color={colorVar}
-        className={styles.icon}
-      />
-      {delta !== undefined && (
+  const iconEl = (
+    <Icon
+      name={currency}
+      size={ICON_SIZE_MAP[size]}
+      color={colorVar}
+      className={styles.icon}
+    />
+  );
+
+  const numericEl = (
+    <>
+      {delta !== undefined && !subtle && (
         <DeltaPrefix
           delta={delta}
           sizeClass={deltaSizeClass}
@@ -116,6 +130,34 @@ export function CurrencyAmount({ currency, value, size = 'md', delta }: Currency
         accentColor="primary"
         style={accentStyle}
       />
+    </>
+  );
+
+  return (
+    <span
+      className={[styles.root, subtle ? styles.subtle : ''].filter(Boolean).join(' ')}
+      role="img"
+      aria-label={`${config.label} ${bn.toDisplay()}`}
+    >
+      {align === 'end' ? (
+        <>
+          {numericEl}
+          {iconEl}
+        </>
+      ) : (
+        <>
+          {iconEl}
+          {numericEl}
+        </>
+      )}
+      {showLabel && (
+        <span
+          className={styles.currencyLabel}
+          aria-hidden="true"
+        >
+          {config.label}
+        </span>
+      )}
     </span>
   );
 }

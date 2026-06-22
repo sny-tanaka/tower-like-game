@@ -26,8 +26,24 @@ const meta: Meta<typeof Text> = {
     },
     color: {
       control: 'select',
-      options: ['default', 'mid', 'dim', 'disabled', 'primary', 'secondary', 'danger'],
+      options: [
+        'default',
+        'text',
+        'mid',
+        'dim',
+        'disabled',
+        'primary',
+        'secondary',
+        'danger',
+        'success',
+        'warning',
+      ],
     },
+    align: {
+      control: 'select',
+      options: ['left', 'center', 'right'],
+    },
+    truncate: { control: 'boolean' },
   },
 };
 
@@ -142,6 +158,54 @@ export const AllVariants: Story = {
   },
 };
 
+export const Truncate: Story = {
+  name: 'truncate（末尾省略）',
+  render: () => (
+    <div
+      style={{
+        width: 280,
+        background: 'var(--c-bg-base)',
+        border: '1px solid var(--c-border-faint)',
+        borderRadius: 'var(--r-s)',
+        padding: 10,
+      }}
+    >
+      <Text
+        variant="body"
+        truncate
+      >
+        このテキストは 1 行に収まりきらない長さで、末尾は省略される仕様です。
+      </Text>
+    </div>
+  ),
+};
+
+export const Align: Story = {
+  name: 'align',
+  render: () => (
+    <div style={{ display: 'grid', gap: 8, width: 280 }}>
+      <Text
+        variant="body"
+        align="left"
+      >
+        左揃え (default)
+      </Text>
+      <Text
+        variant="body"
+        align="center"
+      >
+        中央揃え
+      </Text>
+      <Text
+        variant="body"
+        align="right"
+      >
+        右揃え
+      </Text>
+    </div>
+  ),
+};
+
 export const AllColors: Story = {
   render: () => {
     const colors: TextColor[] = [
@@ -152,6 +216,8 @@ export const AllColors: Story = {
       'primary',
       'secondary',
       'danger',
+      'success',
+      'warning',
     ];
     return (
       <div

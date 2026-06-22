@@ -111,3 +111,32 @@
 .color_danger {
   color: var(--c-danger);
 }
+
+.color_success {
+  color: var(--c-success);
+}
+
+.color_warning {
+  color: var(--c-warning);
+}
+
+// --- Truncate ---
+.truncate {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  display: block;
+}
+
+// --- Align ---
+.align_left {
+  text-align: left;
+}
+
+.align_center {
+  text-align: center;
+}
+
+.align_right {
+  text-align: right;
+}
