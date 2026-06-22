@@ -161,7 +161,7 @@ export function Page() {
   // ── wave 関連（暫定値） ──
   const TOTAL_WAVES = 30;
   const WAVE_SECONDS_TOTAL = 30;
-  const WAVE_SECONDS_REMAINING = 30;
+  const WAVE_SECONDS_REMAINING = 20;
 
   return (
     <div className={styles.root}>

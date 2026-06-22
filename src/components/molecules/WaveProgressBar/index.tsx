@@ -1,5 +1,6 @@
 import styles from './style.module.scss';
 
+import { Badge } from '@/components/atoms/Badge';
 import { Icon } from '@/components/atoms/Icon';
 import { ProgressBar } from '@/components/atoms/ProgressBar';
 import { Text } from '@/components/atoms/Text';
@@ -39,12 +40,6 @@ const MILESTONE_CONFIG: Record<
   'tier-up': { label: 'TIER UP', color: 'var(--c-primary)', iconName: 'spark' },
 };
 
-const SIZE_FONT: Record<WaveProgressBarSize, string> = {
-  sm: 'var(--fs-label)',
-  md: 'var(--fs-caption)',
-  lg: 'var(--fs-body)',
-};
-
 // ---------------------------------------------------------------------------
 // コンポーネント
 // ---------------------------------------------------------------------------
@@ -69,12 +64,10 @@ export function WaveProgressBar({
       {/* 上行: Wave 番号 + マイルストーン + 残り秒数 */}
       <div className={styles.header}>
         {/* Wave 番号 */}
-        <span
-          className={styles.waveLabel}
-          style={{ fontSize: SIZE_FONT[size] }}
-        >
-          WAVE <span className={styles.waveNum}>{waveNumber}</span>
-        </span>
+        <Badge
+          text={`WAVE ${waveNumber}`}
+          variant="tier"
+        />
 
         {/* 次マイルストーン */}
         {milestone != null && nextMilestone != null && (

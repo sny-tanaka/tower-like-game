@@ -12,8 +12,8 @@ const defaultProps = {
 describe('WaveProgressBar', () => {
   test('Wave 番号が描画される', () => {
     render(<WaveProgressBar {...defaultProps} />);
-    // "WAVE" ラベルと数値 "3" が表示される
-    expect(screen.getByText('3')).toBeInTheDocument();
+    // Badge に "WAVE 3" が表示される
+    expect(screen.getByText('WAVE 3')).toBeInTheDocument();
   });
 
   test('残り秒数が描画される', () => {

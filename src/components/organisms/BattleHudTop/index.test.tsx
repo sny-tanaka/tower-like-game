@@ -57,9 +57,10 @@ describe('BattleHudTop', () => {
 
   it('WaveProgressBar が waveNumber を表示する', () => {
     render(<BattleHudTop {...makeProps({ wave: 12 })} />);
-    expect(screen.getByText(/WAVE/)).toBeInTheDocument();
-    // WaveProgressBar 内の waveNum 表示
-    expect(screen.getAllByText('12').length).toBeGreaterThan(0);
+    // WaveProgressBar の Badge 内: "WAVE 12"
+    expect(screen.getByText('WAVE 12')).toBeInTheDocument();
+    // srOnly に wave/totalWaves: "12/30"
+    expect(screen.getByText('12/30')).toBeInTheDocument();
   });
 
   it('isBossWave=true のとき WaveProgressBar が boss スタイルになる', () => {
