@@ -5,10 +5,13 @@ import { describe, expect, test, vi } from 'vitest';
 import { PatchCard } from './index';
 
 const defaultProps = {
+  patchId: 'test-p1',
   name: 'HP ブースト',
   iconName: 'heart' as const,
   tier: 2,
   count: 3,
+  trigger: '常時',
+  effect: '被ダメ -5%',
 };
 
 describe('PatchCard', () => {
@@ -95,5 +98,38 @@ describe('PatchCard', () => {
   test('onClick なしのとき role="button" が付かない', () => {
     render(<PatchCard {...defaultProps} />);
     expect(screen.queryByRole('button')).toBeNull();
+  });
+
+  test('locked=true のとき locked クラスが付く', () => {
+    const { container } = render(
+      <PatchCard
+        {...defaultProps}
+        locked={true}
+      />
+    );
+    const el = container.firstChild as HTMLElement;
+    expect(el.className).toMatch(/locked/);
+  });
+
+  test('disabled=true のとき disabled クラスが付く', () => {
+    const { container } = render(
+      <PatchCard
+        {...defaultProps}
+        disabled={true}
+      />
+    );
+    const el = container.firstChild as HTMLElement;
+    expect(el.className).toMatch(/disabled/);
+  });
+
+  test('trigger と effect が md サイズで描画される', () => {
+    render(
+      <PatchCard
+        {...defaultProps}
+        size="md"
+      />
+    );
+    expect(screen.getByText('常時')).toBeInTheDocument();
+    expect(screen.getByText('被ダメ -5%')).toBeInTheDocument();
   });
 });

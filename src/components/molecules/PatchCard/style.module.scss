@@ -6,47 +6,151 @@
   &:focus-visible {
     outline: 2px solid var(--c-primary);
     outline-offset: 2px;
-    border-radius: var(--r-m);
   }
 }
 
+/* 状態 */
 .selected {
   box-shadow: var(--glow-cyan-md);
 }
 
+.merging {
+  box-shadow: var(--glow-purple-md);
+}
+
+.locked {
+  opacity: 0.55;
+  cursor: default;
+}
+
+.disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+/* カード共通 */
 .card {
   display: flex;
   flex-direction: column;
   align-items: center;
   gap: var(--sp-xs);
-  min-width: 72px;
   text-align: center;
+  position: relative;
 }
 
+/* アイコン背景 */
 .iconWrap {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 40px;
-  height: 40px;
   border-radius: var(--r-s);
   background: var(--c-surface);
+  flex-shrink: 0;
 }
 
+/* 名前 */
 .name {
   display: block;
   line-height: var(--lh-snug);
-  max-width: 80px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
+/* trigger / effect */
+.detail {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--sp-xxs);
+  width: 100%;
+}
+
+.trigger {
+  font-family: var(--ff-body);
+  font-size: var(--fs-label);
+  color: var(--c-text-dim);
+  line-height: var(--lh-snug);
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.effect {
+  font-family: var(--ff-display);
+  font-size: var(--fs-label);
+  font-weight: var(--fw-semibold);
+  color: var(--c-text-mid);
+  line-height: var(--lh-snug);
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* 所持数 */
 .count {
   font-family: var(--ff-numeric);
   font-size: var(--fs-caption);
   font-weight: var(--fw-semibold);
   letter-spacing: var(--ls-num);
+}
+
+.countZero {
+  opacity: 0.5;
+}
+
+/* 合成中バッジ */
+.mergingBadge {
+  position: absolute;
+  top: -4px;
+  right: -4px;
+  font-family: var(--ff-display);
+  font-size: 9px;
+  font-weight: var(--fw-bold);
+  letter-spacing: var(--ls-loose);
+  color: var(--c-bg-deep);
+  background: var(--c-secondary);
+  border-radius: var(--r-pill);
+  padding: 1px var(--sp-xs);
+  white-space: nowrap;
+  box-shadow: var(--glow-purple-sm);
+}
+
+/* ============================
+   size バリアント
+   ============================ */
+.size-sm {
+  .card {
+    min-width: 56px;
+    gap: var(--sp-xxs);
+  }
+
+  .name {
+    max-width: 64px;
+    font-size: 10px;
+  }
+}
+
+.size-md {
+  .card {
+    min-width: 72px;
+  }
+
+  .name {
+    max-width: 80px;
+  }
+}
+
+.size-lg {
+  .card {
+    min-width: 88px;
+  }
+
+  .name {
+    max-width: 96px;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {

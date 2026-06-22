@@ -15,6 +15,9 @@ const meta: Meta<typeof ConfirmDialog> = {
 export default meta;
 type Story = StoryObj<typeof ConfirmDialog>;
 
+// ---------------------------------------------------------------------------
+// default — 出撃確認
+// ---------------------------------------------------------------------------
 function DefaultDialog() {
   const [open, setOpen] = useState(true);
   return (
@@ -35,8 +38,11 @@ function DefaultDialog() {
       </button>
       <ConfirmDialog
         open={open}
-        title="撤退しますか？"
-        message="現在のランの進捗は保存されません。"
+        title="出撃しますか？"
+        message="Tier 7 から開始します。装備中のパッチが適用されます。"
+        iconName="play"
+        confirmLabel="出撃"
+        cancelLabel="準備に戻る"
         onConfirm={() => setOpen(false)}
         onCancel={() => setOpen(false)}
       />
@@ -44,10 +50,11 @@ function DefaultDialog() {
   );
 }
 
-export const Default: Story = {
-  render: () => <DefaultDialog />,
-};
+export const Default: Story = { render: () => <DefaultDialog /> };
 
+// ---------------------------------------------------------------------------
+// danger — 撤退確認
+// ---------------------------------------------------------------------------
 function DangerDialog() {
   const [open, setOpen] = useState(true);
   return (
@@ -68,37 +75,61 @@ function DangerDialog() {
       </button>
       <ConfirmDialog
         open={open}
-        title="データをリセットしますか？"
-        message="この操作は元に戻せません。すべての進捗データが削除されます。"
-        confirmLabel="リセット"
+        variant="danger"
+        title="ラン破棄して撤退？"
+        message="このランで獲得したネジは失われます。ボルトと超合金は保持されます。"
+        iconName="skull"
+        confirmLabel="撤退する"
+        cancelLabel="続行"
         onConfirm={() => setOpen(false)}
         onCancel={() => setOpen(false)}
-        variant="danger"
       />
     </>
   );
 }
 
-export const DangerVariant: Story = {
-  render: () => <DangerDialog />,
-};
+export const DangerVariant: Story = { render: () => <DangerDialog /> };
 
-export const NoMessage: Story = {
+// ---------------------------------------------------------------------------
+// danger — 全データリセット
+// ---------------------------------------------------------------------------
+export const DangerReset: Story = {
+  name: 'danger — 全データリセット',
   args: {
     open: true,
-    title: 'よろしいですか？',
+    variant: 'danger',
+    title: '全データをリセット？',
+    message:
+      'マシン強化 / 武器強化 / 所持パッチ含め、すべてが初期状態に戻ります。この操作は取り消せません。',
+    iconName: 'shield',
+    confirmLabel: 'リセット',
+    cancelLabel: 'やめる',
     onConfirm: () => undefined,
     onCancel: () => undefined,
   },
 };
 
-export const CustomLabels: Story = {
+// ---------------------------------------------------------------------------
+// icon なし
+// ---------------------------------------------------------------------------
+export const NoIcon: Story = {
+  name: 'icon なし',
   args: {
     open: true,
-    title: '撤退確認',
-    message: 'ランを終了しますか？',
-    confirmLabel: '撤退する',
-    cancelLabel: 'やめておく',
+    title: '設定を保存しました',
+    message: '変更内容は次回起動時から反映されます。',
+    confirmLabel: 'OK',
+    cancelLabel: '戻る',
+    onConfirm: () => undefined,
+    onCancel: () => undefined,
+  },
+};
+
+export const NoMessage: Story = {
+  name: 'icon なし / message なし',
+  args: {
+    open: true,
+    title: 'よろしいですか？',
     onConfirm: () => undefined,
     onCancel: () => undefined,
   },

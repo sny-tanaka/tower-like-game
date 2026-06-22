@@ -3,8 +3,6 @@ import { useState } from 'react';
 
 import { TabBar } from './index';
 
-import { Icon } from '@/components/atoms/Icon';
-
 const meta: Meta<typeof TabBar> = {
   title: 'Molecules/TabBar',
   component: TabBar,
@@ -17,109 +15,151 @@ const meta: Meta<typeof TabBar> = {
 export default meta;
 type Story = StoryObj<typeof TabBar>;
 
-const tabs = [
-  { key: 'weapon', label: 'ウェポン' },
-  { key: 'patch', label: 'パッチ' },
-  { key: 'machine', label: 'マシン' },
-] as const;
-
-type TabKey = (typeof tabs)[number]['key'];
-
-function ControlledTabBar() {
-  const [active, setActive] = useState<TabKey>('weapon');
-  return (
-    <TabBar
-      tabs={tabs}
-      active={active}
-      onChange={setActive}
-    />
-  );
-}
-
-export const Default: Story = {
-  render: () => <ControlledTabBar />,
+// ---------------------------------------------------------------------------
+// マシン強化 5 タブ
+// ---------------------------------------------------------------------------
+export const MachineUpgrade: Story = {
+  name: 'マシン強化 5 タブ (underline / fullWidth)',
+  render: () => {
+    function Demo() {
+      const [value, setValue] = useState('defense');
+      return (
+        <div style={{ maxWidth: 412 }}>
+          <TabBar
+            tabs={[
+              { key: 'defense', label: '防御' },
+              { key: 'attack', label: '攻撃' },
+              { key: 'active', label: 'アクティブ' },
+              { key: 'economy', label: '経済' },
+              { key: 'slot', label: 'スロット' },
+            ]}
+            value={value}
+            onChange={setValue}
+            fullWidth
+          />
+          <div style={{ fontSize: 11, color: 'var(--c-text-dim)', marginTop: 8 }}>
+            selected: {value}
+          </div>
+        </div>
+      );
+    }
+    return <Demo />;
+  },
 };
 
-function ControlledWithIcons() {
-  const tabsWithIcons = [
-    {
-      key: 'weapon',
-      label: 'ウェポン',
-      icon: (
-        <Icon
-          name="laser"
-          size={14}
-        />
-      ),
-    },
-    {
-      key: 'patch',
-      label: 'パッチ',
-      icon: (
-        <Icon
-          name="bolt"
-          size={14}
-        />
-      ),
-    },
-    {
-      key: 'machine',
-      label: 'マシン',
-      icon: (
-        <Icon
-          name="tower"
-          size={14}
-        />
-      ),
-    },
-  ] as const;
-
-  type Key = (typeof tabsWithIcons)[number]['key'];
-  const [active, setActive] = useState<Key>('weapon');
-
-  return (
-    <TabBar
-      tabs={tabsWithIcons}
-      active={active}
-      onChange={setActive}
-    />
-  );
-}
-
+// ---------------------------------------------------------------------------
+// アイコン付き
+// ---------------------------------------------------------------------------
 export const WithIcons: Story = {
-  render: () => <ControlledWithIcons />,
+  name: '武器庫 (underline + icon + fullWidth)',
+  render: () => {
+    function Demo() {
+      const [value, setValue] = useState('laser');
+      return (
+        <div style={{ maxWidth: 412 }}>
+          <TabBar
+            tabs={[
+              { key: 'laser', label: 'LASER', iconName: 'laser' },
+              { key: 'cannon', label: 'CANNON', iconName: 'cannon' },
+              { key: 'thunder', label: 'THUNDER', iconName: 'thunder' },
+              { key: 'cutter', label: 'CUTTER', iconName: 'cutter' },
+            ]}
+            value={value}
+            onChange={setValue}
+            fullWidth
+          />
+          <div style={{ fontSize: 11, color: 'var(--c-text-dim)', marginTop: 8 }}>
+            selected: {value}
+          </div>
+        </div>
+      );
+    }
+    return <Demo />;
+  },
 };
 
-function FullWidthTabBar() {
-  const [active, setActive] = useState<TabKey>('weapon');
-  return (
-    <div style={{ width: 360 }}>
-      <TabBar
-        tabs={tabs}
-        active={active}
-        onChange={setActive}
-        fullWidth
-      />
-    </div>
-  );
-}
-
-export const FullWidth: Story = {
-  render: () => <FullWidthTabBar />,
+// ---------------------------------------------------------------------------
+// バッジ
+// ---------------------------------------------------------------------------
+export const WithBadge: Story = {
+  name: 'パッチ庫 (badge)',
+  render: () => {
+    function Demo() {
+      const [value, setValue] = useState('equipped');
+      return (
+        <div style={{ maxWidth: 412 }}>
+          <TabBar
+            tabs={[
+              { key: 'equipped', label: '装着', badge: '6/8' },
+              { key: 'inventory', label: '所持', badge: 42 },
+              { key: 'merge', label: '合成', badge: '!' },
+            ]}
+            value={value}
+            onChange={setValue}
+            fullWidth
+          />
+        </div>
+      );
+    }
+    return <Demo />;
+  },
 };
 
-function SmallTabBar() {
-  const [active, setActive] = useState<TabKey>('patch');
-  return (
-    <TabBar
-      tabs={tabs}
-      active={active}
-      onChange={setActive}
-      size="sm"
-    />
-  );
-}
+// ---------------------------------------------------------------------------
+// pill (速度選択)
+// ---------------------------------------------------------------------------
+export const PillSpeed: Story = {
+  name: '速度 (pill / center)',
+  render: () => {
+    function Demo() {
+      const [value, setValue] = useState('x2');
+      return (
+        <TabBar
+          variant="pill"
+          size="sm"
+          tabs={[
+            { key: 'x1', label: '×1' },
+            { key: 'x2', label: '×2' },
+            { key: 'x4', label: '×4' },
+            { key: 'x8', label: '×8' },
+          ]}
+          value={value}
+          onChange={setValue}
+          align="center"
+        />
+      );
+    }
+    return <Demo />;
+  },
+};
 
-export const Small: Story = {
-  render: () => <SmallTabBar />,
+// ---------------------------------------------------------------------------
+// disabled item
+// ---------------------------------------------------------------------------
+export const DisabledItem: Story = {
+  name: '設定 (disabled item)',
+  render: () => {
+    function Demo() {
+      const [value, setValue] = useState('sound');
+      return (
+        <div style={{ maxWidth: 412 }}>
+          <TabBar
+            tabs={[
+              { key: 'sound', label: 'サウンド' },
+              { key: 'game', label: 'ゲーム' },
+              { key: 'data', label: 'データ' },
+              { key: 'about', label: 'ABOUT', disabled: true },
+            ]}
+            value={value}
+            onChange={setValue}
+            fullWidth
+          />
+          <div style={{ fontSize: 11, color: 'var(--c-text-dim)', marginTop: 8 }}>
+            selected: {value}
+          </div>
+        </div>
+      );
+    }
+    return <Demo />;
+  },
 };

@@ -6,7 +6,11 @@
   min-height: 52px;
 }
 
-/* 空スロット */
+/* ============================
+   状態
+   ============================ */
+
+/* 空きスロット */
 .empty {
   .card {
     border-style: dashed;
@@ -22,6 +26,23 @@
   min-height: 36px;
 }
 
+/* ロック済み */
+.locked {
+  .card {
+    border-style: dashed;
+    background: transparent;
+    opacity: 0.4;
+  }
+}
+
+.lockedContent {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--sp-xs);
+  min-height: 36px;
+}
+
 /* 装着中 */
 .filled {
   .card {
@@ -33,7 +54,6 @@
   display: flex;
   align-items: center;
   gap: var(--sp-s);
-  position: relative;
 }
 
 .patchIcon {
@@ -55,7 +75,67 @@
   min-width: 0;
 }
 
-.removeBtn {
-  flex-shrink: 0;
-  margin-left: auto;
+.patchTop {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-xs);
+}
+
+.patchName {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.patchDetail {
+  display: flex;
+  gap: var(--sp-xs);
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.trigger {
+  font-size: var(--fs-label);
+  color: var(--c-text-dim);
+  white-space: nowrap;
+}
+
+.effect {
+  font-family: var(--ff-display);
+  font-size: var(--fs-label);
+  font-weight: var(--fw-semibold);
+  color: var(--c-text-mid);
+  white-space: nowrap;
+}
+
+/* ============================
+   size バリアント
+   ============================ */
+
+.size-sm {
+  .card {
+    min-height: 40px;
+  }
+
+  .patchIcon {
+    width: 22px;
+    height: 22px;
+  }
+}
+
+.size-md {
+  /* デフォルト */
+}
+
+.size-lg {
+  .card {
+    min-height: 64px;
+  }
+
+  .patchIcon {
+    width: 36px;
+    height: 36px;
+  }
 }

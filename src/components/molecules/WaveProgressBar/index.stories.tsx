@@ -7,7 +7,7 @@ const meta: Meta<typeof WaveProgressBar> = {
   component: WaveProgressBar,
   parameters: {
     backgrounds: { default: 'dark' },
-    layout: 'centered',
+    layout: 'padded',
   },
 };
 
@@ -16,78 +16,141 @@ type Story = StoryObj<typeof WaveProgressBar>;
 
 export const Default: Story = {
   args: {
-    currentWave: 3,
-    totalWaves: 10,
-    secondsRemaining: 45,
-    secondsTotal: 60,
+    waveNumber: 3,
+    secondsLeft: 42,
+    secondsMax: 60,
   },
 };
 
-export const BossWave: Story = {
+export const LowTime: Story = {
+  name: 'Low time (3s)',
   args: {
-    currentWave: 5,
-    totalWaves: 10,
-    secondsRemaining: 30,
-    secondsTotal: 90,
-    isBossWave: true,
+    waveNumber: 3,
+    secondsLeft: 3,
+    secondsMax: 60,
   },
 };
 
-export const AlmostDone: Story = {
+export const MilestoneElite: Story = {
+  name: 'Milestone — elite',
   args: {
-    currentWave: 9,
-    totalWaves: 10,
-    secondsRemaining: 5,
-    secondsTotal: 60,
+    waveNumber: 4,
+    secondsLeft: 50,
+    secondsMax: 60,
+    nextMilestone: { wave: 5, kind: 'elite' },
   },
 };
 
-export const LastWave: Story = {
+export const MilestoneBoss: Story = {
+  name: 'Milestone — boss',
   args: {
-    currentWave: 10,
-    totalWaves: 10,
-    secondsRemaining: 60,
-    secondsTotal: 60,
-    isBossWave: true,
+    waveNumber: 9,
+    secondsLeft: 28,
+    secondsMax: 60,
+    nextMilestone: { wave: 10, kind: 'boss' },
   },
 };
 
-export const AllStates: Story = {
+export const MilestoneTierUp: Story = {
+  name: 'Milestone — tier-up',
+  args: {
+    waveNumber: 14,
+    secondsLeft: 32,
+    secondsMax: 60,
+    nextMilestone: { wave: 15, kind: 'tier-up' },
+  },
+};
+
+export const ShowSecondsFalse: Story = {
+  name: 'showSeconds=false',
+  args: {
+    waveNumber: 5,
+    secondsLeft: 40,
+    secondsMax: 60,
+    nextMilestone: { wave: 10, kind: 'boss' },
+    showSeconds: false,
+  },
+};
+
+export const AllSizes: Story = {
+  name: 'size sm / md / lg',
   render: () => (
     <div
       style={{
-        display: 'flex',
-        flexDirection: 'column',
-        gap: '16px',
-        padding: '16px',
         background: 'var(--c-bg-deep)',
-        minWidth: '280px',
+        padding: 24,
+        display: 'grid',
+        gap: 14,
+        maxWidth: 660,
       }}
     >
       <WaveProgressBar
-        currentWave={1}
-        totalWaves={10}
-        secondsRemaining={60}
-        secondsTotal={60}
+        waveNumber={7}
+        secondsLeft={35}
+        secondsMax={60}
+        size="sm"
       />
       <WaveProgressBar
-        currentWave={3}
-        totalWaves={10}
-        secondsRemaining={30}
-        secondsTotal={60}
+        waveNumber={7}
+        secondsLeft={35}
+        secondsMax={60}
+        size="md"
       />
       <WaveProgressBar
-        currentWave={5}
-        totalWaves={10}
-        secondsRemaining={45}
-        secondsTotal={90}
-        isBossWave={true}
+        waveNumber={7}
+        secondsLeft={35}
+        secondsMax={60}
+        size="lg"
+      />
+    </div>
+  ),
+};
+
+export const AllVariants: Story = {
+  name: 'All states',
+  render: () => (
+    <div
+      style={{
+        background: 'var(--c-bg-deep)',
+        padding: 24,
+        display: 'grid',
+        gap: 14,
+        maxWidth: 660,
+      }}
+    >
+      <WaveProgressBar
+        waveNumber={3}
+        secondsLeft={42}
+        secondsMax={60}
       />
       <WaveProgressBar
-        currentWave={10}
-        totalWaves={10}
-        secondsRemaining={10}
-        secondsTotal={60}
+        waveNumber={3}
+        secondsLeft={18}
+        secondsMax={60}
+      />
+      <WaveProgressBar
+        waveNumber={4}
+        secondsLeft={50}
+        secondsMax={60}
+        nextMilestone={{ wave: 5, kind: 'elite' }}
+      />
+      <WaveProgressBar
+        waveNumber={9}
+        secondsLeft={28}
+        secondsMax={60}
+        nextMilestone={{ wave: 10, kind: 'boss' }}
+      />
+      <WaveProgressBar
+        waveNumber={19}
+        secondsLeft={10}
+        secondsMax={60}
+        nextMilestone={{ wave: 20, kind: 'boss' }}
+      />
+      <WaveProgressBar
+        waveNumber={14}
+        secondsLeft={32}
+        secondsMax={60}
+        nextMilestone={{ wave: 15, kind: 'tier-up' }}
       />
     </div>
   ),

@@ -1,10 +1,10 @@
-import type { CSSProperties } from 'react';
-
 import styles from './style.module.scss';
 
-import { Badge } from '@/components/atoms/Badge';
 import { Button } from '@/components/atoms/Button';
 import { Card } from '@/components/atoms/Card';
+import { CurrencyAmount } from '@/components/atoms/CurrencyAmount';
+import { Icon } from '@/components/atoms/Icon';
+import type { IconName } from '@/components/atoms/Icon';
 import { Text } from '@/components/atoms/Text';
 import { BigNum } from '@/lib/bignum/BigNum';
 
@@ -13,27 +13,65 @@ import { BigNum } from '@/lib/bignum/BigNum';
 // ---------------------------------------------------------------------------
 
 export type UpgradeCardCurrency = 'screw' | 'bolt' | 'alloy';
+export type UpgradeCardAccent = 'primary' | 'secondary' | 'warning';
+
+export interface UpgradeCardOption {
+  /** ボタンラベル: '+1' / '+5' / 'MAX' など */
+  amount: string;
+  /** コスト（number か BigNum） */
+  cost: number | BigNum;
+  disabled?: boolean;
+}
 
 export interface UpgradeCardProps {
+  /** 強化項目名 */
   title: string;
-  currentLv: number;
-  currentValue: string;
-  nextLvCost: BigNum | number;
-  onUpgrade: (delta: 1 | 5 | 'max') => void;
-  canAfford: boolean;
-  currency: UpgradeCardCurrency;
-  disabled?: boolean;
-  maxLv?: number;
+  /** 説明文（1 行表示）。省略可 */
+  description?: string;
+  /** アイコン名 */
+  iconName?: IconName;
+  /** アイコン色（CSS 変数でもよい） */
+  iconColor?: string;
+  /** 現 Lv 表示文字列 (例: "Lv 4") */
+  currentLabel?: string;
+  /** 強化前の効果値 */
+  before?: number;
+  /** 強化後（+1 時）の効果値 */
+  after?: number;
+  /** before/after に付与する suffix (例: "%", "×", "/s") */
+  beforeSuffix?: string;
+  /** 通貨種 */
+  currency?: UpgradeCardCurrency;
+  /** アクセントカラー */
+  accent?: UpgradeCardAccent;
+  /** 強化ボタン群 */
+  options?: ReadonlyArray<UpgradeCardOption>;
+  /** 上限到達フラグ。true 時はボタンを非表示にして MAXED 表示 */
+  maxed?: boolean;
+  /** ボタンクリック時のコールバック。option の amount が渡される */
+  onUpgrade?: (amount: string) => void;
 }
 
 // ---------------------------------------------------------------------------
-// 通貨ごとの CSS 変数
+// アクセント→CSS 変数マッピング
 // ---------------------------------------------------------------------------
 
-const CURRENCY_COLOR_VAR: Record<UpgradeCardCurrency, string> = {
-  screw: 'var(--c-screw)',
-  bolt: 'var(--c-bolt)',
-  alloy: 'var(--c-alloy)',
+const ACCENT_COLOR: Record<UpgradeCardAccent, string> = {
+  primary: 'var(--c-primary)',
+  secondary: 'var(--c-secondary)',
+  warning: 'var(--c-warning)',
+};
+
+const ACCENT_GLOW: Record<UpgradeCardAccent, string> = {
+  primary: 'var(--glow-cyan-sm)',
+  secondary: 'var(--glow-purple-sm)',
+  warning: 'none',
+};
+
+const CURRENCY_TO_ACCENT: Record<UpgradeCardCurrency, UpgradeCardAccent> = {
+  bolt: 'primary',
+  alloy: 'secondary',
+  screw: 'warning',
 };
 
 // ---------------------------------------------------------------------------
@@ -42,28 +80,22 @@ const CURRENCY_COLOR_VAR: Record<UpgradeCardCurrency, string> = {
 
 export function UpgradeCard({
   title,
-  currentLv,
-  currentValue,
-  nextLvCost,
+  description,
+  iconName,
+  iconColor,
+  currentLabel,
+  before,
+  after,
+  beforeSuffix = '',
+  currency = 'bolt',
+  accent,
+  options = [],
+  maxed = false,
   onUpgrade,
-  canAfford,
-  currency,
-  disabled = false,
-  maxLv,
 }: UpgradeCardProps) {
-  const costBn: BigNum =
-    typeof nextLvCost === 'number' ? BigNum.fromNumber(nextLvCost) : nextLvCost;
-
-  const colorVar = CURRENCY_COLOR_VAR[currency];
-  const isDisabled = disabled || !canAfford;
-
-  const costTextStyle: CSSProperties = {
-    color: colorVar,
-    fontSize: 'var(--fs-caption)',
-    fontFamily: 'var(--ff-numeric)',
-  };
-
-  const lvLabel = maxLv != null ? `Lv ${currentLv} / ${maxLv}` : `Lv ${currentLv}`;
+  const resolvedAccent = accent ?? CURRENCY_TO_ACCENT[currency];
+  const accentColor = ACCENT_COLOR[resolvedAccent];
+  const effectiveIconColor = iconColor ?? accentColor;
 
   return (
     <Card
@@ -71,55 +103,104 @@ export function UpgradeCard({
       padding="sm"
       className={styles.root}
     >
-      {/* 上段: タイトル + レベル */}
+      {/* ヘッダー行: アイコン + タイトル + Lv バッジ */}
       <div className={styles.header}>
+        {iconName != null && (
+          <span className={styles.iconWrap}>
+            <Icon
+              name={iconName}
+              size={16}
+              color={effectiveIconColor}
+            />
+          </span>
+        )}
         <Text
           variant="label"
           color="mid"
+          className={styles.title}
         >
           {title}
         </Text>
-        <Badge
-          text={lvLabel}
-          variant="default"
-        />
-      </div>
-
-      {/* 中段: 現効果値 */}
-      <div className={styles.value}>
-        <Text
-          variant="numeric-m"
-          color="primary"
-        >
-          {currentValue}
-        </Text>
-      </div>
-
-      {/* 下段: +1 / +5 / Max ボタン */}
-      <div className={styles.buttons}>
-        {([1, 5, 'max'] as const).map((delta) => (
-          <div
-            key={delta}
-            className={styles.buttonCol}
+        {currentLabel != null && (
+          <span
+            className={styles.lvBadge}
+            style={{ color: accentColor, boxShadow: ACCENT_GLOW[resolvedAccent] }}
           >
-            <Button
-              label={delta === 'max' ? 'Max' : `+${delta}`}
-              variant="ghost"
-              size="sm"
-              disabled={isDisabled}
-              onClick={() => {
-                onUpgrade(delta);
-              }}
-            />
-            <span
-              className={styles.costLabel}
-              style={costTextStyle}
-            >
-              {costBn.toDisplay()}
-            </span>
-          </div>
-        ))}
+            {currentLabel}
+          </span>
+        )}
       </div>
+
+      {/* 説明文 */}
+      {description != null && description.length > 0 && (
+        <Text
+          variant="caption"
+          color="dim"
+          className={styles.description}
+        >
+          {description}
+        </Text>
+      )}
+
+      {/* 効果値行: before → after */}
+      {before != null && (
+        <div className={styles.valueRow}>
+          <span
+            className={styles.valueNum}
+            style={{ color: accentColor }}
+          >
+            {before.toLocaleString()}
+            {beforeSuffix}
+          </span>
+          {after != null && !maxed && (
+            <>
+              <span className={styles.arrow}>→</span>
+              <span
+                className={styles.valueNum}
+                style={{ color: 'var(--c-text)' }}
+              >
+                {after.toLocaleString()}
+                {beforeSuffix}
+              </span>
+            </>
+          )}
+        </div>
+      )}
+
+      {/* ボタン群 or MAXED */}
+      {maxed ? (
+        <div
+          className={styles.maxed}
+          style={{ color: accentColor }}
+        >
+          MAXED
+        </div>
+      ) : options.length > 0 ? (
+        <div className={styles.buttons}>
+          {options.map((opt) => {
+            const costBn = typeof opt.cost === 'number' ? BigNum.fromNumber(opt.cost) : opt.cost;
+            return (
+              <div
+                key={opt.amount}
+                className={styles.btnCol}
+              >
+                <Button
+                  label={opt.amount}
+                  variant="ghost"
+                  size="sm"
+                  disabled={opt.disabled === true}
+                  onClick={() => onUpgrade?.(opt.amount)}
+                />
+                <CurrencyAmount
+                  currency={currency}
+                  value={costBn}
+                  size="sm"
+                />
+              </div>
+            );
+          })}
+        </div>
+      ) : null}
     </Card>
   );
 }

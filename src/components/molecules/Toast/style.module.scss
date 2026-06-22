@@ -38,35 +38,27 @@
   border-color: var(--c-primary);
   box-shadow: var(--sh-mid), var(--glow-cyan-sm);
 
-  .icon {
-    color: var(--c-primary);
-  }
+  .icon { color: var(--c-primary); }
 }
 
 .kind-success {
   border-color: var(--c-success);
   box-shadow: var(--sh-mid), var(--glow-success-md);
 
-  .icon {
-    color: var(--c-success);
-  }
+  .icon { color: var(--c-success); }
 }
 
 .kind-error {
   border-color: var(--c-danger);
   box-shadow: var(--sh-mid), var(--glow-danger-md);
 
-  .icon {
-    color: var(--c-danger);
-  }
+  .icon { color: var(--c-danger); }
 }
 
 .kind-warning {
   border-color: var(--c-warning);
 
-  .icon {
-    color: var(--c-warning);
-  }
+  .icon { color: var(--c-warning); }
 }
 
 .icon {
@@ -80,8 +72,33 @@
   min-width: 0;
 }
 
+/* アクションボタン */
+.action {
+  flex-shrink: 0;
+  background: transparent;
+  border: 1px solid currentColor;
+  border-radius: var(--r-s);
+  padding: var(--sp-xxs) var(--sp-s);
+  cursor: pointer;
+  font-family: var(--ff-display);
+  font-size: var(--fs-label);
+  font-weight: var(--fw-semibold);
+  letter-spacing: var(--ls-loose);
+  color: inherit;
+  white-space: nowrap;
+  transition: background-color var(--mo-fast);
+
+  &:hover {
+    background: rgba(255, 255, 255, 0.08);
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .toast {
     animation: none;
+  }
+
+  .action {
+    transition: none;
   }
 }

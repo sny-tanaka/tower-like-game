@@ -2,35 +2,169 @@
   position: relative;
   display: inline-flex;
   flex-direction: row;
-  border-bottom: 1px solid var(--c-border-faint);
 }
 
+/* fullWidth */
 .fullWidth {
   width: 100%;
 
-  /* fullWidth 時は各 Tab を均等幅にする */
-  > :global([role='tab']) {
+  .tab {
     flex: 1;
   }
 }
 
-/* size 変種 */
+/* align */
+.align-start  { justify-content: flex-start; }
+.align-center { justify-content: center; }
+.align-end    { justify-content: flex-end; }
+
+/* ============================
+   variant: underline
+   ============================ */
+.variant-underline {
+  border-bottom: 1px solid var(--c-border-faint);
+
+  .tab {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--sp-xs);
+    padding: var(--sp-xs) var(--sp-m);
+    background: transparent;
+    border: none;
+    border-bottom: 2px solid transparent;
+    cursor: pointer;
+    font-family: var(--ff-display);
+    font-weight: var(--fw-medium);
+    font-size: var(--fs-body);
+    letter-spacing: var(--ls-loose);
+    color: var(--c-text-dim);
+    transition: color var(--mo-fast);
+    white-space: nowrap;
+    min-height: 40px;
+
+    &:hover:not(:disabled):not(.tabActive) {
+      color: var(--c-text-mid);
+    }
+  }
+
+  .tabActive {
+    color: var(--c-primary);
+  }
+}
+
+/* ============================
+   variant: pill
+   ============================ */
+.variant-pill {
+  background: var(--c-surface);
+  border-radius: var(--r-pill);
+  padding: 2px;
+  gap: 2px;
+
+  .tab {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--sp-xs);
+    padding: var(--sp-xs) var(--sp-m);
+    background: transparent;
+    border: none;
+    border-radius: var(--r-pill);
+    cursor: pointer;
+    font-family: var(--ff-display);
+    font-weight: var(--fw-medium);
+    font-size: var(--fs-body);
+    letter-spacing: var(--ls-loose);
+    color: var(--c-text-dim);
+    transition:
+      background-color var(--mo-fast),
+      color var(--mo-fast),
+      box-shadow var(--mo-fast);
+    white-space: nowrap;
+
+    &:hover:not(:disabled):not(.tabActive) {
+      background: var(--c-surface-hi);
+      color: var(--c-text-mid);
+    }
+  }
+
+  .tabActive {
+    background: var(--c-primary-bg);
+    color: var(--c-primary);
+    box-shadow: var(--glow-cyan-sm);
+  }
+}
+
+/* ============================
+   共通: tab 状態
+   ============================ */
+
+.tabDisabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+/* アイコン */
+.tabIcon {
+  display: inline-flex;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+/* ラベル */
+.tabLabel {
+  /* スクリーンリーダー向けにはそのまま */
+}
+
+/* バッジ */
+.badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 var(--sp-xxs);
+  border-radius: var(--r-pill);
+  background: var(--c-surface-hi);
+  color: var(--c-text-dim);
+  font-family: var(--ff-numeric);
+  font-size: 10px;
+  font-weight: var(--fw-semibold);
+  letter-spacing: var(--ls-num);
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.badgeActive {
+  background: var(--c-primary-bg);
+  color: var(--c-primary);
+}
+
+/* ============================
+   size バリアント
+   ============================ */
 .size-sm {
-  > :global([role='tab']) {
+  .variant-underline & .tab,
+  &.variant-underline .tab {
     font-size: var(--fs-caption);
     min-height: 32px;
     padding: var(--sp-xxs) var(--sp-s);
   }
+
+  .variant-pill & .tab,
+  &.variant-pill .tab {
+    font-size: var(--fs-caption);
+    padding: var(--sp-xxs) var(--sp-s);
+  }
 }
 
-.size-md {
-  /* デフォルト。Tab Atom のデフォルト min-height=40px を使用 */
-}
-
-/* スライドするアクティブインジケータ */
+/* ============================
+   underline: スライドインジケータ
+   ============================ */
 .indicator {
   position: absolute;
-  bottom: -1px; /* ボーダーラインに重ねる */
+  bottom: -1px;
   left: 0;
   height: 2px;
   border-radius: var(--r-pill) var(--r-pill) 0 0;
@@ -44,6 +178,10 @@
 
 @media (prefers-reduced-motion: reduce) {
   .indicator {
+    transition: none;
+  }
+
+  .tab {
     transition: none;
   }
 }
