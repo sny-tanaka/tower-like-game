@@ -1,0 +1,20 @@
+.root {
+  display: inline-block;
+  font-family: var(--ff-numeric);
+  font-weight: var(--fw-semibold);
+  letter-spacing: var(--ls-num);
+  line-height: var(--lh-tight);
+  white-space: nowrap;
+}
+
+.sizeSm {
+  font-size: var(--fs-num-s);
+}
+
+.sizeMd {
+  font-size: var(--fs-num-m);
+}
+
+.sizeLg {
+  font-size: var(--fs-num-l);
+}
