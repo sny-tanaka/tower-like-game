@@ -85,17 +85,8 @@ export function BattleHudBottom({
 
   return (
     <div className={styles.root}>
-      {/* ──── 上段: ネジ残高 + 武器スロット + アクティブ ──── */}
+      {/* ──── 上段: 武器スロット (中央) + アクティブ (右大円) ──── */}
       <div className={styles.topRow}>
-        {/* ネジ残高 */}
-        <div className={styles.screwArea}>
-          <CurrencyAmount
-            currency="screw"
-            value={screw}
-            size="md"
-          />
-        </div>
-
         {/* 武器スロット × 4 */}
         <div className={styles.weaponSlots}>
           {WEAPON_ORDER.map((weapon) => (
@@ -127,41 +118,64 @@ export function BattleHudBottom({
             <CircularProgress
               value={activeOnCd ? activeCd : activeMax}
               max={activeMax > 0 ? activeMax : 1}
-              size={56}
+              size={64}
               color={activeOnCd ? 'cd' : 'primary'}
               glow={!activeOnCd && !isAutoActive}
               thickness={4}
             >
               <Icon
                 name="lightning"
-                size={24}
-                color={activeDisabled ? 'var(--c-text-disabled)' : 'var(--c-primary)'}
+                size={26}
+                color={activeDisabled ? 'var(--c-text-disabled)' : 'var(--c-secondary)'}
               />
             </CircularProgress>
           </button>
 
-          {/* アクティブ手動/自動トグル */}
-          <Toggle
-            checked={isAutoActive}
-            onChange={onToggleAuto}
-            label="自動"
-            size="sm"
-            accent="secondary"
-          />
+          {/* MANUAL / AUTO ラベル */}
+          <span
+            className={[styles.modeLabel, isAutoActive ? styles.modeLabelAuto : '']
+              .filter(Boolean)
+              .join(' ')}
+            aria-hidden
+          >
+            {isAutoActive ? 'AUTO' : 'MANUAL'}
+          </span>
+
+          {/* 自動 Toggle (a11y / テスト用に維持。design.png に合わせ visually-hidden) */}
+          <div className={styles.toggleHidden}>
+            <Toggle
+              checked={isAutoActive}
+              onChange={onToggleAuto}
+              label="自動"
+              size="sm"
+              accent="secondary"
+            />
+          </div>
         </div>
       </div>
 
-      {/* ──── 下段: 速度切替 + 一時停止 + メニュー + スクリーンセーバー ──── */}
+      {/* ──── 下段: 通貨 + 速度切替 + 一時停止 + メニュー + SS ──── */}
       <div className={styles.bottomRow}>
-        {/* 速度切替 */}
-        <SegmentedControl
-          options={SPEED_OPTIONS}
-          value={gameSpeed}
-          onChange={onSpeedChange}
-          size="sm"
-        />
+        {/* 通貨大表示 (左端) */}
+        <div className={styles.currencyArea}>
+          <CurrencyAmount
+            currency="screw"
+            value={screw}
+            size="lg"
+          />
+        </div>
 
-        {/* 一時停止 / メニュー / スクリーンセーバー */}
+        {/* 速度切替 (中央) */}
+        <div className={styles.speedArea}>
+          <SegmentedControl
+            options={SPEED_OPTIONS}
+            value={gameSpeed}
+            onChange={onSpeedChange}
+            size="sm"
+          />
+        </div>
+
+        {/* システムボタン (右端) */}
         <div className={styles.sysButtons}>
           <IconButton
             icon={isPaused ? 'play' : 'pause'}

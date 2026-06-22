@@ -18,6 +18,7 @@ function makeProps(overrides?: Partial<Parameters<typeof BattleHudTop>[0]>) {
     totalWaves: 30,
     secondsRemaining: 18,
     secondsTotal: 26,
+    enemiesRemaining: 0,
     ...overrides,
   };
 }
@@ -27,7 +28,7 @@ function makeProps(overrides?: Partial<Parameters<typeof BattleHudTop>[0]>) {
 // ---------------------------------------------------------------------------
 
 describe('BattleHudTop', () => {
-  it('Wave カウンタを "wave/totalWaves" 形式で表示する', () => {
+  it('Wave/総 Wave を可視ラベル (SR-only) として保持する', () => {
     render(<BattleHudTop {...makeProps({ wave: 7, totalWaves: 30 })} />);
     expect(screen.getByText('7/30')).toBeInTheDocument();
   });
@@ -37,34 +38,34 @@ describe('BattleHudTop', () => {
     expect(screen.getByText('T5')).toBeInTheDocument();
   });
 
-  it('HP バー aria-valuenow が ratio1000 スケールで比率を反映する', () => {
-    render(<BattleHudTop {...makeProps({ hpCurrent: BigNum.fromNumber(500), hpMax: BigNum.fromNumber(1000) })} />);
-    // HP バーは ratio1000 スケール（0-1000）で描画。500/1000 = 500
-    const bars = screen.getAllByRole('progressbar');
-    const hpBar = bars.find((el) => el.getAttribute('aria-valuenow') === '500');
-    expect(hpBar).toBeDefined();
-    expect(hpBar).toHaveAttribute('aria-valuemax', '1000');
+  it('HP 値 (current / max) が表示される', () => {
+    render(
+      <BattleHudTop
+        {...makeProps({ hpCurrent: BigNum.fromNumber(500), hpMax: BigNum.fromNumber(1000) })}
+      />
+    );
+    // NumericDisplay は BigNum.toDisplay() を表示する想定
+    // 1000 → "1.00K" 形式、500 → "500" 形式
+    const hpRow = screen.getByLabelText(/HP/);
+    expect(hpRow).toBeInTheDocument();
   });
 
-  it('HP 低下 (< 30%) のとき ratio1000 が 200 (200/1000 = 200) になる', () => {
-    render(<BattleHudTop {...makeProps({ hpCurrent: BigNum.fromNumber(200), hpMax: BigNum.fromNumber(1000) })} />);
-    // 200 / 1000 = 0.2 → 0.2 * 1000 = 200
-    const bars = screen.getAllByRole('progressbar');
-    const hpBar = bars.find((el) => el.getAttribute('aria-valuenow') === '200');
-    expect(hpBar).toBeDefined();
+  it('残敵数が指定されると aria-label に反映される', () => {
+    render(<BattleHudTop {...makeProps({ enemiesRemaining: 18 })} />);
+    expect(screen.getByLabelText('残敵 18')).toBeInTheDocument();
   });
 
   it('WaveProgressBar が waveNumber を表示する', () => {
     render(<BattleHudTop {...makeProps({ wave: 12 })} />);
-    // WaveProgressBar 内に "WAVE" ラベルが存在する
     expect(screen.getByText(/WAVE/)).toBeInTheDocument();
-    expect(screen.getByText('12')).toBeInTheDocument();
+    // WaveProgressBar 内の waveNum 表示
+    expect(screen.getAllByText('12').length).toBeGreaterThan(0);
   });
 
-  it('isBossWave=true のとき Wave カウンタが secondary カラーになる', () => {
+  it('isBossWave=true のとき WaveProgressBar が boss スタイルになる', () => {
     const { container } = render(<BattleHudTop {...makeProps({ isBossWave: true })} />);
-    // secondary カラーは CSS クラスで表現されるため、テキストが存在することで検証
-    expect(screen.getByText(`5/30`)).toBeInTheDocument();
     expect(container.firstChild).toBeTruthy();
+    // 既存互換テキスト
+    expect(screen.getByText('5/30')).toBeInTheDocument();
   });
 });

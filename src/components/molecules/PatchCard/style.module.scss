@@ -1,5 +1,8 @@
+/* PatchCard — Tier別パッチカード (claude-design 準拠の縦長レイアウト) */
+
 .root {
   display: inline-block;
+  position: relative;
   border-radius: var(--r-m);
   transition: box-shadow var(--mo-fast) var(--ease-default);
 
@@ -28,7 +31,7 @@
   cursor: not-allowed;
 }
 
-/* カード共通 */
+/* カード共通: 縦並びの中央寄せレイアウト */
 .card {
   display: flex;
   flex-direction: column;
@@ -36,9 +39,44 @@
   gap: var(--sp-xs);
   text-align: center;
   position: relative;
+  width: 100%;
+  box-sizing: border-box;
 }
 
-/* アイコン背景 */
+/* Tier バッジ (左上) */
+.tierBadge {
+  position: absolute;
+  top: 8px;
+  left: 8px;
+  z-index: 1;
+}
+
+/* 所持数 (右上) */
+.count {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  z-index: 1;
+  display: inline-flex;
+  align-items: center;
+  padding: 1px var(--sp-xs);
+  background: var(--c-bg-base);
+  border: 1px solid var(--c-border-faint);
+  border-radius: var(--r-pill);
+  font-family: var(--ff-numeric);
+  font-size: 10px;
+  font-weight: var(--fw-semibold);
+  letter-spacing: var(--ls-num);
+  line-height: 1;
+  color: var(--c-text-mid);
+  white-space: nowrap;
+}
+
+.countZero {
+  opacity: 0.5;
+}
+
+/* アイコン枠 (中央上) */
 .iconWrap {
   display: flex;
   align-items: center;
@@ -46,23 +84,27 @@
   border-radius: var(--r-s);
   background: var(--c-surface);
   flex-shrink: 0;
+  margin: var(--sp-m) auto var(--sp-xxs);
 }
 
 /* 名前 */
 .name {
   display: block;
+  font-family: var(--ff-display);
+  font-weight: var(--fw-semibold);
   line-height: var(--lh-snug);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  max-width: 100%;
 }
 
-/* trigger / effect */
+/* trigger / effect — 縦並びで中央寄せ */
 .detail {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: var(--sp-xxs);
+  gap: 0;
   width: 100%;
 }
 
@@ -78,27 +120,14 @@
 }
 
 .effect {
-  font-family: var(--ff-display);
+  font-family: var(--ff-body);
   font-size: var(--fs-label);
-  font-weight: var(--fw-semibold);
   color: var(--c-text-mid);
   line-height: var(--lh-snug);
   max-width: 100%;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-}
-
-/* 所持数 */
-.count {
-  font-family: var(--ff-numeric);
-  font-size: var(--fs-caption);
-  font-weight: var(--fw-semibold);
-  letter-spacing: var(--ls-num);
-}
-
-.countZero {
-  opacity: 0.5;
 }
 
 /* 合成中バッジ */
@@ -122,34 +151,39 @@
    size バリアント
    ============================ */
 .size-sm {
+  width: 130px;
+
   .card {
-    min-width: 56px;
-    gap: var(--sp-xxs);
+    min-height: 150px;
   }
 
   .name {
-    max-width: 64px;
-    font-size: 10px;
+    font-size: 12px;
   }
 }
 
 .size-md {
+  width: 100%;
+  min-width: 0;
+
   .card {
-    min-width: 72px;
+    min-height: 180px;
   }
 
   .name {
-    max-width: 80px;
+    font-size: 13px;
   }
 }
 
 .size-lg {
+  width: 190px;
+
   .card {
-    min-width: 88px;
+    min-height: 200px;
   }
 
   .name {
-    max-width: 96px;
+    font-size: 14px;
   }
 }
 

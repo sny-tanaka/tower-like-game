@@ -10,8 +10,11 @@ import { PageHeader } from '@/components/organisms/PageHeader';
 import { PatchEquipTab } from '@/components/organisms/PatchEquipTab';
 import { PatchInventoryTab } from '@/components/organisms/PatchInventoryTab';
 import { PatchMergeTab } from '@/components/organisms/PatchMergeTab';
+import { calcMergeable } from '@/components/organisms/PatchMergeTab';
+import { useStore } from '@/store';
 import { useNavigation } from '@/store/navigation';
 import type { Screen } from '@/store/navigation';
+import { MAX_PATCH_SLOTS } from '@/store/slices/equippedPatches';
 
 // ---------------------------------------------------------------------------
 // タブ定義
@@ -19,11 +22,13 @@ import type { Screen } from '@/store/navigation';
 
 type PatchTab = 'equip' | 'inventory' | 'merge';
 
-const PATCH_TABS: ReadonlyArray<TabBarItem<PatchTab>> = [
-  { key: 'equip', label: '装着' },
-  { key: 'inventory', label: '所持' },
-  { key: 'merge', label: '合成' },
-];
+// ---------------------------------------------------------------------------
+// ヘルパー
+// ---------------------------------------------------------------------------
+
+function calcUnlockedSlots(patchSlotsLv: number): number {
+  return Math.min(1 + patchSlotsLv, MAX_PATCH_SLOTS);
+}
 
 // ---------------------------------------------------------------------------
 // コンポーネント
@@ -31,7 +36,7 @@ const PATCH_TABS: ReadonlyArray<TabBarItem<PatchTab>> = [
 
 /**
  * PatchScreen — パッチ庫画面。
- * AppShell.header: PageHeader (通貨なし) + TabBar (装着/所持/合成)
+ * AppShell.header: PageHeader (戻る + subtitle) + TabBar (装着/所持/合成、各バッジ付き)
  * AppShell.main: タブに応じて PatchEquipTab / PatchInventoryTab / PatchMergeTab
  * AppShell.footer: BottomNav
  */
@@ -39,15 +44,37 @@ export function PatchScreen() {
   const { navigate } = useNavigation();
   const [activeTab, setActiveTab] = useState<PatchTab>('equip');
 
+  const equippedPatches = useStore((s) => s.equippedPatches);
+  const patches = useStore((s) => s.patches);
+  const patchSlotsLv = useStore((s) => s.machineLevels.patchSlots);
+
+  const unlockedCount = calcUnlockedSlots(patchSlotsLv);
+  const equippedCount = equippedPatches.size;
+  const inventoryCount = patches.size;
+  // 合成上限は MAX_TIER-1=4 を採用（PatchMergeTab と同じスコープで全件カウント）
+  const mergeableCount = calcMergeable(patches, 5).length;
+
   const handleNavChange = (target: Screen) => {
     navigate(target);
   };
+
+  const handleBack = () => {
+    navigate('preparation');
+  };
+
+  const PATCH_TABS: ReadonlyArray<TabBarItem<PatchTab>> = [
+    { key: 'equip', label: '装着', badge: `${equippedCount}/${unlockedCount}` },
+    { key: 'inventory', label: '所持', badge: inventoryCount > 0 ? inventoryCount : undefined },
+    { key: 'merge', label: '合成', badge: mergeableCount > 0 ? mergeableCount : undefined },
+  ];
 
   return (
     <AppShell
       header={
         <PageHeader
           title="パッチ庫"
+          subtitle={`装着 ${equippedCount}/${unlockedCount} ・ 在庫 ${inventoryCount} 種`}
+          onBack={handleBack}
           currencies={[]}
           tabBar={
             <TabBar<PatchTab>

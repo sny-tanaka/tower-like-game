@@ -13,12 +13,11 @@
   background-size: 40px 40px;
 }
 
-/* ===== 索敵円 ===== */
+/* ===== 索敵円（外側） ===== */
 .rangeCircle {
   position: absolute;
   transform: translate(-50%, -50%);
   border-radius: 50%;
-  /* width 基準で正方形を維持（親の縦横比に依らず常に円） */
   aspect-ratio: 1 / 1;
   border: 1px solid rgba(78, 228, 246, 0.25);
   background: radial-gradient(
@@ -31,13 +30,58 @@
   z-index: var(--z-base);
 }
 
-/* ===== マシン ===== */
+/* 内側のリング (装飾) */
+.innerRing {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  border-radius: 50%;
+  aspect-ratio: 1 / 1;
+  border: 1px dashed rgba(78, 228, 246, 0.18);
+  pointer-events: none;
+  z-index: var(--z-base);
+}
+
+/* ===== マシン (三角 + 二重リング) ===== */
 .machine {
   position: absolute;
   transform: translate(-50%, -50%);
   z-index: 10;
-  filter: drop-shadow(var(--glow-cyan-md));
   pointer-events: none;
+  width: 88px;
+  height: 88px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  filter: drop-shadow(var(--glow-cyan-md));
+}
+
+.machineRingOuter {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  border: 1.5px solid var(--c-primary);
+  box-shadow:
+    0 0 12px rgba(78, 228, 246, 0.6),
+    inset 0 0 12px rgba(78, 228, 246, 0.25);
+  pointer-events: none;
+}
+
+.machineRingInner {
+  position: absolute;
+  inset: 14px;
+  border-radius: 50%;
+  border: 1px solid rgba(78, 228, 246, 0.45);
+  pointer-events: none;
+}
+
+/* ===== ダミーピン (視覚装飾) ===== */
+.pin {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+  z-index: 4;
+  filter: drop-shadow(0 0 4px currentColor);
+  opacity: 0.85;
 }
 
 /* ===== 敵 ===== */

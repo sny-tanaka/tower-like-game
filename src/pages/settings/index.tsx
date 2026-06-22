@@ -23,7 +23,7 @@ import { useNavigation } from '@/store/navigation';
 type SettingsTab = 'sound' | 'game' | 'data';
 
 const TABS: ReadonlyArray<TabBarItem<SettingsTab>> = [
-  { key: 'sound', label: '音' },
+  { key: 'sound', label: 'サウンド' },
   { key: 'game', label: 'ゲーム' },
   { key: 'data', label: 'データ' },
 ];

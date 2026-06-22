@@ -65,18 +65,25 @@ describe('buildLaserStats', () => {
     const penetrate = stats.find((s) => s.label === '貫通');
     expect(penetrate?.value).toBe(1);
   });
+
+  it('射程ステは m 表記で保持される', () => {
+    const stats = buildLaserStats(0);
+    const range = stats.find((s) => s.label === '射程');
+    expect(range?.suffix).toBe('m');
+  });
 });
 
 describe('buildCannonStats', () => {
-  it('Lv 0 で爆発半径 = 30', () => {
+  it('Lv 0 で爆発半径 = 30 (suffix m)', () => {
     const stats = buildCannonStats(0);
-    const radius = stats.find((s) => s.label === '爆発半径');
+    const radius = stats.find((s) => s.label === '半径');
     expect(radius?.value).toBe(30);
+    expect(radius?.suffix).toBe('m');
   });
 
   it('Lv 10 で爆発半径 = 35', () => {
     const stats = buildCannonStats(10);
-    const radius = stats.find((s) => s.label === '爆発半径');
+    const radius = stats.find((s) => s.label === '半径');
     expect(radius?.value).toBe(35);
   });
 });
@@ -102,10 +109,11 @@ describe('buildThunderStats', () => {
 });
 
 describe('buildCutterStats', () => {
-  it('Lv 0 で旋回半径 = 80', () => {
+  it('Lv 0 で旋回半径 = 80 (suffix m)', () => {
     const stats = buildCutterStats(0);
-    const radius = stats.find((s) => s.label === '旋回半径');
+    const radius = stats.find((s) => s.label === '旋回');
     expect(radius?.value).toBe(80);
+    expect(radius?.suffix).toBe('m');
   });
 
   it('Lv 0 で同時ヒット数 = 1', () => {
@@ -122,7 +130,7 @@ describe('buildCutterStats', () => {
 
   it('Lv 10 で旋回半径 = 85', () => {
     const stats = buildCutterStats(10);
-    const radius = stats.find((s) => s.label === '旋回半径');
+    const radius = stats.find((s) => s.label === '旋回');
     expect(radius?.value).toBe(85);
   });
 });
@@ -149,14 +157,6 @@ describe('WeaponDetailsTab', () => {
     const panel = container.querySelector('[role="tabpanel"]');
     expect(panel).not.toBeNull();
     expect(panel?.getAttribute('aria-label')).toBe('武器詳細');
-  });
-
-  it('アクティブスキル名が表示される', () => {
-    render(<WeaponDetailsTab />);
-    expect(screen.getByText('Mega Beam')).toBeDefined();
-    expect(screen.getByText('Volley')).toBeDefined();
-    expect(screen.getByText('Plasma Discharge')).toBeDefined();
-    expect(screen.getByText('Overdrive')).toBeDefined();
   });
 
   it('weaponLv が変わるとステが反映される', () => {

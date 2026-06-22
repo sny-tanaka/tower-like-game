@@ -2,7 +2,7 @@
   display: flex;
   flex-direction: column;
   gap: var(--sp-m);
-  padding: var(--sp-m);
+  padding: 0;
 }
 
 .header {
@@ -29,8 +29,8 @@
 
 .mergeList {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: var(--sp-s);
+  grid-template-columns: 1fr 1fr;
+  gap: var(--sp-m);
 }
 
 .empty {

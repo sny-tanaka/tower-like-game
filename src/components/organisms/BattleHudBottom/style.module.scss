@@ -1,7 +1,7 @@
 .root {
   display: flex;
   flex-direction: column;
-  gap: var(--sp-xs);
+  gap: var(--sp-s);
   padding: var(--sp-s) var(--sp-m);
   padding-bottom: calc(var(--sp-m) + env(safe-area-inset-bottom, 0px));
   background: linear-gradient(
@@ -12,17 +12,12 @@
   border-top: 1px solid var(--c-border-faint);
 }
 
-/* ──── 上段 ──── */
+/* ──── 上段: 武器 + アクティブ ──── */
 .topRow {
   display: flex;
   align-items: center;
+  justify-content: space-between;
   gap: var(--sp-s);
-}
-
-/* ネジ残高エリア */
-.screwArea {
-  flex-shrink: 0;
-  min-width: 0;
 }
 
 /* 武器スロット × 4 */
@@ -30,10 +25,10 @@
   display: flex;
   gap: var(--sp-xs);
   flex: 1;
-  justify-content: center;
+  justify-content: flex-start;
 }
 
-/* アクティブボタン + トグル */
+/* アクティブボタン + モードラベル + トグル */
 .activeArea {
   display: flex;
   flex-direction: column;
@@ -49,8 +44,20 @@
   align-items: center;
   justify-content: center;
   border-radius: var(--r-pill);
+  position: relative;
+  width: 72px;
+  height: 72px;
+  /* 紫グロー */
+  background: radial-gradient(
+    circle,
+    rgba(169, 107, 255, 0.32) 0%,
+    rgba(169, 107, 255, 0.08) 60%,
+    transparent 80%
+  );
+  border: 1px solid var(--c-secondary);
+  box-shadow: var(--glow-purple-md);
   transition: opacity var(--mo-fast) var(--ease-default),
-              transform var(--mo-fast) var(--ease-default);
+    transform var(--mo-fast) var(--ease-default);
 
   &:not(:disabled):active {
     transform: scale(0.93);
@@ -60,18 +67,61 @@
 .activeDisabled {
   cursor: not-allowed;
   opacity: 0.5;
+  box-shadow: none;
+  border-color: var(--c-border);
+  background: var(--c-surface);
 }
 
-/* ──── 下段 ──── */
+.modeLabel {
+  font-family: var(--ff-display);
+  font-size: 9px;
+  font-weight: var(--fw-semibold);
+  letter-spacing: var(--ls-loose);
+  text-transform: uppercase;
+  color: var(--c-secondary);
+  white-space: nowrap;
+  user-select: none;
+}
+
+.modeLabelAuto {
+  color: var(--c-secondary-hi, var(--c-secondary));
+}
+
+/* Toggle は a11y / テスト保持のため残しつつ視覚的には小さく隠す */
+.toggleHidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
+  padding: 0;
+  margin: -1px;
+}
+
+/* ──── 下段: 通貨 + 速度 + システム ──── */
 .bottomRow {
   display: flex;
   align-items: center;
-  justify-content: space-between;
   gap: var(--sp-s);
+}
+
+.currencyArea {
+  flex-shrink: 0;
+  min-width: 0;
+}
+
+.speedArea {
+  flex: 1;
+  display: flex;
+  justify-content: center;
 }
 
 /* システムボタン群 */
 .sysButtons {
   display: flex;
   gap: var(--sp-xxs);
+  flex-shrink: 0;
 }

@@ -18,20 +18,26 @@ import type { Screen } from '@/store/navigation';
 type ArmoryTab = 'details' | 'upgrade';
 
 const TABS = [
-  { key: 'details' as ArmoryTab, label: '武器詳細' },
-  { key: 'upgrade' as ArmoryTab, label: '共通強化' },
+  { key: 'details' as ArmoryTab, label: '詳細' },
+  { key: 'upgrade' as ArmoryTab, label: '強化' },
 ] as const;
 
 // ---------------------------------------------------------------------------
 // コンポーネント
 // ---------------------------------------------------------------------------
 
+export interface ArmoryScreenProps {
+  /** 初期表示タブ（テスト・ストーリーから上書き可。デフォルト: 'details'） */
+  initialTab?: ArmoryTab;
+}
+
 /**
  * ArmoryScreen — 武器庫画面。
- * '武器詳細' / '共通強化' の 2 タブ構成。
+ * '詳細' / '強化' の 2 タブ構成。
  */
-export function ArmoryScreen() {
-  const [activeTab, setActiveTab] = useState<ArmoryTab>('details');
+export function ArmoryScreen(props: ArmoryScreenProps = {}) {
+  const { initialTab = 'details' } = props;
+  const [activeTab, setActiveTab] = useState<ArmoryTab>(initialTab);
   const { screen, navigate } = useNavigation();
 
   return (
@@ -40,6 +46,7 @@ export function ArmoryScreen() {
         <PageHeader
           title="武器庫"
           currencies={['bolt', 'alloy']}
+          onBack={() => navigate('preparation')}
           tabBar={
             <TabBar
               tabs={TABS}

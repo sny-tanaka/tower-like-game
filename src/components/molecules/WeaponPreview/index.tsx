@@ -1,6 +1,5 @@
 import styles from './style.module.scss';
 
-import { Card } from '@/components/atoms/Card';
 import { Icon } from '@/components/atoms/Icon';
 import { Text } from '@/components/atoms/Text';
 import type { WeaponType } from '@/components/molecules/WeaponSlotIcon';
@@ -58,6 +57,7 @@ export function WeaponPreview({
   onClick,
 }: WeaponPreviewProps) {
   const isWide = layout === 'wide';
+  const interactive = onClick != null && !locked;
 
   return (
     <div
@@ -69,11 +69,11 @@ export function WeaponPreview({
       ]
         .filter(Boolean)
         .join(' ')}
-      onClick={locked ? undefined : onClick}
-      role={onClick != null && !locked ? 'button' : undefined}
-      tabIndex={onClick != null && !locked ? 0 : undefined}
+      onClick={interactive ? onClick : undefined}
+      role={interactive ? 'button' : undefined}
+      tabIndex={interactive ? 0 : undefined}
       onKeyDown={
-        onClick != null && !locked
+        interactive
           ? (e) => {
               if (e.key === 'Enter' || e.key === ' ') {
                 e.preventDefault();
@@ -84,97 +84,78 @@ export function WeaponPreview({
       }
       aria-pressed={onClick != null ? active : undefined}
     >
-      <Card
-        variant="elevated"
-        padding="md"
-        interactive={onClick != null && !locked}
+      <div
         className={styles.card}
+        style={interactive ? { cursor: 'pointer' } : undefined}
       >
-        {/* ヘッダー: アイコン + 武器名 + description */}
-        <div className={styles.header}>
-          <span className={styles.iconWrap}>
-            <Icon
-              name={weapon}
-              size={isWide ? 24 : 28}
-              color={
-                active
-                  ? 'var(--c-primary)'
-                  : locked
-                    ? 'var(--c-text-disabled)'
-                    : 'var(--c-text-mid)'
-              }
-            />
-          </span>
-          <div className={styles.headerText}>
-            <Text
-              variant={isWide ? 'label' : 'heading-3'}
-              color={active ? 'primary' : locked ? 'disabled' : 'default'}
-            >
-              {name}
-            </Text>
-            {description != null && description.length > 0 && (
+        {/* シアン枠アイコンタイル */}
+        <div
+          className={styles.iconTile}
+          aria-hidden
+        >
+          <Icon
+            name={weapon}
+            size={isWide ? 40 : 52}
+          />
+        </div>
+
+        {/* 情報側 */}
+        <div className={styles.body}>
+          <div className={styles.header}>
+            <div className={styles.headerText}>
+              <span className={styles.name}>{name}</span>
+              {description != null && description.length > 0 && (
+                <span className={styles.description}>{description}</span>
+              )}
+            </div>
+          </div>
+
+          {/* ステータス: 2x2 grid */}
+          {!locked && stats.length > 0 && (
+            <div className={styles.statGrid}>
+              {stats.map((stat) => {
+                const displayValue =
+                  stat.suffix != null
+                    ? `${typeof stat.value === 'number' ? stat.value.toLocaleString() : stat.value}${stat.suffix}`
+                    : typeof stat.value === 'number'
+                      ? stat.value.toLocaleString()
+                      : stat.value;
+                return (
+                  <div
+                    key={stat.label}
+                    className={styles.statChip}
+                  >
+                    <span className={styles.statLabel}>{stat.label}</span>
+                    <span
+                      className={styles.statValue}
+                      style={stat.accent != null ? { color: ACCENT_COLOR[stat.accent] } : undefined}
+                    >
+                      {displayValue}
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+
+          {/* locked 表示 */}
+          {locked && (
+            <div className={styles.lockedBadge}>
+              <Icon
+                name="close"
+                size={14}
+                color="var(--c-text-disabled)"
+              />
               <Text
                 variant="caption"
                 color="dim"
-                className={styles.description}
               >
-                {description}
+                LOCKED
               </Text>
-            )}
-          </div>
+            </div>
+          )}
         </div>
-
-        {/* ステータス一覧 */}
-        {!locked && stats.length > 0 && (
-          <ul className={styles.statList}>
-            {stats.map((stat) => {
-              const displayValue =
-                stat.suffix != null
-                  ? `${typeof stat.value === 'number' ? stat.value.toLocaleString() : stat.value}${stat.suffix}`
-                  : typeof stat.value === 'number'
-                    ? stat.value.toLocaleString()
-                    : stat.value;
-
-              return (
-                <li
-                  key={stat.label}
-                  className={styles.statRow}
-                >
-                  <Text
-                    variant="caption"
-                    color="dim"
-                  >
-                    {stat.label}
-                  </Text>
-                  <span
-                    className={styles.statValue}
-                    style={stat.accent != null ? { color: ACCENT_COLOR[stat.accent] } : undefined}
-                  >
-                    {displayValue}
-                  </span>
-                </li>
-              );
-            })}
-          </ul>
-        )}
-
-        {/* locked 表示 */}
-        {locked && (
-          <div className={styles.lockedBadge}>
-            <Icon
-              name="close"
-              size={14}
-              color="var(--c-text-disabled)"
-            />
-            <Text
-              variant="caption"
-              color="dim"
-            >
-              LOCKED
-            </Text>
-          </div>
-        )}
-      </Card>
+      </div>
     </div>
   );
 }

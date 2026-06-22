@@ -94,10 +94,10 @@ export function buildStatsImpact(lv: number): StatsImpactItem[] {
       after: Math.round(BASE_DAMAGE.laser * mulNext),
     },
     {
-      label: 'CANNON 爆発半径',
+      label: 'CANNON 半径',
       before: Math.round((30 + 0.5 * lv) * 10) / 10,
       after: Math.round((30 + 0.5 * nextLv) * 10) / 10,
-      suffix: 'px',
+      suffix: 'm',
     },
     {
       label: 'THUNDER 連鎖',
@@ -226,7 +226,7 @@ export function WeaponLevelUpgradeTab() {
                   size="sm"
                   accentColor="dim"
                   suffix={item.suffix}
-                  decimals={item.suffix === 'px' ? 1 : 0}
+                  decimals={item.suffix === 'm' ? 1 : 0}
                 />
                 <span className={styles.arrow}>→</span>
                 <NumericDisplay
@@ -234,7 +234,7 @@ export function WeaponLevelUpgradeTab() {
                   size="sm"
                   accentColor="secondary"
                   suffix={item.suffix}
-                  decimals={item.suffix === 'px' ? 1 : 0}
+                  decimals={item.suffix === 'm' ? 1 : 0}
                 />
               </span>
             </div>

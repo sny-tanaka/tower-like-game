@@ -1,141 +1,118 @@
+/* PatchSlot — 装着スロット (claude-design 準拠の縦長レイアウト) */
+
 .wrapper {
   display: block;
-}
+  width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
 
-.card {
-  min-height: 52px;
-}
-
-/* ============================
-   状態
-   ============================ */
-
-/* 空きスロット */
-.empty {
-  .card {
-    border-style: dashed;
-    background: transparent;
-    opacity: 0.6;
+  &:focus-visible {
+    outline: 2px solid var(--c-primary);
+    outline-offset: 2px;
+    border-radius: var(--r-m);
   }
 }
 
-.emptyContent {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  min-height: 36px;
-}
-
-/* ロック済み */
-.locked {
-  .card {
-    border-style: dashed;
-    background: transparent;
-    opacity: 0.4;
-  }
-}
-
-.lockedContent {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: var(--sp-xs);
-  min-height: 36px;
-}
-
-/* 装着中 */
+/* filled: PatchCard を内包するだけ。スタイルは PatchCard 側 */
 .filled {
-  .card {
-    border-color: var(--c-border);
+  border-radius: var(--r-m);
+  cursor: inherit;
+
+  &[role='button'] {
+    cursor: pointer;
   }
 }
 
-.filledContent {
+/* 空きスロット / ロック: wrapper 自体に点線太めカード */
+.empty,
+.locked {
   display: flex;
+  flex-direction: column;
   align-items: center;
+  justify-content: center;
+  gap: var(--sp-s);
+  border-radius: var(--r-m);
+  user-select: none;
+  transition:
+    border-color var(--mo-fast) var(--ease-out),
+    opacity var(--mo-fast) var(--ease-out);
+}
+
+.empty {
+  background: var(--c-bg-elev);
+  border: 2px dashed var(--c-border);
+  color: var(--c-text-dim);
+  opacity: 0.85;
+
+  &[role='button'] {
+    cursor: pointer;
+  }
+
+  &[role='button']:hover {
+    border-color: var(--c-primary);
+    opacity: 1;
+  }
+}
+
+.locked {
+  background: var(--c-bg-base);
+  border: 2px dashed var(--c-border-faint);
+  color: var(--c-text-disabled);
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.slotInner {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
   gap: var(--sp-s);
 }
 
-.patchIcon {
+.emptyIcon {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 28px;
-  height: 28px;
-  border-radius: var(--r-xs);
-  background: var(--c-surface);
-  flex-shrink: 0;
+  font-size: 0;
 }
 
-.patchInfo {
-  display: flex;
-  flex-direction: column;
-  gap: var(--sp-xxs);
-  flex: 1;
-  min-width: 0;
-}
-
-.patchTop {
-  display: flex;
-  align-items: center;
-  gap: var(--sp-xs);
-}
-
-.patchName {
-  flex: 1;
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.patchDetail {
-  display: flex;
-  gap: var(--sp-xs);
-  align-items: center;
-  flex-wrap: wrap;
-}
-
-.trigger {
-  font-size: var(--fs-label);
-  color: var(--c-text-dim);
-  white-space: nowrap;
-}
-
-.effect {
+.emptyLabel {
   font-family: var(--ff-display);
   font-size: var(--fs-label);
-  font-weight: var(--fw-semibold);
-  color: var(--c-text-mid);
-  white-space: nowrap;
+  letter-spacing: var(--ls-loose);
+  text-transform: uppercase;
+  line-height: 1;
+  color: inherit;
 }
 
 /* ============================
    size バリアント
    ============================ */
-
 .size-sm {
-  .card {
-    min-height: 40px;
-  }
-
-  .patchIcon {
-    width: 22px;
-    height: 22px;
+  &.empty,
+  &.locked {
+    min-height: 150px;
   }
 }
 
 .size-md {
-  /* デフォルト */
+  &.empty,
+  &.locked {
+    min-height: 180px;
+  }
 }
 
 .size-lg {
-  .card {
-    min-height: 64px;
+  &.empty,
+  &.locked {
+    min-height: 200px;
   }
+}
 
-  .patchIcon {
-    width: 36px;
-    height: 36px;
+@media (prefers-reduced-motion: reduce) {
+  .empty,
+  .locked {
+    transition: none;
   }
 }

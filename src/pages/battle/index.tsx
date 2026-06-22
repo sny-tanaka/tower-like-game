@@ -88,9 +88,8 @@ export function Page() {
   const [isScreenSaverOpen, setIsScreenSaverOpen] = useState(false);
   const [isPaused, setIsPaused] = useState(false);
   const [localGameSpeed, setLocalGameSpeed] = useState<GameSpeed>(gameSpeed);
-  const [runWorkshopLevels, setRunWorkshopLevels] = useState<RunWorkshopLevels>(
-    defaultRunWorkshopLevels
-  );
+  const [runWorkshopLevels, setRunWorkshopLevels] =
+    useState<RunWorkshopLevels>(defaultRunWorkshopLevels);
 
   // Fx イベント（バトルロジック配線前は空リスト）
   const [damageEvents] = useState<DamageEvent[]>([]);
@@ -179,6 +178,7 @@ export function Page() {
             secondsRemaining={WAVE_SECONDS_REMAINING}
             secondsTotal={WAVE_SECONDS_TOTAL}
             isBossWave={currentWave === TOTAL_WAVES}
+            enemiesRemaining={0}
           />
         }
         footer={

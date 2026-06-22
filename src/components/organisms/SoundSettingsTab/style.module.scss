@@ -1,33 +1,56 @@
 .root {
   display: flex;
   flex-direction: column;
-  gap: var(--sp-m);
-  padding: var(--sp-m);
-}
-
-.header {
-  display: flex;
-  align-items: center;
   gap: var(--sp-s);
 }
 
-.row {
-  padding: var(--sp-s) 0;
+/* ====== ミュート行 (Card 内): 左にラベル + 説明、右に Toggle ====== */
+
+.muteRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-m);
 }
 
-.divider {
-  height: 1px;
-  background: var(--c-border-faint);
-}
-
-.sliderSection {
+.muteLabelGroup {
   display: flex;
   flex-direction: column;
-  gap: var(--sp-xs);
+  gap: var(--sp-2xs);
+  min-width: 0;
 }
 
-.sliderHeader {
+/* ====== スライダー行 (Card 内): icon + label + slider + value ====== */
+
+.sliderRow {
   display: flex;
-  justify-content: space-between;
   align-items: center;
+  gap: var(--sp-s);
+
+  &.muted {
+    .sliderIcon {
+      color: var(--c-text-disabled);
+    }
+  }
+}
+
+.sliderIcon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--c-primary);
+  flex-shrink: 0;
+}
+
+.sliderArea {
+  flex: 1;
+  min-width: 0;
+}
+
+.sliderValue {
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-end;
+  min-width: 32px;
+  font-variant-numeric: tabular-nums;
 }

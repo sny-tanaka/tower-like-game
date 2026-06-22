@@ -89,10 +89,10 @@ describe('buildStatsImpact', () => {
     expect(thunder?.after).toBe(8); // floor(7 + 0.1*10) = floor(8.0) = 8
   });
 
-  it('suffix: CANNON 爆発半径は px', () => {
+  it('suffix: CANNON 半径は m', () => {
     const impact = buildStatsImpact(0);
-    const cannon = impact.find((i) => i.label === 'CANNON 爆発半径');
-    expect(cannon?.suffix).toBe('px');
+    const cannon = impact.find((i) => i.label === 'CANNON 半径');
+    expect(cannon?.suffix).toBe('m');
   });
 });
 

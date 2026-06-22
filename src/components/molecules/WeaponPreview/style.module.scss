@@ -1,6 +1,12 @@
+/* WeaponPreview — 出撃準備 / 武器庫の武器プレビュー */
 .wrapper {
   display: block;
-  transition: box-shadow var(--mo-fast);
+  transition:
+    box-shadow var(--mo-fast) var(--ease-out),
+    border var(--mo-fast) var(--ease-out);
+  position: relative;
+  min-width: 0;
+  box-sizing: border-box;
 }
 
 /* active */
@@ -19,98 +25,145 @@
 
 /* カード共通 */
 .card {
-  display: flex;
-  flex-direction: column;
-  gap: var(--sp-s);
+  display: grid;
+  padding: 14px;
+  gap: 10px;
+  border: 1px solid var(--c-border-faint);
+  border-radius: var(--r-m);
+  background: var(--c-bg-elev);
 }
 
-/* tall: 縦カード（出撃準備）*/
+/* tall: 縦カード（出撃準備）— icon 上に大きく中央寄せ */
 .tall {
-  .header {
-    flex-direction: column;
-    align-items: center;
+  .card {
+    grid-template-columns: 1fr;
+  }
+
+  .iconTile {
+    width: 88px;
+    height: 88px;
+    margin: 0 auto 4px;
+  }
+
+  .headerText {
     text-align: center;
-    gap: var(--sp-xs);
   }
 
-  .iconWrap {
-    width: 48px;
-    height: 48px;
+  .description {
+    text-align: center;
   }
 
-  .statList {
-    padding-top: var(--sp-s);
+  .name {
+    text-align: center;
   }
 }
 
-/* wide: 横カード（武器庫）*/
+/* wide: 横カード（武器庫）— icon 左 + 情報右 */
 .wide {
-  .header {
-    flex-direction: row;
-    align-items: center;
-    gap: var(--sp-s);
+  .card {
+    grid-template-columns: auto 1fr;
+    gap: 14px;
   }
 
-  .iconWrap {
-    width: 36px;
-    height: 36px;
+  .iconTile {
+    width: 72px;
+    height: 72px;
+  }
+
+  .body {
+    min-width: 0;
   }
 }
 
-/* ヘッダー */
-.header {
-  display: flex;
-}
-
-.iconWrap {
+/* シアン枠 + シアン塗りグラデ + シアングローのアイコンタイル */
+.iconTile {
   display: flex;
   align-items: center;
   justify-content: center;
-  border-radius: var(--r-s);
-  background: var(--c-surface);
+  border-radius: var(--r-m);
+  background: linear-gradient(135deg, rgba(78, 228, 246, 0.12), rgba(78, 228, 246, 0.02));
+  border: 1px solid rgba(78, 228, 246, 0.35);
+  color: var(--c-primary);
+  filter: drop-shadow(0 0 6px rgba(78, 228, 246, 0.45));
   flex-shrink: 0;
 }
 
-.headerText {
+/* 右側カラム（wide 時） / 下側（tall 時） */
+.body {
   display: flex;
   flex-direction: column;
-  gap: var(--sp-xxs);
+  gap: 8px;
   min-width: 0;
 }
 
+.header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.headerText {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.name {
+  font-family: var(--ff-display);
+  font-weight: 600;
+  font-size: 16px;
+  letter-spacing: var(--ls-tight);
+  color: var(--c-text);
+  line-height: 1.1;
+}
+
 .description {
-  line-height: var(--lh-snug);
+  font-size: 12px;
+  line-height: 1.45;
+  color: var(--c-text-mid);
   overflow: hidden;
   display: -webkit-box;
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
 }
 
-/* ステータス一覧 */
-.statList {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-  display: flex;
-  flex-direction: column;
-  gap: var(--sp-xxs);
-  border-top: 1px solid var(--c-border-faint);
-  padding-top: var(--sp-s);
+/* ステ 2x2 グリッド */
+.statGrid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 6px;
+  padding-top: 6px;
+  border-top: 1px dashed var(--c-border-faint);
 }
 
-.statRow {
+.statChip {
   display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: var(--sp-s);
+  flex-direction: column;
+  gap: 2px;
+  padding: 4px 8px;
+  background: var(--c-bg-base);
+  border: 1px solid var(--c-border-faint);
+  border-radius: var(--r-xs);
+  min-width: 0;
+}
+
+.statLabel {
+  font-size: 9.5px;
+  line-height: 1;
+  color: var(--c-text-dim);
+  letter-spacing: var(--ls-wide);
 }
 
 .statValue {
   font-family: var(--ff-numeric);
-  font-size: var(--fs-label);
+  font-size: 14px;
   font-weight: var(--fw-semibold);
   letter-spacing: var(--ls-num);
-  color: var(--c-text-mid);
+  color: var(--c-text);
+  line-height: 1.1;
   white-space: nowrap;
 }
 

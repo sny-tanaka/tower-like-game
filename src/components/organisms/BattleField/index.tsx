@@ -43,6 +43,17 @@ export interface DeathEvent {
   y: number;
 }
 
+/**
+ * 視覚的なダミーピン (敵 spawn ロジックと無関係の静的飾り)
+ *  - 「design.png 準拠」の画面装飾として 6 個程度散布する想定
+ */
+export interface DummyPin {
+  id: string;
+  x: number;
+  y: number;
+  kind: 'normal' | 'elite' | 'boss';
+}
+
 export interface BattleFieldProps {
   /** 表示中の敵リスト */
   enemies: SpawnedEnemy[];
@@ -62,7 +73,26 @@ export interface BattleFieldProps {
   onDeathDone?: (id: string) => void;
   /** 索敵半径（パーセント） */
   range: number;
+  /**
+   * 視覚装飾用のダミーピン。
+   * - enemies が 0 でも常に描画される
+   * - 実ゲームロジックの SpawnedEnemy とは別レイヤ
+   */
+  dummyPins?: DummyPin[];
 }
+
+// ---------------------------------------------------------------------------
+// 定数: design.png 用ダミーピン (固定座標)
+// ---------------------------------------------------------------------------
+
+const DEFAULT_DUMMY_PINS: DummyPin[] = [
+  { id: 'p1', x: 30, y: 22, kind: 'normal' },
+  { id: 'p2', x: 65, y: 18, kind: 'normal' },
+  { id: 'p3', x: 50, y: 30, kind: 'elite' },
+  { id: 'p4', x: 78, y: 38, kind: 'normal' },
+  { id: 'p5', x: 22, y: 50, kind: 'normal' },
+  { id: 'p6', x: 60, y: 72, kind: 'boss' },
+];
 
 // ---------------------------------------------------------------------------
 // ヘルパー: EnemyKind → IconName マッピング
@@ -107,6 +137,18 @@ function kindToColor(kind: EnemyKind): string {
   }
 }
 
+/** ダミーピン kind → 色トークン */
+function pinKindToColor(kind: DummyPin['kind']): string {
+  switch (kind) {
+    case 'boss':
+      return 'var(--c-danger)';
+    case 'elite':
+      return 'var(--c-warning)';
+    default:
+      return 'var(--c-text-mid)';
+  }
+}
+
 // ---------------------------------------------------------------------------
 // コンポーネント
 // ---------------------------------------------------------------------------
@@ -114,9 +156,10 @@ function kindToColor(kind: EnemyKind): string {
 /**
  * BattleField — 戦闘描画の中央レイヤ。
  *
- * - マシン描画（中央下部、Icon name='tower'、--c-primary グロー）
- * - 敵描画（タイプ別に Icon 切替、HP バー は Elite/Boss/MiniBoss は常時表示）
+ * - マシン描画（中央、三角アイコン + 二重リングのネオン演出）
+ * - 敵描画（SpawnedEnemy。タイプ別に Icon 切替、HP バーは Elite/Boss/MiniBoss は常時表示）
  * - 索敵円（マシン中心の半透明円、常時 ON）
+ * - 視覚装飾ダミーピン (dummyPins)
  * - Fx のマウント / unmount 制御（DamagePop / EnemyHit / EnemyDeath）
  */
 export function BattleField({
@@ -129,12 +172,14 @@ export function BattleField({
   onHitDone,
   onDeathDone,
   range,
+  dummyPins = DEFAULT_DUMMY_PINS,
 }: BattleFieldProps) {
   const machineX = machinePosition.x;
   const machineY = machinePosition.y;
 
   // 索敵円の直径は range の 2 倍（パーセント単位の縦幅を基準）
   const rangeDiameterPct = range * 2;
+  const innerRingDiameterPct = rangeDiameterPct * 0.45;
 
   return (
     <div
@@ -152,6 +197,37 @@ export function BattleField({
         }}
         aria-hidden
       />
+
+      {/* 内側のリング (デザイン演出用) */}
+      <div
+        className={styles.innerRing}
+        style={{
+          left: `${machineX}%`,
+          top: `${machineY}%`,
+          width: `${innerRingDiameterPct}%`,
+        }}
+        aria-hidden
+      />
+
+      {/* 視覚装飾ダミーピン (enemies と独立) */}
+      {dummyPins.map((pin) => (
+        <div
+          key={pin.id}
+          className={styles.pin}
+          style={{
+            left: `${pin.x}%`,
+            top: `${pin.y}%`,
+            color: pinKindToColor(pin.kind),
+          }}
+          aria-hidden
+        >
+          <Icon
+            name="target"
+            size={pin.kind === 'boss' ? 18 : pin.kind === 'elite' ? 16 : 14}
+            color={pinKindToColor(pin.kind)}
+          />
+        </div>
+      ))}
 
       {/* 敵 */}
       {enemies.map((enemy) => {
@@ -190,7 +266,7 @@ export function BattleField({
         );
       })}
 
-      {/* マシン */}
+      {/* マシン (三角 + 二重リング) */}
       <div
         className={styles.machine}
         style={{
@@ -199,9 +275,17 @@ export function BattleField({
         }}
         aria-label="マシン"
       >
+        <span
+          className={styles.machineRingOuter}
+          aria-hidden
+        />
+        <span
+          className={styles.machineRingInner}
+          aria-hidden
+        />
         <Icon
-          name="tower"
-          size={40}
+          name="triangle"
+          size={28}
           color="var(--c-primary)"
         />
       </div>

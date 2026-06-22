@@ -197,7 +197,7 @@ export function PatchMergeTab({ overridePatches }: PatchMergeTabProps) {
                 trigger="-"
                 effect="-"
                 merging
-                size="sm"
+                size="md"
               />
             ))}
           </div>

@@ -1,7 +1,8 @@
 import styles from './style.module.scss';
 
 import { Badge } from '@/components/atoms/Badge';
-import { ProgressBar } from '@/components/atoms/ProgressBar';
+import { Icon } from '@/components/atoms/Icon';
+import { NumericDisplay } from '@/components/atoms/NumericDisplay';
 import { Text } from '@/components/atoms/Text';
 import { WaveProgressBar } from '@/components/molecules/WaveProgressBar';
 import type { WaveMilestone } from '@/components/molecules/WaveProgressBar';
@@ -30,20 +31,8 @@ export interface BattleHudTopProps {
   isBossWave?: boolean;
   /** 次のマイルストーン（WaveProgressBar に渡す） */
   nextMilestone?: WaveMilestone;
-}
-
-// ---------------------------------------------------------------------------
-// 内部ヘルパー: BigNum の比率を 0〜1000 の整数で返す
-// ---------------------------------------------------------------------------
-
-function hpRatio1000(current: BigNum, max: BigNum): number {
-  if (max.isZero()) return 0;
-  // toString() で整数文字列を取得し JS の number で近似計算
-  // 超巨大数では精度が落ちるが UI 表示用なので許容範囲内
-  const c = parseFloat(current.toString());
-  const m = parseFloat(max.toString());
-  if (m === 0 || isNaN(m)) return 0;
-  return Math.min(1000, Math.max(0, Math.round((c / m) * 1000)));
+  /** フィールド上の敵の残数 (右端 target カウンタ用) */
+  enemiesRemaining?: number;
 }
 
 // ---------------------------------------------------------------------------
@@ -60,56 +49,82 @@ export function BattleHudTop({
   secondsTotal,
   isBossWave = false,
   nextMilestone,
+  enemiesRemaining,
 }: BattleHudTopProps) {
-  // HP 比率を計算（ProgressBar は number を受け取る）
-  const ratio1000 = hpRatio1000(hpCurrent, hpMax);
-  const hpLow = ratio1000 < 300; // 30% 未満
+  // design.png の 3 カラム構成:
+  //   左   : Tier バッジ + HP (通貨ライク表示)
+  //   中央 : WaveProgressBar (薄バー + マイルストーン)
+  //   右   : 残敵数 + target アイコン
+  const effectiveMilestone =
+    nextMilestone ?? (isBossWave ? ({ wave, kind: 'boss' } as WaveMilestone) : undefined);
+  const remaining = enemiesRemaining ?? 0;
 
   return (
     <div className={styles.root}>
-      {/* HP行 */}
-      <div className={styles.hpRow}>
-        {/* Tier バッジ */}
+      {/* 左カラム: Tier + HP */}
+      <div className={styles.leftCol}>
         <Badge
           variant="tier"
           tier={tier}
           size="sm"
           glow={isBossWave}
         />
-
-        {/* HP バー */}
-        <div className={styles.hpBar}>
-          <ProgressBar
-            value={ratio1000}
-            max={1000}
-            color={hpLow ? 'hp-low' : 'hp'}
-            size="md"
-            variant="neon"
-            glow={hpLow}
-            showLabel
-            label={`${hpCurrent.toDisplay()} / ${hpMax.toDisplay()}`}
-          />
-        </div>
-
-        {/* Wave カウンタ */}
-        <Text
-          variant="label"
-          color={isBossWave ? 'secondary' : 'mid'}
-          className={styles.waveCount}
+        <span
+          className={styles.hpText}
+          aria-label={`HP ${hpCurrent.toDisplay()} / ${hpMax.toDisplay()}`}
         >
-          {wave}/{totalWaves}
-        </Text>
+          <NumericDisplay
+            value={hpCurrent}
+            size="sm"
+            accentColor="text"
+            style={{ fontWeight: 'var(--fw-semibold)' }}
+          />
+          <span className={styles.hpDivider}>/</span>
+          <NumericDisplay
+            value={hpMax}
+            size="sm"
+            accentColor="dim"
+          />
+        </span>
       </div>
 
-      {/* Wave プログレスバー */}
-      <WaveProgressBar
-        waveNumber={wave}
-        secondsLeft={secondsRemaining}
-        secondsMax={secondsTotal}
-        nextMilestone={nextMilestone}
-        showSeconds
-        size="sm"
-      />
+      {/* 中央カラム: WaveProgressBar */}
+      <div className={styles.centerCol}>
+        <WaveProgressBar
+          waveNumber={wave}
+          secondsLeft={secondsRemaining}
+          secondsMax={secondsTotal}
+          nextMilestone={effectiveMilestone}
+          showSeconds={false}
+          size="sm"
+        />
+        {/* SR 用に wave/total を hidden で残す（既存テスト互換） */}
+        <span
+          className={styles.srOnly}
+          aria-hidden="false"
+        >
+          {wave}/{totalWaves}
+        </span>
+      </div>
+
+      {/* 右カラム: 残敵数 + target */}
+      <div
+        className={styles.rightCol}
+        aria-label={`残敵 ${remaining}`}
+      >
+        <Text
+          variant="numeric-s"
+          color="text"
+          className={styles.enemiesNum}
+        >
+          {remaining}
+        </Text>
+        <Icon
+          name="target"
+          size={14}
+          color="var(--c-text-mid)"
+        />
+      </div>
     </div>
   );
 }

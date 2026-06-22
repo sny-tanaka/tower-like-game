@@ -1,10 +1,8 @@
 import styles from './style.module.scss';
 
-import { Badge } from '@/components/atoms/Badge';
-import { Card } from '@/components/atoms/Card';
 import { Icon } from '@/components/atoms/Icon';
 import type { IconName } from '@/components/atoms/Icon';
-import { Text } from '@/components/atoms/Text';
+import { PatchCard } from '@/components/molecules/PatchCard';
 
 // ---------------------------------------------------------------------------
 // 型定義
@@ -47,20 +45,23 @@ export function PatchSlot({
   const isFilled = patch != null;
   const isInteractive = onClick != null && !locked;
 
-  const slotNum = slotIndex != null ? slotIndex : '';
+  const slotLabel = slotIndex != null ? `Slot ${slotIndex}` : '';
+  const ariaLabel = isFilled
+    ? `Slot ${slotIndex ?? ''}: ${patch.name} (Tier ${patch.tier})`
+    : locked
+      ? `Slot ${slotIndex ?? ''} (locked)`.trim()
+      : `Slot ${slotIndex ?? ''} (empty)`.trim();
+
+  const stateClass = isFilled ? styles.filled : locked ? styles.locked : styles.empty;
 
   return (
     <div
-      className={[
-        styles.wrapper,
-        isFilled ? styles.filled : locked ? styles.locked : styles.empty,
-        styles[`size-${size}`],
-      ]
-        .filter(Boolean)
-        .join(' ')}
-      onClick={isInteractive ? onClick : undefined}
+      className={[styles.wrapper, stateClass, styles[`size-${size}`]].filter(Boolean).join(' ')}
       role={isInteractive ? 'button' : undefined}
       tabIndex={isInteractive ? 0 : undefined}
+      aria-label={ariaLabel}
+      aria-disabled={locked ? true : undefined}
+      onClick={isInteractive ? onClick : undefined}
       onKeyDown={
         isInteractive
           ? (e) => {
@@ -71,92 +72,30 @@ export function PatchSlot({
             }
           : undefined
       }
-      aria-label={
-        isFilled
-          ? `Slot ${slotNum}: ${patch.name} (Tier ${patch.tier})`
-          : locked
-            ? `Slot ${slotNum} (locked)`
-            : `Slot ${slotNum} (empty)`
-      }
     >
-      <Card
-        variant="outline"
-        padding="sm"
-        interactive={isInteractive}
-        className={styles.card}
-      >
-        {/* ロック */}
-        {locked && (
-          <div className={styles.lockedContent}>
+      {isFilled && patch != null ? (
+        <PatchCard
+          patchId={patch.patchId}
+          name={patch.name}
+          iconName={patch.iconName}
+          tier={patch.tier}
+          count={patch.count}
+          trigger={patch.trigger}
+          effect={patch.effect}
+          size={size}
+        />
+      ) : (
+        <div className={styles.slotInner}>
+          <span className={styles.emptyIcon}>
             <Icon
-              name="close"
-              size={14}
-              color="var(--c-text-disabled)"
+              name={locked ? 'close' : 'plus'}
+              size={28}
+              color={locked ? 'var(--c-text-disabled)' : 'var(--c-text-dim)'}
             />
-            <Text
-              variant="caption"
-              color="dim"
-            >
-              LOCKED
-            </Text>
-          </div>
-        )}
-
-        {/* 空きスロット */}
-        {!locked && !isFilled && (
-          <div className={styles.emptyContent}>
-            <Text
-              variant="caption"
-              color="dim"
-            >
-              {slotNum !== '' ? `Slot ${slotNum}` : '+'}
-            </Text>
-          </div>
-        )}
-
-        {/* 装着中 */}
-        {!locked && isFilled && patch != null && (
-          <div className={styles.filledContent}>
-            {/* アイコン */}
-            <span
-              className={styles.patchIcon}
-              style={{
-                color: `var(--c-patch-t${Math.min(Math.max(1, Math.floor(patch.tier)), 5)})`,
-              }}
-            >
-              <Icon
-                name={patch.iconName}
-                size={size === 'sm' ? 14 : 18}
-                color={`var(--c-patch-t${Math.min(Math.max(1, Math.floor(patch.tier)), 5)})`}
-              />
-            </span>
-
-            {/* 情報エリア */}
-            <div className={styles.patchInfo}>
-              <div className={styles.patchTop}>
-                <Text
-                  variant="label"
-                  color="default"
-                  className={styles.patchName}
-                >
-                  {patch.name}
-                </Text>
-                <Badge
-                  text={`T${Math.min(Math.max(1, Math.floor(patch.tier)), 5)}`}
-                  variant="patch-tier"
-                  tier={patch.tier}
-                />
-              </div>
-              {size !== 'sm' && (
-                <div className={styles.patchDetail}>
-                  <span className={styles.trigger}>{patch.trigger}</span>
-                  <span className={styles.effect}>{patch.effect}</span>
-                </div>
-              )}
-            </div>
-          </div>
-        )}
-      </Card>
+          </span>
+          <span className={styles.emptyLabel}>{locked ? 'LOCKED' : slotLabel}</span>
+        </div>
+      )}
     </div>
   );
 }
