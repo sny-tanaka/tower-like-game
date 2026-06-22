@@ -1,0 +1,62 @@
+.tab {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--sp-xs);
+  padding: var(--sp-xs) var(--sp-m);
+  border: none;
+  background-color: transparent;
+  cursor: pointer;
+  font-family: var(--ff-display);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--c-text-dim);
+  transition:
+    color var(--mo-fast) var(--ease-default);
+  min-height: 40px;
+  flex-shrink: 0;
+
+  &:focus-visible {
+    outline: 2px solid var(--c-primary);
+    outline-offset: 2px;
+    border-radius: var(--r-xs);
+  }
+
+  &:hover:not(.active) {
+    color: var(--c-text-mid);
+  }
+}
+
+.active {
+  color: var(--c-primary);
+}
+
+.icon {
+  display: inline-flex;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+.label {
+  flex-shrink: 0;
+}
+
+// アクティブインジケーター（下線）
+.indicator {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 2px;
+  border-radius: var(--r-pill) var(--r-pill) 0 0;
+  background-color: transparent;
+  transition: background-color var(--mo-fast) var(--ease-default);
+
+  .active & {
+    background-color: var(--c-primary);
+    box-shadow: var(--glow-cyan-sm);
+  }
+}
