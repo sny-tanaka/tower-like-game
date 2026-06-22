@@ -1,0 +1,30 @@
+.root {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-xs);
+  padding: var(--sp-s) var(--sp-m);
+  background: linear-gradient(
+    180deg,
+    rgba(4, 6, 13, 0.92) 0%,
+    rgba(4, 6, 13, 0.72) 100%
+  );
+  border-bottom: 1px solid var(--c-border-faint);
+}
+
+/* HP行: Tier バッジ + HP バー + Wave カウンタ */
+.hpRow {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-s);
+}
+
+.hpBar {
+  flex: 1;
+  min-width: 0;
+}
+
+.waveCount {
+  flex-shrink: 0;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
