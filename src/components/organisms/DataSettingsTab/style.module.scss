@@ -1,0 +1,54 @@
+.root {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-m);
+  padding: var(--sp-m);
+}
+
+.header {
+  display: flex;
+  align-items: center;
+}
+
+.storageCard {
+  background: var(--c-bg-surface);
+  border: 1px solid var(--c-border-faint);
+  border-radius: var(--r-m);
+  padding: var(--sp-m);
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-xs);
+}
+
+.storageRow {
+  display: flex;
+  align-items: baseline;
+  gap: var(--sp-xs);
+}
+
+.divider {
+  height: 1px;
+  background: var(--c-border-faint);
+}
+
+.section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-s);
+}
+
+.dangerSection {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-s);
+  padding: var(--sp-m);
+  background: rgba(var(--c-danger-raw, 255, 60, 80), 0.05);
+  border: 1px solid rgba(var(--c-danger-raw, 255, 60, 80), 0.2);
+  border-radius: var(--r-m);
+}
+
+.sectionHeader {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2xs);
+}
