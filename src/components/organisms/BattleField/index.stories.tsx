@@ -1,12 +1,11 @@
 import type { Meta, StoryObj } from '@storybook/react';
-
 import { useState } from 'react';
 
 import type { DamageEvent, DeathEvent, HitEvent } from './index';
 import { BattleField } from './index';
 
-import { BigNum } from '@/lib/bignum/BigNum';
 import { createEnemyTemplate, spawnEnemy } from '@/game/enemies';
+import { BigNum } from '@/lib/bignum/BigNum';
 
 // ---------------------------------------------------------------------------
 // ヘルパー: 再現可能な疑似乱数（seed 付き）
@@ -14,14 +13,14 @@ import { createEnemyTemplate, spawnEnemy } from '@/game/enemies';
 let _seed = 42;
 function seededRng(): number {
   _seed = (_seed * 1664525 + 1013904223) & 0xffffffff;
-  return ((_seed >>> 0) / 0xffffffff);
+  return (_seed >>> 0) / 0xffffffff;
 }
 
 function makeEnemy(
   id: string,
   kind: 'normal' | 'elite' | 'miniboss' | 'boss',
   x: number,
-  y: number,
+  y: number
 ) {
   _seed = 42;
   const template = createEnemyTemplate(1, 1, kind, kind === 'normal' ? 'standard' : undefined);
@@ -159,56 +158,58 @@ export const BossEnemy: Story = {
 // ---------------------------------------------------------------------------
 // 6. DamagePop × 複数同時発生（インタラクティブ）
 // ---------------------------------------------------------------------------
+function DamagePopMultiRender(args: React.ComponentProps<typeof BattleField>) {
+  const [damageEvents, setDamageEvents] = useState<DamageEvent[]>([]);
+  let counter = 0;
+
+  const fireDamage = () => {
+    const count = 6;
+    const newEvents: DamageEvent[] = Array.from({ length: count }, (_, i) => ({
+      id: `dmg-${Date.now()}-${i}-${++counter}`,
+      x: 15 + Math.random() * 70,
+      y: 10 + Math.random() * 60,
+      value: BigNum.fromNumber(Math.floor(Math.random() * 9000) + 1000),
+      crit: Math.random() < 0.3,
+    }));
+    setDamageEvents((prev) => [...prev, ...newEvents]);
+  };
+
+  const handleDamageDone = (id: string) => {
+    setDamageEvents((prev) => prev.filter((e) => e.id !== id));
+  };
+
+  return (
+    <div style={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
+      <div style={{ flex: 1, position: 'relative' }}>
+        <BattleField
+          {...args}
+          damageEvents={damageEvents}
+          onDamageDone={handleDamageDone}
+        />
+      </div>
+      <div style={{ padding: 8, background: 'var(--c-bg-elev)', flexShrink: 0 }}>
+        <button
+          onClick={fireDamage}
+          style={{
+            padding: '8px 16px',
+            background: 'var(--c-primary)',
+            color: 'var(--c-bg-deep)',
+            border: 'none',
+            borderRadius: 4,
+            cursor: 'pointer',
+            fontWeight: 700,
+          }}
+        >
+          DamagePop 発火
+        </button>
+      </div>
+    </div>
+  );
+}
+
 export const DamagePopMulti: Story = {
   name: 'DamagePop 複数同時',
-  render: (args) => {
-    const [damageEvents, setDamageEvents] = useState<DamageEvent[]>([]);
-    let counter = 0;
-
-    const fireDamage = () => {
-      const count = 6;
-      const newEvents: DamageEvent[] = Array.from({ length: count }, (_, i) => ({
-        id: `dmg-${Date.now()}-${i}-${++counter}`,
-        x: 15 + Math.random() * 70,
-        y: 10 + Math.random() * 60,
-        value: BigNum.fromNumber(Math.floor(Math.random() * 9000) + 1000),
-        crit: Math.random() < 0.3,
-      }));
-      setDamageEvents((prev) => [...prev, ...newEvents]);
-    };
-
-    const handleDamageDone = (id: string) => {
-      setDamageEvents((prev) => prev.filter((e) => e.id !== id));
-    };
-
-    return (
-      <div style={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
-        <div style={{ flex: 1, position: 'relative' }}>
-          <BattleField
-            {...args}
-            damageEvents={damageEvents}
-            onDamageDone={handleDamageDone}
-          />
-        </div>
-        <div style={{ padding: 8, background: 'var(--c-bg-elev)', flexShrink: 0 }}>
-          <button
-            onClick={fireDamage}
-            style={{
-              padding: '8px 16px',
-              background: 'var(--c-primary)',
-              color: 'var(--c-bg-deep)',
-              border: 'none',
-              borderRadius: 4,
-              cursor: 'pointer',
-              fontWeight: 700,
-            }}
-          >
-            DamagePop 発火
-          </button>
-        </div>
-      </div>
-    );
-  },
+  render: (args) => <DamagePopMultiRender {...args} />,
   args: {
     enemies: [
       makeEnemy('e1', 'normal', 30, 40),
@@ -224,93 +225,92 @@ export const DamagePopMulti: Story = {
 // ---------------------------------------------------------------------------
 // 7. 各 Fx をボタンで発火
 // ---------------------------------------------------------------------------
+function FxPlaygroundRender(args: React.ComponentProps<typeof BattleField>) {
+  const [hitEvents, setHitEvents] = useState<HitEvent[]>([]);
+  const [deathEvents, setDeathEvents] = useState<DeathEvent[]>([]);
+  const [damageEvents, setDamageEvents] = useState<DamageEvent[]>([]);
+  let c = 0;
+
+  const fireHit = () => {
+    const id = `hit-${Date.now()}-${++c}`;
+    setHitEvents((p) => [...p, { id, x: 30 + Math.random() * 40, y: 20 + Math.random() * 40 }]);
+  };
+  const fireDeath = () => {
+    const id = `death-${Date.now()}-${++c}`;
+    setDeathEvents((p) => [...p, { id, x: 30 + Math.random() * 40, y: 20 + Math.random() * 40 }]);
+  };
+  const fireCrit = () => {
+    const id = `crit-${Date.now()}-${++c}`;
+    setDamageEvents((p) => [
+      ...p,
+      {
+        id,
+        x: 30 + Math.random() * 40,
+        y: 20 + Math.random() * 40,
+        value: BigNum.fromNumber(99999),
+        crit: true,
+      },
+    ]);
+  };
+
+  const btnStyle = {
+    padding: '6px 12px',
+    border: 'none',
+    borderRadius: 4,
+    cursor: 'pointer',
+    fontWeight: 600,
+    fontSize: 12,
+  };
+
+  return (
+    <div style={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
+      <div style={{ flex: 1, position: 'relative' }}>
+        <BattleField
+          {...args}
+          hitEvents={hitEvents}
+          deathEvents={deathEvents}
+          damageEvents={damageEvents}
+          onHitDone={(id) => setHitEvents((p) => p.filter((e) => e.id !== id))}
+          onDeathDone={(id) => setDeathEvents((p) => p.filter((e) => e.id !== id))}
+          onDamageDone={(id) => setDamageEvents((p) => p.filter((e) => e.id !== id))}
+        />
+      </div>
+      <div
+        style={{
+          padding: 8,
+          background: 'var(--c-bg-elev)',
+          flexShrink: 0,
+          display: 'flex',
+          gap: 8,
+          flexWrap: 'wrap',
+        }}
+      >
+        <button
+          onClick={fireHit}
+          style={{ ...btnStyle, background: 'var(--c-primary)', color: 'var(--c-bg-deep)' }}
+        >
+          EnemyHit
+        </button>
+        <button
+          onClick={fireDeath}
+          style={{ ...btnStyle, background: 'var(--c-danger)', color: 'white' }}
+        >
+          EnemyDeath
+        </button>
+        <button
+          onClick={fireCrit}
+          style={{ ...btnStyle, background: 'var(--c-warning)', color: 'var(--c-bg-deep)' }}
+        >
+          クリティカル DamagePop
+        </button>
+      </div>
+    </div>
+  );
+}
+
 export const FxPlayground: Story = {
   name: 'Fx プレイグラウンド',
-  render: (args) => {
-    const [hitEvents, setHitEvents] = useState<HitEvent[]>([]);
-    const [deathEvents, setDeathEvents] = useState<DeathEvent[]>([]);
-    const [damageEvents, setDamageEvents] = useState<DamageEvent[]>([]);
-    let c = 0;
-
-    const fireHit = () => {
-      const id = `hit-${Date.now()}-${++c}`;
-      setHitEvents((p) => [...p, { id, x: 30 + Math.random() * 40, y: 20 + Math.random() * 40 }]);
-    };
-    const fireDeath = () => {
-      const id = `death-${Date.now()}-${++c}`;
-      setDeathEvents((p) => [
-        ...p,
-        { id, x: 30 + Math.random() * 40, y: 20 + Math.random() * 40 },
-      ]);
-    };
-    const fireCrit = () => {
-      const id = `crit-${Date.now()}-${++c}`;
-      setDamageEvents((p) => [
-        ...p,
-        {
-          id,
-          x: 30 + Math.random() * 40,
-          y: 20 + Math.random() * 40,
-          value: BigNum.fromNumber(99999),
-          crit: true,
-        },
-      ]);
-    };
-
-    const btnStyle = {
-      padding: '6px 12px',
-      border: 'none',
-      borderRadius: 4,
-      cursor: 'pointer',
-      fontWeight: 600,
-      fontSize: 12,
-    };
-
-    return (
-      <div style={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
-        <div style={{ flex: 1, position: 'relative' }}>
-          <BattleField
-            {...args}
-            hitEvents={hitEvents}
-            deathEvents={deathEvents}
-            damageEvents={damageEvents}
-            onHitDone={(id) => setHitEvents((p) => p.filter((e) => e.id !== id))}
-            onDeathDone={(id) => setDeathEvents((p) => p.filter((e) => e.id !== id))}
-            onDamageDone={(id) => setDamageEvents((p) => p.filter((e) => e.id !== id))}
-          />
-        </div>
-        <div
-          style={{
-            padding: 8,
-            background: 'var(--c-bg-elev)',
-            flexShrink: 0,
-            display: 'flex',
-            gap: 8,
-            flexWrap: 'wrap',
-          }}
-        >
-          <button
-            onClick={fireHit}
-            style={{ ...btnStyle, background: 'var(--c-primary)', color: 'var(--c-bg-deep)' }}
-          >
-            EnemyHit
-          </button>
-          <button
-            onClick={fireDeath}
-            style={{ ...btnStyle, background: 'var(--c-danger)', color: 'white' }}
-          >
-            EnemyDeath
-          </button>
-          <button
-            onClick={fireCrit}
-            style={{ ...btnStyle, background: 'var(--c-warning)', color: 'var(--c-bg-deep)' }}
-          >
-            クリティカル DamagePop
-          </button>
-        </div>
-      </div>
-    );
-  },
+  render: (args) => <FxPlaygroundRender {...args} />,
   args: {
     enemies: [
       makeEnemy('e1', 'normal', 30, 35),

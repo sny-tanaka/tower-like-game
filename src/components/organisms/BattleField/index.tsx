@@ -1,13 +1,12 @@
-import type { BigNum } from '@/lib/bignum/BigNum';
-import type { EnemyKind, SpawnedEnemy } from '@/game/types';
-
 import styles from './style.module.scss';
 
 import { Icon } from '@/components/atoms/Icon';
-import { EnemyHpBar } from '@/components/molecules/EnemyHpBar';
 import { DamagePopFx } from '@/components/fx/DamagePopFx';
-import { EnemyHitFx } from '@/components/fx/EnemyHitFx';
 import { EnemyDeathFx } from '@/components/fx/EnemyDeathFx';
+import { EnemyHitFx } from '@/components/fx/EnemyHitFx';
+import { EnemyHpBar } from '@/components/molecules/EnemyHpBar';
+import type { EnemyKind, SpawnedEnemy } from '@/game/types';
+import type { BigNum } from '@/lib/bignum/BigNum';
 
 // ---------------------------------------------------------------------------
 // 型定義

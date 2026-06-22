@@ -4,19 +4,14 @@ import { describe, expect, test, vi } from 'vitest';
 import type { DamageEvent, DeathEvent, HitEvent } from './index';
 import { BattleField } from './index';
 
-import { BigNum } from '@/lib/bignum/BigNum';
 import { createEnemyTemplate, spawnEnemy } from '@/game/enemies';
+import { BigNum } from '@/lib/bignum/BigNum';
 
 // ---------------------------------------------------------------------------
 // ヘルパー: 固定位置の SpawnedEnemy を作る
 // ---------------------------------------------------------------------------
 
-function makeEnemy(
-  id: string,
-  kind: 'normal' | 'elite' | 'miniboss' | 'boss',
-  x = 50,
-  y = 30,
-) {
+function makeEnemy(id: string, kind: 'normal' | 'elite' | 'miniboss' | 'boss', x = 50, y = 30) {
   const template = createEnemyTemplate(1, 1, kind, kind === 'normal' ? 'standard' : undefined);
   const enemy = spawnEnemy(template, id, 0, () => 0.5);
   return { ...enemy, position: { x, y } };
@@ -61,25 +56,45 @@ describe('BattleField — レンダリング', () => {
       makeEnemy('e2', 'normal', 50, 50),
       makeEnemy('e3', 'normal', 80, 20),
     ];
-    render(<BattleField {...defaultProps} enemies={enemies} />);
+    render(
+      <BattleField
+        {...defaultProps}
+        enemies={enemies}
+      />
+    );
     expect(screen.getAllByLabelText('normal')).toHaveLength(3);
   });
 
   test('elite 敵が表示される', () => {
     const enemies = [makeEnemy('e1', 'elite', 50, 30)];
-    render(<BattleField {...defaultProps} enemies={enemies} />);
+    render(
+      <BattleField
+        {...defaultProps}
+        enemies={enemies}
+      />
+    );
     expect(screen.getByLabelText('elite')).toBeInTheDocument();
   });
 
   test('boss 敵が表示される', () => {
     const enemies = [makeEnemy('b1', 'boss', 50, 20)];
-    render(<BattleField {...defaultProps} enemies={enemies} />);
+    render(
+      <BattleField
+        {...defaultProps}
+        enemies={enemies}
+      />
+    );
     expect(screen.getByLabelText('boss')).toBeInTheDocument();
   });
 
   test('miniboss 敵が表示される', () => {
     const enemies = [makeEnemy('mb1', 'miniboss', 50, 25)];
-    render(<BattleField {...defaultProps} enemies={enemies} />);
+    render(
+      <BattleField
+        {...defaultProps}
+        enemies={enemies}
+      />
+    );
     expect(screen.getByLabelText('miniboss')).toBeInTheDocument();
   });
 });
@@ -96,7 +111,12 @@ describe('BattleField — machinePosition', () => {
   });
 
   test('カスタム位置が反映される', () => {
-    render(<BattleField {...defaultProps} machinePosition={{ x: 30, y: 60 }} />);
+    render(
+      <BattleField
+        {...defaultProps}
+        machinePosition={{ x: 30, y: 60 }}
+      />
+    );
     const machine = screen.getByLabelText('マシン');
     expect(machine).toHaveStyle({ left: '30%', top: '60%' });
   });
@@ -112,21 +132,33 @@ describe('BattleField — Fx イベント', () => {
       { id: 'd1', x: 30, y: 40, value: BigNum.fromNumber(100) },
       { id: 'd2', x: 60, y: 30, value: BigNum.fromNumber(200), crit: true },
     ];
-    render(<BattleField {...defaultProps} damageEvents={damageEvents} />);
+    render(
+      <BattleField
+        {...defaultProps}
+        damageEvents={damageEvents}
+      />
+    );
     // DamagePopFx は NumericDisplay を含む → data-testid はないが、value のテキストが存在
     // 2つの style タグが注入されているか確認（style タグ = Fx 数）
-    const { container } = render(<BattleField {...defaultProps} damageEvents={damageEvents} />);
+    const { container } = render(
+      <BattleField
+        {...defaultProps}
+        damageEvents={damageEvents}
+      />
+    );
     // DamagePopFx は <style> + <div> の 2 要素セットをレンダリングする
     expect(container.querySelectorAll('style').length).toBeGreaterThanOrEqual(2);
   });
 
   test('onDamageDone がアニメ完了時に呼ばれる', async () => {
     const onDamageDone = vi.fn();
-    const damageEvents: DamageEvent[] = [
-      { id: 'd1', x: 30, y: 40, value: BigNum.fromNumber(500) },
-    ];
+    const damageEvents: DamageEvent[] = [{ id: 'd1', x: 30, y: 40, value: BigNum.fromNumber(500) }];
     const { container } = render(
-      <BattleField {...defaultProps} damageEvents={damageEvents} onDamageDone={onDamageDone} />,
+      <BattleField
+        {...defaultProps}
+        damageEvents={damageEvents}
+        onDamageDone={onDamageDone}
+      />
     );
     // animationend イベントを手動発火
     const popEl = container.querySelector('[class*="root"]');
@@ -138,14 +170,24 @@ describe('BattleField — Fx イベント', () => {
 
   test('onHitDone コールバックが props として受け取れる', () => {
     const onHitDone = vi.fn();
-    render(<BattleField {...defaultProps} onHitDone={onHitDone} />);
+    render(
+      <BattleField
+        {...defaultProps}
+        onHitDone={onHitDone}
+      />
+    );
     // コールバックが渡せること（型チェックのためのスモークテスト）
     expect(onHitDone).not.toHaveBeenCalled();
   });
 
   test('onDeathDone コールバックが props として受け取れる', () => {
     const onDeathDone = vi.fn();
-    render(<BattleField {...defaultProps} onDeathDone={onDeathDone} />);
+    render(
+      <BattleField
+        {...defaultProps}
+        onDeathDone={onDeathDone}
+      />
+    );
     expect(onDeathDone).not.toHaveBeenCalled();
   });
 });
@@ -156,14 +198,24 @@ describe('BattleField — Fx イベント', () => {
 
 describe('BattleField — 索敵円', () => {
   test('range=25 のとき width/height は 50% (range*2)', () => {
-    const { container } = render(<BattleField {...defaultProps} range={25} />);
+    const { container } = render(
+      <BattleField
+        {...defaultProps}
+        range={25}
+      />
+    );
     // .rangeCircle の style を確認
     const circle = container.querySelector('[aria-hidden]');
     expect(circle).toHaveStyle({ width: '50%', height: '50%' });
   });
 
   test('range=40 のとき width/height は 80%', () => {
-    const { container } = render(<BattleField {...defaultProps} range={40} />);
+    const { container } = render(
+      <BattleField
+        {...defaultProps}
+        range={40}
+      />
+    );
     const circle = container.querySelector('[aria-hidden]');
     expect(circle).toHaveStyle({ width: '80%', height: '80%' });
   });
