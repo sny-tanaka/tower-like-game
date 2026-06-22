@@ -1,5 +1,7 @@
 .root {
-  display: inline-block;
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.1em;
   font-family: var(--ff-numeric);
   font-weight: var(--fw-semibold);
   letter-spacing: var(--ls-num);
@@ -17,4 +19,14 @@
 
 .sizeLg {
   font-size: var(--fs-num-l);
+}
+
+.sizeXl {
+  font-size: 36px;
+}
+
+.affix {
+  font-size: 0.7em;
+  font-weight: var(--fw-medium);
+  opacity: 0.85;
 }

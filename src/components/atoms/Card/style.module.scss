@@ -1,19 +1,64 @@
 .card {
-  background: var(--c-bg-elev);
   border-radius: var(--r-m);
   color: var(--c-text);
 }
 
 /* ---------- variant ---------- */
-.variant-elevated {
-  box-shadow: var(--sh-mid);
+
+// default: 標準カード面
+.variant-default {
+  background: var(--c-bg-elev);
+  border: 1px solid var(--c-border-faint);
 }
 
+// elevated: 浮き上がり・影付き
+.variant-elevated {
+  background: var(--c-bg-elev);
+  box-shadow: var(--sh-mid);
+  border: 1px solid var(--c-border-faint);
+}
+
+// sunken: くぼみ（リスト項目背景等）
+.variant-sunken {
+  background: var(--c-bg-base);
+  border: 1px solid var(--c-border-faint);
+}
+
+// ghost: 背景なし・枠線なし
+.variant-ghost {
+  background: transparent;
+  border: 1px solid transparent;
+}
+
+// accent: primary色のグロー枠
+.variant-accent {
+  background: var(--c-primary-bg);
+  border: 1px solid var(--c-primary);
+  box-shadow: var(--glow-cyan-inset);
+}
+
+// secondary: purple色のグロー枠
+.variant-secondary {
+  background: var(--c-secondary-bg);
+  border: 1px solid var(--c-secondary);
+  box-shadow: var(--glow-purple-inset);
+}
+
+// danger: 赤枠
+.variant-danger {
+  background: rgba(255, 77, 109, 0.06);
+  border: 1px solid var(--c-danger);
+}
+
+// 後方互換エイリアス
 .variant-flat {
+  background: var(--c-bg-elev);
   box-shadow: none;
+  border: 1px solid var(--c-border-faint);
 }
 
 .variant-outline {
+  background: var(--c-bg-elev);
   border: 1px solid var(--c-border);
   box-shadow: none;
 }
@@ -35,10 +80,27 @@
   padding: var(--sp-l);
 }
 
+.padding-xl {
+  padding: var(--sp-xl);
+}
+
+/* ---------- radius override ---------- */
+.radius-sm {
+  border-radius: var(--r-s);
+}
+
+.radius-md {
+  border-radius: var(--r-m);
+}
+
+.radius-l {
+  border-radius: var(--r-l);
+}
+
 /* ---------- interactive ---------- */
 .interactive {
   cursor: pointer;
-  transition: background-color var(--mo-fast), box-shadow var(--mo-fast);
+  transition: background-color var(--mo-fast) var(--ease-default), box-shadow var(--mo-fast) var(--ease-default);
 
   &:hover {
     background: var(--c-surface);

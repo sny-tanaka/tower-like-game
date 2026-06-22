@@ -1,21 +1,35 @@
 .badge {
   display: inline-flex;
   align-items: center;
-  justify-content: center;
-  padding: 1px var(--sp-xs);
+  gap: 3px;
   border-radius: var(--r-xs);
   font-family: var(--ff-display);
-  font-size: 10px;
   font-weight: 700;
   line-height: 1.4;
-  letter-spacing: 0.08em;
+  letter-spacing: var(--ls-loose);
   text-transform: uppercase;
   border: 1px solid currentcolor;
   white-space: nowrap;
 }
 
+// --- Size ---
+.size-sm {
+  padding: 0 var(--sp-xs);
+  font-size: 9px;
+}
+
+.size-md {
+  padding: 1px var(--sp-xs);
+  font-size: 10px;
+}
+
+.size-lg {
+  padding: 2px var(--sp-s);
+  font-size: 11px;
+}
+
 // --- Variants ---
-.variant-default {
+.variant-neutral {
   color: var(--c-text-mid);
   border-color: rgba(153, 188, 212, 0.3);
   background-color: rgba(153, 188, 212, 0.08);
@@ -37,7 +51,7 @@
 .variant-boss {
   color: var(--c-danger);
   border-color: var(--c-danger);
-  background-color: rgba(244, 63, 94, 0.08);
+  background-color: rgba(255, 77, 109, 0.08);
 }
 
 .variant-patch-tier {
@@ -46,15 +60,37 @@
   background-color: transparent;
 }
 
+.variant-info {
+  color: var(--c-primary);
+  border-color: var(--c-primary);
+  background-color: var(--c-primary-bg);
+}
+
+.variant-success {
+  color: var(--c-success);
+  border-color: var(--c-success);
+  background-color: rgba(70, 226, 160, 0.08);
+}
+
+.variant-warning {
+  color: var(--c-warning);
+  border-color: var(--c-warning);
+  background-color: rgba(246, 185, 74, 0.08);
+}
+
+.variant-danger {
+  color: var(--c-danger);
+  border-color: var(--c-danger);
+  background-color: rgba(255, 77, 109, 0.08);
+}
+
 // --- Glow ---
 .glow {
-  &.variant-default {
+  &.variant-neutral {
     box-shadow: var(--glow-cyan-sm);
   }
 
   &.variant-tier {
-    // tier の色に合わせて glow も badge-color を参照
-    // ブラウザが box-shadow に CSS 変数を使えるのでそのまま利用
     filter: drop-shadow(0 0 4px var(--badge-color, var(--c-primary)));
   }
 
@@ -63,10 +99,33 @@
   }
 
   &.variant-boss {
-    box-shadow: 0 0 6px rgba(244, 63, 94, 0.5);
+    box-shadow: var(--glow-danger-md);
   }
 
   &.variant-patch-tier {
     filter: drop-shadow(0 0 4px var(--badge-color, var(--c-patch-t1)));
   }
+
+  &.variant-info {
+    box-shadow: var(--glow-cyan-sm);
+  }
+
+  &.variant-success {
+    box-shadow: var(--glow-success-md);
+  }
+
+  &.variant-warning {
+    box-shadow: 0 0 6px rgba(246, 185, 74, 0.45);
+  }
+
+  &.variant-danger {
+    box-shadow: var(--glow-danger-md);
+  }
+}
+
+// --- Icon slot ---
+.iconLeft {
+  display: inline-flex;
+  align-items: center;
+  flex-shrink: 0;
 }

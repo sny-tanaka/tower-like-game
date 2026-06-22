@@ -47,6 +47,7 @@ const ICON_SIZE_MAP: Record<NumericDisplaySize, number> = {
   sm: 12,
   md: 16,
   lg: 22,
+  xl: 28,
 };
 
 // ---------------------------------------------------------------------------
@@ -90,6 +91,7 @@ export function CurrencyAmount({ currency, value, size = 'md', delta }: Currency
     sm: styles.deltaSm,
     md: styles.deltaMd,
     lg: styles.deltaLg,
+    xl: styles.deltaLg, // xl はlg相当
   }[size];
 
   return (
