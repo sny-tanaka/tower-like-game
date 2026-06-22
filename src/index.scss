@@ -1,3 +1,7 @@
 // グローバルスタイルのエントリポイント。
-// 変数・mixin は _variables.scss で定義している。
+// デザイントークン（CSS カスタムプロパティ）は styles/tokens.scss で定義している。
+// SCSS 変数・mixin は _variables.scss で定義している。
 // 各コンポーネントは style.module.scss で @use 'variables' as var; して使う。
+
+// デザイントークンをグローバルに読み込む（:root に CSS カスタムプロパティを注入）
+@use './styles/tokens';
