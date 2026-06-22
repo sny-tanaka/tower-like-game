@@ -11,10 +11,12 @@ const preview: Preview = {
     },
     layout: 'fullscreen',
     backgrounds: {
-      default: 'white',
+      // デザイントークン --c-bg-deep (#04060d) をデフォルト背景に設定
+      default: 'deep',
       values: [
+        { name: 'deep', value: '#04060d' },
+        { name: 'base', value: '#0a0f1c' },
         { name: 'white', value: '#ffffff' },
-        { name: 'dark', value: '#1a1a1a' },
       ],
     },
     viewport: {
