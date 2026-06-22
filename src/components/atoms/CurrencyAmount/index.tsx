@@ -98,15 +98,12 @@ export function CurrencyAmount({ currency, value, size = 'md', delta }: Currency
       role="img"
       aria-label={`${config.label} ${bn.toDisplay()}`}
     >
-      <span
+      <Icon
+        name={currency}
+        size={ICON_SIZE_MAP[size]}
+        color={colorVar}
         className={styles.icon}
-        style={{ color: colorVar }}
-      >
-        <Icon
-          name={currency}
-          size={ICON_SIZE_MAP[size]}
-        />
-      </span>
+      />
       {delta !== undefined && (
         <DeltaPrefix
           delta={delta}
