@@ -1,0 +1,12 @@
+.root {
+  display: block;
+  flex-shrink: 0;
+}
+
+.arc {
+  transition: stroke-dashoffset var(--mo-fast) var(--ease-out);
+
+  @media (prefers-reduced-motion: reduce) {
+    transition: none !important;
+  }
+}

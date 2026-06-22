@@ -1,0 +1,46 @@
+.root {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-xxs);
+  white-space: nowrap;
+}
+
+/* アイコン */
+.icon {
+  flex-shrink: 0;
+}
+
+.iconSm {
+  width: 10px;
+  height: 10px;
+}
+
+.iconMd {
+  width: 13px;
+  height: 13px;
+}
+
+.iconLg {
+  width: 18px;
+  height: 18px;
+}
+
+/* delta prefix (+/-) */
+.delta {
+  font-family: var(--ff-numeric);
+  font-weight: var(--fw-semibold);
+  letter-spacing: var(--ls-num);
+  line-height: var(--lh-tight);
+}
+
+.deltaSm {
+  font-size: var(--fs-num-s);
+}
+
+.deltaMd {
+  font-size: var(--fs-num-m);
+}
+
+.deltaLg {
+  font-size: var(--fs-num-l);
+}
