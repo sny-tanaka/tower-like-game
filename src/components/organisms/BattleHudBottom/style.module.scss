@@ -1,0 +1,77 @@
+.root {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-xs);
+  padding: var(--sp-s) var(--sp-m);
+  padding-bottom: calc(var(--sp-m) + env(safe-area-inset-bottom, 0px));
+  background: linear-gradient(
+    0deg,
+    rgba(4, 6, 13, 0.96) 0%,
+    rgba(4, 6, 13, 0.78) 100%
+  );
+  border-top: 1px solid var(--c-border-faint);
+}
+
+/* ──── 上段 ──── */
+.topRow {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-s);
+}
+
+/* ネジ残高エリア */
+.screwArea {
+  flex-shrink: 0;
+  min-width: 0;
+}
+
+/* 武器スロット × 4 */
+.weaponSlots {
+  display: flex;
+  gap: var(--sp-xs);
+  flex: 1;
+  justify-content: center;
+}
+
+/* アクティブボタン + トグル */
+.activeArea {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--sp-xxs);
+  flex-shrink: 0;
+}
+
+.activeButton {
+  all: unset;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--r-pill);
+  transition: opacity var(--mo-fast) var(--ease-default),
+              transform var(--mo-fast) var(--ease-default);
+
+  &:not(:disabled):active {
+    transform: scale(0.93);
+  }
+}
+
+.activeDisabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+/* ──── 下段 ──── */
+.bottomRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-s);
+}
+
+/* システムボタン群 */
+.sysButtons {
+  display: flex;
+  gap: var(--sp-xxs);
+}
