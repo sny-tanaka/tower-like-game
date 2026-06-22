@@ -35,6 +35,8 @@ export type Sound = (ctx: AudioContext, dest: AudioNode, now: number) => void;
 
 export type SoundCategory = 'weapon' | 'active' | 'battle' | 'ui' | 'result';
 
+export type BgmId = 'title' | 'base' | 'battleNormal' | 'battleBoss';
+
 export const SOUND_CATEGORY: Record<SoundId, SoundCategory> = {
   laserShoot: 'weapon',
   cannonShoot: 'weapon',
