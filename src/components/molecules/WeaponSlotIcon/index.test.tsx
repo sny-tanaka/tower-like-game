@@ -6,112 +6,100 @@ import { WeaponSlotIcon } from './index';
 
 describe('WeaponSlotIcon', () => {
   test('ボタンが描画される', () => {
-    render(
-      <WeaponSlotIcon
-        weapon="laser"
-        equipped={false}
-      />
-    );
+    render(<WeaponSlotIcon weapon="laser" />);
     expect(screen.getByRole('button')).toBeInTheDocument();
   });
 
-  test('equipped=false で aria-pressed が false', () => {
+  test('active=false で aria-pressed が false', () => {
     render(
       <WeaponSlotIcon
         weapon="laser"
-        equipped={false}
+        active={false}
+        onClick={vi.fn()}
       />
     );
     expect(screen.getByRole('button')).toHaveAttribute('aria-pressed', 'false');
   });
 
-  test('equipped=true で aria-pressed が true', () => {
+  test('active=true で aria-pressed が true', () => {
     render(
       <WeaponSlotIcon
         weapon="laser"
-        equipped={true}
+        active={true}
+        onClick={vi.fn()}
       />
     );
     expect(screen.getByRole('button')).toHaveAttribute('aria-pressed', 'true');
   });
 
-  test('equipped=true で equipped クラスが付く', () => {
+  test('active=true で active クラスが付く', () => {
     const { container } = render(
       <WeaponSlotIcon
         weapon="cannon"
-        equipped={true}
+        active={true}
       />
     );
     const btn = container.querySelector('button');
-    expect(btn?.className).toMatch(/equipped/);
+    expect(btn?.className).toMatch(/active/);
   });
 
-  test('equipped=false で equipped クラスが付かない', () => {
+  test('active=false で active クラスが付かない', () => {
     const { container } = render(
       <WeaponSlotIcon
         weapon="cannon"
-        equipped={false}
+        active={false}
       />
     );
     const btn = container.querySelector('button');
-    expect(btn?.className).not.toMatch(/\bequipped\b/);
+    expect(btn?.className).not.toMatch(/\bactive\b/);
   });
 
-  test('cdRemaining > 0 で onCd クラスが付く', () => {
+  test('cdProgress < 100 で onCd クラスが付く', () => {
     const { container } = render(
       <WeaponSlotIcon
         weapon="thunder"
-        equipped={false}
-        cdRemaining={2}
+        cdProgress={50}
       />
     );
     const btn = container.querySelector('button');
     expect(btn?.className).toMatch(/onCd/);
   });
 
-  test('cdRemaining = 0 で onCd クラスが付かない', () => {
+  test('cdProgress = 100 で onCd クラスが付かない', () => {
     const { container } = render(
       <WeaponSlotIcon
         weapon="thunder"
-        equipped={false}
-        cdRemaining={0}
+        cdProgress={100}
       />
     );
     const btn = container.querySelector('button');
     expect(btn?.className).not.toMatch(/onCd/);
   });
 
-  test('cdRemaining が null/undefined の時 CD 表示が出ない', () => {
-    const { container } = render(
-      <WeaponSlotIcon
-        weapon="cutter"
-        equipped={false}
-      />
-    );
-    // cdOverlay クラスが付いた要素がないこと
+  test('cdProgress が未指定 (=100) の時 CD 表示が出ない', () => {
+    const { container } = render(<WeaponSlotIcon weapon="cutter" />);
     expect(container.querySelector('[class*="cdOverlay"]')).toBeNull();
   });
 
-  test('cdRemaining > 0 の時 cdProgress 要素が描画される', () => {
+  test('cdProgress < 100 の時 cdProgress 要素が描画される', () => {
     const { container } = render(
       <WeaponSlotIcon
         weapon="laser"
-        equipped={false}
-        cdRemaining={2}
+        cdProgress={50}
       />
     );
     expect(container.querySelector('[class*="cdProgress"]')).toBeInTheDocument();
   });
 
-  test('disabled=true でボタンが disabled になる', () => {
-    render(
+  test('swapDisabled=true のとき swapDisabled クラスが付く', () => {
+    const { container } = render(
       <WeaponSlotIcon
         weapon="laser"
-        equipped={false}
-        disabled={true}
+        swapDisabled={true}
       />
     );
-    expect(screen.getByRole('button')).toBeDisabled();
+    const btn = container.querySelector('button');
+    expect(btn?.className).toMatch(/swapDisabled/);
   });
 
   test('onClick が呼ばれる', async () => {
@@ -120,7 +108,6 @@ describe('WeaponSlotIcon', () => {
     render(
       <WeaponSlotIcon
         weapon="laser"
-        equipped={false}
         onClick={onClick}
       />
     );
@@ -128,14 +115,13 @@ describe('WeaponSlotIcon', () => {
     expect(onClick).toHaveBeenCalledOnce();
   });
 
-  test('disabled=true の時 onClick が呼ばれない', async () => {
+  test('swapDisabled=true の時 onClick が呼ばれない', async () => {
     const user = userEvent.setup();
     const onClick = vi.fn();
     render(
       <WeaponSlotIcon
         weapon="laser"
-        equipped={false}
-        disabled={true}
+        swapDisabled={true}
         onClick={onClick}
       />
     );

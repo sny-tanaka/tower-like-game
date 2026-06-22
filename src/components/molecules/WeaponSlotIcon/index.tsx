@@ -3,30 +3,67 @@ import styles from './style.module.scss';
 import { CircularProgress } from '@/components/atoms/CircularProgress';
 import { Icon } from '@/components/atoms/Icon';
 
+// ---------------------------------------------------------------------------
+// 型定義
+// ---------------------------------------------------------------------------
+
 export type WeaponType = 'laser' | 'cannon' | 'thunder' | 'cutter';
+
+export type WeaponSlotIconSize = 'sm' | 'md' | 'lg';
 
 export interface WeaponSlotIconProps {
   weapon: WeaponType;
-  equipped: boolean;
-  cdRemaining?: number;
-  disabled?: boolean;
+  /** 現在このスロットが選択/使用中か */
+  active?: boolean;
+  /** CD が完了してスワップ可能な状態 */
+  ready?: boolean;
+  /** CD 進捗 0-100 (100 = CD 完了) */
+  cdProgress?: number;
+  /** 切替 CD 中フラグ。true の場合タップ無効でうっすら暗転 */
+  swapDisabled?: boolean;
+  size?: WeaponSlotIconSize;
   onClick?: () => void;
 }
 
+// ---------------------------------------------------------------------------
+// サイズ設定
+// ---------------------------------------------------------------------------
+
+const SIZE_PX: Record<WeaponSlotIconSize, number> = {
+  sm: 40,
+  md: 52,
+  lg: 64,
+};
+
+const ICON_SIZE_PX: Record<WeaponSlotIconSize, number> = {
+  sm: 18,
+  md: 24,
+  lg: 30,
+};
+
+// ---------------------------------------------------------------------------
+// コンポーネント
+// ---------------------------------------------------------------------------
+
 export function WeaponSlotIcon({
   weapon,
-  equipped,
-  cdRemaining,
-  disabled = false,
+  active = false,
+  ready = false,
+  cdProgress = 100,
+  swapDisabled = false,
+  size = 'md',
   onClick,
 }: WeaponSlotIconProps) {
-  const hasCd = cdRemaining != null && cdRemaining > 0;
+  const slotPx = SIZE_PX[size];
+  const iconPx = ICON_SIZE_PX[size];
+
+  const onCd = cdProgress < 100;
 
   const classNames = [
     styles.root,
-    equipped ? styles.equipped : '',
-    hasCd ? styles.onCd : '',
-    disabled ? styles.disabled : '',
+    active ? styles.active : '',
+    onCd ? styles.onCd : '',
+    swapDisabled ? styles.swapDisabled : '',
   ]
     .filter(Boolean)
     .join(' ');
@@ -35,32 +72,49 @@ export function WeaponSlotIcon({
     <button
       type="button"
       className={classNames}
-      onClick={onClick}
-      disabled={disabled}
-      aria-label={`${weapon} weapon slot${equipped ? ' (equipped)' : ''}${hasCd ? ` (cooldown: ${cdRemaining}s)` : ''}`}
-      aria-pressed={equipped}
+      style={{ width: slotPx, height: slotPx, minWidth: slotPx, minHeight: slotPx }}
+      onClick={swapDisabled ? undefined : onClick}
+      disabled={swapDisabled && onClick == null}
+      aria-label={`${weapon} weapon slot${active ? ' (active)' : ''}${onCd ? ` (cooldown ${cdProgress}%)` : ready ? ' (ready)' : ''}`}
+      aria-pressed={active}
     >
+      {/* 武器アイコン */}
       <span className={styles.iconWrap}>
         <Icon
           name={weapon}
-          size={24}
-          color={equipped ? 'var(--c-primary)' : 'var(--c-text-mid)'}
+          size={iconPx}
+          color={active ? 'var(--c-primary)' : 'var(--c-text-mid)'}
         />
       </span>
 
-      {hasCd && (
+      {/* CD 中: 暗転オーバーレイ + CircularProgress */}
+      {onCd && (
         <>
-          <span className={styles.cdOverlay} aria-hidden="true" />
-          <span className={styles.cdProgress} aria-hidden="true">
+          <span
+            className={styles.cdOverlay}
+            aria-hidden="true"
+          />
+          <span
+            className={styles.cdProgress}
+            aria-hidden="true"
+          >
             <CircularProgress
-              value={cdRemaining}
-              max={3}
-              size={44}
+              value={cdProgress}
+              max={100}
+              size={slotPx - 4}
               color="cd"
-              thickness={3}
+              thickness={size === 'sm' ? 2 : 3}
             />
           </span>
         </>
+      )}
+
+      {/* swapDisabled 暗転 */}
+      {swapDisabled && (
+        <span
+          className={styles.swapOverlay}
+          aria-hidden="true"
+        />
       )}
     </button>
   );

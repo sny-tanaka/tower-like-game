@@ -23,9 +23,24 @@
   gap: var(--sp-m);
 }
 
+/* タイトル行: アイコン + テキスト */
+.titleRow {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-s);
+}
+
+.titleIcon {
+  display: inline-flex;
+  align-items: center;
+  flex-shrink: 0;
+}
+
 .title {
   color: var(--c-text);
   margin: 0;
+  flex: 1;
+  min-width: 0;
 }
 
 .message {

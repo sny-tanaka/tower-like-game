@@ -17,7 +17,7 @@ describe('TabBar', () => {
     render(
       <TabBar
         tabs={tabs}
-        active="a"
+        value="a"
         onChange={vi.fn()}
       />
     );
@@ -26,11 +26,11 @@ describe('TabBar', () => {
     expect(screen.getByRole('tab', { name: 'タブC' })).toBeInTheDocument();
   });
 
-  test('active タブの aria-selected が true', () => {
+  test('value タブの aria-selected が true', () => {
     render(
       <TabBar
         tabs={tabs}
-        active="b"
+        value="b"
         onChange={vi.fn()}
       />
     );
@@ -43,7 +43,7 @@ describe('TabBar', () => {
     render(
       <TabBar
         tabs={tabs}
-        active="a"
+        value="a"
         onChange={handler}
       />
     );
@@ -55,7 +55,7 @@ describe('TabBar', () => {
     render(
       <TabBar
         tabs={tabs}
-        active="a"
+        value="a"
         onChange={vi.fn()}
       />
     );
@@ -66,7 +66,7 @@ describe('TabBar', () => {
     render(
       <TabBar
         tabs={tabs}
-        active="a"
+        value="a"
         onChange={vi.fn()}
         fullWidth
       />
@@ -79,12 +79,43 @@ describe('TabBar', () => {
     render(
       <TabBar
         tabs={tabs}
-        active="a"
+        value="a"
         onChange={vi.fn()}
         size="sm"
       />
     );
     const tablist = screen.getByRole('tablist');
     expect(tablist.className).toMatch(/size-sm/);
+  });
+
+  test('disabled タブはクリックしても onChange が呼ばれない', async () => {
+    const handler = vi.fn();
+    const tabsWithDisabled = [
+      { key: 'a', label: 'タブA' },
+      { key: 'b', label: 'タブB', disabled: true },
+    ] as const;
+    render(
+      <TabBar
+        tabs={tabsWithDisabled}
+        value="a"
+        onChange={handler}
+      />
+    );
+    // disabled ボタンはクリックイベントが発火しない
+    const disabledTab = screen.getByRole('tab', { name: 'タブB' });
+    expect(disabledTab).toBeDisabled();
+  });
+
+  test('variant="pill" クラスが付く', () => {
+    render(
+      <TabBar
+        tabs={tabs}
+        value="a"
+        onChange={vi.fn()}
+        variant="pill"
+      />
+    );
+    const tablist = screen.getByRole('tablist');
+    expect(tablist.className).toMatch(/variant-pill/);
   });
 });

@@ -3,38 +3,90 @@
   transition: box-shadow var(--mo-fast);
 }
 
-.selected {
+/* active */
+.active {
   .card {
     box-shadow: var(--glow-cyan-md);
     border: 1px solid var(--c-primary);
   }
 }
 
+/* locked */
+.locked {
+  opacity: 0.55;
+  cursor: default;
+}
+
+/* カード共通 */
 .card {
   display: flex;
   flex-direction: column;
   gap: var(--sp-s);
 }
 
-/* 上段 */
+/* tall: 縦カード（出撃準備）*/
+.tall {
+  .header {
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    gap: var(--sp-xs);
+  }
+
+  .iconWrap {
+    width: 48px;
+    height: 48px;
+  }
+
+  .statList {
+    padding-top: var(--sp-s);
+  }
+}
+
+/* wide: 横カード（武器庫）*/
+.wide {
+  .header {
+    flex-direction: row;
+    align-items: center;
+    gap: var(--sp-s);
+  }
+
+  .iconWrap {
+    width: 36px;
+    height: 36px;
+  }
+}
+
+/* ヘッダー */
 .header {
   display: flex;
-  align-items: center;
-  gap: var(--sp-s);
 }
 
 .iconWrap {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 36px;
-  height: 36px;
   border-radius: var(--r-s);
   background: var(--c-surface);
   flex-shrink: 0;
 }
 
-/* 中段 */
+.headerText {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-xxs);
+  min-width: 0;
+}
+
+.description {
+  line-height: var(--lh-snug);
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+}
+
+/* ステータス一覧 */
 .statList {
   list-style: none;
   margin: 0;
@@ -53,13 +105,23 @@
   gap: var(--sp-s);
 }
 
-/* 下段 */
-.activeSection {
+.statValue {
+  font-family: var(--ff-numeric);
+  font-size: var(--fs-label);
+  font-weight: var(--fw-semibold);
+  letter-spacing: var(--ls-num);
+  color: var(--c-text-mid);
+  white-space: nowrap;
+}
+
+/* locked バッジ */
+.lockedBadge {
   display: flex;
-  flex-direction: column;
-  gap: var(--sp-xxs);
+  align-items: center;
+  gap: var(--sp-xs);
+  justify-content: center;
+  padding: var(--sp-xs) 0;
   border-top: 1px solid var(--c-border-faint);
-  padding-top: var(--sp-s);
 }
 
 @media (prefers-reduced-motion: reduce) {

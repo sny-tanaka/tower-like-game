@@ -7,12 +7,11 @@ import { WeaponPreview } from './index';
 const defaultProps = {
   weapon: 'laser' as const,
   name: 'Laser',
+  description: '高速直進ビーム。貫通でき、連発で削り続ける。',
   stats: [
-    { label: '攻撃力', value: '120' },
+    { label: '攻撃力', value: 120, accent: 'primary' as const },
     { label: '攻撃速度', value: '2.5/s' },
   ],
-  activeName: 'Mega Beam',
-  activeDesc: '前方直線に貫通レーザーを照射する。',
 };
 
 describe('WeaponPreview', () => {
@@ -21,44 +20,37 @@ describe('WeaponPreview', () => {
     expect(screen.getByText('Laser')).toBeInTheDocument();
   });
 
-  test('ステータスのラベルと値が描画される', () => {
+  test('description が描画される', () => {
+    render(<WeaponPreview {...defaultProps} />);
+    expect(screen.getByText('高速直進ビーム。貫通でき、連発で削り続ける。')).toBeInTheDocument();
+  });
+
+  test('ステータスのラベルが描画される', () => {
     render(<WeaponPreview {...defaultProps} />);
     expect(screen.getByText('攻撃力')).toBeInTheDocument();
-    expect(screen.getByText('120')).toBeInTheDocument();
     expect(screen.getByText('攻撃速度')).toBeInTheDocument();
-    expect(screen.getByText('2.5/s')).toBeInTheDocument();
   });
 
-  test('アクティブ名が描画される', () => {
-    render(<WeaponPreview {...defaultProps} />);
-    expect(screen.getByText(/Mega Beam/)).toBeInTheDocument();
-  });
-
-  test('アクティブ説明が描画される', () => {
-    render(<WeaponPreview {...defaultProps} />);
-    expect(screen.getByText('前方直線に貫通レーザーを照射する。')).toBeInTheDocument();
-  });
-
-  test('selected=true で selected クラスが付く', () => {
+  test('active=true で active クラスが付く', () => {
     const { container } = render(
       <WeaponPreview
         {...defaultProps}
-        selected={true}
+        active={true}
       />
     );
     const wrapper = container.firstChild as HTMLElement;
-    expect(wrapper.className).toMatch(/selected/);
+    expect(wrapper.className).toMatch(/active/);
   });
 
-  test('selected=false で selected クラスが付かない', () => {
+  test('active=false で active クラスが付かない', () => {
     const { container } = render(
       <WeaponPreview
         {...defaultProps}
-        selected={false}
+        active={false}
       />
     );
     const wrapper = container.firstChild as HTMLElement;
-    expect(wrapper.className).not.toMatch(/\bselected\b/);
+    expect(wrapper.className).not.toMatch(/\bactive\b/);
   });
 
   test('onClick が渡された時に button role が付く', () => {
@@ -100,15 +92,36 @@ describe('WeaponPreview', () => {
     expect(screen.getByText('Laser')).toBeInTheDocument();
   });
 
-  test('selected=true かつ onClick で aria-pressed が true', () => {
+  test('active=true かつ onClick で aria-pressed が true', () => {
     const onClick = vi.fn();
     render(
       <WeaponPreview
         {...defaultProps}
-        selected={true}
+        active={true}
         onClick={onClick}
       />
     );
     expect(screen.getByRole('button')).toHaveAttribute('aria-pressed', 'true');
+  });
+
+  test('locked=true のとき LOCKED テキストが描画される', () => {
+    render(
+      <WeaponPreview
+        {...defaultProps}
+        locked={true}
+      />
+    );
+    expect(screen.getByText('LOCKED')).toBeInTheDocument();
+  });
+
+  test('layout="wide" で wide クラスが付く', () => {
+    const { container } = render(
+      <WeaponPreview
+        {...defaultProps}
+        layout="wide"
+      />
+    );
+    const wrapper = container.firstChild as HTMLElement;
+    expect(wrapper.className).toMatch(/wide/);
   });
 });

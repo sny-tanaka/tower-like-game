@@ -5,15 +5,79 @@
   padding: var(--sp-xs) var(--sp-s);
   background: var(--c-bg-elev);
   border-radius: var(--r-m);
+  border: 1px solid var(--c-border-faint);
+  transition: border-color var(--mo-fast);
 }
 
-.bossWave {
-  border: 1px solid var(--c-secondary);
+/* boss Wave: 枠を secondary グローに */
+.boss {
+  border-color: var(--c-secondary);
+  box-shadow: var(--glow-purple-sm);
 }
 
-/* ヘッダー行: バッジ + 進行テキスト + 残り時間 */
+/* ヘッダー行 */
 .header {
   display: flex;
   align-items: center;
   gap: var(--sp-s);
+}
+
+.waveLabel {
+  font-family: var(--ff-display);
+  font-weight: var(--fw-semibold);
+  letter-spacing: var(--ls-loose);
+  color: var(--c-text-dim);
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.waveNum {
+  color: var(--c-text);
+  font-size: 1.15em;
+}
+
+/* マイルストーン */
+.milestone {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-xxs);
+  flex: 1;
+}
+
+.milestoneText {
+  font-family: var(--ff-display);
+  font-size: var(--fs-label);
+  font-weight: var(--fw-semibold);
+  letter-spacing: var(--ls-loose);
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+/* 残り秒数 */
+.seconds {
+  margin-left: auto;
+  white-space: nowrap;
+}
+
+/* size バリアント */
+.size-sm {
+  padding: var(--sp-xxs) var(--sp-xs);
+  gap: var(--sp-xxs);
+
+  .waveLabel {
+    font-size: var(--fs-label);
+  }
+}
+
+.size-md {
+  /* デフォルト */
+}
+
+.size-lg {
+  padding: var(--sp-s) var(--sp-m);
+  gap: var(--sp-s);
+
+  .waveLabel {
+    font-size: var(--fs-caption);
+  }
 }

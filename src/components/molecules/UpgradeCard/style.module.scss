@@ -1,44 +1,92 @@
 .root {
   display: flex;
   flex-direction: column;
-  gap: var(--sp-s);
+  gap: var(--sp-xs);
 }
 
-/* 上段: タイトル + レベル */
+/* ヘッダー行 */
 .header {
   display: flex;
   align-items: center;
-  justify-content: space-between;
   gap: var(--sp-xs);
 }
 
-/* 中段: 現効果値 */
-.value {
-  text-align: center;
+.iconWrap {
+  display: inline-flex;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+.title {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.lvBadge {
+  font-family: var(--ff-numeric);
+  font-size: var(--fs-label);
+  font-weight: var(--fw-semibold);
+  letter-spacing: var(--ls-num);
+  padding: 1px var(--sp-xs);
+  border-radius: var(--r-xs);
+  border: 1px solid currentColor;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+/* 説明文 */
+.description {
+  line-height: var(--lh-snug);
+}
+
+/* 効果値行 */
+.valueRow {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-xs);
   padding: var(--sp-xxs) 0;
 }
 
-/* 下段: ボタン列 */
+.valueNum {
+  font-family: var(--ff-numeric);
+  font-size: var(--fs-num-s);
+  font-weight: var(--fw-semibold);
+  letter-spacing: var(--ls-num);
+  line-height: var(--lh-tight);
+}
+
+.arrow {
+  font-size: var(--fs-caption);
+  color: var(--c-text-dim);
+  flex-shrink: 0;
+}
+
+/* ボタン列 */
 .buttons {
   display: flex;
   gap: var(--sp-xs);
+  margin-top: var(--sp-xxs);
 }
 
-.buttonCol {
+.btnCol {
   display: flex;
   flex-direction: column;
   align-items: center;
   gap: var(--sp-xxs);
   flex: 1;
+  min-width: 0;
 }
 
-/* コスト数値 */
-.costLabel {
-  display: block;
+/* MAXED 表示 */
+.maxed {
+  font-family: var(--ff-display);
+  font-size: var(--fs-label);
+  font-weight: var(--fw-bold);
+  letter-spacing: var(--ls-loose);
   text-align: center;
-  line-height: var(--lh-tight);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  width: 100%;
+  padding: var(--sp-xs) 0;
+  opacity: 0.7;
 }

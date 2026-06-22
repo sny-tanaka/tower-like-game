@@ -4,17 +4,19 @@ import { describe, expect, test, vi } from 'vitest';
 
 import { UpgradeCard } from './index';
 
-import { BigNum } from '@/lib/bignum/BigNum';
-
-
 const defaultProps = {
   title: '最大 HP',
-  currentLv: 3,
-  currentValue: '+450',
-  nextLvCost: BigNum.fromNumber(1200),
-  canAfford: true,
-  currency: 'screw' as const,
-  onUpgrade: vi.fn(),
+  iconName: 'heart' as const,
+  currentLabel: 'Lv 4',
+  before: 1200,
+  after: 1320,
+  currency: 'bolt' as const,
+  accent: 'primary' as const,
+  options: [
+    { amount: '+1', cost: 80 },
+    { amount: '+5', cost: 380 },
+    { amount: 'MAX', cost: 720 },
+  ],
 };
 
 describe('UpgradeCard', () => {
@@ -23,27 +25,19 @@ describe('UpgradeCard', () => {
     expect(screen.getByText('最大 HP')).toBeInTheDocument();
   });
 
-  test('currentValue が描画される', () => {
+  test('currentLabel が描画される', () => {
     render(<UpgradeCard {...defaultProps} />);
-    expect(screen.getByText('+450')).toBeInTheDocument();
+    expect(screen.getByText('Lv 4')).toBeInTheDocument();
   });
 
-  test('maxLv なし → "Lv 3" 表示', () => {
+  test('options のボタンが描画される', () => {
     render(<UpgradeCard {...defaultProps} />);
-    expect(screen.getByText('Lv 3')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: '+1' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: '+5' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'MAX' })).toBeInTheDocument();
   });
 
-  test('maxLv あり → "Lv 3 / 10" 表示', () => {
-    render(
-      <UpgradeCard
-        {...defaultProps}
-        maxLv={10}
-      />
-    );
-    expect(screen.getByText('Lv 3 / 10')).toBeInTheDocument();
-  });
-
-  test('+1 ボタンクリックで onUpgrade(1) が呼ばれる', async () => {
+  test('+1 ボタンクリックで onUpgrade("+1") が呼ばれる', async () => {
     const onUpgrade = vi.fn();
     render(
       <UpgradeCard
@@ -52,10 +46,10 @@ describe('UpgradeCard', () => {
       />
     );
     await userEvent.click(screen.getByRole('button', { name: '+1' }));
-    expect(onUpgrade).toHaveBeenCalledWith(1);
+    expect(onUpgrade).toHaveBeenCalledWith('+1');
   });
 
-  test('+5 ボタンクリックで onUpgrade(5) が呼ばれる', async () => {
+  test('+5 ボタンクリックで onUpgrade("+5") が呼ばれる', async () => {
     const onUpgrade = vi.fn();
     render(
       <UpgradeCard
@@ -64,10 +58,10 @@ describe('UpgradeCard', () => {
       />
     );
     await userEvent.click(screen.getByRole('button', { name: '+5' }));
-    expect(onUpgrade).toHaveBeenCalledWith(5);
+    expect(onUpgrade).toHaveBeenCalledWith('+5');
   });
 
-  test('Max ボタンクリックで onUpgrade("max") が呼ばれる', async () => {
+  test('MAX ボタンクリックで onUpgrade("MAX") が呼ばれる', async () => {
     const onUpgrade = vi.fn();
     render(
       <UpgradeCard
@@ -75,46 +69,60 @@ describe('UpgradeCard', () => {
         onUpgrade={onUpgrade}
       />
     );
-    await userEvent.click(screen.getByRole('button', { name: 'Max' }));
-    expect(onUpgrade).toHaveBeenCalledWith('max');
+    await userEvent.click(screen.getByRole('button', { name: 'MAX' }));
+    expect(onUpgrade).toHaveBeenCalledWith('MAX');
   });
 
-  test('canAfford=false のとき全ボタンが disabled', () => {
+  test('option.disabled=true のとき該当ボタンが disabled', () => {
     render(
       <UpgradeCard
         {...defaultProps}
-        canAfford={false}
+        options={[
+          { amount: '+1', cost: 80, disabled: true },
+          { amount: '+5', cost: 380 },
+          { amount: 'MAX', cost: 720 },
+        ]}
       />
     );
-    const buttons = screen.getAllByRole('button');
-    buttons.forEach((btn) => {
-      expect(btn).toBeDisabled();
-    });
+    expect(screen.getByRole('button', { name: '+1' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: '+5' })).not.toBeDisabled();
   });
 
-  test('disabled=true のとき全ボタンが disabled', () => {
+  test('maxed=true のとき MAXED テキストが描画される', () => {
     render(
       <UpgradeCard
         {...defaultProps}
-        disabled={true}
+        maxed={true}
+        options={[]}
       />
     );
-    const buttons = screen.getAllByRole('button');
-    buttons.forEach((btn) => {
-      expect(btn).toBeDisabled();
-    });
+    expect(screen.getByText('MAXED')).toBeInTheDocument();
+    expect(screen.queryByRole('button')).toBeNull();
   });
 
-  test('コスト数値が描画される', () => {
+  test('description が描画される', () => {
     render(
       <UpgradeCard
         {...defaultProps}
-        nextLvCost={BigNum.fromNumber(1200)}
+        description="敵シールドを無効化する"
       />
     );
-    // BigNum の独自フォーマット: 1200 → "1.20A"（K ではなく A サフィックス）
-    // 3つのボタン列に同じコスト値が表示される
-    const costLabels = screen.getAllByText('1.20A');
-    expect(costLabels.length).toBeGreaterThan(0);
+    expect(screen.getByText('敵シールドを無効化する')).toBeInTheDocument();
+  });
+
+  test('before / after の値が描画される', () => {
+    render(<UpgradeCard {...defaultProps} />);
+    expect(screen.getByText(/1,200/)).toBeInTheDocument();
+    expect(screen.getByText(/1,320/)).toBeInTheDocument();
+  });
+
+  test('options が空の時はボタンが描画されない', () => {
+    render(
+      <UpgradeCard
+        {...defaultProps}
+        options={[]}
+      />
+    );
+    expect(screen.queryByRole('button')).toBeNull();
   });
 });

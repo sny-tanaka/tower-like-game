@@ -5,38 +5,75 @@ import { Icon } from '@/components/atoms/Icon';
 import { Text } from '@/components/atoms/Text';
 import type { WeaponType } from '@/components/molecules/WeaponSlotIcon';
 
+// ---------------------------------------------------------------------------
+// 型定義
+// ---------------------------------------------------------------------------
+
 export interface WeaponStat {
   label: string;
-  value: string;
+  value: number | string;
+  suffix?: string;
+  /** primary 等のアクセントカラーで強調表示 */
+  accent?: 'primary' | 'secondary' | 'warning';
 }
+
+export type WeaponPreviewLayout = 'tall' | 'wide';
 
 export interface WeaponPreviewProps {
   weapon: WeaponType;
   name: string;
+  description?: string;
   stats: ReadonlyArray<WeaponStat>;
-  activeName: string;
-  activeDesc: string;
-  selected?: boolean;
+  /** tall (出撃準備 — 縦カード) / wide (武器庫詳細 — 横カード) */
+  layout?: WeaponPreviewLayout;
+  /** 現在選択/使用中か */
+  active?: boolean;
+  /** locked 武器 */
+  locked?: boolean;
   onClick?: () => void;
 }
+
+// ---------------------------------------------------------------------------
+// アクセントカラーマッピング
+// ---------------------------------------------------------------------------
+
+const ACCENT_COLOR: Record<NonNullable<WeaponStat['accent']>, string> = {
+  primary: 'var(--c-primary)',
+  secondary: 'var(--c-secondary)',
+  warning: 'var(--c-warning)',
+};
+
+// ---------------------------------------------------------------------------
+// コンポーネント
+// ---------------------------------------------------------------------------
 
 export function WeaponPreview({
   weapon,
   name,
+  description,
   stats,
-  activeName,
-  activeDesc,
-  selected = false,
+  layout = 'tall',
+  active = false,
+  locked = false,
   onClick,
 }: WeaponPreviewProps) {
+  const isWide = layout === 'wide';
+
   return (
     <div
-      className={[styles.wrapper, selected ? styles.selected : ''].filter(Boolean).join(' ')}
-      onClick={onClick}
-      role={onClick ? 'button' : undefined}
-      tabIndex={onClick ? 0 : undefined}
+      className={[
+        styles.wrapper,
+        active ? styles.active : '',
+        locked ? styles.locked : '',
+        isWide ? styles.wide : styles.tall,
+      ]
+        .filter(Boolean)
+        .join(' ')}
+      onClick={locked ? undefined : onClick}
+      role={onClick != null && !locked ? 'button' : undefined}
+      tabIndex={onClick != null && !locked ? 0 : undefined}
       onKeyDown={
-        onClick
+        onClick != null && !locked
           ? (e) => {
               if (e.key === 'Enter' || e.key === ' ') {
                 e.preventDefault();
@@ -45,69 +82,98 @@ export function WeaponPreview({
             }
           : undefined
       }
-      aria-pressed={onClick ? selected : undefined}
+      aria-pressed={onClick != null ? active : undefined}
     >
       <Card
         variant="elevated"
         padding="md"
-        interactive={!!onClick}
+        interactive={onClick != null && !locked}
         className={styles.card}
       >
-        {/* 上段: アイコン + 武器名 */}
+        {/* ヘッダー: アイコン + 武器名 + description */}
         <div className={styles.header}>
           <span className={styles.iconWrap}>
             <Icon
               name={weapon}
-              size={28}
-              color={selected ? 'var(--c-primary)' : 'var(--c-text-mid)'}
+              size={isWide ? 24 : 28}
+              color={
+                active
+                  ? 'var(--c-primary)'
+                  : locked
+                    ? 'var(--c-text-disabled)'
+                    : 'var(--c-text-mid)'
+              }
             />
           </span>
-          <Text
-            variant="heading-3"
-            color={selected ? 'primary' : 'default'}
-          >
-            {name}
-          </Text>
-        </div>
-
-        {/* 中段: ステータス一覧 */}
-        <ul className={styles.statList}>
-          {stats.map((stat) => (
-            <li
-              key={stat.label}
-              className={styles.statRow}
+          <div className={styles.headerText}>
+            <Text
+              variant={isWide ? 'label' : 'heading-3'}
+              color={active ? 'primary' : locked ? 'disabled' : 'default'}
             >
+              {name}
+            </Text>
+            {description != null && description.length > 0 && (
               <Text
                 variant="caption"
                 color="dim"
+                className={styles.description}
               >
-                {stat.label}
+                {description}
               </Text>
-              <Text
-                variant="label"
-                color="mid"
-              >
-                {stat.value}
-              </Text>
-            </li>
-          ))}
-        </ul>
-
-        {/* 下段: アクティブ */}
-        <div className={styles.activeSection}>
-          <Text
-            variant="label"
-            color="primary"
-          >
-            アクティブ: {activeName}
-          </Text>
-          <Text
-            variant="caption"
-            color="dim"
-          >
-            {activeDesc}
-          </Text>
+            )}
+          </div>
         </div>
+
+        {/* ステータス一覧 */}
+        {!locked && stats.length > 0 && (
+          <ul className={styles.statList}>
+            {stats.map((stat) => {
+              const displayValue =
+                stat.suffix != null
+                  ? `${typeof stat.value === 'number' ? stat.value.toLocaleString() : stat.value}${stat.suffix}`
+                  : typeof stat.value === 'number'
+                    ? stat.value.toLocaleString()
+                    : stat.value;
+
+              return (
+                <li
+                  key={stat.label}
+                  className={styles.statRow}
+                >
+                  <Text
+                    variant="caption"
+                    color="dim"
+                  >
+                    {stat.label}
+                  </Text>
+                  <span
+                    className={styles.statValue}
+                    style={stat.accent != null ? { color: ACCENT_COLOR[stat.accent] } : undefined}
+                  >
+                    {displayValue}
+                  </span>
+                </li>
+              );
+            })}
+          </ul>
+        )}
+
+        {/* locked 表示 */}
+        {locked && (
+          <div className={styles.lockedBadge}>
+            <Icon
+              name="close"
+              size={14}
+              color="var(--c-text-disabled)"
+            />
+            <Text
+              variant="caption"
+              color="dim"
+            >
+              LOCKED
+            </Text>
+          </div>
+        )}
       </Card>
     </div>
   );
