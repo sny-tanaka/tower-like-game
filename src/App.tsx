@@ -1,39 +1,35 @@
 // URL を増やさない方針: ゲーム / 単一画面ツール向けの SPA。
 // 新しい画面は Screen union (src/store/navigation.tsx) と、ここの switch を増やす。
 // react-router は使わない。NavigationProvider が screen state を管理する。
-// Phase 6 で各 Page が本格実装されるまで、暫定プレースホルダを表示する。
 
-import { Page as HomePage } from '@/pages/home';
+import { ArmoryScreen } from '@/pages/armory';
+import { Page as BattlePage } from '@/pages/battle';
+import { Page as MachinePage } from '@/pages/machine';
 import { Page as NotFoundPage } from '@/pages/not-found';
+import { PatchScreen } from '@/pages/patches';
+import { Page as PreparationPage } from '@/pages/preparation';
+import { Page as SettingsPage } from '@/pages/settings';
+import { Page as TitlePage } from '@/pages/title';
 import { useNavigation } from '@/store/navigation';
-import type { Screen } from '@/store/navigation';
-
-function PlaceholderPage({ screen }: { screen: Screen }) {
-  return (
-    <div>
-      <h1>{screen}</h1>
-    </div>
-  );
-}
 
 function App() {
   const { screen } = useNavigation();
 
   switch (screen) {
     case 'title':
-      return <HomePage />;
+      return <TitlePage />;
     case 'preparation':
-      return <PlaceholderPage screen={screen} />;
+      return <PreparationPage />;
     case 'machine':
-      return <PlaceholderPage screen={screen} />;
+      return <MachinePage />;
     case 'armory':
-      return <PlaceholderPage screen={screen} />;
+      return <ArmoryScreen />;
     case 'patches':
-      return <PlaceholderPage screen={screen} />;
+      return <PatchScreen />;
     case 'settings':
-      return <PlaceholderPage screen={screen} />;
+      return <SettingsPage />;
     case 'battle':
-      return <PlaceholderPage screen={screen} />;
+      return <BattlePage />;
     default: {
       // TypeScript の網羅性チェック
       ((_: never) => {})(screen);

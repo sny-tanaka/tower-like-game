@@ -1,10 +1,10 @@
 import { describe, expect, it } from 'vitest';
 
+import { thunderNormalAttack, thunderPlasmaDischarge, thunderStats } from './thunder';
+
 import type { MachineStats } from '@/game/damage.types';
 import type { SpawnedEnemy } from '@/game/types';
 import { BigNum } from '@/lib/bignum/BigNum';
-
-import { thunderNormalAttack, thunderPlasmaDischarge, thunderStats } from './thunder';
 
 // ---------------------------------------------------------------------------
 // テスト用ファクトリ

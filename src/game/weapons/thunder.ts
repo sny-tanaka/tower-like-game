@@ -1,7 +1,6 @@
+import { calcOutgoingDamage, rollCrit } from '@/game/damage';
 import type { MachineStats } from '@/game/damage.types';
 import type { SpawnedEnemy } from '@/game/types';
-
-import { calcOutgoingDamage, rollCrit } from '@/game/damage';
 import { BigNum } from '@/lib/bignum/BigNum';
 
 // ---------------------------------------------------------------------------
