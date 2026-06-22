@@ -30,3 +30,8 @@ export {
 } from './enemies';
 
 export { buildTierWaves, getSpawnsAtTime } from './wave';
+
+export type { MachineStats, WeaponStats } from './damage.types';
+
+export type { DamageCalcInput, DamageCalcResult } from './damage';
+export { calcOutgoingDamage, calcReceivedDamage, rollCrit } from './damage';

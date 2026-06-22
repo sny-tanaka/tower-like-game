@@ -1,0 +1,31 @@
+import type { BigNum } from '@/lib/bignum/BigNum';
+
+/**
+ * マシン本体ステータス（ダメージ計算に必要な項目）
+ */
+export interface MachineStats {
+  /** 基礎攻撃力 (#5) */
+  baseAttack: BigNum;
+  /** 防御力 (#4) */
+  defense: BigNum;
+  /** 被ダメ軽減率 (#3)。0〜1 の比率（1.0 未満） */
+  damageReduction: number;
+  /** クリ率 (#8)。0〜1 の確率 */
+  critRate: number;
+  /** クリ倍率 (#9)。例: 1.5, 2.0 */
+  critMultiplier: number;
+  /** 最大 HP (#1) */
+  maxHp: BigNum;
+  /** HP リジェネ/秒 (#2) */
+  hpRegen: BigNum;
+}
+
+/**
+ * 武器ステータス（ダメージ計算に必要な項目）
+ */
+export interface WeaponStats {
+  /** 武器ダメージ倍率（武器 Lv で伸びる） */
+  damageMultiplier: number;
+  /** 攻撃速度 (attacks/sec) */
+  attackSpeed?: number;
+}
