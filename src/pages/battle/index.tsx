@@ -11,6 +11,7 @@ import { BattleHudTop } from '@/components/organisms/BattleHudTop';
 import { BattleMenuOverlay } from '@/components/organisms/BattleMenuOverlay';
 import { ResultDialog } from '@/components/organisms/ResultDialog';
 import type { ResultReward, ResultStatus } from '@/components/organisms/ResultDialog';
+import { RunWorkshopBottomSheet } from '@/components/organisms/RunWorkshopBottomSheet';
 import type { RunWorkshopLevels } from '@/components/organisms/RunWorkshopBottomSheet/items';
 import { ScreenSaverDialog } from '@/components/organisms/ScreenSaverDialog';
 import { BigNum } from '@/lib/bignum/BigNum';
@@ -142,10 +143,10 @@ export function Page() {
     navigate('preparation');
   };
 
-  const handleWorkshopUpgrade = (key: keyof RunWorkshopLevels) => {
+  const handleWorkshopUpgrade = (key: keyof RunWorkshopLevels, delta: 1 | 5 | 'max') => {
     setRunWorkshopLevels((prev) => ({
       ...prev,
-      [key]: prev[key] + 1,
+      [key]: prev[key] + (delta === 'max' ? 1 : delta),
     }));
     // TODO: スクリーン購入処理は 8-8 で実装
   };
@@ -180,31 +181,41 @@ export function Page() {
           />
         }
         footer={
-          <BattleHudBottom
-            screw={screw}
-            equippedWeapon={currentWeapon}
-            weaponCds={weaponCds}
-            activeCd={activeCdSec}
-            activeMax={DEFAULT_ACTIVE_MAX_SEC}
-            isAutoActive={isAutoActive}
-            onSwitchWeapon={switchWeapon}
-            onActivate={() => {
-              // TODO: 8-8 で実装
-            }}
-            onToggleAuto={setAutoActive}
-            gameSpeed={localGameSpeed}
-            onSpeedChange={handleSpeedChange}
-            isPaused={isPaused}
-            onTogglePause={handleTogglePause}
-            onOpenMenu={handleOpenMenu}
-            onOpenScreenSaver={handleOpenScreenSaver}
-            isWorkshopOpen={isWorkshopOpen}
-            onToggleWorkshop={() => {
-              setIsWorkshopOpen((prev) => !prev);
-            }}
-            workshopLevels={runWorkshopLevels}
-            onWorkshopUpgrade={handleWorkshopUpgrade}
-          />
+          <>
+            {/* ワークショップシート: 開いている時のみ HudBottom の上に縦並びで表示 */}
+            <RunWorkshopBottomSheet
+              open={isWorkshopOpen}
+              screw={screw}
+              levels={runWorkshopLevels}
+              onUpgrade={handleWorkshopUpgrade}
+              onClose={() => {
+                setIsWorkshopOpen(false);
+              }}
+            />
+            <BattleHudBottom
+              screw={screw}
+              equippedWeapon={currentWeapon}
+              weaponCds={weaponCds}
+              activeCd={activeCdSec}
+              activeMax={DEFAULT_ACTIVE_MAX_SEC}
+              isAutoActive={isAutoActive}
+              onSwitchWeapon={switchWeapon}
+              onActivate={() => {
+                // TODO: 8-8 で実装
+              }}
+              onToggleAuto={setAutoActive}
+              gameSpeed={localGameSpeed}
+              onSpeedChange={handleSpeedChange}
+              isPaused={isPaused}
+              onTogglePause={handleTogglePause}
+              onOpenMenu={handleOpenMenu}
+              onOpenScreenSaver={handleOpenScreenSaver}
+              isWorkshopOpen={isWorkshopOpen}
+              onToggleWorkshop={() => {
+                setIsWorkshopOpen((prev) => !prev);
+              }}
+            />
+          </>
         }
       >
         {/* メインコンテンツ: BattleField */}

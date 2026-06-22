@@ -50,3 +50,24 @@ export const Default: Story = {
     </WithBattleSeed>
   ),
 };
+
+/** ボトムシート展開: アップグレード Badge をタップした状態 (design ref と同条件) */
+export const WorkshopOpen: Story = {
+  name: 'ボトムシート展開',
+  render: () => (
+    <WithBattleSeed>
+      <WorkshopAutoOpen />
+    </WithBattleSeed>
+  ),
+};
+
+/** マウント直後にアップグレードボタンを 1 度クリックしてシートを開いた状態を撮影する */
+function WorkshopAutoOpen() {
+  useEffect(() => {
+    const btn = document.querySelector(
+      'button[aria-label="アップグレードを開く"]'
+    ) as HTMLButtonElement | null;
+    btn?.click();
+  }, []);
+  return <Page />;
+}

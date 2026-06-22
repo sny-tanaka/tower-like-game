@@ -146,6 +146,5 @@ export const WorkshopOpen: Story = {
   name: 'ボトムシート展開 (ワークショップ表示)',
   args: {
     isWorkshopOpen: true,
-    workshopLevels: { attackMul: 2, attackSpeedMul: 1, hpMul: 0, screwGainMul: 3 },
   },
 };

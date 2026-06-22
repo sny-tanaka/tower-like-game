@@ -6,18 +6,9 @@ import { CurrencyAmount } from '@/components/atoms/CurrencyAmount';
 import { Icon } from '@/components/atoms/Icon';
 import { IconButton } from '@/components/atoms/IconButton';
 import { SegmentedControl } from '@/components/atoms/SegmentedControl';
-import { Text } from '@/components/atoms/Text';
-import { UpgradeCard } from '@/components/molecules/UpgradeCard';
 import { WeaponSlotIcon } from '@/components/molecules/WeaponSlotIcon';
 import type { WeaponType } from '@/components/molecules/WeaponSlotIcon';
-import {
-  RUN_WORKSHOP_ITEMS,
-  calcRunWorkshopCost,
-  calcRunWorkshopMultiplier,
-  type RunWorkshopKey,
-  type RunWorkshopLevels,
-} from '@/components/organisms/RunWorkshopBottomSheet/items';
-import { BigNum } from '@/lib/bignum/BigNum';
+import type { BigNum } from '@/lib/bignum/BigNum';
 
 // ---------------------------------------------------------------------------
 // 型定義
@@ -62,13 +53,9 @@ export interface BattleHudBottomProps {
   onOpenMenu: () => void;
   /** スクリーンセーバーを開く */
   onOpenScreenSaver: () => void;
-  /** ラン内ワークショップ (BottomSheet) の開閉状態。ハンドル tap で onToggleWorkshop が発火 */
+  /** ラン内ワークショップ (overlay Sheet) の開閉状態。アップグレード Badge tap で onToggleWorkshop が発火 */
   isWorkshopOpen?: boolean;
   onToggleWorkshop?: () => void;
-  /** ワークショップの現在 Lv (4 項目) */
-  workshopLevels?: RunWorkshopLevels;
-  /** ワークショップ強化ボタン押下時のコールバック */
-  onWorkshopUpgrade?: (key: RunWorkshopKey) => void;
 }
 
 // ---------------------------------------------------------------------------
@@ -93,8 +80,6 @@ export function BattleHudBottom({
   onOpenScreenSaver,
   isWorkshopOpen = false,
   onToggleWorkshop,
-  workshopLevels,
-  onWorkshopUpgrade,
 }: BattleHudBottomProps) {
   const activeOnCd = activeCd > 0;
   // 自動モード時はアクティブボタン無効
@@ -115,7 +100,7 @@ export function BattleHudBottom({
           aria-label={isWorkshopOpen ? 'アップグレードを閉じる' : 'アップグレードを開く'}
         >
           <Badge
-            text={isWorkshopOpen ? '閉じる' : 'アップグレード'}
+            text="アップグレード"
             variant="info"
             size="md"
             glow
@@ -186,68 +171,6 @@ export function BattleHudBottom({
           </button>
         </div>
       </div>
-
-      {/* ──── ワークショップ展開: 武器ボタンの「下」に header + UpgradeCard 2 列 × 2 行 ──── */}
-      {isWorkshopOpen && (
-        <div
-          className={styles.workshopRoot}
-          role="group"
-          aria-label="ラン中ワークショップ"
-        >
-          <div className={styles.workshopHeader}>
-            <div className={styles.workshopHeaderText}>
-              <Text
-                variant="heading-3"
-                style={{ fontSize: 14, lineHeight: 1.2 }}
-              >
-                ラン中ワークショップ
-              </Text>
-              <Text
-                variant="caption"
-                color="dim"
-                style={{ fontSize: 10.5 }}
-              >
-                ラン終了で全リセット
-              </Text>
-            </div>
-            <CurrencyAmount
-              currency="screw"
-              value={screw}
-              size="md"
-            />
-          </div>
-          <div className={styles.workshopGrid}>
-            {RUN_WORKSHOP_ITEMS.map((item) => {
-              const lv = workshopLevels?.[item.key] ?? 0;
-              const before = calcRunWorkshopMultiplier(lv);
-              const after = calcRunWorkshopMultiplier(lv + 1);
-              const cost = calcRunWorkshopCost(item, lv);
-              const disabled = screw.lt(BigNum.fromNumber(cost));
-              return (
-                <UpgradeCard
-                  key={item.key}
-                  title={item.title.replace(/\s*倍率$/, '')}
-                  iconName={item.iconName}
-                  currentLabel={`Lv ${lv}`}
-                  before={before}
-                  after={after}
-                  beforeSuffix="×"
-                  currency="screw"
-                  accent="warning"
-                  options={[
-                    {
-                      amount: '+1',
-                      cost: BigNum.fromNumber(cost),
-                      disabled,
-                    },
-                  ]}
-                  onUpgrade={() => onWorkshopUpgrade?.(item.key)}
-                />
-              );
-            })}
-          </div>
-        </div>
-      )}
 
       {/* ──── 下段: 通貨 + 速度切替 + 一時停止 + メニュー + SS ──── */}
       <div className={styles.bottomRow}>

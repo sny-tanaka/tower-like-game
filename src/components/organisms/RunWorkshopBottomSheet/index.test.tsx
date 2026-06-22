@@ -245,9 +245,9 @@ describe('RunWorkshopBottomSheet', () => {
     expect(onUpgrade).toHaveBeenCalledWith('attackMul', 'max');
   });
 
-  test('onClose が渡されたとき、バックドロップクリックで呼ばれる', async () => {
+  test('onClose が渡されたとき、ヘッダーの閉じるボタン (chevron-down) で呼ばれる', async () => {
     const onClose = vi.fn();
-    const { container } = render(
+    render(
       <RunWorkshopBottomSheet
         open={true}
         screw={BigNum.fromNumber(0)}
@@ -256,13 +256,8 @@ describe('RunWorkshopBottomSheet', () => {
         onClose={onClose}
       />
     );
-    // Sheet のバックドロップ（position:fixed / transparent の div）をクリック
-    // Sheet 内で onClose が渡された場合に描画される backdrop div を探す
-    const backdrop = container.querySelector('[aria-hidden="true"]');
-    expect(backdrop).not.toBeNull();
-    if (backdrop) {
-      await userEvent.click(backdrop);
-      expect(onClose).toHaveBeenCalled();
-    }
+    const closeBtn = screen.getByRole('button', { name: '閉じる' });
+    await userEvent.click(closeBtn);
+    expect(onClose).toHaveBeenCalled();
   });
 });

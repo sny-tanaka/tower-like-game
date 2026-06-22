@@ -8,8 +8,9 @@ import {
 } from './items';
 import styles from './style.module.scss';
 
-import { Sheet } from '@/components/atoms/Sheet';
-import { BottomSheetHandle } from '@/components/molecules/BottomSheetHandle';
+import { CurrencyAmount } from '@/components/atoms/CurrencyAmount';
+import { IconButton } from '@/components/atoms/IconButton';
+import { Text } from '@/components/atoms/Text';
 import { UpgradeCard } from '@/components/molecules/UpgradeCard';
 import { BigNum } from '@/lib/bignum/BigNum';
 
@@ -57,15 +58,46 @@ export function RunWorkshopBottomSheet({
   if (!open) return null;
 
   return (
-    <Sheet
-      open={open}
-      onClose={onClose}
-      edge="bottom"
+    <section
+      className={styles.root}
+      role="dialog"
+      aria-modal="false"
+      aria-label="ラン中ワークショップ"
     >
-      {/* ドラッグハンドル */}
-      <BottomSheetHandle />
-
       <div className={styles.inner}>
+        {/* ヘッダー: title + subtitle + 通貨 + close */}
+        <div className={styles.header}>
+          <div className={styles.headerText}>
+            <Text
+              variant="heading-3"
+              style={{ fontSize: 14, lineHeight: 1.2 }}
+            >
+              ラン中ワークショップ
+            </Text>
+            <Text
+              variant="caption"
+              color="dim"
+              style={{ fontSize: 10.5 }}
+            >
+              ラン終了で全リセット
+            </Text>
+          </div>
+          <CurrencyAmount
+            currency="screw"
+            value={screw}
+            size="md"
+          />
+          {onClose != null && (
+            <IconButton
+              icon="chevron-down"
+              label="閉じる"
+              variant="ghost"
+              size="sm"
+              onClick={onClose}
+            />
+          )}
+        </div>
+
         {/* 2×2 グリッド */}
         <div className={styles.grid}>
           {RUN_WORKSHOP_ITEMS.map((item) => {
@@ -126,6 +158,6 @@ export function RunWorkshopBottomSheet({
           })}
         </div>
       </div>
-    </Sheet>
+    </section>
   );
 }

@@ -117,34 +117,6 @@
   cursor: pointer;
 }
 
-/* ワークショップ展開: header + UpgradeCard 2 列 × 2 行。
-   武器ボタン行の **下** (通貨行の上) に挿入 */
-.workshopRoot {
-  display: flex;
-  flex-direction: column;
-  gap: var(--sp-s);
-  padding: var(--sp-xs) var(--sp-m) var(--sp-s);
-}
-
-.workshopHeader {
-  display: flex;
-  align-items: center;
-  gap: var(--sp-s);
-}
-
-.workshopHeaderText {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  flex: 1;
-  min-width: 0;
-}
-
-.workshopGrid {
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: var(--sp-s);
-}
 
 /* ──── 下段: 通貨 + 速度 + システム ──── */
 .bottomRow {

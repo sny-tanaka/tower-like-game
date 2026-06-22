@@ -1,27 +1,27 @@
 if (!self.define) {
   let e,
     i = {};
-  const n = (n, c) => (
-    (n = new URL(n + '.js', c).href),
-    i[n] ||
+  const c = (c, n) => (
+    (c = new URL(c + '.js', n).href),
+    i[c] ||
       new Promise((i) => {
         if ('document' in self) {
           const e = document.createElement('script');
-          ((e.src = n), (e.onload = i), document.head.appendChild(e));
-        } else ((e = n), importScripts(n), i());
+          ((e.src = c), (e.onload = i), document.head.appendChild(e));
+        } else ((e = c), importScripts(c), i());
       }).then(() => {
-        let e = i[n];
-        if (!e) throw new Error(`Module ${n} didn’t register its module`);
+        let e = i[c];
+        if (!e) throw new Error(`Module ${c} didn’t register its module`);
         return e;
       })
   );
-  self.define = (c, r) => {
-    const s = e || ('document' in self ? document.currentScript.src : '') || location.href;
-    if (i[s]) return;
-    let o = {};
-    const d = (e) => n(e, s),
-      a = { module: { uri: s }, exports: o, require: d };
-    i[s] = Promise.all(c.map((e) => a[e] || d(e))).then((e) => (r(...e), o));
+  self.define = (n, r) => {
+    const o = e || ('document' in self ? document.currentScript.src : '') || location.href;
+    if (i[o]) return;
+    let s = {};
+    const d = (e) => c(e, o),
+      f = { module: { uri: o }, exports: s, require: d };
+    i[o] = Promise.all(n.map((e) => f[e] || d(e))).then((e) => (r(...e), s));
   };
 }
 define(['./workbox-8c29f6e4'], function (e) {
@@ -31,12 +31,12 @@ define(['./workbox-8c29f6e4'], function (e) {
     e.precacheAndRoute(
       [
         { url: 'registerSW.js', revision: '810786f0a72d79372ff50293c13b9108' },
-        { url: 'index.html', revision: '0055291e5b463ad333096e8a26976e3c' },
+        { url: 'index.html', revision: '5714c107593f7e741d8eb8171fad022c' },
         { url: 'icon-512.png', revision: '318032293ba71f818b57decedb9afadf' },
         { url: 'icon-192.png', revision: '755ecad9c3cf1a68cdc525ce5d7eb299' },
         { url: 'favicon.ico', revision: 'fd32cce62c8da11c49d9a6f0c9ada784' },
-        { url: 'assets/index-BYIn8JLG.js', revision: null },
-        { url: 'assets/index-BUIBaW_9.css', revision: null },
+        { url: 'assets/index-SXyEo6U_.css', revision: null },
+        { url: 'assets/index-BUoCX5Q0.js', revision: null },
         { url: 'favicon.ico', revision: 'fd32cce62c8da11c49d9a6f0c9ada784' },
         { url: 'icon-192.png', revision: '755ecad9c3cf1a68cdc525ce5d7eb299' },
         { url: 'icon-512.png', revision: '318032293ba71f818b57decedb9afadf' },
