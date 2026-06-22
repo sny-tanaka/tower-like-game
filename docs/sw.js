@@ -19,9 +19,9 @@ if (!self.define) {
     const s = e || ('document' in self ? document.currentScript.src : '') || location.href;
     if (i[s]) return;
     let o = {};
-    const d = (e) => c(e, s),
-      f = { module: { uri: s }, exports: o, require: d };
-    i[s] = Promise.all(n.map((e) => f[e] || d(e))).then((e) => (r(...e), o));
+    const f = (e) => c(e, s),
+      d = { module: { uri: s }, exports: o, require: f };
+    i[s] = Promise.all(n.map((e) => d[e] || f(e))).then((e) => (r(...e), o));
   };
 }
 define(['./workbox-8c29f6e4'], function (e) {
@@ -31,12 +31,12 @@ define(['./workbox-8c29f6e4'], function (e) {
     e.precacheAndRoute(
       [
         { url: 'registerSW.js', revision: '810786f0a72d79372ff50293c13b9108' },
-        { url: 'index.html', revision: '17cd95fd4d0e44cf798e700356203fbf' },
+        { url: 'index.html', revision: '5bfc4323bf679a7707caff6065f42aae' },
         { url: 'icon-512.png', revision: '318032293ba71f818b57decedb9afadf' },
         { url: 'icon-192.png', revision: '755ecad9c3cf1a68cdc525ce5d7eb299' },
         { url: 'favicon.ico', revision: 'fd32cce62c8da11c49d9a6f0c9ada784' },
-        { url: 'assets/index-t2LfTst6.css', revision: null },
-        { url: 'assets/index-Ci4zaVlN.js', revision: null },
+        { url: 'assets/index-cKTr9Lff.js', revision: null },
+        { url: 'assets/index-WKt0F9w-.css', revision: null },
         { url: 'favicon.ico', revision: 'fd32cce62c8da11c49d9a6f0c9ada784' },
         { url: 'icon-192.png', revision: '755ecad9c3cf1a68cdc525ce5d7eb299' },
         { url: 'icon-512.png', revision: '318032293ba71f818b57decedb9afadf' },

@@ -1,3 +1,5 @@
+import { useRef } from 'react';
+
 import styles from './style.module.scss';
 
 import { CircularProgress } from '@/components/atoms/CircularProgress';
@@ -6,14 +8,17 @@ import { Icon } from '@/components/atoms/Icon';
 import { IconButton } from '@/components/atoms/IconButton';
 import { SegmentedControl } from '@/components/atoms/SegmentedControl';
 import { BottomSheetHandle } from '@/components/molecules/BottomSheetHandle';
+import { UpgradeCard } from '@/components/molecules/UpgradeCard';
 import { WeaponSlotIcon } from '@/components/molecules/WeaponSlotIcon';
 import type { WeaponType } from '@/components/molecules/WeaponSlotIcon';
 import {
   RUN_WORKSHOP_ITEMS,
+  calcRunWorkshopCost,
+  calcRunWorkshopMultiplier,
   type RunWorkshopKey,
   type RunWorkshopLevels,
 } from '@/components/organisms/RunWorkshopBottomSheet/items';
-import type { BigNum } from '@/lib/bignum/BigNum';
+import { BigNum } from '@/lib/bignum/BigNum';
 
 // ---------------------------------------------------------------------------
 // 型定義
@@ -101,48 +106,12 @@ export function BattleHudBottom({
 
   return (
     <div className={styles.root}>
-      {/* BottomSheet ハンドル: tap でラン中ワークショップ行を展開 / 収納 */}
+      {/* BottomSheet ハンドル: タップ不可・ドラッグ (上方向で開、下方向で閉) のみ */}
       {onToggleWorkshop != null && (
-        <button
-          type="button"
-          className={styles.sheetHandleTrigger}
-          onClick={onToggleWorkshop}
-          aria-label={isWorkshopOpen ? 'ワークショップを閉じる' : 'ワークショップを開く'}
-          aria-expanded={isWorkshopOpen}
-        >
-          <BottomSheetHandle dragging={isWorkshopOpen} />
-        </button>
-      )}
-      {/* ワークショップ展開行: 武器ボタンの上に表示。各ボタンは Lv +1 で強化 */}
-      {isWorkshopOpen && (
-        <div
-          className={styles.workshopRow}
-          role="group"
-          aria-label="ラン中ワークショップ"
-        >
-          {RUN_WORKSHOP_ITEMS.map((item) => {
-            const lv = workshopLevels?.[item.key] ?? 0;
-            return (
-              <button
-                key={item.key}
-                type="button"
-                className={styles.workshopButton}
-                onClick={() => onWorkshopUpgrade?.(item.key)}
-                aria-label={`${item.title} 強化 (Lv ${lv})`}
-              >
-                <Icon
-                  name={item.iconName}
-                  size={18}
-                  color="var(--c-secondary)"
-                />
-                <span className={styles.workshopLabel}>
-                  {item.title.replace('倍率', '').replace(' 倍率', '')}
-                </span>
-                <span className={styles.workshopLv}>{`Lv ${lv}`}</span>
-              </button>
-            );
-          })}
-        </div>
+        <SheetDragHandle
+          isOpen={isWorkshopOpen}
+          onToggle={onToggleWorkshop}
+        />
       )}
       {/* ──── 上段: 武器スロット (中央) + アクティブ (右大円) ──── */}
       <div className={styles.topRow}>
@@ -209,6 +178,44 @@ export function BattleHudBottom({
         </div>
       </div>
 
+      {/* ──── ワークショップ展開行: 武器ボタンの「下」に UpgradeCard を 2 列 × 2 行で配置 ──── */}
+      {isWorkshopOpen && (
+        <div
+          className={styles.workshopGrid}
+          role="group"
+          aria-label="ラン中ワークショップ"
+        >
+          {RUN_WORKSHOP_ITEMS.map((item) => {
+            const lv = workshopLevels?.[item.key] ?? 0;
+            const before = calcRunWorkshopMultiplier(lv);
+            const after = calcRunWorkshopMultiplier(lv + 1);
+            const cost = calcRunWorkshopCost(item, lv);
+            const disabled = screw.lt(BigNum.fromNumber(cost));
+            return (
+              <UpgradeCard
+                key={item.key}
+                title={item.title.replace(/\s*倍率$/, '')}
+                iconName={item.iconName}
+                currentLabel={`Lv ${lv}`}
+                before={before}
+                after={after}
+                beforeSuffix="×"
+                currency="screw"
+                accent="warning"
+                options={[
+                  {
+                    amount: '+1',
+                    cost: BigNum.fromNumber(cost),
+                    disabled,
+                  },
+                ]}
+                onUpgrade={() => onWorkshopUpgrade?.(item.key)}
+              />
+            );
+          })}
+        </div>
+      )}
+
       {/* ──── 下段: 通貨 + 速度切替 + 一時停止 + メニュー + SS ──── */}
       <div className={styles.bottomRow}>
         {/* 通貨大表示 (左端) */}
@@ -256,6 +263,67 @@ export function BattleHudBottom({
           />
         </div>
       </div>
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// SheetDragHandle — ドラッグで開閉する内部コンポーネント
+// ---------------------------------------------------------------------------
+
+interface SheetDragHandleProps {
+  isOpen: boolean;
+  onToggle: () => void;
+}
+
+/** ハンドルをドラッグするとワークショップを開閉する。タップでは反応しない。 */
+function SheetDragHandle({ isOpen, onToggle }: SheetDragHandleProps) {
+  const startYRef = useRef<number | null>(null);
+  const firedRef = useRef(false);
+
+  const handlePointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
+    startYRef.current = e.clientY;
+    firedRef.current = false;
+    e.currentTarget.setPointerCapture(e.pointerId);
+  };
+
+  const handlePointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (startYRef.current == null || firedRef.current) return;
+    // 上方向 drag (closed→open) は dy > 0、下方向 (open→close) は dy < 0
+    const dy = startYRef.current - e.clientY;
+    const THRESHOLD = 24;
+    if (dy > THRESHOLD && !isOpen) {
+      firedRef.current = true;
+      onToggle();
+    } else if (dy < -THRESHOLD && isOpen) {
+      firedRef.current = true;
+      onToggle();
+    }
+  };
+
+  const handlePointerUp = (e: React.PointerEvent<HTMLDivElement>) => {
+    startYRef.current = null;
+    firedRef.current = false;
+    try {
+      e.currentTarget.releasePointerCapture(e.pointerId);
+    } catch {
+      /* ignore */
+    }
+  };
+
+  return (
+    <div
+      className={styles.sheetHandleTrigger}
+      onPointerDown={handlePointerDown}
+      onPointerMove={handlePointerMove}
+      onPointerUp={handlePointerUp}
+      onPointerCancel={handlePointerUp}
+      role="separator"
+      aria-orientation="horizontal"
+      aria-label={isOpen ? 'ドラッグでワークショップを閉じる' : 'ドラッグでワークショップを開く'}
+      aria-expanded={isOpen}
+    >
+      <BottomSheetHandle dragging={isOpen} />
     </div>
   );
 }
