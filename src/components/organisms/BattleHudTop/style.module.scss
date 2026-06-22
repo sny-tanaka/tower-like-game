@@ -1,10 +1,9 @@
-/* BattleHudTop — design.png 準拠の 3 カラム HUD */
+/* BattleHudTop — design ref 準拠の縦並び 3 段構成 */
 
 .root {
-  display: grid;
-  grid-template-columns: minmax(0, auto) minmax(0, 1fr) minmax(0, auto);
-  align-items: center;
-  gap: var(--sp-s);
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-xs);
   padding: var(--sp-s) var(--sp-m);
   background: linear-gradient(
     180deg,
@@ -14,21 +13,23 @@
   border-bottom: 1px solid var(--c-border-faint);
 }
 
-/* ── 左カラム: Tier + HP ── */
-.leftCol {
+/* ── ヘッダー行: Tier + HP ラベル + HP 値 + Shield ── */
+.headerRow {
   display: flex;
   flex-direction: row;
   align-items: center;
-  gap: var(--sp-xs);
+  gap: var(--sp-s);
   min-width: 0;
 }
 
-.hpText {
+.hpValue {
   display: inline-flex;
   align-items: baseline;
   gap: var(--sp-xxs);
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
+  flex: 1 1 auto;
+  min-width: 0;
 }
 
 .hpDivider {
@@ -36,10 +37,11 @@
   font-size: var(--fs-label);
 }
 
-/* ── 中央カラム: WaveProgressBar ── */
-.centerCol {
-  position: relative;
-  min-width: 0;
+.shieldBlock {
+  display: inline-flex;
+  align-items: baseline;
+  gap: var(--sp-xxs);
+  flex-shrink: 0;
 }
 
 /* SR (visually hidden) — 既存テスト互換のため wave/total を残す */
@@ -53,19 +55,4 @@
   clip: rect(0, 0, 0, 0);
   white-space: nowrap;
   border: 0;
-}
-
-/* ── 右カラム: 残敵 + target アイコン (縦並び) ── */
-.rightCol {
-  display: inline-flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 2px;
-  flex-shrink: 0;
-  line-height: 1;
-}
-
-.enemiesNum {
-  font-variant-numeric: tabular-nums;
-  white-space: nowrap;
 }
