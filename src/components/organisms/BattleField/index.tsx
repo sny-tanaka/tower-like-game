@@ -269,7 +269,7 @@ export function BattleField({
           aria-hidden
         />
         <Icon
-          name="triangle"
+          name="tower"
           size={22}
           color="var(--c-primary)"
         />

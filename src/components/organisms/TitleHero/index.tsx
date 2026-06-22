@@ -5,8 +5,8 @@ import { Icon } from '@/components/atoms/Icon';
 export interface TitleHeroProps {
   /** ヒーロー全体サイズ (px)。default 180 */
   size?: number;
-  /** 中央アイコン名。default 'triangle' */
-  iconName?: 'triangle' | 'tower' | 'shield' | 'laser' | 'spark';
+  /** 中央アイコン名。default 'tower' (= 上向き三角) */
+  iconName?: 'tower' | 'shield' | 'laser' | 'spark';
 }
 
 /**
@@ -16,7 +16,7 @@ export interface TitleHeroProps {
  * 4 隅のアクセント、中央の三角形アイコンを重ねた静的な紋章。
  * デザインは [TitleScreen.html] の `hero` 部分に準拠。
  */
-export function TitleHero({ size = 180, iconName = 'triangle' }: TitleHeroProps) {
+export function TitleHero({ size = 180, iconName = 'tower' }: TitleHeroProps) {
   return (
     <div
       className={styles.root}

@@ -17,7 +17,6 @@ const ALL_ICON_NAMES: IconName[] = [
   'skull',
   'spark',
   'target',
-  'triangle',
   'play',
   'pause',
   'chevron-left',
@@ -106,8 +105,8 @@ describe('Icon', () => {
     expect(svg.querySelector('circle')).not.toBeNull();
   });
 
-  test('triangle は上向き三角の polygon を描画する', () => {
-    const { container } = render(<Icon name="triangle" />);
+  test('tower は上向き三角の polygon を描画する (旧 triangle と統一)', () => {
+    const { container } = render(<Icon name="tower" />);
     const polygon = container.querySelector('polygon');
     expect(polygon).not.toBeNull();
     expect(polygon?.getAttribute('points')).toBe('12,4 20,20 4,20');

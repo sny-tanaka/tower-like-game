@@ -10,7 +10,7 @@ export type IconName =
   | 'close'
   | 'menu'
   | 'settings'
-  | 'tower'
+  | 'tower' // = 上向き正三角形 (NEON SPIRE のタワーモチーフ)
   | 'shield'
   | 'heart'
   | 'flame'
@@ -19,7 +19,6 @@ export type IconName =
   | 'skull'
   | 'spark'
   | 'target'
-  | 'triangle'
   | 'play'
   | 'pause'
   | 'chevron-left'
@@ -163,8 +162,8 @@ export function Icon({ name, size = 16, color = 'currentColor', className }: Ico
         </svg>
       );
 
-    case 'triangle':
-      // 上向きの正三角形（LaunchButton 等で利用）
+    case 'tower':
+      // NEON SPIRE のタワー = 上向きの正三角形 (旧 'triangle' と統一)
       return (
         <svg {...svgProps}>
           <polygon
@@ -172,30 +171,6 @@ export function Icon({ name, size = 16, color = 'currentColor', className }: Ico
             fill={color}
             stroke={color}
             strokeLinejoin="round"
-          />
-        </svg>
-      );
-
-    case 'tower':
-      return (
-        <svg {...svgProps}>
-          {/* ジオメトリックなタワー: 三角の頂部 + 長方形の塔身 + 台座 */}
-          <polygon
-            points="12,3 18,10 6,10"
-            fill={color}
-            stroke="none"
-          />
-          <rect
-            x="8"
-            y="10"
-            width="8"
-            height="9"
-          />
-          <rect
-            x="5"
-            y="19"
-            width="14"
-            height="2"
           />
         </svg>
       );
