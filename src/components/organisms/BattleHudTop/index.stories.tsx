@@ -38,7 +38,6 @@ export const Default: Story = {
     secondsRemaining: 18,
     secondsTotal: 26,
     isBossWave: false,
-    enemiesRemaining: 12,
   },
 };
 
@@ -57,7 +56,6 @@ export const LowHp: Story = {
     secondsRemaining: 8,
     secondsTotal: 26,
     isBossWave: false,
-    enemiesRemaining: 6,
   },
 };
 
@@ -77,7 +75,6 @@ export const BossWave: Story = {
     secondsTotal: 26,
     isBossWave: true,
     nextMilestone: { wave: 30, kind: 'boss' },
-    enemiesRemaining: 1,
   },
 };
 
@@ -97,7 +94,6 @@ export const EliteWave: Story = {
     secondsTotal: 26,
     isBossWave: false,
     nextMilestone: { wave: 10, kind: 'elite' },
-    enemiesRemaining: 9,
   },
 };
 
@@ -117,6 +113,5 @@ export const HighTier: Story = {
     secondsTotal: 26,
     isBossWave: false,
     nextMilestone: { wave: 30, kind: 'tier-up' },
-    enemiesRemaining: 22,
   },
 };

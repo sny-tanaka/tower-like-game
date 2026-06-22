@@ -1,4 +1,4 @@
-import type { RunWorkshopKey } from './items';
+import type { RunWorkshopKey, RunWorkshopLevels } from './items';
 import {
   RUN_WORKSHOP_ITEMS,
   calcRunWorkshopCost,
@@ -17,9 +17,7 @@ import { BigNum } from '@/lib/bignum/BigNum';
 // 型定義
 // ---------------------------------------------------------------------------
 
-export type RunWorkshopLevels = {
-  [K in RunWorkshopKey]: number;
-};
+export type { RunWorkshopLevels } from './items';
 
 export interface RunWorkshopBottomSheetProps {
   /** 開閉フラグ */

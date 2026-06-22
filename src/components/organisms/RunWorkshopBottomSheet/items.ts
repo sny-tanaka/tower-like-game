@@ -7,6 +7,11 @@ import { BigNum } from '@/lib/bignum/BigNum';
 
 export type RunWorkshopKey = 'attackMul' | 'attackSpeedMul' | 'hpMul' | 'screwGainMul';
 
+/** RunWorkshop 4 項目の現在 Lv マップ */
+export type RunWorkshopLevels = {
+  [K in RunWorkshopKey]: number;
+};
+
 export interface RunWorkshopItem {
   key: RunWorkshopKey;
   title: string;
