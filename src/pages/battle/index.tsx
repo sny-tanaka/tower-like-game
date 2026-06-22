@@ -181,8 +181,9 @@ export function Page() {
           />
         }
         footer={
-          <>
-            {/* ワークショップシート: 開いている時のみ HudBottom の上に縦並びで表示 */}
+          <div className={styles.battleFooter}>
+            {/* ワークショップシート: HudBottom の上に absolute で重ねる overlay。
+                BattleField の高さは変えない。 */}
             <RunWorkshopBottomSheet
               open={isWorkshopOpen}
               screw={screw}
@@ -215,7 +216,7 @@ export function Page() {
                 setIsWorkshopOpen((prev) => !prev);
               }}
             />
-          </>
+          </div>
         }
       >
         {/* メインコンテンツ: BattleField */}

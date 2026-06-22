@@ -1,7 +1,12 @@
 /* RunWorkshopBottomSheet — design ref 準拠の overlay シート */
 
 .root {
-  position: relative;
+  /* 親 (.battleFooter) を relative にして、HudBottom の真上に
+     被さる overlay として配置する。BattleField の高さは変えない。 */
+  position: absolute;
+  bottom: 100%;
+  left: 0;
+  right: 0;
   max-height: 50dvh;
   overflow-y: auto;
   background: var(--c-bg-elev);
@@ -11,6 +16,7 @@
   box-shadow:
     0 -12px 32px rgba(0, 0, 0, 0.6),
     0 -2px 16px rgba(78, 228, 246, 0.18);
+  z-index: 1;
 }
 
 .inner {

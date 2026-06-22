@@ -10,6 +10,12 @@
   background: var(--c-bg-deep);
 }
 
+// AppShell footer 内 wrapper: HudBottom の上にシートを absolute で重ねるため
+// relative を持つ。footer 自体の高さは HudBottom 分だけで固定される。
+.battleFooter {
+  position: relative;
+}
+
 // overlay 層: AppShell の上に絶対配置
 // z-index は AppShell の HUD (--z-hud) より高くして sheet/dialog を前面に出す
 .overlayLayer {
