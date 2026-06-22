@@ -1,0 +1,56 @@
+.shell {
+  display: flex;
+  flex-direction: column;
+  height: 100dvh;
+  height: 100vh; /* フォールバック */
+  max-height: 100dvh;
+  max-height: 100vh; /* フォールバック */
+  overflow: hidden;
+  background: var(--c-bg-base);
+  color: var(--c-text);
+}
+
+/* header */
+.header {
+  flex-shrink: 0;
+  z-index: var(--z-hud);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  background: rgba(10, 15, 28, 0.85);
+  border-bottom: 1px solid var(--c-border-faint);
+  padding-top: max(env(safe-area-inset-top), 12px);
+  padding-left: max(env(safe-area-inset-left), 0px);
+  padding-right: max(env(safe-area-inset-right), 0px);
+}
+
+/* main */
+.main {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: auto;
+  padding-left: max(env(safe-area-inset-left), 0px);
+  padding-right: max(env(safe-area-inset-right), 0px);
+}
+
+.main.noScroll {
+  overflow: hidden;
+}
+
+/* footer */
+.footer {
+  flex-shrink: 0;
+  z-index: var(--z-hud);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  background: rgba(10, 15, 28, 0.9);
+  border-top: 1px solid var(--c-border-faint);
+  padding-bottom: max(env(safe-area-inset-bottom), 12px);
+  padding-left: max(env(safe-area-inset-left), 0px);
+  padding-right: max(env(safe-area-inset-right), 0px);
+}
+
+/* battle variant: グリッドを密に */
+.battle .main {
+  background: var(--c-bg-deep);
+}
