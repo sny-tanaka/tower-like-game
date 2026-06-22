@@ -1,0 +1,25 @@
+// BattleScreen Page — レイアウト + オーバーレイ層
+
+.root {
+  // 全画面を占有
+  position: relative;
+  width: 100%;
+  height: 100dvh;
+  height: 100vh; // フォールバック
+  overflow: hidden;
+  background: var(--c-bg-deep);
+}
+
+// overlay 層: AppShell の上に絶対配置
+// z-index は AppShell の HUD (--z-hud) より高くして sheet/dialog を前面に出す
+.overlayLayer {
+  position: absolute;
+  inset: 0;
+  pointer-events: none; // overlay が非表示の間はヒットテスト透過
+  z-index: var(--z-overlay);
+
+  // 各 overlay 子要素は自身でポインタイベントを復活させる
+  > * {
+    pointer-events: auto;
+  }
+}
