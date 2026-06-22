@@ -104,10 +104,10 @@ describe('BattleField — レンダリング', () => {
 // ---------------------------------------------------------------------------
 
 describe('BattleField — machinePosition', () => {
-  test('デフォルト (50, 90) で left/top がスタイルに含まれる', () => {
+  test('デフォルト (50, 50) で left/top がスタイルに含まれる', () => {
     render(<BattleField {...defaultProps} />);
     const machine = screen.getByLabelText('マシン');
-    expect(machine).toHaveStyle({ left: '50%', top: '90%' });
+    expect(machine).toHaveStyle({ left: '50%', top: '50%' });
   });
 
   test('カスタム位置が反映される', () => {
@@ -197,19 +197,19 @@ describe('BattleField — Fx イベント', () => {
 // ---------------------------------------------------------------------------
 
 describe('BattleField — 索敵円', () => {
-  test('range=25 のとき width/height は 50% (range*2)', () => {
+  test('range=25 のとき width は 50% (range*2)、高さは aspect-ratio で導出', () => {
     const { container } = render(
       <BattleField
         {...defaultProps}
         range={25}
       />
     );
-    // .rangeCircle の style を確認
+    // .rangeCircle の style を確認（aspect-ratio: 1/1 で正円を維持するため width のみ % 指定）
     const circle = container.querySelector('[aria-hidden]');
-    expect(circle).toHaveStyle({ width: '50%', height: '50%' });
+    expect(circle).toHaveStyle({ width: '50%' });
   });
 
-  test('range=40 のとき width/height は 80%', () => {
+  test('range=40 のとき width は 80%', () => {
     const { container } = render(
       <BattleField
         {...defaultProps}
@@ -217,6 +217,6 @@ describe('BattleField — 索敵円', () => {
       />
     );
     const circle = container.querySelector('[aria-hidden]');
-    expect(circle).toHaveStyle({ width: '80%', height: '80%' });
+    expect(circle).toHaveStyle({ width: '80%' });
   });
 });

@@ -91,7 +91,7 @@ export const TitlePage: Story = {
   render: () => (
     <WithStoreState>
       <PageHeader
-        title="TOWER LIKE GAME"
+        title="NEON SPIRE"
         subtitle="v0.1.0"
       />
     </WithStoreState>

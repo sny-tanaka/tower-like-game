@@ -4,10 +4,10 @@ import { describe, expect, it } from 'vitest';
 import { TitleHeader } from './index';
 
 describe('TitleHeader', () => {
-  it('デフォルトタイトル "TOWER LIKE GAME" を表示する', () => {
+  it('デフォルトタイトル "NEON SPIRE" を表示する', () => {
     render(<TitleHeader />);
     expect(screen.getByRole('heading', { level: 1 })).toBeDefined();
-    expect(screen.getByText('TOWER LIKE GAME')).toBeDefined();
+    expect(screen.getByText('NEON SPIRE')).toBeDefined();
   });
 
   it('title prop が渡されたときそのテキストを表示する', () => {

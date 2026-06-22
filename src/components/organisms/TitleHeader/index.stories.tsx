@@ -17,7 +17,7 @@ type Story = StoryObj<typeof TitleHeader>;
 /** フルセット (subtitle + tagline + version) */
 export const Full: Story = {
   args: {
-    subtitle: 'TOWER DEFENSE × INFINITE TIER',
+    subtitle: 'CYBER TOWER DEFENSE × INFINITE TIER',
     version: 'v0.1.0',
     tagline: 'マシン + 武器 + パッチで攻略する放置寄りラン',
   },

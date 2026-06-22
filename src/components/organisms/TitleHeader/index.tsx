@@ -3,7 +3,7 @@ import styles from './style.module.scss';
 import { Text } from '@/components/atoms/Text';
 
 export interface TitleHeaderProps {
-  /** ゲーム名 (default "TOWER LIKE GAME") */
+  /** ゲーム名 (default "NEON SPIRE") */
   title?: string;
   /** サブタイトル / タグライン */
   subtitle?: string;
@@ -20,7 +20,7 @@ export interface TitleHeaderProps {
  * を中央配置する。
  */
 export function TitleHeader({
-  title = 'TOWER LIKE GAME',
+  title = 'NEON SPIRE',
   subtitle,
   version,
   tagline,
