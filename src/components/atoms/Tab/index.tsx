@@ -51,7 +51,7 @@ export function Tab({
       ]
         .filter(Boolean)
         .join(' ')}
-      onClick={onClick}
+      onClick={disabled ? undefined : onClick}
     >
       {iconNode != null && (
         <span

@@ -177,4 +177,42 @@ describe('ProgressBar', () => {
       );
     }).not.toThrow();
   });
+
+  it('color=xp のとき backgroundColor が warning (orange) になる', () => {
+    const { container } = render(
+      <ProgressBar
+        value={50}
+        max={100}
+        color="xp"
+      />
+    );
+    const fill = container.querySelector('[role="progressbar"] > div')!;
+    expect((fill as HTMLElement).style.backgroundColor).toBe('var(--c-warning)');
+  });
+
+  it('trailingLabel を渡すと右端ラベルが表示される', () => {
+    const { container } = render(
+      <ProgressBar
+        value={78}
+        max={100}
+        trailingLabel="78/100"
+      />
+    );
+    expect(container.textContent).toContain('78/100');
+    // バー本体と分離した要素であること (.label と異なる)
+    const label = container.querySelector('[role="progressbar"] .label');
+    expect(label).toBeNull();
+  });
+
+  it('trailingLabel を渡さないとき外側ラッパは生成されない', () => {
+    const { container } = render(
+      <ProgressBar
+        value={50}
+        max={100}
+      />
+    );
+    // root 自体が直接生えており、wrapper でラップされていない
+    const root = container.firstElementChild!;
+    expect(root.getAttribute('role')).toBe('progressbar');
+  });
 });

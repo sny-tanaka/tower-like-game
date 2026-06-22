@@ -5,7 +5,7 @@ import styles from './style.module.scss';
 // ---------------------------------------------------------------------------
 
 /** ON 時のアクセントカラー */
-export type ToggleAccent = 'primary' | 'secondary' | 'success';
+export type ToggleAccent = 'primary' | 'secondary' | 'success' | 'disabled';
 
 /** スイッチのサイズ */
 export type ToggleSize = 'sm' | 'md';
@@ -17,7 +17,10 @@ export type ToggleProps = {
   label?: string;
   /** ラベル下部のサブ説明文 */
   description?: string;
-  /** ON 時のアクセントカラー。デフォルト primary */
+  /**
+   * ON 時のアクセントカラー。デフォルト primary。
+   * 'disabled' を指定すると常にグレー (永続的に操作不可表示にしたいとき用)。
+   */
   accent?: ToggleAccent;
   /** スイッチのサイズ。デフォルト md */
   size?: ToggleSize;
@@ -32,21 +35,24 @@ export const Toggle = ({
   accent = 'primary',
   size = 'md',
 }: ToggleProps) => {
+  // accent='disabled' は常に操作不可扱い
+  const isDisabled = disabled || accent === 'disabled';
+
   const handleChange = () => {
-    if (disabled) return;
+    if (isDisabled) return;
     onChange(!checked);
   };
 
   return (
     <label
-      className={[styles.wrapper, disabled ? styles.disabled : ''].filter(Boolean).join(' ')}
-      aria-disabled={disabled}
+      className={[styles.wrapper, isDisabled ? styles.disabled : ''].filter(Boolean).join(' ')}
+      aria-disabled={isDisabled}
     >
       <button
         type="button"
         role="switch"
         aria-checked={checked}
-        aria-disabled={disabled}
+        aria-disabled={isDisabled}
         className={[
           styles.switch,
           checked ? styles.on : styles.off,
@@ -56,7 +62,7 @@ export const Toggle = ({
           .filter(Boolean)
           .join(' ')}
         onClick={handleChange}
-        disabled={disabled}
+        disabled={isDisabled}
       >
         <span className={styles.knob} />
       </button>

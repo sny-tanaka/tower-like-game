@@ -112,4 +112,75 @@ describe('Tab', () => {
     );
     expect(screen.getByRole('tab')).toHaveAttribute('type', 'button');
   });
+
+  test('variant=pill のとき variant-pill クラスが付く', () => {
+    const { container } = render(
+      <Tab
+        label="ALL"
+        active
+        variant="pill"
+      />
+    );
+    const btn = container.querySelector('button')!;
+    expect(btn.className).toMatch(/variant-pill/);
+  });
+
+  test('variant=pill のときは underline indicator が描画されない', () => {
+    const { container } = render(
+      <Tab
+        label="ALL"
+        active
+        variant="pill"
+      />
+    );
+    const indicator = container.querySelector('[class*="indicator"]');
+    expect(indicator).toBeNull();
+  });
+
+  test('badge が数値で表示される', () => {
+    render(
+      <Tab
+        label="武器庫"
+        active={false}
+        badge={3}
+      />
+    );
+    expect(screen.getByText('3')).toBeInTheDocument();
+  });
+
+  test('badge が文字列で表示される', () => {
+    render(
+      <Tab
+        label="パッチ"
+        active={false}
+        badge="NEW"
+      />
+    );
+    expect(screen.getByText('NEW')).toBeInTheDocument();
+  });
+
+  test('disabled 時に onClick が発火しない', async () => {
+    const handler = vi.fn();
+    render(
+      <Tab
+        label="ロック中"
+        active={false}
+        disabled
+        onClick={handler}
+      />
+    );
+    await userEvent.click(screen.getByRole('tab')).catch(() => {});
+    expect(handler).not.toHaveBeenCalled();
+  });
+
+  test('disabled 時に button 要素が disabled になる', () => {
+    render(
+      <Tab
+        label="ロック中"
+        active={false}
+        disabled
+      />
+    );
+    expect(screen.getByRole('tab')).toBeDisabled();
+  });
 });

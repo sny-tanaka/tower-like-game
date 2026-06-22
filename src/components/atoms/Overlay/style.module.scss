@@ -12,6 +12,8 @@
 .overlay {
   z-index: var(--z-overlay);
   display: flex;
+  padding: 16px;
+  box-sizing: border-box;
   animation: fadeIn var(--mo-mid) var(--ease-default) both;
 }
 
@@ -36,11 +38,13 @@
 .alignTop {
   align-items: flex-start;
   justify-content: center;
+  padding-top: 80px;
 }
 
 .alignBottom {
   align-items: flex-end;
   justify-content: center;
+  padding-bottom: 40px;
 }
 
 .content {

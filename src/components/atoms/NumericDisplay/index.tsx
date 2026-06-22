@@ -11,6 +11,7 @@ import { BigNum } from '@/lib/bignum/BigNum';
 export type NumericDisplaySize = 'sm' | 'md' | 'lg' | 'xl';
 export type NumericDisplayAccentColor =
   | 'scale'
+  | 'text'
   | 'primary'
   | 'secondary'
   | 'danger'
@@ -54,21 +55,35 @@ function suffixToN(suffix: string): number {
 
 /**
  * accentColor='scale' の場合に n から oklch 色を返す。
- * A (n=1) = H195 (cyan), Z (n=26) = H295 (purple)
- * AA 以降は (n-1) mod 26 で色相を循環
+ *  - n=0 (raw < 1000): 白 (`var(--c-text)`)
+ *  - n=1 (A) ～ n=20 (T): cyan(H195) → purple(H295) を 20 段で線形補間
+ *  - n>=21: purple 端で飽和（循環しない）
+ *
+ * 戻り値は color と glow (text-shadow 値) のペア。
  */
-function scaleColor(n: number): string {
-  if (n === 0) return 'var(--c-primary)';
-  const idx = (n - 1) % 26;
-  const H = 195 + idx * (100 / 25);
-  return `oklch(0.78 0.18 ${H.toFixed(1)})`;
+function scaleTierColor(n: number): { color: string; glow: string } {
+  if (n <= 0) {
+    return {
+      color: 'var(--c-text)',
+      glow: '0 0 6px rgba(232,239,255,0.35)',
+    };
+  }
+  const t = Math.min(1, (n - 1) / 19);
+  const hue = 195 + t * 100;
+  const light = 0.86 - t * 0.14;
+  const chroma = 0.13 + t * 0.07;
+  const color = `oklch(${light.toFixed(3)} ${chroma.toFixed(3)} ${hue.toFixed(1)})`;
+  const gLight = Math.min(0.95, light + 0.05);
+  const gChroma = chroma + 0.05;
+  const gColor = `oklch(${gLight.toFixed(3)} ${gChroma.toFixed(3)} ${hue.toFixed(1)} / 0.55)`;
+  return { color, glow: `0 0 8px ${gColor}` };
 }
 
-/** accentColor ごとの CSS color 値を返す */
-function resolveColor(accentColor: NumericDisplayAccentColor, n: number): string {
+/** accentColor ごとの CSS color 値を返す（scale 以外） */
+function resolveColor(accentColor: Exclude<NumericDisplayAccentColor, 'scale'>): string {
   switch (accentColor) {
-    case 'scale':
-      return scaleColor(n);
+    case 'text':
+      return 'var(--c-text)';
     case 'primary':
       return 'var(--c-primary)';
     case 'secondary':
@@ -84,10 +99,11 @@ function resolveColor(accentColor: NumericDisplayAccentColor, n: number): string
   }
 }
 
-/** accentColor ごとの glow text-shadow を返す */
-function resolveGlow(accentColor: NumericDisplayAccentColor): string | undefined {
+/** accentColor ごとの glow text-shadow を返す（scale 以外） */
+function resolveGlow(accentColor: Exclude<NumericDisplayAccentColor, 'scale'>): string | undefined {
   switch (accentColor) {
-    case 'scale':
+    case 'text':
+      return '0 0 6px rgba(232,239,255,0.35)';
     case 'primary':
       return 'var(--glow-cyan-md)';
     case 'secondary':
@@ -132,8 +148,16 @@ export function NumericDisplay({
   const alphaSuffix = match ? match[1] : '';
   const n = suffixToN(alphaSuffix);
 
-  const color = resolveColor(accentColor, n);
-  const textShadow = glow ? resolveGlow(accentColor) : undefined;
+  let color: string;
+  let textShadow: string | undefined;
+  if (accentColor === 'scale') {
+    const tier = scaleTierColor(n);
+    color = tier.color;
+    textShadow = glow ? tier.glow : undefined;
+  } else {
+    color = resolveColor(accentColor);
+    textShadow = glow ? resolveGlow(accentColor) : undefined;
+  }
 
   const sizeClass = {
     sm: styles.sizeSm,

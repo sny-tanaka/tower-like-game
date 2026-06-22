@@ -1,90 +1,96 @@
 .badge {
   display: inline-flex;
   align-items: center;
-  gap: 3px;
-  border-radius: var(--r-xs);
+  border-radius: var(--r-pill);
   font-family: var(--ff-display);
-  font-weight: 700;
-  line-height: 1.4;
+  font-weight: var(--fw-semibold);
+  line-height: 1;
   letter-spacing: var(--ls-loose);
   text-transform: uppercase;
   border: 1px solid currentcolor;
   white-space: nowrap;
+  box-sizing: border-box;
 }
 
-// --- Size ---
+// --- Size (height fixed, padding 横のみ) ---
 .size-sm {
-  padding: 0 var(--sp-xs);
-  font-size: 9px;
+  height: 16px;
+  padding: 0 6px;
+  gap: 3px;
+  font-size: 9.5px;
 }
 
 .size-md {
-  padding: 1px var(--sp-xs);
-  font-size: 10px;
+  height: 20px;
+  padding: 0 8px;
+  gap: 4px;
+  font-size: 11px;
 }
 
 .size-lg {
-  padding: 2px var(--sp-s);
-  font-size: 11px;
+  height: 24px;
+  padding: 0 10px;
+  gap: 5px;
+  font-size: 12px;
 }
 
 // --- Variants ---
 .variant-neutral {
   color: var(--c-text-mid);
-  border-color: rgba(153, 188, 212, 0.3);
-  background-color: rgba(153, 188, 212, 0.08);
+  border-color: var(--c-border);
+  background: var(--c-surface);
 }
 
 .variant-tier {
   // --badge-color は index.tsx から tier に応じてインライン変数で渡される
   color: var(--badge-color, var(--c-primary));
   border-color: var(--badge-color, var(--c-primary));
-  background-color: transparent;
+  background: color-mix(in srgb, var(--badge-color, var(--c-primary)) 10%, transparent);
 }
 
 .variant-elite {
-  color: var(--c-secondary);
-  border-color: var(--c-secondary);
-  background-color: var(--c-secondary-bg);
+  color: var(--c-warning);
+  border-color: var(--c-warning);
+  background: rgba(246, 185, 74, 0.12);
 }
 
 .variant-boss {
   color: var(--c-danger);
   border-color: var(--c-danger);
-  background-color: rgba(255, 77, 109, 0.08);
+  background: rgba(255, 77, 109, 0.14);
 }
 
 .variant-patch-tier {
   color: var(--badge-color, var(--c-patch-t1));
   border-color: var(--badge-color, var(--c-patch-t1));
-  background-color: transparent;
+  background: color-mix(in srgb, var(--badge-color, var(--c-patch-t1)) 10%, transparent);
 }
 
 .variant-info {
   color: var(--c-primary);
   border-color: var(--c-primary);
-  background-color: var(--c-primary-bg);
+  background: rgba(78, 228, 246, 0.08);
 }
 
 .variant-success {
   color: var(--c-success);
   border-color: var(--c-success);
-  background-color: rgba(70, 226, 160, 0.08);
+  background: rgba(70, 226, 160, 0.10);
 }
 
 .variant-warning {
   color: var(--c-warning);
   border-color: var(--c-warning);
-  background-color: rgba(246, 185, 74, 0.08);
+  background: rgba(246, 185, 74, 0.10);
 }
 
 .variant-danger {
   color: var(--c-danger);
   border-color: var(--c-danger);
-  background-color: rgba(255, 77, 109, 0.08);
+  background: rgba(255, 77, 109, 0.10);
 }
 
-// --- Glow ---
+// --- Glow (drop-shadow ベース) ---
 .glow {
   &.variant-neutral {
     box-shadow: var(--glow-cyan-sm);
@@ -95,11 +101,11 @@
   }
 
   &.variant-elite {
-    box-shadow: var(--glow-purple-sm);
+    box-shadow: 0 0 6px rgba(246, 185, 74, 0.55);
   }
 
   &.variant-boss {
-    box-shadow: var(--glow-danger-md);
+    box-shadow: 0 0 8px rgba(255, 77, 109, 0.55);
   }
 
   &.variant-patch-tier {
@@ -111,15 +117,15 @@
   }
 
   &.variant-success {
-    box-shadow: var(--glow-success-md);
+    box-shadow: 0 0 6px rgba(70, 226, 160, 0.55);
   }
 
   &.variant-warning {
-    box-shadow: 0 0 6px rgba(246, 185, 74, 0.45);
+    box-shadow: 0 0 6px rgba(246, 185, 74, 0.55);
   }
 
   &.variant-danger {
-    box-shadow: var(--glow-danger-md);
+    box-shadow: 0 0 6px rgba(255, 77, 109, 0.55);
   }
 }
 

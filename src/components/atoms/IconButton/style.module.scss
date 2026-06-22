@@ -5,11 +5,12 @@
   border: 1px solid transparent;
   border-radius: var(--r-s);
   cursor: pointer;
+  user-select: none;
   transition:
-    background-color var(--mo-fast) var(--ease-default),
-    border-color var(--mo-fast) var(--ease-default),
-    box-shadow var(--mo-fast) var(--ease-default),
-    opacity var(--mo-fast) var(--ease-default);
+    transform var(--mo-fast) var(--ease-out),
+    filter var(--mo-fast) var(--ease-out),
+    background-color var(--mo-fast) var(--ease-out),
+    box-shadow var(--mo-fast) var(--ease-out);
   flex-shrink: 0;
 
   &:focus-visible {
@@ -20,7 +21,8 @@
   &:disabled,
   &[aria-disabled='true'] {
     cursor: not-allowed;
-    opacity: 0.38;
+    filter: grayscale(0.6) brightness(0.55);
+    box-shadow: none !important;
     pointer-events: none;
   }
 }
@@ -30,90 +32,87 @@
   border-radius: var(--r-pill);
 }
 
-// --- Variants ---
+// --- Variants (塗り型 + glow) ---
 .variant-primary {
-  background-color: var(--c-primary-bg);
-  border-color: var(--c-primary);
-  color: var(--c-primary);
+  background: linear-gradient(180deg, var(--c-primary) 0%, var(--c-primary-deep) 100%);
+  border: 1px solid var(--c-primary-hi);
+  color: var(--c-bg-deep);
+  box-shadow: var(--glow-cyan-md);
 
   &:hover:not(:disabled) {
-    background-color: var(--c-primary);
-    color: var(--c-bg-deep);
-    box-shadow: var(--glow-cyan-sm);
+    filter: brightness(1.08);
   }
 
   &:active:not(:disabled) {
-    background-color: var(--c-primary-deep);
-    border-color: var(--c-primary-deep);
-    color: var(--c-bg-deep);
+    transform: translateY(1px);
+    filter: brightness(0.95);
   }
 }
 
 .variant-secondary {
-  background-color: var(--c-secondary-bg);
-  border-color: var(--c-secondary);
-  color: var(--c-secondary);
+  background: linear-gradient(180deg, var(--c-secondary) 0%, var(--c-secondary-deep) 100%);
+  border: 1px solid var(--c-secondary-hi);
+  color: var(--c-text);
+  box-shadow: var(--glow-purple-md);
 
   &:hover:not(:disabled) {
-    background-color: var(--c-secondary);
-    color: var(--c-bg-deep);
-    box-shadow: var(--glow-purple-sm);
+    filter: brightness(1.08);
   }
 
   &:active:not(:disabled) {
-    background-color: var(--c-secondary-deep);
-    border-color: var(--c-secondary-deep);
-    color: var(--c-bg-deep);
+    transform: translateY(1px);
+    filter: brightness(0.95);
   }
 }
 
 .variant-ghost {
-  background-color: transparent;
-  border-color: transparent;
-  color: var(--c-text-dim);
+  background-color: rgba(255, 255, 255, 0.04);
+  border: 1px solid var(--c-border);
+  color: var(--c-text-mid);
+  box-shadow: none;
 
   &:hover:not(:disabled) {
-    background-color: rgba(255, 255, 255, 0.06);
+    background-color: rgba(255, 255, 255, 0.08);
     color: var(--c-text);
   }
 
   &:active:not(:disabled) {
+    transform: translateY(1px);
     background-color: rgba(255, 255, 255, 0.1);
     color: var(--c-text);
   }
 }
 
 .variant-danger {
-  background-color: rgba(255, 77, 109, 0.08);
-  border-color: var(--c-danger);
-  color: var(--c-danger);
+  background: linear-gradient(180deg, var(--c-danger) 0%, var(--c-danger-deep) 100%);
+  border: 1px solid var(--c-danger);
+  color: var(--c-text);
+  box-shadow: var(--glow-danger-md);
 
   &:hover:not(:disabled) {
-    background-color: var(--c-danger);
-    color: var(--c-bg-deep);
-    box-shadow: var(--glow-danger-md);
+    filter: brightness(1.08);
   }
 
   &:active:not(:disabled) {
-    background-color: var(--c-danger-deep);
-    border-color: var(--c-danger-deep);
-    color: var(--c-bg-deep);
+    transform: translateY(1px);
+    filter: brightness(0.95);
   }
 }
 
 // --- Active state (選択中) ---
 .active {
   &.variant-ghost {
-    background-color: var(--c-primary-bg);
-    border-color: var(--c-primary);
-    color: var(--c-primary);
-    box-shadow: var(--glow-cyan-sm);
+    background: linear-gradient(180deg, var(--c-primary) 0%, var(--c-primary-deep) 100%);
+    border-color: var(--c-primary-hi);
+    color: var(--c-bg-deep);
+    box-shadow: var(--glow-cyan-md);
   }
 
   &.variant-secondary {
-    background-color: var(--c-secondary);
-    color: var(--c-bg-deep);
-    box-shadow: var(--glow-purple-sm);
+    background: linear-gradient(180deg, var(--c-secondary) 0%, var(--c-secondary-deep) 100%);
+    border-color: var(--c-secondary-hi);
+    color: var(--c-text);
+    box-shadow: var(--glow-purple-md);
   }
 }
 

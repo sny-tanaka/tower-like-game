@@ -15,7 +15,7 @@ describe('NumericDisplay', () => {
     expect(container.querySelector('span')?.textContent).toBe('1.50B');
   });
 
-  it('< 1000 は raw 表示で --c-primary 色が設定される', () => {
+  it('< 1000 は raw 表示で --c-text (白) 色が設定される', () => {
     const { container } = render(
       <NumericDisplay
         value={999}
@@ -24,7 +24,7 @@ describe('NumericDisplay', () => {
     );
     const el = container.querySelector('span')!;
     expect(el.textContent).toBe('999');
-    expect(el.style.color).toBe('var(--c-primary)');
+    expect(el.style.color).toBe('var(--c-text)');
   });
 
   it('accentColor=scale でサフィックス A の場合 oklch 色 H195 が設定される', () => {
@@ -138,7 +138,7 @@ describe('NumericDisplay', () => {
     expect(el.style.fontSize).toBe('40px');
   });
 
-  it('AA サフィックス（n=27）は色相が循環して oklch を返す', () => {
+  it('AA サフィックス（n=27）は purple 端で飽和して oklch H295 を返す', () => {
     // 10^81 は AA
     const bn = BigNum.fromString('1' + '0'.repeat(81));
     const { container } = render(
@@ -149,9 +149,24 @@ describe('NumericDisplay', () => {
     );
     const el = container.querySelector('span')!;
     expect(el.style.color).toMatch(/oklch/);
+    expect(el.style.color).toContain('295');
   });
 
-  it('Z (n=26) は H295 付近の oklch を返す', () => {
+  it('T (n=20) で H295 (purple 端) に達する', () => {
+    // 10^60 は T (e=20)
+    const bn = BigNum.fromString('1' + '0'.repeat(60));
+    const { container } = render(
+      <NumericDisplay
+        value={bn}
+        accentColor="scale"
+      />
+    );
+    const el = container.querySelector('span')!;
+    expect(el.style.color).toMatch(/oklch/);
+    expect(el.style.color).toContain('295');
+  });
+
+  it('Z (n=26) は purple 端で飽和 (H295) を返す', () => {
     // 10^78 は Z
     const bn = BigNum.fromString('1' + '0'.repeat(78));
     const { container } = render(
@@ -163,5 +178,16 @@ describe('NumericDisplay', () => {
     const el = container.querySelector('span')!;
     expect(el.style.color).toMatch(/oklch/);
     expect(el.style.color).toContain('295');
+  });
+
+  it('accentColor=text で var(--c-text) が設定される', () => {
+    const { container } = render(
+      <NumericDisplay
+        value={BigNum.fromNumber(1_000)}
+        accentColor="text"
+      />
+    );
+    const el = container.querySelector('span')!;
+    expect(el.style.color).toBe('var(--c-text)');
   });
 });

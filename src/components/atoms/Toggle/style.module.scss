@@ -65,6 +65,12 @@ $knob-offset-sm: 3px;
     box-shadow: var(--glow-success-md);
   }
 
+  // accent=disabled は常にグレー (glow なし)
+  &.accent_disabled {
+    background: var(--c-border-mid, var(--c-border));
+    box-shadow: none;
+  }
+
   &:disabled {
     cursor: not-allowed;
   }

@@ -1,6 +1,7 @@
 .card {
   border-radius: var(--r-m);
   color: var(--c-text);
+  box-sizing: border-box;
 }
 
 /* ---------- variant ---------- */
@@ -9,45 +10,49 @@
 .variant-default {
   background: var(--c-bg-elev);
   border: 1px solid var(--c-border-faint);
+  box-shadow: none;
 }
 
 // elevated: 浮き上がり・影付き
 .variant-elevated {
   background: var(--c-bg-elev);
-  box-shadow: var(--sh-mid);
   border: 1px solid var(--c-border-faint);
+  box-shadow: var(--sh-mid);
 }
 
 // sunken: くぼみ（リスト項目背景等）
 .variant-sunken {
   background: var(--c-bg-base);
   border: 1px solid var(--c-border-faint);
+  box-shadow: none;
 }
 
-// ghost: 背景なし・枠線なし
+// ghost: 背景なし
 .variant-ghost {
   background: transparent;
-  border: 1px solid transparent;
+  border: 1px solid var(--c-border-faint);
+  box-shadow: none;
 }
 
-// accent: primary色のグロー枠
+// accent: primary色のインセットグロー
 .variant-accent {
-  background: var(--c-primary-bg);
+  background: var(--c-bg-elev);
   border: 1px solid var(--c-primary);
   box-shadow: var(--glow-cyan-inset);
 }
 
-// secondary: purple色のグロー枠
+// secondary: purple色のインセットグロー
 .variant-secondary {
-  background: var(--c-secondary-bg);
+  background: var(--c-bg-elev);
   border: 1px solid var(--c-secondary);
   box-shadow: var(--glow-purple-inset);
 }
 
-// danger: 赤枠
+// danger: 赤枠 + インセットグロー
 .variant-danger {
-  background: rgba(255, 77, 109, 0.06);
+  background: var(--c-bg-elev);
   border: 1px solid var(--c-danger);
+  box-shadow: 0 0 12px rgba(255, 77, 109, 0.18) inset;
 }
 
 // 後方互換エイリアス
@@ -69,19 +74,19 @@
 }
 
 .padding-sm {
-  padding: var(--sp-s);
+  padding: 8px;
 }
 
 .padding-md {
-  padding: var(--sp-m);
+  padding: 12px;
 }
 
 .padding-lg {
-  padding: var(--sp-l);
+  padding: 16px;
 }
 
 .padding-xl {
-  padding: var(--sp-xl);
+  padding: 20px;
 }
 
 /* ---------- radius override ---------- */
@@ -100,16 +105,23 @@
 /* ---------- interactive ---------- */
 .interactive {
   cursor: pointer;
-  transition: background-color var(--mo-fast) var(--ease-default), box-shadow var(--mo-fast) var(--ease-default);
+  transition:
+    border-color var(--mo-fast) var(--ease-out),
+    box-shadow var(--mo-fast) var(--ease-out),
+    transform var(--mo-fast) var(--ease-out);
 
   &:hover {
-    background: var(--c-surface);
-    box-shadow: var(--sh-high);
+    border-color: var(--c-primary);
+    transform: translateY(-1px);
   }
 }
 
 @media (prefers-reduced-motion: reduce) {
   .interactive {
     transition: none;
+  }
+
+  .interactive:hover {
+    transform: none;
   }
 }

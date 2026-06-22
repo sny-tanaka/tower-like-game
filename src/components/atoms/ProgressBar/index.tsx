@@ -1,4 +1,4 @@
-import type { CSSProperties } from 'react';
+import type { CSSProperties, ReactNode } from 'react';
 
 import styles from './style.module.scss';
 
@@ -29,6 +29,8 @@ export interface ProgressBarProps {
   showLabel?: boolean;
   /** showLabel=true のときに表示するカスタムラベルテキスト */
   label?: string;
+  /** トラック右端に表示するラベル (78/100, CD 64% など)。バーの外側に出る */
+  trailingLabel?: ReactNode;
   glow?: boolean;
   /** true のとき右から左方向（残量表示）に描画 */
   reverse?: boolean;
@@ -44,7 +46,8 @@ const COLOR_VAR: Record<ProgressBarColor, string> = {
   cd: 'var(--c-cd)',
   wave: 'var(--c-wave)',
   shield: 'var(--c-shield)',
-  xp: 'var(--c-success)',
+  // design ref: xp は warning (orange)
+  xp: 'var(--c-warning)',
   primary: 'var(--c-primary)',
   secondary: 'var(--c-secondary)',
 };
@@ -55,7 +58,8 @@ const GLOW_VAR: Record<ProgressBarColor, string> = {
   cd: 'var(--glow-cyan-md)',
   wave: 'var(--glow-purple-md)',
   shield: 'var(--glow-cyan-md)',
-  xp: 'var(--glow-success-md)',
+  // warning glow トークンは未定義なので inline で同等値を指定
+  xp: '0 0 12px rgba(246,185,74,0.55), 0 0 24px rgba(246,185,74,0.25)',
   primary: 'var(--glow-cyan-md)',
   secondary: 'var(--glow-purple-md)',
 };
@@ -72,6 +76,7 @@ export function ProgressBar({
   variant = 'solid',
   showLabel = false,
   label,
+  trailingLabel,
   glow = false,
   reverse = false,
 }: ProgressBarProps) {
@@ -98,7 +103,7 @@ export function ProgressBar({
   // カスタムラベルか自動生成か
   const labelContent = label ?? `${safeValue} / ${safeMax}`;
 
-  return (
+  const track = (
     <div
       className={`${styles.root} ${sizeClass}`}
       role="progressbar"
@@ -112,6 +117,15 @@ export function ProgressBar({
         style={fillStyle}
       />
       {showLabel && <span className={styles.label}>{labelContent}</span>}
+    </div>
+  );
+
+  if (trailingLabel == null) return track;
+
+  return (
+    <div className={styles.withTrailing}>
+      {track}
+      <span className={styles.trailingLabel}>{trailingLabel}</span>
     </div>
   );
 }
