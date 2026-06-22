@@ -28,22 +28,22 @@ describe('PreparationScreen Page', () => {
     expect(screen.getByRole('tabpanel', { name: 'Tier 選択' })).toBeInTheDocument();
   });
 
-  test('タブ切替: 「初期装備武器」クリックで InitialWeaponTab が表示される', async () => {
+  test('タブ切替: 「武器」クリックで InitialWeaponTab が表示される', async () => {
     const user = userEvent.setup();
     renderPage();
 
-    await user.click(screen.getByRole('tab', { name: '初期装備武器' }));
+    await user.click(screen.getByRole('tab', { name: '武器' }));
 
     expect(screen.getByRole('tabpanel', { name: '初期武器選択' })).toBeInTheDocument();
     // TierSelectTab は非表示
     expect(screen.queryByRole('tabpanel', { name: 'Tier 選択' })).not.toBeInTheDocument();
   });
 
-  test('タブ切替: 「パッチ確認」クリックで EquippedPatchesTab が表示される', async () => {
+  test('タブ切替: 「パッチ」クリックで EquippedPatchesTab が表示される', async () => {
     const user = userEvent.setup();
     renderPage();
 
-    await user.click(screen.getByRole('tab', { name: 'パッチ確認' }));
+    await user.click(screen.getByRole('tab', { name: 'パッチ' }));
 
     expect(screen.getByRole('tabpanel', { name: '装着パッチ' })).toBeInTheDocument();
   });
@@ -65,12 +65,12 @@ describe('PreparationScreen Page', () => {
     expect(prepBtn).toHaveAttribute('aria-current', 'page');
   });
 
-  test('タブ切替: 「Tier 選択」→「初期装備武器」→「Tier 選択」で元に戻る', async () => {
+  test('タブ切替: 「TIER」→「武器」→「TIER」で元に戻る', async () => {
     const user = userEvent.setup();
     renderPage();
 
-    await user.click(screen.getByRole('tab', { name: '初期装備武器' }));
-    await user.click(screen.getByRole('tab', { name: 'Tier 選択' }));
+    await user.click(screen.getByRole('tab', { name: '武器' }));
+    await user.click(screen.getByRole('tab', { name: 'TIER' }));
 
     expect(screen.getByRole('tabpanel', { name: 'Tier 選択' })).toBeInTheDocument();
   });

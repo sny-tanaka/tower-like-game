@@ -16851,7 +16851,7 @@ function t5({
         size: 'lg',
         fullWidth: !0,
         disabled: o,
-        iconLeft: r.jsx(Mt, { name: 'tower', size: 18 }),
+        iconLeft: r.jsx(Mt, { name: 'triangle', size: 18 }),
         onClick: m,
       }),
     ],
@@ -16924,9 +16924,9 @@ function u5({ selectedTier: c, onSelect: s }) {
   });
 }
 const o5 = [
-  { key: 'tier', label: 'Tier 選択' },
-  { key: 'weapon', label: '初期装備武器' },
-  { key: 'patches', label: 'パッチ確認' },
+  { key: 'tier', label: 'TIER' },
+  { key: 'weapon', label: '武器' },
+  { key: 'patches', label: 'パッチ' },
 ];
 function r5() {
   const { navigate: c } = Ma(),
@@ -16940,8 +16940,7 @@ function r5() {
   }
   const b = r.jsx(Vi, {
       title: '出撃準備',
-      onBack: () => c('title'),
-      currencies: ['bolt', 'alloy'],
+      currencies: ['screw', 'bolt', 'alloy'],
       tabBar: r.jsx(Ss, { tabs: o5, value: s, onChange: u, variant: 'underline', fullWidth: !0 }),
     }),
     E = r.jsxs('div', {

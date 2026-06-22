@@ -21,9 +21,9 @@ import { useNavigation } from '@/store/navigation';
 type PreparationTab = 'tier' | 'weapon' | 'patches';
 
 const TABS: ReadonlyArray<TabBarItem<PreparationTab>> = [
-  { key: 'tier', label: 'Tier 選択' },
-  { key: 'weapon', label: '初期装備武器' },
-  { key: 'patches', label: 'パッチ確認' },
+  { key: 'tier', label: 'TIER' },
+  { key: 'weapon', label: '武器' },
+  { key: 'patches', label: 'パッチ' },
 ];
 
 // ---------------------------------------------------------------------------
@@ -58,8 +58,7 @@ export function Page() {
   const header = (
     <PageHeader
       title="出撃準備"
-      onBack={() => navigate('title')}
-      currencies={['bolt', 'alloy']}
+      currencies={['screw', 'bolt', 'alloy']}
       tabBar={
         <TabBar
           tabs={TABS}

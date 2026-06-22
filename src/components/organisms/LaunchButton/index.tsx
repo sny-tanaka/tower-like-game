@@ -99,7 +99,7 @@ export function LaunchButton({
         disabled={disabled}
         iconLeft={
           <Icon
-            name="tower"
+            name="triangle"
             size={18}
           />
         }
