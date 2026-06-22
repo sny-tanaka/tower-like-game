@@ -1,3 +1,11 @@
+import alloySvg from '@/assets/icons/alloy.svg?raw';
+import boltSvg from '@/assets/icons/bolt.svg?raw';
+import cannonSvg from '@/assets/icons/cannon.svg?raw';
+import cutterSvg from '@/assets/icons/cutter.svg?raw';
+import laserSvg from '@/assets/icons/laser.svg?raw';
+import screwSvg from '@/assets/icons/screw.svg?raw';
+import thunderSvg from '@/assets/icons/thunder.svg?raw';
+
 export type IconName =
   | 'close'
   | 'menu'
@@ -36,11 +44,47 @@ export interface IconProps {
 }
 
 /**
- * ジオメトリック合成 SVG アイコン集。
- * 三角・六角・菱形・円・線のみで構成。複雑な SVG パスは禁止。
- * Currency / Weapon 系は後でファイル差し替え想定のプレースホルダ。
+ * Currency / Weapon の SVG ファイルマップ（claude design 製の inline-svg）。
+ * @kind inline-svg として `dangerouslySetInnerHTML` で埋め込み、currentColor で着色する。
+ */
+const INLINE_SVG_MAP: Partial<Record<IconName, string>> = {
+  screw: screwSvg,
+  bolt: boltSvg,
+  alloy: alloySvg,
+  laser: laserSvg,
+  cannon: cannonSvg,
+  thunder: thunderSvg,
+  cutter: cutterSvg,
+};
+
+/** SVG 文字列の width/height 属性を所定の size に書き換える */
+function applySize(svg: string, size: number): string {
+  return svg
+    .replace(/\swidth="\d+"/, ` width="${size}"`)
+    .replace(/\sheight="\d+"/, ` height="${size}"`);
+}
+
+/**
+ * SVG アイコン集。
+ * - Currency / Weapon (`screw / bolt / alloy / laser / cannon / thunder / cutter`):
+ *   claude design 製の SVG ファイル (`src/assets/icons/*.svg`) を inline で埋め込み。
+ * - UI / Game 系 (`close / menu / settings / tower / ...`):
+ *   ジオメトリック合成（三角・六角・菱形・円・線のみ）で JSX 内に直接記述。複雑な SVG は禁止。
  */
 export function Icon({ name, size = 16, color = 'currentColor', className }: IconProps) {
+  const inlineSvg = INLINE_SVG_MAP[name];
+  if (inlineSvg) {
+    return (
+      <span
+        role="img"
+        aria-hidden
+        className={className}
+        style={{ display: 'inline-flex', color, lineHeight: 0 }}
+        dangerouslySetInnerHTML={{ __html: applySize(inlineSvg, size) }}
+      />
+    );
+  }
+
   const svgProps = {
     width: size,
     height: size,
@@ -421,163 +465,8 @@ export function Icon({ name, size = 16, color = 'currentColor', className }: Ico
         </svg>
       );
 
-    // --- Currency / Weapon placeholders (ジオメトリック代替、後でSVG差し替え予定) ---
-    case 'screw':
-      return (
-        <svg {...svgProps}>
-          {/* ネジ: 六角形 + 縦線 */}
-          <polygon points="12,4 16,6.5 16,12 12,14.5 8,12 8,6.5" />
-          <line
-            x1="12"
-            y1="14.5"
-            x2="12"
-            y2="20"
-            strokeWidth="2.5"
-          />
-          <line
-            x1="9"
-            y1="16"
-            x2="15"
-            y2="16"
-          />
-          <line
-            x1="9"
-            y1="18.5"
-            x2="15"
-            y2="18.5"
-          />
-        </svg>
-      );
-
-    case 'bolt':
-      return (
-        <svg {...svgProps}>
-          {/* ボルト: 六角頭 + 棒 */}
-          <polygon points="12,3 17,6 17,10 12,13 7,10 7,6" />
-          <rect
-            x="10.5"
-            y="13"
-            width="3"
-            height="8"
-            rx="1"
-            fill={color}
-            stroke="none"
-          />
-          <line
-            x1="8.5"
-            y1="20"
-            x2="15.5"
-            y2="20"
-            strokeWidth="2"
-          />
-        </svg>
-      );
-
-    case 'alloy':
-      return (
-        <svg {...svgProps}>
-          {/* 合金: 菱形 */}
-          <polygon points="12,3 20,12 12,21 4,12" />
-          <polygon
-            points="12,7 16,12 12,17 8,12"
-            fill={color}
-            stroke="none"
-          />
-        </svg>
-      );
-
-    case 'laser':
-      return (
-        <svg {...svgProps}>
-          {/* レーザー: 集束する線 */}
-          <line
-            x1="3"
-            y1="5"
-            x2="21"
-            y2="12"
-            strokeWidth="2"
-          />
-          <line
-            x1="3"
-            y1="19"
-            x2="21"
-            y2="12"
-            strokeWidth="2"
-          />
-          <circle
-            cx="21"
-            cy="12"
-            r="2"
-            fill={color}
-            stroke="none"
-          />
-        </svg>
-      );
-
-    case 'cannon':
-      return (
-        <svg {...svgProps}>
-          {/* 大砲: 円筒形 */}
-          <rect
-            x="3"
-            y="9"
-            width="14"
-            height="6"
-            rx="3"
-          />
-          <rect
-            x="17"
-            y="10.5"
-            width="4"
-            height="3"
-            rx="1"
-            fill={color}
-            stroke="none"
-          />
-          <circle
-            cx="8"
-            cy="12"
-            r="1.5"
-            fill={color}
-            stroke="none"
-          />
-        </svg>
-      );
-
-    case 'thunder':
-      return (
-        <svg {...svgProps}>
-          {/* サンダー: ジグザグ稲妻 */}
-          <polyline
-            points="13,2 8,12 12,12 11,22 18,10 13,10 16,2"
-            fill={color}
-            stroke="none"
-          />
-        </svg>
-      );
-
-    case 'cutter':
-      return (
-        <svg {...svgProps}>
-          {/* カッター: 菱形の刃 */}
-          <polygon points="12,2 22,12 12,22 2,12" />
-          <line
-            x1="2"
-            y1="12"
-            x2="22"
-            y2="12"
-          />
-          <line
-            x1="12"
-            y1="2"
-            x2="12"
-            y2="22"
-          />
-        </svg>
-      );
-
     default:
-      // TypeScript exhaustive check helper
+      // Currency / Weapon は INLINE_SVG_MAP の早期 return で処理済み
       return null;
   }
 }
