@@ -1,0 +1,64 @@
+/* BattleField — 戦闘描画の中央レイヤ */
+
+.root {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  background: var(--c-bg-deep);
+  /* サイバーフューチャー調のグリッドライン */
+  background-image:
+    linear-gradient(rgba(78, 228, 246, 0.04) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(78, 228, 246, 0.04) 1px, transparent 1px);
+  background-size: 40px 40px;
+}
+
+/* ===== 索敵円 ===== */
+.rangeCircle {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  border-radius: 50%;
+  border: 1px solid rgba(78, 228, 246, 0.25);
+  background: radial-gradient(
+    circle,
+    rgba(78, 228, 246, 0.06) 0%,
+    rgba(78, 228, 246, 0.02) 60%,
+    transparent 100%
+  );
+  pointer-events: none;
+  z-index: var(--z-base);
+}
+
+/* ===== マシン ===== */
+.machine {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  z-index: 10;
+  filter: drop-shadow(var(--glow-cyan-md));
+  pointer-events: none;
+}
+
+/* ===== 敵 ===== */
+.enemy {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  pointer-events: none;
+  z-index: 5;
+}
+
+.enemyUpper {
+  z-index: 6;
+
+  & .enemyHpBar {
+    min-width: 72px;
+    max-width: 96px;
+  }
+}
+
+.enemyHpBar {
+  width: max-content;
+}
