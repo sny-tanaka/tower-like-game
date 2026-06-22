@@ -178,9 +178,17 @@ describe('MachineUpgradeList', () => {
     expect(useStore.getState().bolt.lt(BigNum.fromNumber(10_000))).toBe(true);
   });
 
-  test('patchSlots が maxLv(5) に達すると MAXED が表示される', () => {
+  test('patchSlots が maxLv(5) に達すると MAX バッジが表示される', () => {
     useStore.getState().setMachineLv('patchSlots', 5);
-    render(<MachineUpgradeList />);
-    expect(screen.getByText('MAXED')).toBeInTheDocument();
+    const { container } = render(<MachineUpgradeList />);
+    // maxed=true のカードは data-maxed="true" 属性を持つ
+    const maxedCards = container.querySelectorAll('[data-maxed="true"]');
+    expect(maxedCards.length).toBeGreaterThanOrEqual(1);
+    // patchSlots カード内に MAX バッジが存在
+    const patchSlotsCard = Array.from(maxedCards).find(
+      (el) => el.getAttribute('aria-label') === 'パッチスロット数'
+    );
+    expect(patchSlotsCard).toBeDefined();
+    expect(patchSlotsCard!.textContent).toContain('MAX');
   });
 });

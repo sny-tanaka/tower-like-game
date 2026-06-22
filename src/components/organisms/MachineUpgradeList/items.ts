@@ -1,5 +1,6 @@
 import type { IconName } from '@/components/atoms/Icon';
 import type { MachineUpgradeKey } from '@/data/schema';
+import { BigNum } from '@/lib/bignum/BigNum';
 
 // ---------------------------------------------------------------------------
 // 型定義
@@ -302,4 +303,64 @@ export function calcEffectValue(item: MachineUpgradeItem, lv: number): number {
  */
 export function calcCost(item: MachineUpgradeItem, lv: number): number {
   return Math.ceil(item.baseCost * Math.pow(item.costGrowth, lv));
+}
+
+/**
+ * Lv → Lv+n の累積コストを返す（n 回分の和、切り上げ整数）。
+ * 上限 (maxLv) を超える分は無視。
+ */
+export function calcCostForN(item: MachineUpgradeItem, currentLv: number, n: number): number {
+  let total = 0;
+  for (let i = 0; i < n; i++) {
+    if (item.maxLv != null && currentLv + i >= item.maxLv) break;
+    total += calcCost(item, currentLv + i);
+  }
+  return total;
+}
+
+/**
+ * 残コインで購入可能な最大 Lv 数を返す。0 以上の整数。
+ * maxLv がある場合はそれを上限とする。
+ */
+export function calcMaxAffordableLevels(
+  item: MachineUpgradeItem,
+  currentLv: number,
+  available: number
+): number {
+  let bought = 0;
+  let remaining = available;
+  let lv = currentLv;
+  while (true) {
+    if (item.maxLv != null && lv >= item.maxLv) break;
+    const cost = calcCost(item, lv);
+    if (cost > remaining) break;
+    remaining -= cost;
+    lv += 1;
+    bought += 1;
+  }
+  return bought;
+}
+
+/**
+ * BigNum 残高で購入可能な最大 Lv 数を返す（インフレ対応版）。
+ * Tier 後半でコストが BigNum スケールになっても安全に比較できる。
+ */
+export function calcMaxAffordableBigNum(
+  item: MachineUpgradeItem,
+  currentLv: number,
+  available: BigNum
+): number {
+  let bought = 0;
+  let remaining = available;
+  let lv = currentLv;
+  // 安全のため最大 10000 反復で止める（実用上 lv 上限はずっと少ないが念のため）
+  for (let i = 0; i < 10000; i++) {
+    if (item.maxLv != null && lv >= item.maxLv) break;
+    const cost = BigNum.fromNumber(calcCost(item, lv));
+    if (remaining.lt(cost)) break;
+    remaining = remaining.sub(cost);
+    lv += 1;
+    bought += 1;
+  }
+  return bought;
 }

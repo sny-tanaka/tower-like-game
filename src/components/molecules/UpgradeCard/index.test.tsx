@@ -88,7 +88,7 @@ describe('UpgradeCard', () => {
     expect(screen.getByRole('button', { name: '+5' })).not.toBeDisabled();
   });
 
-  test('maxed=true のとき MAXED テキストが描画される', () => {
+  test('maxed=true のとき MAX バッジが描画され、ボタンは出ない', () => {
     render(
       <UpgradeCard
         {...defaultProps}
@@ -96,7 +96,7 @@ describe('UpgradeCard', () => {
         options={[]}
       />
     );
-    expect(screen.getByText('MAXED')).toBeInTheDocument();
+    expect(screen.getByText('MAX')).toBeInTheDocument();
     expect(screen.queryByRole('button')).toBeNull();
   });
 

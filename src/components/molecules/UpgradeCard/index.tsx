@@ -1,8 +1,5 @@
 import styles from './style.module.scss';
 
-import { Button } from '@/components/atoms/Button';
-import { Card } from '@/components/atoms/Card';
-import { CurrencyAmount } from '@/components/atoms/CurrencyAmount';
 import { Icon } from '@/components/atoms/Icon';
 import type { IconName } from '@/components/atoms/Icon';
 import { Text } from '@/components/atoms/Text';
@@ -40,11 +37,11 @@ export interface UpgradeCardProps {
   after?: number;
   /** before/after に付与する suffix (例: "%", "×", "/s") */
   beforeSuffix?: string;
-  /** 通貨種 */
+  /** 通貨種（コスト表示の色付けに使用） */
   currency?: UpgradeCardCurrency;
   /** アクセントカラー */
   accent?: UpgradeCardAccent;
-  /** 強化ボタン群 */
+  /** 強化ボタン群（claude design は最大 3 個: +1 / +5 / MAX） */
   options?: ReadonlyArray<UpgradeCardOption>;
   /** 上限到達フラグ。true 時はボタンを非表示にして MAXED 表示 */
   maxed?: boolean;
@@ -53,7 +50,7 @@ export interface UpgradeCardProps {
 }
 
 // ---------------------------------------------------------------------------
-// アクセント→CSS 変数マッピング
+// アクセント→CSS マッピング
 // ---------------------------------------------------------------------------
 
 const ACCENT_COLOR: Record<UpgradeCardAccent, string> = {
@@ -73,6 +70,27 @@ const CURRENCY_TO_ACCENT: Record<UpgradeCardCurrency, UpgradeCardAccent> = {
   alloy: 'secondary',
   screw: 'warning',
 };
+
+const ACCENT_BTN_CLASS: Record<UpgradeCardAccent, string> = {
+  primary: styles.btnPrimary,
+  secondary: styles.btnSecondary,
+  warning: styles.btnWarning,
+};
+
+const ACCENT_GLOW_RGBA: Record<UpgradeCardAccent, string> = {
+  primary: 'rgba(78, 228, 246, 0.55)',
+  secondary: 'rgba(169, 107, 255, 0.55)',
+  warning: 'rgba(246, 185, 74, 0.55)',
+};
+
+// ---------------------------------------------------------------------------
+// 数値表示ヘルパー
+// ---------------------------------------------------------------------------
+
+function formatNumber(v: number | BigNum): string {
+  if (v instanceof BigNum) return v.toDisplay();
+  return v.toLocaleString();
+}
 
 // ---------------------------------------------------------------------------
 // コンポーネント
@@ -96,37 +114,45 @@ export function UpgradeCard({
   const resolvedAccent = accent ?? CURRENCY_TO_ACCENT[currency];
   const accentColor = ACCENT_COLOR[resolvedAccent];
   const effectiveIconColor = iconColor ?? accentColor;
+  const btnClass = ACCENT_BTN_CLASS[resolvedAccent];
+  const afterGlow = ACCENT_GLOW_RGBA[resolvedAccent];
 
   return (
-    <Card
-      variant="elevated"
-      padding="sm"
+    <div
       className={styles.root}
+      role="group"
+      aria-label={title}
+      data-maxed={maxed}
     >
-      {/* ヘッダー行: アイコン + タイトル + Lv バッジ */}
+      {/* ヘッダー行: 24px アイコン枠 + タイトル + Lv バッジ */}
       <div className={styles.header}>
         {iconName != null && (
           <span className={styles.iconWrap}>
             <Icon
               name={iconName}
-              size={16}
+              size={14}
               color={effectiveIconColor}
             />
           </span>
         )}
-        <Text
-          variant="label"
-          color="mid"
-          className={styles.title}
-        >
-          {title}
-        </Text>
-        {currentLabel != null && (
+        <span className={styles.title}>{title}</span>
+        {currentLabel != null && !maxed && (
           <span
             className={styles.lvBadge}
             style={{ color: accentColor, boxShadow: ACCENT_GLOW[resolvedAccent] }}
           >
             {currentLabel}
+          </span>
+        )}
+        {maxed && (
+          <span
+            className={styles.lvBadge}
+            style={{
+              color: 'var(--c-success)',
+              boxShadow: 'var(--glow-success-md)',
+            }}
+          >
+            MAX
           </span>
         )}
       </div>
@@ -145,21 +171,21 @@ export function UpgradeCard({
       {/* 効果値行: before → after */}
       {before != null && (
         <div className={styles.valueRow}>
-          <span
-            className={styles.valueNum}
-            style={{ color: accentColor }}
-          >
-            {before.toLocaleString()}
+          <span className={styles.valueBefore}>
+            {formatNumber(before)}
             {beforeSuffix}
           </span>
           {after != null && !maxed && (
             <>
               <span className={styles.arrow}>→</span>
               <span
-                className={styles.valueNum}
-                style={{ color: 'var(--c-text)' }}
+                className={styles.valueAfter}
+                style={{
+                  color: accentColor,
+                  textShadow: `0 0 5px ${afterGlow}`,
+                }}
               >
-                {after.toLocaleString()}
+                {formatNumber(after)}
                 {beforeSuffix}
               </span>
             </>
@@ -167,40 +193,37 @@ export function UpgradeCard({
         </div>
       )}
 
-      {/* ボタン群 or MAXED */}
-      {maxed ? (
+      {/* ボタン群 (3 ボタン: +1 / +5 / MAX) */}
+      {!maxed && options.length > 0 && (
         <div
-          className={styles.maxed}
-          style={{ color: accentColor }}
+          className={styles.buttons}
+          style={{ gridTemplateColumns: `repeat(${options.length}, 1fr)` }}
         >
-          MAXED
-        </div>
-      ) : options.length > 0 ? (
-        <div className={styles.buttons}>
           {options.map((opt) => {
-            const costBn = typeof opt.cost === 'number' ? BigNum.fromNumber(opt.cost) : opt.cost;
+            const disabled = opt.disabled === true;
             return (
               <div
                 key={opt.amount}
                 className={styles.btnCol}
               >
-                <Button
-                  label={opt.amount}
-                  variant="ghost"
-                  size="sm"
-                  disabled={opt.disabled === true}
-                  onClick={() => onUpgrade?.(opt.amount)}
-                />
-                <CurrencyAmount
-                  currency={currency}
-                  value={costBn}
-                  size="sm"
-                />
+                <button
+                  type="button"
+                  className={`${styles.btn} ${btnClass}`}
+                  disabled={disabled}
+                  onClick={disabled ? undefined : () => onUpgrade?.(opt.amount)}
+                >
+                  {opt.amount}
+                </button>
+                <div className={styles.costRow}>
+                  <span className={`${styles.costNum} ${disabled ? styles.costDisabled : ''}`}>
+                    {formatNumber(opt.cost)}
+                  </span>
+                </div>
               </div>
             );
           })}
         </div>
-      ) : null}
-    </Card>
+      )}
+    </div>
   );
 }

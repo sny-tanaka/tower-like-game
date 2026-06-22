@@ -1,25 +1,43 @@
 .root {
   display: flex;
   flex-direction: column;
-  gap: var(--sp-xs);
+  gap: 7px;
+  padding: 10px 10px 8px;
+  background: var(--c-bg-elev);
+  border: 1px solid var(--c-border-faint);
+  border-radius: var(--r-m);
+  box-shadow: var(--sh-low);
+  min-width: 0;
 }
 
 /* ヘッダー行 */
 .header {
   display: flex;
   align-items: center;
-  gap: var(--sp-xs);
+  gap: 6px;
+  min-width: 0;
 }
 
 .iconWrap {
+  width: 24px;
+  height: 24px;
+  border-radius: var(--r-xs);
+  background: var(--c-bg-base);
+  border: 1px solid var(--c-border-faint);
   display: inline-flex;
   align-items: center;
-  flex-shrink: 0;
+  justify-content: center;
+  flex: none;
 }
 
 .title {
   flex: 1;
   min-width: 0;
+  font-family: var(--ff-display);
+  font-size: 12.5px;
+  font-weight: var(--fw-semibold);
+  line-height: 1.2;
+  color: var(--c-text);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -30,7 +48,7 @@
   font-size: var(--fs-label);
   font-weight: var(--fw-semibold);
   letter-spacing: var(--ls-num);
-  padding: 1px var(--sp-xs);
+  padding: 1px 6px;
   border-radius: var(--r-xs);
   border: 1px solid currentColor;
   white-space: nowrap;
@@ -39,45 +57,138 @@
 
 /* 説明文 */
 .description {
-  line-height: var(--lh-snug);
+  font-size: 10.5px;
+  line-height: 1.35;
 }
 
 /* 効果値行 */
 .valueRow {
   display: flex;
-  align-items: center;
-  gap: var(--sp-xs);
-  padding: var(--sp-xxs) 0;
+  align-items: baseline;
+  gap: 5px;
+  min-width: 0;
+  overflow: hidden;
 }
 
-.valueNum {
+.valueBefore {
   font-family: var(--ff-numeric);
-  font-size: var(--fs-num-s);
+  font-size: 12px;
+  font-weight: var(--fw-medium);
+  color: var(--c-text-dim);
+  flex: 0 1 auto;
+  min-width: 0;
+}
+
+.valueAfter {
+  font-family: var(--ff-numeric);
+  font-size: 13.5px;
   font-weight: var(--fw-semibold);
   letter-spacing: var(--ls-num);
   line-height: var(--lh-tight);
+  flex: 0 1 auto;
+  min-width: 0;
 }
 
 .arrow {
-  font-size: var(--fs-caption);
+  font-size: 10px;
   color: var(--c-text-dim);
-  flex-shrink: 0;
+  flex: none;
 }
 
-/* ボタン列 */
+/* ボタン列 (3 ボタン横並びの grid) */
 .buttons {
-  display: flex;
-  gap: var(--sp-xs);
-  margin-top: var(--sp-xxs);
+  display: grid;
+  gap: 4px;
 }
 
 .btnCol {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: var(--sp-xxs);
-  flex: 1;
+  display: grid;
+  gap: 2px;
   min-width: 0;
+}
+
+/* === ボタン本体 === */
+.btn {
+  height: 24px;
+  padding: 0 2px;
+  font-family: var(--ff-display);
+  font-size: 10.5px;
+  font-weight: var(--fw-semibold);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  border-radius: var(--r-xs);
+  cursor: pointer;
+  transition: transform var(--mo-fast) var(--ease-out),
+    filter var(--mo-fast) var(--ease-out);
+  user-select: none;
+  white-space: nowrap;
+  width: 100%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* アクセント別の色: primary / secondary / warning */
+.btnPrimary {
+  background: linear-gradient(180deg, var(--c-primary) 0%, var(--c-primary-deep) 100%);
+  color: var(--c-bg-deep);
+  border: 1px solid var(--c-primary-hi);
+  box-shadow: var(--glow-cyan-sm);
+}
+
+.btnSecondary {
+  background: linear-gradient(180deg, var(--c-secondary) 0%, var(--c-secondary-deep) 100%);
+  color: var(--c-text);
+  border: 1px solid var(--c-secondary-hi);
+  box-shadow: var(--glow-purple-sm);
+}
+
+.btnWarning {
+  background: linear-gradient(180deg, var(--c-warning) 0%, #c89126 100%);
+  color: var(--c-bg-deep);
+  border: 1px solid var(--c-warning);
+  box-shadow: 0 0 6px rgba(246, 185, 74, 0.45);
+}
+
+/* hover (有効時のみ) */
+.btn:not(:disabled):hover {
+  transform: translateY(-1px);
+  filter: brightness(1.08);
+}
+
+.btn:not(:disabled):active {
+  transform: translateY(0);
+  filter: brightness(0.95);
+}
+
+/* === disabled: グラデーションを保ったまま grayscale + 暗くする === */
+.btn:disabled {
+  cursor: not-allowed;
+  filter: grayscale(0.6) brightness(0.55);
+  box-shadow: none;
+}
+
+/* === コスト数値 === */
+.costRow {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  overflow: hidden;
+  min-width: 0;
+  line-height: 1;
+}
+
+.costNum {
+  font-family: var(--ff-numeric);
+  font-size: 11px;
+  font-weight: var(--fw-medium);
+  line-height: 1;
+  color: var(--c-text);
+  white-space: nowrap;
+}
+
+.costNum.costDisabled {
+  color: var(--c-text-dim);
 }
 
 /* MAXED 表示 */
@@ -89,4 +200,10 @@
   text-align: center;
   padding: var(--sp-xs) 0;
   opacity: 0.7;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .btn {
+    transition: none;
+  }
 }
