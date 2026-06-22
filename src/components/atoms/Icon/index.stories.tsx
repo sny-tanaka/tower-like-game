@@ -34,6 +34,8 @@ const meta: Meta<typeof Icon> = {
         'check',
         'plus',
         'minus',
+        'info',
+        'arrow-up',
         'screw',
         'bolt',
         'alloy',
@@ -74,6 +76,8 @@ export const UIIcons: Story = {
       'check',
       'plus',
       'minus',
+      'info',
+      'arrow-up',
     ];
     return (
       <div

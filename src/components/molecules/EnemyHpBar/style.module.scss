@@ -7,6 +7,7 @@
   border-radius: var(--r-m);
 }
 
+/* variant border */
 .boss {
   border: 1px solid var(--c-danger);
 }
@@ -15,12 +16,33 @@
   border: 1px solid var(--c-secondary);
 }
 
-/* 上段: 名前 + バッジ */
+/* size */
+.sizeSm {
+  padding: var(--sp-xs) var(--sp-s);
+}
+
+.sizeMd {
+  padding: var(--sp-s);
+}
+
+.sizeLg {
+  padding: var(--sp-s) var(--sp-m);
+  border-radius: var(--r-l);
+}
+
+/* 上段: 名前 + バッジ / Tier */
 .header {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: var(--sp-xs);
+}
+
+.headerRight {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-xxs);
+  flex-shrink: 0;
 }
 
 /* HP 数値 */

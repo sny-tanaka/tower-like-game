@@ -52,17 +52,11 @@ function SheetDemo() {
         <Sheet
           open={open}
           onClose={() => setOpen(false)}
+          edge="bottom"
+          withHandle
+          padding="md"
         >
-          <div style={{ padding: '24px', color: 'var(--c-text)', fontFamily: 'var(--ff-body)' }}>
-            <div
-              style={{
-                width: '40px',
-                height: '4px',
-                background: 'var(--c-border-hi)',
-                borderRadius: 'var(--r-pill)',
-                margin: '0 auto 20px',
-              }}
-            />
+          <div style={{ color: 'var(--c-text)', fontFamily: 'var(--ff-body)' }}>
             <div
               style={{
                 fontSize: 'var(--fs-h3)',
@@ -100,6 +94,102 @@ export const Default: Story = {
   render: () => <SheetDemo />,
 };
 
+export const BottomWithHandle: Story = {
+  name: 'bottom + handle',
+  render: () => (
+    <div style={{ minHeight: '100vh', background: 'var(--c-bg-deep)', position: 'relative' }}>
+      <Sheet
+        open
+        edge="bottom"
+        withHandle
+        padding="md"
+      >
+        <div style={{ color: 'var(--c-text)', fontFamily: 'var(--ff-body)' }}>
+          <div
+            style={{
+              fontSize: 'var(--fs-h3)',
+              fontWeight: 'var(--fw-semibold)',
+              marginBottom: '8px',
+            }}
+          >
+            ラン中ワークショップ
+          </div>
+          <div style={{ color: 'var(--c-text-mid)' }}>この上に UpgradeCard × 4 を並べる</div>
+        </div>
+      </Sheet>
+    </div>
+  ),
+};
+
+export const BottomNoHandle: Story = {
+  name: 'bottom（ハンドル無し）',
+  render: () => (
+    <div style={{ minHeight: '100vh', background: 'var(--c-bg-deep)', position: 'relative' }}>
+      <Sheet
+        open
+        edge="bottom"
+        padding="md"
+      >
+        <div style={{ color: 'var(--c-text-mid)', fontFamily: 'var(--ff-body)' }}>
+          固定の下端パネル
+        </div>
+      </Sheet>
+    </div>
+  ),
+};
+
+export const Top: Story = {
+  name: 'top（上端から）',
+  render: () => (
+    <div style={{ minHeight: '100vh', background: 'var(--c-bg-deep)', position: 'relative' }}>
+      <Sheet
+        open
+        edge="top"
+        padding="md"
+      >
+        <div style={{ color: 'var(--c-text-mid)', fontFamily: 'var(--ff-body)' }}>
+          画面上端から伸びるパネル
+        </div>
+      </Sheet>
+    </div>
+  ),
+};
+
+export const All: Story = {
+  name: 'all（中央モーダル本体）',
+  render: () => (
+    <div
+      style={{
+        minHeight: '100vh',
+        background: 'var(--c-bg-deep)',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+      }}
+    >
+      <Sheet
+        open
+        edge="all"
+        padding="md"
+        style={{ width: 280 }}
+      >
+        <div style={{ color: 'var(--c-text)', fontFamily: 'var(--ff-body)' }}>
+          <div
+            style={{
+              fontSize: 'var(--fs-h3)',
+              fontWeight: 'var(--fw-semibold)',
+              marginBottom: '8px',
+            }}
+          >
+            センター配置
+          </div>
+          <div style={{ color: 'var(--c-text-mid)' }}>Overlay で包めばダイアログ完成</div>
+        </div>
+      </Sheet>
+    </div>
+  ),
+};
+
 export const Open: Story = {
   render: () => (
     <div
@@ -114,15 +204,6 @@ export const Open: Story = {
         position="bottom"
       >
         <div style={{ padding: '24px', color: 'var(--c-text)', fontFamily: 'var(--ff-body)' }}>
-          <div
-            style={{
-              width: '40px',
-              height: '4px',
-              background: 'var(--c-border-hi)',
-              borderRadius: 'var(--r-pill)',
-              margin: '0 auto 20px',
-            }}
-          />
           <div
             style={{
               fontSize: 'var(--fs-h3)',

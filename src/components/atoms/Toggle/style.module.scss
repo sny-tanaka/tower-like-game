@@ -1,7 +1,23 @@
-$switch-w: 44px;
-$switch-h: 24px;
-$knob-size: 18px;
-$knob-offset: 3px;
+/* =====================================================================
+ * Toggle — スイッチコンポーネント
+ *
+ * md サイズ:  44×24 px、knob 18px
+ * sm サイズ:  32×18 px、knob 13px
+ * ===================================================================== */
+
+// --- md (デフォルト) ---
+$switch-w-md: 44px;
+$switch-h-md: 24px;
+$knob-size-md: 18px;
+$knob-offset-md: 3px;
+
+// --- sm ---
+$switch-w-sm: 32px;
+$switch-h-sm: 18px;
+$knob-size-sm: 12px;
+$knob-offset-sm: 3px;
+
+/* ======================== wrapper ======================== */
 
 .wrapper {
   display: inline-flex;
@@ -16,10 +32,10 @@ $knob-offset: 3px;
   }
 }
 
+/* ======================== switch ======================== */
+
 .switch {
   position: relative;
-  width: $switch-w;
-  height: $switch-h;
   border-radius: var(--r-pill);
   border: none;
   padding: 0;
@@ -29,13 +45,24 @@ $knob-offset: 3px;
   flex-shrink: 0;
 
   &.off {
-    background: var(--c-border-mid);
+    background: var(--c-border-mid, var(--c-border));
     box-shadow: none;
   }
 
-  &.on {
+  // accent ごとの ON スタイル
+  &.on.accent_primary {
     background: var(--c-primary);
     box-shadow: var(--glow-cyan-sm);
+  }
+
+  &.on.accent_secondary {
+    background: var(--c-secondary);
+    box-shadow: var(--glow-purple-sm);
+  }
+
+  &.on.accent_success {
+    background: var(--c-success);
+    box-shadow: var(--glow-success-md);
   }
 
   &:disabled {
@@ -43,24 +70,68 @@ $knob-offset: 3px;
   }
 }
 
+/* ======================== size ======================== */
+
+.size_md {
+  width: $switch-w-md;
+  height: $switch-h-md;
+
+  .knob {
+    width: $knob-size-md;
+    height: $knob-size-md;
+    top: $knob-offset-md;
+    left: $knob-offset-md;
+  }
+
+  &.on .knob {
+    transform: translateX($switch-w-md - $knob-size-md - $knob-offset-md * 2);
+  }
+}
+
+.size_sm {
+  width: $switch-w-sm;
+  height: $switch-h-sm;
+
+  .knob {
+    width: $knob-size-sm;
+    height: $knob-size-sm;
+    top: $knob-offset-sm;
+    left: $knob-offset-sm;
+  }
+
+  &.on .knob {
+    transform: translateX($switch-w-sm - $knob-size-sm - $knob-offset-sm * 2);
+  }
+}
+
+/* ======================== knob ======================== */
+
 .knob {
   position: absolute;
-  top: $knob-offset;
-  left: $knob-offset;
-  width: $knob-size;
-  height: $knob-size;
   border-radius: var(--r-pill);
   background: var(--c-text);
   transition: transform var(--mo-fast) var(--ease-default);
+}
 
-  .on & {
-    transform: translateX($switch-w - $knob-size - $knob-offset * 2);
-  }
+/* ======================== label / description ======================== */
+
+.labelGroup {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-xxs);
 }
 
 .label {
   font-family: var(--ff-body);
-  font-size: 14px;
+  font-size: var(--fs-body);
   color: var(--c-text-mid);
   user-select: none;
+}
+
+.description {
+  font-family: var(--ff-body);
+  font-size: var(--fs-caption);
+  color: var(--c-text-dim);
+  user-select: none;
+  line-height: 1.4;
 }

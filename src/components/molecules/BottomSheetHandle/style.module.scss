@@ -4,6 +4,11 @@
   justify-content: center;
   padding: var(--sp-s) 0 var(--sp-xs);
   width: 100%;
+  cursor: grab;
+
+  &:active {
+    cursor: grabbing;
+  }
 }
 
 .handle {
@@ -12,4 +17,17 @@
   height: 4px;
   border-radius: var(--r-pill);
   background-color: var(--c-text-dim);
+  transition: background-color var(--mo-fast) var(--ease-default),
+    box-shadow var(--mo-fast) var(--ease-default);
+
+  &.dragging {
+    background-color: var(--c-primary);
+    box-shadow: var(--glow-cyan-sm);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .handle {
+    transition: none;
+  }
 }

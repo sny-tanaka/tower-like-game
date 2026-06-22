@@ -23,6 +23,12 @@ const meta: Meta<typeof CurrencyAmount> = {
       control: { type: 'select' },
       options: [undefined, '+', '-'],
     },
+    align: {
+      control: { type: 'select' },
+      options: ['start', 'end'],
+    },
+    showLabel: { control: 'boolean' },
+    subtle: { control: 'boolean' },
   },
 };
 
@@ -118,6 +124,90 @@ export const LargeValues: Story = {
         value={BigNum.fromString('9' + '9'.repeat(9))}
         size="lg"
         delta="+"
+      />
+    </div>
+  ),
+};
+
+// --- showLabel ---
+
+export const WithShowLabel: Story = {
+  name: 'showLabel（通貨名表示）',
+  render: () => (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+      <CurrencyAmount
+        currency="screw"
+        value={4280}
+        size="md"
+        showLabel
+      />
+      <CurrencyAmount
+        currency="bolt"
+        value={1234567}
+        size="md"
+        showLabel
+      />
+      <CurrencyAmount
+        currency="alloy"
+        value={12}
+        size="md"
+        showLabel
+      />
+    </div>
+  ),
+};
+
+// --- subtle ---
+
+export const Subtle: Story = {
+  name: 'subtle（購入不可・条件未達）',
+  render: () => (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+      <CurrencyAmount
+        currency="screw"
+        value={9999}
+        size="md"
+        subtle
+      />
+      <CurrencyAmount
+        currency="bolt"
+        value={42}
+        size="md"
+        subtle
+      />
+      <CurrencyAmount
+        currency="alloy"
+        value={1}
+        size="md"
+        subtle
+      />
+    </div>
+  ),
+};
+
+// --- align=end ---
+
+export const AlignEnd: Story = {
+  name: 'align=end（数値先行）',
+  render: () => (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+      <CurrencyAmount
+        currency="screw"
+        value={4280}
+        size="md"
+        align="end"
+      />
+      <CurrencyAmount
+        currency="bolt"
+        value={1234567}
+        size="md"
+        align="end"
+      />
+      <CurrencyAmount
+        currency="alloy"
+        value={12}
+        size="md"
+        align="end"
       />
     </div>
   ),

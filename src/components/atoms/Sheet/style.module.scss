@@ -1,43 +1,118 @@
 /* Sheet 固有 @keyframes — Fx 化しない */
-@keyframes slideIn {
-  from {
-    transform: translateY(100%);
-  }
-  to {
-    transform: translateY(0);
-  }
+
+@keyframes slideInBottom {
+  from { transform: translateY(100%); }
+  to   { transform: translateY(0); }
 }
 
+@keyframes slideInTop {
+  from { transform: translateY(-100%); }
+  to   { transform: translateY(0); }
+}
+
+@keyframes slideInSide {
+  from { transform: translateX(100%); }
+  to   { transform: translateX(0); }
+}
+
+@keyframes fadeInScale {
+  from { opacity: 0; transform: scale(0.95); }
+  to   { opacity: 1; transform: scale(1); }
+}
+
+/* ベース */
 .sheet {
-  position: fixed;
   z-index: var(--z-sheet);
+}
+
+/* ======================== edge バリアント ======================== */
+
+.edgeBottom {
+  position: fixed;
   left: 0;
   right: 0;
   bottom: 0;
+
+  .content {
+    border-radius: var(--r-l) var(--r-l) 0 0;
+    padding-bottom: max(env(safe-area-inset-bottom), var(--sp-m));
+    animation: slideInBottom var(--mo-slow) var(--ease-default) both;
+  }
 }
 
-.position-bottom {
-  /* bottom は .sheet で設定済み */
+.edgeTop {
+  position: fixed;
+  left: 0;
+  right: 0;
+  top: 0;
+
+  .content {
+    border-radius: 0 0 var(--r-l) var(--r-l);
+    animation: slideInTop var(--mo-slow) var(--ease-default) both;
+  }
 }
+
+.edgeSide {
+  position: fixed;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: 320px;
+  max-width: 90vw;
+
+  .content {
+    border-radius: var(--r-l) 0 0 var(--r-l);
+    height: 100%;
+    animation: slideInSide var(--mo-slow) var(--ease-default) both;
+  }
+}
+
+.edgeAll {
+  position: relative;
+
+  .content {
+    border-radius: var(--r-l);
+    animation: fadeInScale var(--mo-mid) var(--ease-default) both;
+  }
+}
+
+/* ======================== content 共通 ======================== */
+
+.content {
+  background: var(--c-bg-elev);
+  box-shadow: var(--sh-high);
+}
+
+/* ======================== padding バリアント ======================== */
+
+.paddingSm {
+  padding: var(--sp-s) var(--sp-s);
+}
+
+.paddingMd {
+  padding: var(--sp-m) var(--sp-l);
+}
+
+.paddingLg {
+  padding: var(--sp-l) var(--sp-xl);
+}
+
+/* ======================== backdrop ======================== */
 
 .backdrop {
   position: fixed;
   inset: 0;
   z-index: -1;
-  /* 背景は半透明にしない（Overlay を別途重ねる想定のため） */
   background: transparent;
 }
 
-.content {
-  background: var(--c-bg-elev);
-  border-radius: var(--r-l) var(--r-l) 0 0;
-  box-shadow: var(--sh-high);
-  padding-bottom: max(env(safe-area-inset-bottom), 12px);
-  animation: slideIn var(--mo-slow) var(--ease-default) both;
-}
+/* ======================== prefers-reduced-motion ======================== */
 
 @media (prefers-reduced-motion: reduce) {
-  .content {
+  .edgeBottom .content,
+  .edgeTop .content,
+  .edgeSide .content,
+  .edgeAll .content {
     animation: none;
   }
 }
