@@ -1,0 +1,90 @@
+.card {
+  width: min(360px, 92vw);
+  max-height: 90vh;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-m);
+
+  /* スクロールバー */
+  scrollbar-width: thin;
+  scrollbar-color: var(--c-border-faint) transparent;
+}
+
+.header {
+  padding-bottom: var(--sp-xs);
+  border-bottom: 1px solid var(--c-border-faint);
+}
+
+.statusText {
+  letter-spacing: 0.1em;
+}
+
+.section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-xs);
+}
+
+.sectionTitle {
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+/* 統計グリッド: 2 列 */
+.statsGrid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--sp-xs) var(--sp-s);
+}
+
+.statItem {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: var(--sp-xs) var(--sp-s);
+  background: var(--c-bg-base);
+  border-radius: var(--r-s);
+  border: 1px solid var(--c-border-faint);
+}
+
+/* 獲得リソース */
+.rewardList {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-xs);
+}
+
+.rewardCurrency {
+  padding: var(--sp-xs) var(--sp-s);
+  background: var(--c-bg-base);
+  border-radius: var(--r-s);
+  border: 1px solid var(--c-border-faint);
+}
+
+/* パッチ一覧 */
+.patchList {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.patchItem {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-xs);
+  padding: var(--sp-xs) var(--sp-s);
+  background: var(--c-bg-base);
+  border-radius: var(--r-s);
+  border: 1px solid var(--c-border-faint);
+
+  /* name が flex-grow, tier と count は固定幅 */
+  > :first-child {
+    flex: 1 1 0;
+    min-width: 0;
+  }
+}
+
+.actions {
+  padding-top: var(--sp-xs);
+}
