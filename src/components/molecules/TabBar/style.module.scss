@@ -1,0 +1,49 @@
+.tabBar {
+  position: relative;
+  display: inline-flex;
+  flex-direction: row;
+  border-bottom: 1px solid var(--c-border-faint);
+}
+
+.fullWidth {
+  width: 100%;
+
+  /* fullWidth 時は各 Tab を均等幅にする */
+  > :global([role='tab']) {
+    flex: 1;
+  }
+}
+
+/* size 変種 */
+.size-sm {
+  > :global([role='tab']) {
+    font-size: var(--fs-caption);
+    min-height: 32px;
+    padding: var(--sp-xxs) var(--sp-s);
+  }
+}
+
+.size-md {
+  /* デフォルト。Tab Atom のデフォルト min-height=40px を使用 */
+}
+
+/* スライドするアクティブインジケータ */
+.indicator {
+  position: absolute;
+  bottom: -1px; /* ボーダーラインに重ねる */
+  left: 0;
+  height: 2px;
+  border-radius: var(--r-pill) var(--r-pill) 0 0;
+  background-color: var(--c-primary);
+  box-shadow: var(--glow-cyan-sm);
+  transition:
+    transform var(--mo-mid) var(--ease-default),
+    width var(--mo-mid) var(--ease-default);
+  pointer-events: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .indicator {
+    transition: none;
+  }
+}
