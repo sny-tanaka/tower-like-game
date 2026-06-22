@@ -1,0 +1,26 @@
+/* WeaponDetailsTab — 武器庫詳細タブ */
+.tab {
+  display: grid;
+  gap: var(--sp-m);
+}
+
+/* 武器 1 個分のブロック（WeaponPreview + アクティブスキル） */
+.weaponBlock {
+  display: grid;
+  gap: var(--sp-xs);
+}
+
+/* アクティブスキル表示カード */
+.activeCard {
+  display: grid;
+}
+
+.activeRow {
+  display: grid;
+  gap: var(--sp-xxs);
+}
+
+.activeName {
+  font-weight: var(--fw-semibold);
+  letter-spacing: var(--ls-tight);
+}

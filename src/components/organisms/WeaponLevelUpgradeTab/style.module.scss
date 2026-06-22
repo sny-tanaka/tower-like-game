@@ -1,0 +1,65 @@
+/* WeaponLevelUpgradeTab — 共通武器強化 Lv タブ */
+
+.tab {
+  display: grid;
+  gap: var(--sp-m);
+}
+
+/* 説明文 + 所持 alloy の行 */
+.topRow {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-s);
+}
+
+.description {
+  flex: 1;
+  min-width: 0;
+}
+
+/* 効果プレビューカード */
+.previewCard {
+  display: grid;
+}
+
+.previewLabel {
+  font-size: 10px;
+  margin-bottom: var(--sp-xs);
+  text-transform: uppercase;
+  letter-spacing: var(--ls-wide);
+}
+
+.impactGrid {
+  display: grid;
+  gap: var(--sp-xxs);
+}
+
+.impactRow {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--sp-s);
+  padding: var(--sp-xxs) 0;
+}
+
+.impactRowBordered {
+  border-top: 1px dashed var(--c-border-faint);
+}
+
+.impactLabel {
+  flex: 1;
+  min-width: 0;
+  font-size: 12px;
+}
+
+.impactValues {
+  display: inline-flex;
+  align-items: baseline;
+  gap: var(--sp-xs);
+  font-family: var(--ff-numeric);
+}
+
+.arrow {
+  color: var(--c-text-dim);
+  font-size: 10px;
+}
