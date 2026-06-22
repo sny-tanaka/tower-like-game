@@ -1,0 +1,209 @@
+<!-- @dsCard group="Atoms" viewport="412x1000" name="Overlay" subtitle="ディム背景 / 背景タップ閉じ / z-index 管理のみ。閉じる×は中身の責務" -->
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8" />
+<title>Atom — Overlay</title>
+<link rel="stylesheet" href="../../styles.css" />
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+<script src="../../_ds_bundle.js"></script>
+<style>
+  body { padding: 16px; background: var(--c-bg-deep); min-height: 100vh; }
+  .page { max-width: 412px; margin: 0 auto; display: grid; gap: 16px; }
+  h1 { font-family: var(--ff-display); font-weight: 600; font-size: 20px; margin: 0; color: var(--c-text); letter-spacing: 0.02em; }
+  .sub { color: var(--c-text-dim); font-size: 12px; margin-top: 4px; }
+  section { background: var(--c-bg-elev); border: 1px solid var(--c-border-faint); border-radius: var(--r-m); padding: 14px; }
+  h2 { font-family: var(--ff-display); font-weight: 600; font-size: 11px; letter-spacing: var(--ls-loose); text-transform: uppercase; color: var(--c-primary); margin: 0 0 12px; display: flex; align-items: center; gap: 8px; }
+  h2::before { content: ''; width: 5px; height: 5px; background: var(--c-primary); box-shadow: var(--glow-cyan-sm); transform: rotate(45deg); }
+
+  .scope-note {
+    background: rgba(78,228,246,0.06);
+    border: 1px solid rgba(78,228,246,0.3);
+    border-radius: var(--r-s);
+    padding: 12px;
+    font-size: 12px;
+    color: var(--c-text-mid);
+    line-height: 1.6;
+  }
+  .scope-note strong { color: var(--c-primary); }
+  .scope-note ul { margin: 6px 0 0; padding-left: 18px; }
+  .scope-note ul li::marker { color: var(--c-primary); }
+  .scope-note code { font-family: var(--ff-numeric); font-size: 11px; color: var(--c-primary); background: rgba(0,0,0,0.4); padding: 1px 5px; border-radius: var(--r-xs); }
+
+  .stage {
+    position: relative;
+    height: 220px;
+    border-radius: var(--r-m);
+    overflow: hidden;
+    border: 1px solid var(--c-border-faint);
+    background:
+      radial-gradient(ellipse at 30% 20%, rgba(78,228,246,0.08), transparent 50%),
+      radial-gradient(ellipse at 80% 90%, rgba(169,107,255,0.06), transparent 50%),
+      repeating-linear-gradient(0deg, rgba(78,228,246,0.04) 0 1px, transparent 1px 32px),
+      repeating-linear-gradient(90deg, rgba(78,228,246,0.04) 0 1px, transparent 1px 32px),
+      var(--c-bg-base);
+  }
+  .stage-content { padding: 14px; color: var(--c-text-dim); font-size: 11px; }
+
+  .demo-card {
+    background: var(--c-bg-elev);
+    border: 1px solid var(--c-border-faint);
+    border-radius: var(--r-m);
+    padding: 18px 20px;
+    min-width: 220px;
+    max-width: 90%;
+    box-shadow: var(--sh-high);
+    text-align: center;
+  }
+  .demo-card-accent {
+    border: 1px solid var(--c-primary);
+    box-shadow: var(--glow-cyan-inset);
+  }
+  .reopen {
+    font-family: var(--ff-display); font-size: 11px; font-weight: 600;
+    letter-spacing: var(--ls-loose); text-transform: uppercase;
+    background: var(--c-bg-elev); border: 1px solid var(--c-border);
+    color: var(--c-text-mid); padding: 6px 12px; border-radius: var(--r-s);
+    cursor: pointer; margin-top: 10px;
+  }
+</style>
+</head>
+<body>
+<div id="root"></div>
+<script type="text/babel" data-presets="env,react">
+  const { Overlay, Text, Button } = window.TowerLikeGame_28197d;
+
+  function Page() {
+    const [soft, setSoft] = React.useState(true);
+    const [heavy, setHeavy] = React.useState(true);
+    const [blurOpen, setBlur] = React.useState(true);
+    const [topOpen, setTop] = React.useState(true);
+
+    return (
+      <div className="page">
+        <header>
+          <h1>OVERLAY</h1>
+          <div className="sub">ディムバックドロップ + 中身を配置するだけのコンテナ。</div>
+        </header>
+
+        <section>
+          <h2>責務 (scope)</h2>
+          <div className="scope-note">
+            <strong>Overlay の責務</strong>
+            <ul>
+              <li>全画面ディムバックドロップ (<code>dimLevel</code>)</li>
+              <li>任意の背景ぼかし (<code>blur</code>)</li>
+              <li><code>dismissible</code> 時、背景タップで <code>onClose</code> 発火</li>
+              <li>中身の整列 (<code>align</code>: center / top / bottom)</li>
+              <li><code>z-index</code> 管理 (<code>--z-dialog</code> / <code>--z-overlay</code>)</li>
+            </ul>
+            <strong style={{ marginTop: 10, display: 'block' }}>含まないもの</strong>
+            <ul>
+              <li>閉じる × ボタン → 中身 (<code>ConfirmDialog</code> / <code>Sheet</code> 等) が自前で持つ</li>
+              <li>表示アニメーション → <code>OverlayFadeFx</code> が担当</li>
+              <li>キー入力 (Esc 等) のハンドリング → 上位 Organism / hook で実装</li>
+            </ul>
+          </div>
+        </section>
+
+        <section>
+          <h2>dimLevel: soft (0.45)</h2>
+          <div className="stage">
+            <div className="stage-content">背景コンテンツ — 半透明で透ける程度</div>
+            {soft && (
+              <Overlay fullscreen={false} dimLevel="soft" dismissible onClose={() => setSoft(false)}>
+                <div className="demo-card demo-card-accent">
+                  <Text variant="label" color="primary">SOFT DIM</Text>
+                  <Text variant="caption" color="dim" style={{ marginTop: 6, fontSize: 11 }}>
+                    背景タップで閉じる
+                  </Text>
+                </div>
+              </Overlay>
+            )}
+          </div>
+          {!soft && <button className="reopen" onClick={() => setSoft(true)}>再表示</button>}
+        </section>
+
+        <section>
+          <h2>dimLevel: heavy (0.80) + ConfirmDialog 想定</h2>
+          <div className="stage">
+            <div className="stage-content">背景がほぼ見えない</div>
+            {heavy && (
+              <Overlay fullscreen={false} dimLevel="heavy" dismissible onClose={() => setHeavy(false)}>
+                <div className="demo-card">
+                  <Text variant="heading-3" color="text" style={{ fontSize: 14, marginBottom: 6 }}>
+                    撤退しますか？
+                  </Text>
+                  <Text variant="caption" color="mid" style={{ marginBottom: 12 }}>
+                    取得したネジは失われます
+                  </Text>
+                  <div style={{ display: 'flex', gap: 8, justifyContent: 'center' }}>
+                    <Button label="戻る" variant="ghost" size="sm" onClick={() => setHeavy(false)} />
+                    <Button label="撤退" variant="danger" size="sm" onClick={() => setHeavy(false)} />
+                  </div>
+                </div>
+              </Overlay>
+            )}
+          </div>
+          {!heavy && <button className="reopen" onClick={() => setHeavy(true)}>再表示</button>}
+          <Text variant="caption" color="dim" style={{ marginTop: 8, fontSize: 11 }}>
+            ↑ ボタン (戻る / 撤退) は <code style={{ fontFamily: 'var(--ff-numeric)', color: 'var(--c-primary)' }}>ConfirmDialog</code> 内部の責務
+          </Text>
+        </section>
+
+        <section>
+          <h2>blur 4px (高 dim 時に背景情報を完全に消す)</h2>
+          <div className="stage">
+            <div className="stage-content">高機能背景にも対応</div>
+            {blurOpen && (
+              <Overlay fullscreen={false} dimLevel="normal" blur={4} dismissible onClose={() => setBlur(false)}>
+                <div className="demo-card">
+                  <Text variant="label" color="primary">blur: 4px</Text>
+                  <Text variant="caption" color="dim" style={{ marginTop: 6, fontSize: 11 }}>背景タップで閉じる</Text>
+                </div>
+              </Overlay>
+            )}
+          </div>
+          {!blurOpen && <button className="reopen" onClick={() => setBlur(true)}>再表示</button>}
+        </section>
+
+        <section>
+          <h2>align: top (Toast 想定)</h2>
+          <div className="stage">
+            <div className="stage-content">Toast は align="top" で上端に</div>
+            {topOpen && (
+              <Overlay fullscreen={false} dimLevel="soft" align="top" dismissible onClose={() => setTop(false)} style={{ paddingTop: 16 }}>
+                <div className="demo-card" style={{ border: '1px solid var(--c-primary)' }}>
+                  <Text variant="caption" color="primary" style={{ fontSize: 11 }}>
+                    align: top — 中身が上端寄り
+                  </Text>
+                </div>
+              </Overlay>
+            )}
+          </div>
+          {!topOpen && <button className="reopen" onClick={() => setTop(true)}>再表示</button>}
+        </section>
+
+        <section>
+          <h2>dismissible=false (背景タップ無効)</h2>
+          <div className="stage">
+            <Overlay fullscreen={false} dimLevel="normal" dismissible={false}>
+              <div className="demo-card">
+                <Text variant="label" color="primary">REQUIRED</Text>
+                <Text variant="caption" color="dim" style={{ marginTop: 6, fontSize: 11 }}>
+                  必須の入力等。中身に決定ボタンを置く
+                </Text>
+              </div>
+            </Overlay>
+          </div>
+        </section>
+      </div>
+    );
+  }
+
+  ReactDOM.createRoot(document.getElementById('root')).render(<Page />);
+</script>
+</body>
+</html>

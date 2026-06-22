@@ -1,0 +1,130 @@
+<!-- @dsCard group="Organisms" viewport="412x800" name="BattleHudBottom" subtitle="武器 ×4 + Active + ネジ + 速度/一時停止/メニュー/SS" -->
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8" />
+<title>Organism — BattleHudBottom</title>
+<link rel="stylesheet" href="../../styles.css" />
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+<script src="../../_ds_bundle.js"></script>
+<style>
+  body { padding: 16px; background: var(--c-bg-deep); min-height: 100vh; }
+  .page { max-width: 412px; margin: 0 auto; display: grid; gap: 14px; }
+  h1 { font-family: var(--ff-display); font-weight: 600; font-size: 20px; margin: 0; color: var(--c-text); letter-spacing: 0.02em; }
+  .sub { color: var(--c-text-dim); font-size: 12px; margin-top: 4px; }
+  .lbl { font-family: var(--ff-display); font-weight: 600; font-size: 11px; letter-spacing: var(--ls-loose); text-transform: uppercase; color: var(--c-primary); display: flex; align-items: center; gap: 8px; }
+  .lbl::before { content: ''; width: 5px; height: 5px; background: var(--c-primary); box-shadow: var(--glow-cyan-sm); transform: rotate(45deg); }
+  .frame {
+    border: 1px solid var(--c-border-faint);
+    border-radius: var(--r-m);
+    overflow: hidden;
+    background: var(--c-bg-base);
+  }
+  .info { font-size: 11px; color: var(--c-text-dim); padding: 0 4px; }
+</style>
+</head>
+<body>
+<div id="root"></div>
+<script type="text/babel" data-presets="env,react">
+  const { BattleHudBottom } = window.TowerLikeGame_28197d;
+
+  function Page() {
+    const [active, setActive] = React.useState('laser');
+    const [speedIdx, setSpeedIdx] = React.useState(0);
+    const speeds = ['1x', '2x', '3x', '5x'];
+    const [paused, setPaused] = React.useState(false);
+    const [auto, setAuto] = React.useState(false);
+
+    const weapons = [
+      { kind: 'laser',   ready: true,  cdProgress: 100 },
+      { kind: 'cannon',  ready: false, cdProgress: 45 },
+      { kind: 'thunder', ready: true,  cdProgress: 100 },
+      { kind: 'cutter',  ready: false, cdProgress: 72 },
+    ];
+
+    return (
+      <div className="page">
+        <header>
+          <h1>BATTLE HUD BOTTOM</h1>
+          <div className="sub">親指可動域に集約。2 行: 武器+Active / 制御。</div>
+        </header>
+
+        <div className="lbl">標準 (interactive)</div>
+        <div className="frame">
+          <BattleHudBottom
+            screws={4280}
+            weapons={weapons}
+            activeWeapon={active}
+            activeSkill={{ ready: true, cdProgress: 100, weaponKind: active }}
+            speed={speeds[speedIdx]}
+            autoActive={auto}
+            paused={paused}
+            onWeaponSelect={setActive}
+            onToggleAutoActive={() => setAuto(a => !a)}
+            onSpeedToggle={() => setSpeedIdx((i) => (i + 1) % speeds.length)}
+            onPauseToggle={() => setPaused(p => !p)}
+          />
+        </div>
+        <div className="info">active: {active} · speed: {speeds[speedIdx]} · paused: {String(paused)}</div>
+
+        <div className="lbl">アクティブ CD 中 (発動不可)</div>
+        <div className="frame">
+          <BattleHudBottom
+            screws={1234567}
+            weapons={weapons}
+            activeWeapon="cannon"
+            activeSkill={{ ready: false, cdProgress: 38, weaponKind: 'cannon' }}
+            speed="2x"
+          />
+        </div>
+
+        <div className="lbl">武器切替 CD 中 (全 dim)</div>
+        <div className="frame">
+          <BattleHudBottom
+            screws={4280}
+            weapons={[
+              { kind: 'laser',   ready: true,  cdProgress: 100 },
+              { kind: 'cannon',  ready: true,  cdProgress: 100 },
+              { kind: 'thunder', ready: true,  cdProgress: 100 },
+              { kind: 'cutter',  ready: true,  cdProgress: 100 },
+            ]}
+            activeWeapon="cutter"
+            swapDisabled
+            activeSkill={{ ready: true, cdProgress: 100, weaponKind: 'cutter' }}
+            speed="1x"
+          />
+        </div>
+
+        <div className="lbl">アクティブ 自動 ON</div>
+        <div className="frame">
+          <BattleHudBottom
+            screws={120}
+            weapons={weapons}
+            activeWeapon="thunder"
+            activeSkill={{ ready: true, cdProgress: 100, weaponKind: 'thunder' }}
+            speed="5x"
+            autoActive
+          />
+        </div>
+
+        <div className="lbl">一時停止中</div>
+        <div className="frame">
+          <BattleHudBottom
+            screws={4280}
+            weapons={weapons}
+            activeWeapon="laser"
+            activeSkill={{ ready: true, cdProgress: 100, weaponKind: 'laser' }}
+            speed="3x"
+            paused
+          />
+        </div>
+      </div>
+    );
+  }
+
+  ReactDOM.createRoot(document.getElementById('root')).render(<Page />);
+</script>
+</body>
+</html>

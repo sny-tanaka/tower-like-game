@@ -1,0 +1,33 @@
+<!-- @dsCard group="Organisms" viewport="412x1400" name="WeaponDetailsTab" subtitle="4 武器を wide layout で縦並び表示" -->
+<!DOCTYPE html>
+<html lang="ja"><head><meta charset="UTF-8" /><title>Organism — WeaponDetailsTab</title>
+<link rel="stylesheet" href="../../styles.css" />
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+<script src="../../_ds_bundle.js"></script>
+<style>
+  body { padding: 16px; background: var(--c-bg-deep); min-height: 100vh; margin: 0; }
+  .page { max-width: 412px; margin: 0 auto; display: grid; gap: 14px; }
+  h1 { font-family: var(--ff-display); font-weight: 600; font-size: 20px; margin: 0; color: var(--c-text); letter-spacing: 0.02em; }
+  .sub { color: var(--c-text-dim); font-size: 12px; margin-top: 4px; }
+</style></head>
+<body><div id="root"></div>
+<script type="text/babel" data-presets="env,react">
+  const { WeaponDetailsTab } = window.TowerLikeGame_28197d;
+  const weapons = [
+    { kind: 'laser',   name: 'LASER',   description: '高速直進ビーム。貫通でき、連発で削り続ける。', stats: [{label:'DMG',value:120,accent:'primary'},{label:'貫通',value:3},{label:'射程',value:580,suffix:'m'},{label:'連射',value:6.2,suffix:'/s'}] },
+    { kind: 'cannon',  name: 'CANNON',  description: '範囲爆発で群れを薙ぐ重火力。',                  stats: [{label:'DMG',value:480,accent:'primary'},{label:'半径',value:120,suffix:'m'},{label:'射程',value:520,suffix:'m'},{label:'連射',value:0.9,suffix:'/s'}] },
+    { kind: 'thunder', name: 'THUNDER', description: '隣接敵に連鎖する電撃。シールドに有効。',        stats: [{label:'DMG',value:84,accent:'primary'},{label:'連鎖',value:5},{label:'射程',value:420,suffix:'m'},{label:'連射',value:3.4,suffix:'/s'}] },
+    { kind: 'cutter',  name: 'CUTTER',  description: 'マシン周囲を旋回する斬撃。',                    stats: [{label:'DMG',value:62,accent:'primary'},{label:'旋回',value:180,suffix:'m'},{label:'同時',value:4},{label:'連射',value:8.0,suffix:'/s'}] },
+  ];
+  function Page() {
+    return (
+      <div className="page">
+        <header><h1>WEAPON DETAILS TAB</h1><div className="sub">情報量が少ないのでタブ分けず、4 武器を縦並びで全表示。</div></header>
+        <WeaponDetailsTab weapons={weapons} />
+      </div>
+    );
+  }
+  ReactDOM.createRoot(document.getElementById('root')).render(<Page />);
+</script></body></html>

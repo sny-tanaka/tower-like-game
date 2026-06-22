@@ -134,4 +134,74 @@ describe('CircularProgress', () => {
       );
     }).not.toThrow();
   });
+
+  it.each([
+    ['xs', 20],
+    ['sm', 32],
+    ['md', 48],
+    ['lg', 64],
+  ] as const)('size="%s" のとき width/height が %ipx になる', (sizeName, expectedPx) => {
+    const { container } = render(
+      <CircularProgress
+        value={50}
+        max={100}
+        size={sizeName}
+      />
+    );
+    const svg = container.querySelector('svg')!;
+    expect(svg.getAttribute('width')).toBe(String(expectedPx));
+    expect(svg.getAttribute('height')).toBe(String(expectedPx));
+  });
+
+  it('背景トラック（1 つ目の circle）が描画される', () => {
+    const { container } = render(
+      <CircularProgress
+        value={50}
+        max={100}
+      />
+    );
+    const circles = container.querySelectorAll('circle');
+    // [0]: 背景トラック / [1]: 進捗アーク
+    expect(circles.length).toBe(2);
+    expect(circles[0]?.getAttribute('fill')).toBe('none');
+  });
+
+  it('withLabel=true のとき中央にラベルが表示される', () => {
+    const { container } = render(
+      <CircularProgress
+        value={42}
+        max={100}
+        withLabel
+      />
+    );
+    expect(container.textContent).toContain('42%');
+  });
+
+  it('children が渡されると label より優先して表示される', () => {
+    const { getByText } = render(
+      <CircularProgress
+        value={42}
+        max={100}
+        showLabel
+      >
+        <span>X</span>
+      </CircularProgress>
+    );
+    expect(getByText('X')).toBeTruthy();
+  });
+
+  it.each(['hp', 'cd', 'wave', 'primary', 'warning'] as const)(
+    'color=%s は arc の stroke にトークン変数を反映する',
+    (color) => {
+      const { container } = render(
+        <CircularProgress
+          value={50}
+          max={100}
+          color={color}
+        />
+      );
+      const arc = container.querySelectorAll('circle')[1] as SVGCircleElement;
+      expect(arc.getAttribute('stroke')).toBe(`var(--c-${color})`);
+    }
+  );
 });

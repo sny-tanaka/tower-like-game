@@ -246,6 +246,220 @@ export const WithBlur: Story = {
   ),
 };
 
+// --- Showcase: claude design ref 同等の網羅性 ---
+// fullscreen=false + container 内に配置するヘルパで複数セルを並べる
+function OverlayCell({
+  label,
+  children,
+  bg = 'var(--c-bg-base)',
+}: {
+  label: string;
+  children: React.ReactNode;
+  bg?: string;
+}) {
+  return (
+    <div
+      style={{
+        display: 'flex',
+        flexDirection: 'column',
+        gap: '6px',
+      }}
+    >
+      <div
+        style={{
+          color: 'var(--c-text-dim)',
+          fontSize: '11px',
+          fontFamily: 'monospace',
+        }}
+      >
+        {label}
+      </div>
+      <div
+        style={{
+          position: 'relative',
+          width: '220px',
+          height: '140px',
+          background: bg,
+          borderRadius: 'var(--r-m)',
+          overflow: 'hidden',
+          border: '1px solid var(--c-border)',
+        }}
+      >
+        {/* 背景に見える coverage 用ダミーコンテンツ */}
+        <div
+          style={{
+            padding: '12px',
+            color: 'var(--c-text-mid)',
+            fontFamily: 'var(--ff-body)',
+            fontSize: '11px',
+            lineHeight: 1.4,
+          }}
+        >
+          Background content
+          <div style={{ marginTop: '4px', color: 'var(--c-primary)' }}>Lorem ipsum dolor sit</div>
+          <div style={{ color: 'var(--c-secondary)' }}>amet consectetur</div>
+        </div>
+        {children}
+      </div>
+    </div>
+  );
+}
+
+function ShowcasePill({ label }: { label: string }) {
+  return (
+    <div
+      style={{
+        background: 'var(--c-bg-elev)',
+        border: '1px solid var(--c-primary)',
+        borderRadius: 'var(--r-m)',
+        padding: '8px 12px',
+        color: 'var(--c-primary)',
+        fontFamily: 'var(--ff-display)',
+        fontSize: '11px',
+        letterSpacing: '0.08em',
+        textTransform: 'uppercase',
+      }}
+    >
+      {label}
+    </div>
+  );
+}
+
+function DismissibleCell({ dismissible }: { dismissible: boolean }) {
+  const [open, setOpen] = useState(true);
+  return (
+    <OverlayCell label={`dismissible=${dismissible}`}>
+      {open ? (
+        <Overlay
+          fullscreen={false}
+          dismissible={dismissible}
+          onClose={() => setOpen(false)}
+          dimLevel="normal"
+        >
+          <ShowcasePill label={dismissible ? 'click bg → close' : 'bg click ignored'} />
+        </Overlay>
+      ) : (
+        <button
+          onClick={() => setOpen(true)}
+          style={{
+            position: 'absolute',
+            inset: 0,
+            background: 'transparent',
+            color: 'var(--c-primary)',
+            border: 'none',
+            fontFamily: 'var(--ff-body)',
+            cursor: 'pointer',
+          }}
+        >
+          reopen
+        </button>
+      )}
+    </OverlayCell>
+  );
+}
+
+export const Showcase: Story = {
+  render: () => {
+    const sectionTitle: React.CSSProperties = {
+      color: 'var(--c-primary)',
+      fontFamily: 'var(--ff-display)',
+      fontSize: '12px',
+      letterSpacing: '0.08em',
+      textTransform: 'uppercase',
+      marginTop: '12px',
+      marginBottom: '8px',
+    };
+
+    const grid: React.CSSProperties = {
+      display: 'flex',
+      flexWrap: 'wrap',
+      gap: '16px',
+    };
+
+    const dimLevels = ['soft', 'normal', 'heavy'] as const;
+    const blurs = [0, 2, 4, 8];
+    const aligns = ['center', 'top', 'bottom'] as const;
+
+    return (
+      <div
+        style={{
+          background: 'var(--c-bg-deep)',
+          padding: '20px',
+          minWidth: '760px',
+          display: 'flex',
+          flexDirection: 'column',
+        }}
+      >
+        {/* --- dimLevel × 3 --- */}
+        <div style={sectionTitle}>dimLevel (soft / normal / heavy)</div>
+        <div style={grid}>
+          {dimLevels.map((dim) => (
+            <OverlayCell
+              key={dim}
+              label={`dimLevel=${dim}`}
+            >
+              <Overlay
+                fullscreen={false}
+                dismissible={false}
+                dimLevel={dim}
+              >
+                <ShowcasePill label={dim} />
+              </Overlay>
+            </OverlayCell>
+          ))}
+        </div>
+
+        {/* --- blur × 4 --- */}
+        <div style={sectionTitle}>blur (0 / 2 / 4 / 8 px)</div>
+        <div style={grid}>
+          {blurs.map((b) => (
+            <OverlayCell
+              key={b}
+              label={`blur=${b}px`}
+            >
+              <Overlay
+                fullscreen={false}
+                dismissible={false}
+                dimLevel="soft"
+                blur={b}
+              >
+                <ShowcasePill label={`blur ${b}`} />
+              </Overlay>
+            </OverlayCell>
+          ))}
+        </div>
+
+        {/* --- align × 3 --- */}
+        <div style={sectionTitle}>align (center / top / bottom)</div>
+        <div style={grid}>
+          {aligns.map((a) => (
+            <OverlayCell
+              key={a}
+              label={`align=${a}`}
+            >
+              <Overlay
+                fullscreen={false}
+                dismissible={false}
+                dimLevel="normal"
+                align={a}
+              >
+                <ShowcasePill label={a} />
+              </Overlay>
+            </OverlayCell>
+          ))}
+        </div>
+
+        {/* --- dismissible × 2 (interactive) --- */}
+        <div style={sectionTitle}>dismissible (interactive)</div>
+        <div style={grid}>
+          <DismissibleCell dismissible />
+          <DismissibleCell dismissible={false} />
+        </div>
+      </div>
+    );
+  },
+};
+
 export const AlignTop: Story = {
   name: 'align: top（Toast 想定）',
   render: () => (

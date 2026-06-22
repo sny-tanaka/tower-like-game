@@ -19,6 +19,7 @@ export type IconName =
   | 'skull'
   | 'spark'
   | 'target'
+  | 'triangle'
   | 'play'
   | 'pause'
   | 'chevron-left'
@@ -145,14 +146,33 @@ export function Icon({ name, size = 16, color = 'currentColor', className }: Ico
       );
 
     case 'settings':
+      // gear-min: 八角形 + 中央円 で歯車を簡略表現（design ref: gear-min）
       return (
         <svg {...svgProps}>
+          <polygon
+            points="12,3 16,5 19,8 21,12 19,16 16,19 12,21 8,19 5,16 3,12 5,8 8,5"
+            fill={color}
+            fillOpacity="0.15"
+            stroke={color}
+          />
           <circle
             cx="12"
             cy="12"
-            r="3"
+            r="3.2"
           />
-          <path d="M12 3v2M12 19v2M3 12h2M19 12h2M5.6 5.6l1.4 1.4M16.9 16.9l1.5 1.5M5.6 18.4l1.4-1.4M16.9 7.1l1.5-1.5" />
+        </svg>
+      );
+
+    case 'triangle':
+      // 上向きの正三角形（LaunchButton 等で利用）
+      return (
+        <svg {...svgProps}>
+          <polygon
+            points="12,4 20,20 4,20"
+            fill={color}
+            stroke={color}
+            strokeLinejoin="round"
+          />
         </svg>
       );
 

@@ -16,6 +16,7 @@ export default tseslint.config(
       'coverage/',
       'storybook-static/',
       '.claude/worktrees/**',
+      'design-docs/claude-design/**',
     ],
   },
   js.configs.recommended,

@@ -1,0 +1,70 @@
+<!-- @dsCard group="Molecules" viewport="412x900" name="Toast" subtitle="info / success / warning / error + optional action" -->
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8" />
+<title>Molecule — Toast</title>
+<link rel="stylesheet" href="../../styles.css" />
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+<script src="../../_ds_bundle.js"></script>
+<style>
+  body { padding: 16px; background: var(--c-bg-deep); min-height: 100vh; }
+  .page { max-width: 412px; margin: 0 auto; display: grid; gap: 16px; }
+  h1 { font-family: var(--ff-display); font-weight: 600; font-size: 20px; margin: 0; color: var(--c-text); letter-spacing: 0.02em; }
+  .sub { color: var(--c-text-dim); font-size: 12px; margin-top: 4px; }
+  section { background: var(--c-bg-elev); border: 1px solid var(--c-border-faint); border-radius: var(--r-m); padding: 14px; }
+  h2 { font-family: var(--ff-display); font-weight: 600; font-size: 11px; letter-spacing: var(--ls-loose); text-transform: uppercase; color: var(--c-primary); margin: 0 0 12px; display: flex; align-items: center; gap: 8px; }
+  h2::before { content: ''; width: 5px; height: 5px; background: var(--c-primary); box-shadow: var(--glow-cyan-sm); transform: rotate(45deg); }
+  .stack { display: grid; gap: 10px; justify-items: start; }
+</style>
+</head>
+<body>
+<div id="root"></div>
+<script type="text/babel" data-presets="env,react">
+  const { Toast } = window.TowerLikeGame_28197d;
+
+  function Page() {
+    return (
+      <div className="page">
+        <header>
+          <h1>TOAST</h1>
+          <div className="sub">画面端からスライドイン（ToastSlideFx が動きを担当）。自己消滅タイマーは親側。</div>
+        </header>
+
+        <section>
+          <h2>kind</h2>
+          <div className="stack">
+            <Toast kind="info"    message="マシン強化を購入しました" />
+            <Toast kind="success" message="Tier 7 をクリア！ ボルト +120" />
+            <Toast kind="warning" message="HP が 25% を切りました" />
+            <Toast kind="error"   message="ロード失敗。データ整合性チェック中…" />
+          </div>
+        </section>
+
+        <section>
+          <h2>action 付き</h2>
+          <div className="stack">
+            <Toast kind="success" message="パッチを合成しました" action={{ label: 'UNDO' }} />
+            <Toast kind="warning" message="自動戦闘がオフです" action={{ label: 'ON にする' }} />
+            <Toast kind="info"    message="新しい武器が解放されました" action={{ label: '見る' }} />
+          </div>
+        </section>
+
+        <section>
+          <h2>icon 上書き</h2>
+          <div className="stack">
+            <Toast kind="info" iconName="bolt"  message="ボルトを +12 獲得" />
+            <Toast kind="info" iconName="alloy" message="超合金を +2 獲得" />
+            <Toast kind="info" iconName="spark" message="パッチがドロップ！" />
+          </div>
+        </section>
+      </div>
+    );
+  }
+
+  ReactDOM.createRoot(document.getElementById('root')).render(<Page />);
+</script>
+</body>
+</html>

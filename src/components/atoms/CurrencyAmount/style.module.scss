@@ -58,3 +58,23 @@
   letter-spacing: var(--ls-num);
   margin-left: var(--sp-xxs);
 }
+
+/* ranked: 兵装ランクのスタンプ */
+.rankStamp {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 4px;
+  margin-left: var(--sp-xxs);
+  border: 1px solid var(--c-border-hi, var(--c-border));
+  border-radius: 4px;
+  font-family: var(--ff-numeric);
+  font-size: var(--fs-label);
+  font-weight: var(--fw-semibold);
+  letter-spacing: var(--ls-num);
+  color: var(--c-text);
+  background: var(--c-surface);
+  line-height: 1;
+}

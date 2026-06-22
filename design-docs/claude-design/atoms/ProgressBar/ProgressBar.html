@@ -1,0 +1,91 @@
+<!-- @dsCard group="Atoms" viewport="720x900" name="ProgressBar" subtitle="HP / CD / Wave / Shield × solid / neon × sm / md / lg" -->
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8" />
+<title>Atom — ProgressBar</title>
+<link rel="stylesheet" href="../../styles.css" />
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+<script src="../../_ds_bundle.js"></script>
+<style>
+  body { padding: 32px; background: var(--c-bg-deep); min-height: 100vh; }
+  .page { max-width: 660px; margin: 0 auto; display: grid; gap: 22px; }
+  h1 { font-family: var(--ff-display); font-weight: 600; font-size: 24px; margin: 0; color: var(--c-text); letter-spacing: 0.02em; }
+  .sub { color: var(--c-text-dim); font-size: 12px; margin-top: 4px; }
+  section { background: var(--c-bg-elev); border: 1px solid var(--c-border-faint); border-radius: var(--r-m); padding: 18px 20px; }
+  h2 { font-family: var(--ff-display); font-weight: 600; font-size: 12px; letter-spacing: var(--ls-loose); text-transform: uppercase; color: var(--c-primary); margin: 0 0 14px; display: flex; align-items: center; gap: 10px; }
+  h2::before { content: ''; width: 6px; height: 6px; background: var(--c-primary); box-shadow: var(--glow-cyan-sm); transform: rotate(45deg); }
+
+  .row {
+    display: grid; grid-template-columns: 110px 1fr 60px;
+    gap: 14px; padding: 10px 0; align-items: center;
+    border-top: 1px dashed var(--c-border-faint);
+  }
+  .row:first-of-type { border-top: 0; padding-top: 4px; }
+  .name {
+    font-family: var(--ff-display); font-weight: 600; font-size: 11px;
+    color: var(--c-text-mid); letter-spacing: var(--ls-loose); text-transform: uppercase;
+  }
+  .meta {
+    font-family: var(--ff-numeric); font-size: 10px; color: var(--c-text-dim);
+    text-align: right; letter-spacing: var(--ls-num);
+  }
+</style>
+</head>
+<body>
+<div id="root"></div>
+<script type="text/babel" data-presets="env,react">
+  const { ProgressBar, NumericDisplay } = window.TowerLikeGame_28197d;
+
+  function Page() {
+    return (
+      <div className="page">
+        <header>
+          <h1>PROGRESS BAR</h1>
+          <div className="sub">color プリセットで HP / CD / Wave / Shield / XP を区別。アニメは width transition のみ。</div>
+        </header>
+
+        <section>
+          <h2>color / variant</h2>
+          <div className="row"><div className="name">HP · solid</div><ProgressBar value={78} color="hp" variant="solid" /><div className="meta">78 / 100</div></div>
+          <div className="row"><div className="name">HP · low</div><ProgressBar value={22} color="hp" variant="solid" /><div className="meta">22 / 100</div></div>
+          <div className="row"><div className="name">Shield</div><ProgressBar value={50} color="shield" variant="solid" /><div className="meta">50 / 100</div></div>
+          <div className="row"><div className="name">CD · neon</div><ProgressBar value={64} color="cd" variant="neon" /><div className="meta">CD 64%</div></div>
+          <div className="row"><div className="name">Wave · neon</div><ProgressBar value={88} color="wave" variant="neon" /><div className="meta">残量</div></div>
+          <div className="row"><div className="name">XP</div><ProgressBar value={45} color="xp" variant="solid" /><div className="meta">Lv4 →</div></div>
+        </section>
+
+        <section>
+          <h2>size scale</h2>
+          <div className="row"><div className="name">sm 4</div><ProgressBar value={70} color="hp" size="sm" /><div className="meta">敵 HP</div></div>
+          <div className="row"><div className="name">md 8</div><ProgressBar value={70} color="hp" size="md" /><div className="meta">汎用</div></div>
+          <div className="row"><div className="name">lg 12</div><ProgressBar value={70} color="hp" size="lg" showLabel label="7,847 / 11,209" /><div className="meta">マシン HP</div></div>
+        </section>
+
+        <section>
+          <h2>HP with label (lg)</h2>
+          <div style={{ display: 'grid', gap: 12 }}>
+            <ProgressBar value={92} color="hp" size="lg" showLabel label="9,200 / 10,000" />
+            <ProgressBar value={48} color="hp" size="lg" showLabel label="4,800 / 10,000" />
+            <ProgressBar value={18} color="hp" size="lg" showLabel label="1,800 / 10,000" />
+          </div>
+        </section>
+
+        <section>
+          <h2>Wave bar · reverse (残量)</h2>
+          <div style={{ display: 'grid', gap: 12 }}>
+            <ProgressBar value={92} color="wave" variant="neon" size="md" reverse />
+            <ProgressBar value={48} color="wave" variant="neon" size="md" reverse />
+            <ProgressBar value={12} color="wave" variant="neon" size="md" reverse />
+          </div>
+        </section>
+      </div>
+    );
+  }
+
+  ReactDOM.createRoot(document.getElementById('root')).render(<Page />);
+</script>
+</body>
+</html>

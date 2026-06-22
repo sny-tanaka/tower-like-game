@@ -1,0 +1,25 @@
+<!-- @dsCard group="Fx" viewport="412x500" name="EnemyHitFx" subtitle="敵被弾時の小フラッシュ" -->
+<!DOCTYPE html>
+<html lang="ja"><head><meta charset="UTF-8" />
+<link rel="stylesheet" href="../../styles.css" />
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+<script src="../../_ds_bundle.js"></script>
+<style>body{margin:0;background:var(--c-bg-deep);padding:16px;font-family:var(--ff-body);color:var(--c-text)}.page{max-width:412px;margin:0 auto}h1{font-family:var(--ff-display);font-size:18px;margin:0}.sub{color:var(--c-text-dim);font-size:12px;margin:2px 0 14px}.stage{position:relative;height:240px;background:radial-gradient(ellipse at center,rgba(78,228,246,0.045),transparent 60%),repeating-linear-gradient(0deg,rgba(78,228,246,0.04) 0 1px,transparent 1px 24px),repeating-linear-gradient(90deg,rgba(78,228,246,0.04) 0 1px,transparent 1px 24px),var(--c-bg-base);border:1px solid var(--c-border-faint);border-radius:8px;overflow:hidden}.btn{font-family:var(--ff-display);font-size:11px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;background:var(--c-bg-elev);border:1px solid var(--c-primary);color:var(--c-primary);padding:6px 12px;border-radius:4px;cursor:pointer;margin-top:10px}</style>
+</head><body><div id="root"></div>
+<script type="text/babel" data-presets="env,react">
+  const { EnemyHitFx } = window.TowerLikeGame_28197d;
+  function Page() {
+    const [k, setK] = React.useState(0);
+    return (
+      <div className="page">
+        <h1>E N E M Y H I T F X</h1>
+        <div className="sub">敵被弾時の小フラッシュ</div>
+        <div className="stage"><EnemyHitFx key={k} x={50} y={50} onDone={() => {}} /></div>
+        <button className="btn" onClick={() => setK(k + 1)}>発火</button>
+      </div>
+    );
+  }
+  ReactDOM.createRoot(document.getElementById('root')).render(<Page />);
+</script></body></html>

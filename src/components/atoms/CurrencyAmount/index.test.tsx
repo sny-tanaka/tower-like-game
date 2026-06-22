@@ -45,7 +45,7 @@ describe('CurrencyAmount', () => {
     const el = container.querySelector('[role="img"]')!;
     const label = el.getAttribute('aria-label') ?? '';
     expect(label).toContain('screw');
-    // 1234 は toDisplay() で "1.23A" に変換される
+    // 1234 は toDisplay() で "1.23A" に変換される (小数 2 桁固定)
     expect(label).toContain('1.23A');
   });
 
@@ -112,5 +112,74 @@ describe('CurrencyAmount', () => {
       );
       expect(container.querySelector('[role="img"]')).toBeTruthy();
     });
+  });
+
+  it('ranked="S" のときスタンプ "S" がレンダリングされる', () => {
+    const { container } = render(
+      <CurrencyAmount
+        currency="bolt"
+        value={1000}
+        ranked="S"
+      />
+    );
+    const stamp = container.querySelector('[data-rank]');
+    expect(stamp).toBeTruthy();
+    expect(stamp?.getAttribute('data-rank')).toBe('S');
+    expect(stamp?.textContent).toBe('S');
+  });
+
+  it('ranked が未指定のときスタンプは描画されない', () => {
+    const { container } = render(
+      <CurrencyAmount
+        currency="bolt"
+        value={1000}
+      />
+    );
+    expect(container.querySelector('[data-rank]')).toBeNull();
+  });
+
+  it('ranked="" 空文字のときスタンプは描画されない', () => {
+    const { container } = render(
+      <CurrencyAmount
+        currency="bolt"
+        value={1000}
+        ranked=""
+      />
+    );
+    expect(container.querySelector('[data-rank]')).toBeNull();
+  });
+
+  it('showLabel=true のとき通貨ラベルが描画される', () => {
+    const { container } = render(
+      <CurrencyAmount
+        currency="alloy"
+        value={1}
+        showLabel
+      />
+    );
+    expect(container.textContent).toContain('alloy');
+  });
+
+  it('subtle=true のとき root に subtle クラスが付く', () => {
+    const { container } = render(
+      <CurrencyAmount
+        currency="screw"
+        value={1}
+        subtle
+      />
+    );
+    const root = container.querySelector('[role="img"]');
+    expect(root?.className).toMatch(/subtle/);
+  });
+
+  it('align="end" でも role="img" が描画される', () => {
+    const { container } = render(
+      <CurrencyAmount
+        currency="bolt"
+        value={1}
+        align="end"
+      />
+    );
+    expect(container.querySelector('[role="img"]')).toBeTruthy();
   });
 });

@@ -24,6 +24,12 @@ export interface CurrencyAmountProps {
   subtle?: boolean;
   /** アイコン + 数値の並び順。"start"（デフォルト）= アイコン先行、"end" = 数値先行 */
   align?: 'start' | 'end';
+  /**
+   * 兵装ランクのスタンプを末尾に表示。
+   * 例: "S" / "A" / "B" / "C" / 任意文字列。
+   * 未指定 (undefined) なら描画しない。
+   */
+  ranked?: string;
 }
 
 // ---------------------------------------------------------------------------
@@ -90,6 +96,7 @@ export function CurrencyAmount({
   showLabel,
   subtle,
   align = 'start',
+  ranked,
 }: CurrencyAmountProps) {
   const bn: BigNum = typeof value === 'number' ? BigNum.fromNumber(value) : value;
 
@@ -158,6 +165,15 @@ export function CurrencyAmount({
           aria-hidden="true"
         >
           {config.label}
+        </span>
+      )}
+      {ranked !== undefined && ranked !== '' && (
+        <span
+          className={styles.rankStamp}
+          data-rank={ranked}
+          aria-label={`rank ${ranked}`}
+        >
+          {ranked}
         </span>
       )}
     </span>

@@ -8,6 +8,19 @@ import styles from './style.module.scss';
 
 export type CircularProgressColor = 'hp' | 'cd' | 'wave' | 'primary' | 'warning';
 
+/** 4 段の名前付きサイズ。数値直指定も併用可能。 */
+export type CircularProgressSizeName = 'xs' | 'sm' | 'md' | 'lg';
+
+export type CircularProgressSize = number | CircularProgressSizeName;
+
+/** 名前付き size → px のマップ */
+const SIZE_PX_MAP: Record<CircularProgressSizeName, number> = {
+  xs: 20,
+  sm: 32,
+  md: 48,
+  lg: 64,
+};
+
 export interface CircularProgressProps {
   /**
    * 進捗値。
@@ -17,11 +30,21 @@ export interface CircularProgressProps {
   value: number;
   /** 絶対値モード用の最大値。省略時は value を 0-100 のパーセントとして扱う。 */
   max?: number;
-  size?: number;
+  /**
+   * 径。数値 px もしくは 'xs' / 'sm' / 'md' / 'lg'。
+   * - 'xs' = 20, 'sm' = 32, 'md' = 48, 'lg' = 64
+   */
+  size?: CircularProgressSize;
   color?: CircularProgressColor;
   thickness?: number;
   glow?: boolean;
+  /** 中央にラベル文字を表示するか。`children` が渡された場合は children が優先される。 */
   showLabel?: boolean;
+  /**
+   * `showLabel` のエイリアス。design ref に合わせて追加。
+   * 互換のため両方残し、どちらか true なら表示する。
+   */
+  withLabel?: boolean;
   /** showLabel=true のときに表示する文字列。省略時は value% を表示。 */
   label?: string;
   /** 中央に表示する子要素（Icon等） */
@@ -60,9 +83,13 @@ export function CircularProgress({
   thickness = 3,
   glow = false,
   showLabel = false,
+  withLabel = false,
   label,
   children,
 }: CircularProgressProps) {
+  // 名前付き size → px に解決
+  const sizePx: number = typeof size === 'number' ? size : SIZE_PX_MAP[size];
+
   // max が指定されていれば絶対値モード（後方互換）、なければパーセントモード
   const ratio =
     max != null
@@ -77,12 +104,14 @@ export function CircularProgress({
   const glowStyle = glow ? GLOW_VAR[color] : undefined;
 
   // SVG 円弧の計算
-  const center = size / 2;
+  const center = sizePx / 2;
   const radius = center - thickness / 2;
   const circumference = 2 * Math.PI * radius;
   const dashOffset = circumference * (1 - ratio);
 
-  const hasCenter = showLabel || children != null;
+  // showLabel / withLabel どちらかが true なら中央ラベル領域を表示
+  const labelEnabled = showLabel || withLabel;
+  const hasCenter = labelEnabled || children != null;
 
   // showLabel のテキスト
   const labelText = label ?? `${Math.round(ratio * 100)}%`;
@@ -90,13 +119,13 @@ export function CircularProgress({
   return (
     <span
       className={styles.root}
-      style={{ width: size, height: size }}
+      style={{ width: sizePx, height: sizePx }}
     >
       <svg
         className={styles.svg}
-        width={size}
-        height={size}
-        viewBox={`0 0 ${size} ${size}`}
+        width={sizePx}
+        height={sizePx}
+        viewBox={`0 0 ${sizePx} ${sizePx}`}
         xmlns="http://www.w3.org/2000/svg"
         role="progressbar"
         aria-valuenow={ariaValueNow}
@@ -104,13 +133,13 @@ export function CircularProgress({
         aria-valuemax={ariaValueMax}
         aria-label={label ?? `${ariaValueNow} / ${ariaValueMax}`}
       >
-        {/* 背景トラック */}
+        {/* 背景トラック: 常時表示の薄いグレー（design ref より） */}
         <circle
+          className={styles.track}
           cx={center}
           cy={center}
           r={radius}
           fill="none"
-          stroke="var(--c-surface)"
           strokeWidth={thickness}
         />
         {/* 進捗アーク */}

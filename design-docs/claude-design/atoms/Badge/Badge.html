@@ -1,0 +1,103 @@
+<!-- @dsCard group="Atoms" viewport="720x900" name="Badge" subtitle="tier (T1-T10+) / patch-tier / elite / boss / info / success / warning / danger / neutral" -->
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8" />
+<title>Atom — Badge</title>
+<link rel="stylesheet" href="../../styles.css" />
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+<script src="../../_ds_bundle.js"></script>
+<style>
+  body { padding: 32px; background: var(--c-bg-deep); min-height: 100vh; }
+  .page { max-width: 660px; margin: 0 auto; display: grid; gap: 22px; }
+  h1 { font-family: var(--ff-display); font-weight: 600; font-size: 24px; margin: 0; color: var(--c-text); letter-spacing: 0.02em; }
+  .sub { color: var(--c-text-dim); font-size: 12px; margin-top: 4px; }
+  section { background: var(--c-bg-elev); border: 1px solid var(--c-border-faint); border-radius: var(--r-m); padding: 18px 20px; }
+  h2 { font-family: var(--ff-display); font-weight: 600; font-size: 12px; letter-spacing: var(--ls-loose); text-transform: uppercase; color: var(--c-primary); margin: 0 0 14px; display: flex; align-items: center; gap: 10px; }
+  h2::before { content: ''; width: 6px; height: 6px; background: var(--c-primary); box-shadow: var(--glow-cyan-sm); transform: rotate(45deg); }
+  .row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+  .row + .row { margin-top: 8px; }
+  .label-l { font-family: var(--ff-numeric); font-size: 10.5px; color: var(--c-text-dim); letter-spacing: var(--ls-num); width: 80px; flex: none; }
+  .group { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+</style>
+</head>
+<body>
+<div id="root"></div>
+<script type="text/babel" data-presets="env,react">
+  const { Badge, Icon } = window.TowerLikeGame_28197d;
+
+  function Page() {
+    const tiers = Array.from({ length: 12 }, (_, i) => i + 1);
+
+    return (
+      <div className="page">
+        <header>
+          <h1>BADGE</h1>
+          <div className="sub">Tier / Elite / Boss / セマンティック / Patch Tier — pill 角丸の小型タグ。</div>
+        </header>
+
+        <section>
+          <h2>Tier (T1 — T10+)</h2>
+          <div className="row">{tiers.map((t) => <Badge key={t} variant="tier" tier={t} />)}</div>
+          <div className="row" style={{ marginTop: 14 }}><Badge variant="tier" tier={5} size="sm" /><Badge variant="tier" tier={5} size="md" /><Badge variant="tier" tier={5} size="lg" /></div>
+          <div className="row" style={{ marginTop: 14 }}><Badge variant="tier" tier={7} glow /><Badge variant="tier" tier={10} glow /><Badge variant="tier" tier={12} glow /></div>
+        </section>
+
+        <section>
+          <h2>敵タイプ</h2>
+          <div className="row">
+            <Badge variant="elite" text="ELITE" />
+            <Badge variant="elite" text="ELITE" glow />
+            <Badge variant="boss" text="BOSS" />
+            <Badge variant="boss" text="BOSS" glow />
+            <Badge variant="boss" text="TIER 5 BOSS" />
+          </div>
+        </section>
+
+        <section>
+          <h2>Patch Tier (T1 — T5)</h2>
+          <div className="row">
+            <Badge variant="patch-tier" tier={1} />
+            <Badge variant="patch-tier" tier={2} />
+            <Badge variant="patch-tier" tier={3} />
+            <Badge variant="patch-tier" tier={4} />
+            <Badge variant="patch-tier" tier={5} />
+          </div>
+          <div className="row" style={{ marginTop: 14 }}>
+            <Badge variant="patch-tier" tier={1} glow />
+            <Badge variant="patch-tier" tier={2} glow />
+            <Badge variant="patch-tier" tier={3} glow />
+            <Badge variant="patch-tier" tier={4} glow />
+            <Badge variant="patch-tier" tier={5} glow />
+          </div>
+        </section>
+
+        <section>
+          <h2>Semantic</h2>
+          <div className="row">
+            <Badge variant="info" text="INFO" />
+            <Badge variant="success" text="UNLOCKED" />
+            <Badge variant="warning" text="LIMITED" />
+            <Badge variant="danger" text="LOCKED" />
+            <Badge variant="neutral" text="×42" />
+          </div>
+        </section>
+
+        <section>
+          <h2>icon + label</h2>
+          <div className="row">
+            <Badge variant="info" text="LASER" iconLeft={<Icon name="laser" size={11} />} />
+            <Badge variant="warning" text="OVERHEAT" iconLeft={<Icon name="flame" size={11} />} />
+            <Badge variant="danger" text="LOW HP" iconLeft={<Icon name="heart" size={11} />} />
+          </div>
+        </section>
+      </div>
+    );
+  }
+
+  ReactDOM.createRoot(document.getElementById('root')).render(<Page />);
+</script>
+</body>
+</html>

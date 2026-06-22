@@ -1,0 +1,77 @@
+<!-- @dsCard group="Organisms" viewport="412x900" name="AppShell" subtitle="default / battle × header + main + footer スロット" -->
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8" />
+<title>Organism — AppShell</title>
+<link rel="stylesheet" href="../../styles.css" />
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+<script src="../../_ds_bundle.js"></script>
+<style>
+  body { padding: 0; background: var(--c-bg-deep); min-height: 100vh; margin: 0; }
+  .label { font-family: var(--ff-display); font-weight: 600; font-size: 11px; letter-spacing: var(--ls-loose); text-transform: uppercase; color: var(--c-primary); padding: 14px 16px 0; }
+  .pair { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; padding: 16px; }
+  .frame {
+    border: 1px solid var(--c-border-faint);
+    border-radius: var(--r-m);
+    overflow: hidden;
+    background: var(--c-bg-deep);
+  }
+  .frame-label { font-family: var(--ff-numeric); font-size: 10px; color: var(--c-text-dim); text-align: center; padding: 6px; background: var(--c-bg-base); border-bottom: 1px solid var(--c-border-faint); letter-spacing: var(--ls-num); }
+  .placeholder-h { padding: 12px 16px; background: rgba(10,15,28,0.85); border-bottom: 1px solid var(--c-border-faint); color: var(--c-text); font-family: var(--ff-display); font-size: 14px; font-weight: 600; }
+  .placeholder-m { padding: 16px; color: var(--c-text-mid); font-size: 12px; line-height: 1.6; min-height: 320px; }
+  .placeholder-f { padding: 14px 16px; background: rgba(10,15,28,0.85); border-top: 1px solid var(--c-border-faint); color: var(--c-text-dim); font-size: 11px; text-align: center; font-family: var(--ff-numeric); }
+</style>
+</head>
+<body>
+<div id="root"></div>
+<script type="text/babel" data-presets="env,react">
+  const { AppShell, Text } = window.TowerLikeGame_28197d;
+
+  function Page() {
+    return (
+      <div>
+        <div className="label">DEFAULT (40px grid, soft glow)</div>
+        <div className="pair" style={{ gridTemplateColumns: '1fr' }}>
+          <div className="frame">
+            <div className="frame-label">header + main</div>
+            <AppShell
+              header={<div className="placeholder-h">マシン強化</div>}
+            >
+              <div className="placeholder-m">
+                スクロールメインエリア<br /><br />
+                ・UpgradeCard ×N<br />
+                ・MachineUpgradeTabs<br />
+                ・etc...
+              </div>
+            </AppShell>
+          </div>
+        </div>
+
+        <div className="label" style={{ marginTop: 8 }}>BATTLE (24px grid, denser pattern)</div>
+        <div className="pair" style={{ gridTemplateColumns: '1fr' }}>
+          <div className="frame">
+            <div className="frame-label">header + main + footer</div>
+            <AppShell
+              variant="battle"
+              noScroll
+              header={<div className="placeholder-h">バトル — Tier 5 / Wave 12</div>}
+              footer={<div className="placeholder-f">武器 ×4 / アクティブ / ネジ / メニュー</div>}
+            >
+              <div className="placeholder-m" style={{ minHeight: 240 }}>
+                BattleField (固定キャンバス)<br />
+                マシン + 敵 + 攻撃エフェクト
+              </div>
+            </AppShell>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  ReactDOM.createRoot(document.getElementById('root')).render(<Page />);
+</script>
+</body>
+</html>

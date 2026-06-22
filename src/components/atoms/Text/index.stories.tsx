@@ -242,3 +242,223 @@ export const AllColors: Story = {
     );
   },
 };
+
+// ---------------------------------------------------------------------------
+// Showcase — design ref と同等の網羅性
+// ---------------------------------------------------------------------------
+
+const SECTION_TITLE_STYLE = {
+  fontSize: 11,
+  fontWeight: 600,
+  color: 'var(--c-text-dim)',
+  letterSpacing: '0.08em',
+  textTransform: 'uppercase' as const,
+  marginBottom: 8,
+};
+
+const SECTION_STYLE = {
+  display: 'flex',
+  flexDirection: 'column' as const,
+  gap: 8,
+  padding: 16,
+  background: 'var(--c-bg-base)',
+  border: '1px solid var(--c-border-faint)',
+  borderRadius: 'var(--r-m)',
+};
+
+export const Showcase: Story = {
+  name: 'Showcase（network）',
+  parameters: {
+    layout: 'fullscreen',
+  },
+  render: () => {
+    const variants: TextVariant[] = [
+      'heading-1',
+      'heading-2',
+      'heading-3',
+      'body',
+      'caption',
+      'label',
+      'numeric-l',
+      'numeric-m',
+      'numeric-s',
+    ];
+    const colors: TextColor[] = [
+      'default',
+      'mid',
+      'dim',
+      'disabled',
+      'primary',
+      'secondary',
+      'danger',
+      'success',
+      'warning',
+    ];
+    return (
+      <div
+        style={{
+          background: 'var(--c-bg-deep)',
+          padding: 24,
+          display: 'flex',
+          flexDirection: 'column',
+          gap: 24,
+          minHeight: '100vh',
+        }}
+      >
+        {/* Variants */}
+        <section style={SECTION_STYLE}>
+          <div style={SECTION_TITLE_STYLE}>Variants</div>
+          {variants.map((v) => (
+            <div
+              key={v}
+              style={{ display: 'flex', alignItems: 'baseline', gap: 16 }}
+            >
+              <span
+                style={{
+                  fontSize: 10,
+                  color: 'var(--c-text-dim)',
+                  width: 80,
+                  flex: 'none',
+                  fontFamily: 'var(--ff-numeric)',
+                }}
+              >
+                {v}
+              </span>
+              <Text variant={v}>{v.startsWith('numeric') ? '1,234.56' : 'Tower Like Game'}</Text>
+            </div>
+          ))}
+        </section>
+
+        {/* Colors */}
+        <section style={SECTION_STYLE}>
+          <div style={SECTION_TITLE_STYLE}>Colors (9 種)</div>
+          {colors.map((c) => (
+            <div
+              key={c}
+              style={{ display: 'flex', alignItems: 'baseline', gap: 16 }}
+            >
+              <span
+                style={{
+                  fontSize: 10,
+                  color: 'var(--c-text-dim)',
+                  width: 80,
+                  flex: 'none',
+                  fontFamily: 'var(--ff-numeric)',
+                }}
+              >
+                {c}
+              </span>
+              <Text
+                variant="body"
+                color={c}
+              >
+                Neon Cyber Future — {c}
+              </Text>
+            </div>
+          ))}
+        </section>
+
+        {/* Align */}
+        <section style={SECTION_STYLE}>
+          <div style={SECTION_TITLE_STYLE}>Align</div>
+          <div style={{ display: 'grid', gap: 6, width: 320 }}>
+            <Text
+              variant="body"
+              align="left"
+            >
+              left — 左揃え (default)
+            </Text>
+            <Text
+              variant="body"
+              align="center"
+            >
+              center — 中央揃え
+            </Text>
+            <Text
+              variant="body"
+              align="right"
+            >
+              right — 右揃え
+            </Text>
+          </div>
+        </section>
+
+        {/* Truncate */}
+        <section style={SECTION_STYLE}>
+          <div style={SECTION_TITLE_STYLE}>Truncate</div>
+          <div
+            style={{
+              width: 240,
+              padding: 8,
+              background: 'var(--c-bg-deep)',
+              border: '1px solid var(--c-border-faint)',
+              borderRadius: 'var(--r-s)',
+            }}
+          >
+            <Text
+              variant="body"
+              truncate
+            >
+              このテキストは 1 行に収まりきらない長さで、末尾は省略される仕様です。
+            </Text>
+          </div>
+        </section>
+
+        {/* Label tracking */}
+        <section style={SECTION_STYLE}>
+          <div style={SECTION_TITLE_STYLE}>Label tracking (UPPER + letter-spacing)</div>
+          <Text
+            variant="label"
+            color="mid"
+          >
+            Attack Power
+          </Text>
+          <Text
+            variant="label"
+            color="primary"
+          >
+            Wave Cleared
+          </Text>
+          <Text
+            variant="label"
+            color="dim"
+          >
+            Tier · Rarity · Slot
+          </Text>
+        </section>
+
+        {/* Heading / Numeric font tokens */}
+        <section style={SECTION_STYLE}>
+          <div style={SECTION_TITLE_STYLE}>Heading font (ff-display)</div>
+          <Text variant="heading-1">Tower Defense</Text>
+          <Text variant="heading-2">Machine Upgrade</Text>
+          <Text variant="heading-3">Weapons Loadout</Text>
+        </section>
+
+        <section style={SECTION_STYLE}>
+          <div style={SECTION_TITLE_STYLE}>Numeric font (ff-numeric, tabular-nums)</div>
+          <div style={{ display: 'flex', gap: 16, alignItems: 'baseline' }}>
+            <Text
+              variant="numeric-l"
+              color="primary"
+            >
+              150.5B
+            </Text>
+            <Text
+              variant="numeric-m"
+              color="default"
+            >
+              12.3A
+            </Text>
+            <Text
+              variant="numeric-s"
+              color="secondary"
+            >
+              999
+            </Text>
+          </div>
+        </section>
+      </div>
+    );
+  },
+};

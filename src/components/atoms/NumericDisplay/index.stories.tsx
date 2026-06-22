@@ -152,6 +152,191 @@ export const AccentColors: Story = {
   ),
 };
 
+// --- Showcase: claude design ref 同等の網羅性 ---
+// 15 桁の scale セル (raw / A / B / ... / AA / AZ) + accent 7 色 + size 4 + prefix/suffix
+export const Showcase: Story = {
+  render: () => {
+    // 任意桁の BigNum を生成: digits[i] = 1000^i のブロック。
+    // 最上位 (index = i) に 1 を置けば 10^(3i) を表現できる。
+    // e.g. [0, 1] => 1000 = "1.00A", [0, 0, 1] => 10^6 = "1.00B"
+    const bnAtScale = (e: number): BigNum => {
+      if (e <= 0) return BigNum.fromNumber(0);
+      const digits = new Array<number>(e).fill(0);
+      digits.push(1);
+      return BigNum.fromJSON(digits);
+    };
+
+    // raw / A / B / ... / Y / Z / AA / AB / AY / AZ をカバー (15 セル)
+    const scaleCells: Array<{ label: string; value: BigNum | number }> = [
+      { label: 'raw 42', value: 42 },
+      { label: 'raw 987', value: 987 },
+      { label: 'A (1.00A)', value: bnAtScale(1) },
+      { label: 'B (1.00B)', value: bnAtScale(2) },
+      { label: 'C', value: bnAtScale(3) },
+      { label: 'E', value: bnAtScale(5) },
+      { label: 'H', value: bnAtScale(8) },
+      { label: 'K', value: bnAtScale(11) },
+      { label: 'O', value: bnAtScale(15) },
+      { label: 'S', value: bnAtScale(19) },
+      { label: 'Y', value: bnAtScale(25) },
+      { label: 'Z (purple)', value: bnAtScale(26) },
+      { label: 'AA (wrap)', value: bnAtScale(27) },
+      { label: 'AB', value: bnAtScale(28) },
+      { label: 'AZ', value: bnAtScale(52) },
+    ];
+
+    const accents: Array<{
+      key: 'scale' | 'primary' | 'secondary' | 'danger' | 'success' | 'warning' | 'dim';
+    }> = [
+      { key: 'scale' },
+      { key: 'primary' },
+      { key: 'secondary' },
+      { key: 'danger' },
+      { key: 'success' },
+      { key: 'warning' },
+      { key: 'dim' },
+    ];
+
+    const sizes: Array<'sm' | 'md' | 'lg' | 'xl'> = ['sm', 'md', 'lg', 'xl'];
+
+    const sectionTitle: React.CSSProperties = {
+      color: 'var(--c-primary)',
+      fontFamily: 'var(--ff-display)',
+      fontSize: '12px',
+      letterSpacing: '0.08em',
+      textTransform: 'uppercase',
+      marginTop: '12px',
+      marginBottom: '8px',
+    };
+
+    const labelStyle: React.CSSProperties = {
+      color: 'var(--c-text-dim)',
+      fontSize: '11px',
+      fontFamily: 'monospace',
+      minWidth: '120px',
+    };
+
+    const rowStyle: React.CSSProperties = {
+      display: 'flex',
+      alignItems: 'center',
+      gap: '16px',
+      padding: '4px 0',
+    };
+
+    return (
+      <div
+        style={{
+          background: 'var(--c-bg-deep)',
+          padding: '20px',
+          minWidth: '560px',
+          display: 'flex',
+          flexDirection: 'column',
+        }}
+      >
+        {/* --- Scale gradient (15 cells: raw → A → Z → AA → AZ) --- */}
+        <div style={sectionTitle}>Scale gradient (15 cells)</div>
+        {scaleCells.map(({ label, value }) => (
+          <div
+            key={label}
+            style={rowStyle}
+          >
+            <span style={labelStyle}>{label}</span>
+            <NumericDisplay
+              value={value}
+              size="lg"
+              accentColor="scale"
+              glow
+            />
+          </div>
+        ))}
+
+        {/* --- Accent colors (7 種) --- */}
+        <div style={sectionTitle}>Accent colors (7)</div>
+        {accents.map(({ key }) => (
+          <div
+            key={key}
+            style={rowStyle}
+          >
+            <span style={labelStyle}>{key}</span>
+            <NumericDisplay
+              value={BigNum.fromNumber(1_234_567)}
+              size="md"
+              accentColor={key}
+              glow
+            />
+            <NumericDisplay
+              value={BigNum.fromNumber(1_234_567)}
+              size="md"
+              accentColor={key}
+            />
+          </div>
+        ))}
+
+        {/* --- Sizes (sm / md / lg / xl) --- */}
+        <div style={sectionTitle}>Sizes (sm / md / lg / xl)</div>
+        {sizes.map((s) => (
+          <div
+            key={s}
+            style={rowStyle}
+          >
+            <span style={labelStyle}>{s}</span>
+            <NumericDisplay
+              value={BigNum.fromNumber(1_234_567)}
+              size={s}
+              accentColor="scale"
+              glow
+            />
+          </div>
+        ))}
+
+        {/* --- prefix / suffix --- */}
+        <div style={sectionTitle}>Prefix / Suffix</div>
+        <div style={rowStyle}>
+          <span style={labelStyle}>{'prefix "×"'}</span>
+          <NumericDisplay
+            value={BigNum.fromNumber(2_500)}
+            size="lg"
+            accentColor="primary"
+            glow
+            prefix="×"
+          />
+        </div>
+        <div style={rowStyle}>
+          <span style={labelStyle}>{'suffix " Wave"'}</span>
+          <NumericDisplay
+            value={42}
+            size="lg"
+            accentColor="success"
+            glow
+            suffix=" Wave"
+          />
+        </div>
+        <div style={rowStyle}>
+          <span style={labelStyle}>{'prefix "+" / suffix "%"'}</span>
+          <NumericDisplay
+            value={120}
+            size="lg"
+            accentColor="warning"
+            glow
+            prefix="+"
+            suffix="%"
+          />
+        </div>
+        <div style={rowStyle}>
+          <span style={labelStyle}>{'prefix "−"'}</span>
+          <NumericDisplay
+            value={BigNum.fromNumber(7_500)}
+            size="lg"
+            accentColor="danger"
+            glow
+            prefix="−"
+          />
+        </div>
+      </div>
+    );
+  },
+};
+
 // --- number を渡しても動作する ---
 
 export const NumberInput: Story = {

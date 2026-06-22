@@ -17,6 +17,7 @@ const ALL_ICON_NAMES: IconName[] = [
   'skull',
   'spark',
   'target',
+  'triangle',
   'play',
   'pause',
   'chevron-left',
@@ -94,5 +95,21 @@ describe('Icon', () => {
     const { container } = render(<Icon name="heart" />);
     const svg = container.querySelector('svg')!;
     expect(svg).toHaveAttribute('aria-hidden', 'true');
+  });
+
+  test('settings は歯車 (gear-min: 八角形 + 中央円) を描画する', () => {
+    const { container } = render(<Icon name="settings" />);
+    const svg = container.querySelector('svg')!;
+    // gear-min 八角形 polygon
+    expect(svg.querySelector('polygon')).not.toBeNull();
+    // 中央の歯車軸円
+    expect(svg.querySelector('circle')).not.toBeNull();
+  });
+
+  test('triangle は上向き三角の polygon を描画する', () => {
+    const { container } = render(<Icon name="triangle" />);
+    const polygon = container.querySelector('polygon');
+    expect(polygon).not.toBeNull();
+    expect(polygon?.getAttribute('points')).toBe('12,4 20,20 4,20');
   });
 });

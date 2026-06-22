@@ -1,0 +1,93 @@
+<!-- @dsCard group="Atoms" viewport="720x900" name="Text" subtitle="heading-1/-2/-3 · body · caption · label · numeric-l/-m/-s" -->
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8" />
+<title>Atom — Text</title>
+<link rel="stylesheet" href="../../styles.css" />
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+<script src="../../_ds_bundle.js"></script>
+<style>
+  body { padding: 32px; background: var(--c-bg-deep); min-height: 100vh; }
+  .page { max-width: 660px; margin: 0 auto; display: grid; gap: 22px; }
+  h1.t { font-family: var(--ff-display); font-weight: 600; font-size: 24px; margin: 0; color: var(--c-text); letter-spacing: 0.02em; }
+  .sub { color: var(--c-text-dim); font-size: 12px; margin-top: 4px; }
+  section { background: var(--c-bg-elev); border: 1px solid var(--c-border-faint); border-radius: var(--r-m); padding: 18px 20px; }
+  h2 { font-family: var(--ff-display); font-weight: 600; font-size: 12px; letter-spacing: var(--ls-loose); text-transform: uppercase; color: var(--c-primary); margin: 0 0 14px; display: flex; align-items: center; gap: 10px; }
+  h2::before { content: ''; width: 6px; height: 6px; background: var(--c-primary); box-shadow: var(--glow-cyan-sm); transform: rotate(45deg); }
+  .row { display: grid; grid-template-columns: 100px 1fr 150px; gap: 14px; padding: 12px 0; align-items: baseline; border-top: 1px dashed var(--c-border-faint); }
+  .row:first-of-type { border-top: 0; padding-top: 4px; }
+  .role { font-family: var(--ff-numeric); font-size: 10px; color: var(--c-text-dim); letter-spacing: var(--ls-num); }
+  .meta { font-family: var(--ff-numeric); font-size: 9.5px; color: var(--c-text-dim); text-align: right; letter-spacing: var(--ls-num); }
+</style>
+</head>
+<body>
+<div id="root"></div>
+<script type="text/babel" data-presets="env,react">
+  const { Text } = window.TowerLikeGame_28197d;
+
+  function Page() {
+    return (
+      <div className="page">
+        <header>
+          <h1 className="t">TEXT</h1>
+          <div className="sub">タイポトークンを呼び出すだけの薄いラッパ。色・整列・大文字化を props で。</div>
+        </header>
+
+        <section>
+          <h2>variant scale</h2>
+          <div className="row"><div className="role">heading-1</div><Text variant="heading-1">マシン強化</Text><div className="meta">Chakra Petch 600 · 28</div></div>
+          <div className="row"><div className="role">heading-2</div><Text variant="heading-2">防御カテゴリ</Text><div className="meta">Chakra Petch 600 · 22</div></div>
+          <div className="row"><div className="role">heading-3</div><Text variant="heading-3">最大 HP</Text><div className="meta">Chakra Petch 600 · 18</div></div>
+          <div className="row"><div className="role">body</div><Text variant="body">パッチは特殊なパッシブスキル。同 Tier 2 個合成で Tier UP し、Tier 上限は存在しない。</Text><div className="meta">Inter 400 · 14</div></div>
+          <div className="row"><div className="role">caption</div><Text variant="caption" color="mid">ラン終了時に全項目リセットされます。</Text><div className="meta">Inter 400 · 12</div></div>
+          <div className="row"><div className="role">label</div><Text variant="label" color="primary">CURRENT TIER</Text><div className="meta">Chakra Petch 500 · 11 +tracking</div></div>
+        </section>
+
+        <section>
+          <h2>numeric variants</h2>
+          <div className="row"><div className="role">numeric-l</div><Text variant="numeric-l" color="primary">1.23A</Text><div className="meta">JBM 600 · 28</div></div>
+          <div className="row"><div className="role">numeric-m</div><Text variant="numeric-m">×1.4</Text><div className="meta">JBM 600 · 18</div></div>
+          <div className="row"><div className="role">numeric-s</div><Text variant="numeric-s" color="mid">Lv 4 / 1,234</Text><div className="meta">JBM 500 · 13</div></div>
+        </section>
+
+        <section>
+          <h2>color tokens</h2>
+          <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap' }}>
+            <Text variant="heading-3" color="text">text</Text>
+            <Text variant="heading-3" color="mid">mid</Text>
+            <Text variant="heading-3" color="dim">dim</Text>
+            <Text variant="heading-3" color="disabled">disabled</Text>
+            <Text variant="heading-3" color="primary">primary</Text>
+            <Text variant="heading-3" color="secondary">secondary</Text>
+            <Text variant="heading-3" color="danger">danger</Text>
+            <Text variant="heading-3" color="success">success</Text>
+            <Text variant="heading-3" color="warning">warning</Text>
+          </div>
+        </section>
+
+        <section>
+          <h2>truncate</h2>
+          <div style={{ width: 280, background: 'var(--c-bg-base)', border: '1px solid var(--c-border-faint)', borderRadius: 'var(--r-s)', padding: 10 }}>
+            <Text variant="body" truncate>このテキストは 1 行に収まりきらない長さで、末尾は省略される仕様です。</Text>
+          </div>
+        </section>
+
+        <section>
+          <h2>align</h2>
+          <div style={{ display: 'grid', gap: 8 }}>
+            <Text variant="body" align="left">左揃え (default)</Text>
+            <Text variant="body" align="center">中央揃え</Text>
+            <Text variant="body" align="right">右揃え</Text>
+          </div>
+        </section>
+      </div>
+    );
+  }
+
+  ReactDOM.createRoot(document.getElementById('root')).render(<Page />);
+</script>
+</body>
+</html>

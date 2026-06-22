@@ -1,0 +1,110 @@
+<!-- @dsCard group="Organisms" viewport="412x900" name="RunWorkshopBottomSheet" subtitle="4 項目 UpgradeCard + ネジ残高 + 警告" -->
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8" />
+<title>Organism — RunWorkshopBottomSheet</title>
+<link rel="stylesheet" href="../../styles.css" />
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+<script src="../../_ds_bundle.js"></script>
+<style>
+  body { padding: 0; background: var(--c-bg-deep); min-height: 100vh; margin: 0; }
+  .page { max-width: 412px; margin: 0 auto; padding: 16px; display: grid; gap: 14px; }
+  h1 { font-family: var(--ff-display); font-weight: 600; font-size: 20px; margin: 0; color: var(--c-text); letter-spacing: 0.02em; }
+  .sub { color: var(--c-text-dim); font-size: 12px; margin-top: 4px; }
+  .stage {
+    background:
+      radial-gradient(ellipse at center, rgba(78,228,246,0.04) 0%, transparent 60%),
+      var(--c-bg-deep);
+    border: 1px solid var(--c-border-faint);
+    border-radius: var(--r-m);
+    padding-top: 60px;
+    overflow: hidden;
+  }
+</style>
+</head>
+<body>
+<div id="root"></div>
+<script type="text/babel" data-presets="env,react">
+  const { RunWorkshopBottomSheet } = window.TowerLikeGame_28197d;
+
+  const items = [
+    {
+      id: 'attack',
+      title: '攻撃力',
+      iconName: 'laser',
+      level: 3,
+      before: 1.15,
+      after: 1.20,
+      beforeSuffix: '×',
+      options: [
+        { amount: '+1', cost: 24 },
+        { amount: '+5', cost: 130 },
+        { amount: 'MAX', cost: 410 },
+      ],
+    },
+    {
+      id: 'speed',
+      title: '攻撃速度',
+      iconName: 'thunder',
+      level: 5,
+      before: 1.25,
+      after: 1.30,
+      beforeSuffix: '×',
+      options: [
+        { amount: '+1', cost: 80 },
+        { amount: '+5', cost: 380 },
+        { amount: 'MAX', cost: 920, disabled: true },
+      ],
+    },
+    {
+      id: 'hp',
+      title: 'HP',
+      iconName: 'heart',
+      level: 2,
+      before: 1.10,
+      after: 1.15,
+      beforeSuffix: '×',
+      options: [
+        { amount: '+1', cost: 18 },
+        { amount: '+5', cost: 88 },
+        { amount: 'MAX', cost: 320 },
+      ],
+    },
+    {
+      id: 'screws',
+      title: 'ネジ獲得',
+      iconName: 'screw',
+      level: 4,
+      before: 1.20,
+      after: 1.25,
+      beforeSuffix: '×',
+      options: [
+        { amount: '+1', cost: 40 },
+        { amount: '+5', cost: 190, disabled: true },
+        { amount: 'MAX', cost: 580, disabled: true },
+      ],
+    },
+  ];
+
+  function Page() {
+    return (
+      <div className="page">
+        <header>
+          <h1>RUN WORKSHOP BOTTOM SHEET</h1>
+          <div className="sub">バトル下部から開くシート。4 項目 UpgradeCard を 2 列。</div>
+        </header>
+
+        <div className="stage">
+          <RunWorkshopBottomSheet items={items} screws={4280} onClose={() => {}} />
+        </div>
+      </div>
+    );
+  }
+
+  ReactDOM.createRoot(document.getElementById('root')).render(<Page />);
+</script>
+</body>
+</html>

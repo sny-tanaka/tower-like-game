@@ -96,6 +96,154 @@ export const Disabled: Story = {
   },
 };
 
+// claude design ref と同等の網羅性ショーケース。
+// variant 4 (primary / secondary / ghost / danger) × size 3 (sm / md / lg) × shape (square / round) × selected / disabled。
+export const Showcase: Story = {
+  render: () => {
+    const variants = ['primary', 'secondary', 'ghost', 'danger'] as const;
+    const sizes = ['sm', 'md', 'lg'] as const;
+    const shapes = ['square', 'round'] as const;
+    const iconForVariant: Record<
+      (typeof variants)[number],
+      'settings' | 'check' | 'menu' | 'close'
+    > = {
+      primary: 'check',
+      secondary: 'settings',
+      ghost: 'menu',
+      danger: 'close',
+    };
+
+    const labelStyle: React.CSSProperties = {
+      color: 'var(--c-text-dim)',
+      fontSize: '11px',
+      fontFamily: 'monospace',
+      minWidth: '110px',
+    };
+
+    const rowStyle: React.CSSProperties = {
+      display: 'flex',
+      gap: '12px',
+      alignItems: 'center',
+    };
+
+    const sectionTitle: React.CSSProperties = {
+      color: 'var(--c-primary)',
+      fontFamily: 'var(--ff-display)',
+      fontSize: '12px',
+      letterSpacing: '0.08em',
+      textTransform: 'uppercase',
+      marginTop: '8px',
+      marginBottom: '4px',
+    };
+
+    return (
+      <div
+        style={{
+          background: 'var(--c-bg-deep)',
+          padding: '20px',
+          display: 'flex',
+          flexDirection: 'column',
+          gap: '20px',
+          minWidth: '560px',
+        }}
+      >
+        {/* --- Variant × Size (square) --- */}
+        <div>
+          <div style={sectionTitle}>Variants × Sizes (square)</div>
+          {variants.map((variant) => (
+            <div
+              key={variant}
+              style={{ ...rowStyle, marginBottom: '8px' }}
+            >
+              <span style={labelStyle}>{variant}</span>
+              {sizes.map((size) => (
+                <IconButton
+                  key={size}
+                  icon={iconForVariant[variant]}
+                  label={`${variant} ${size}`}
+                  variant={variant}
+                  size={size}
+                />
+              ))}
+            </div>
+          ))}
+        </div>
+
+        {/* --- Shape: round --- */}
+        <div>
+          <div style={sectionTitle}>Shape: round</div>
+          {variants.map((variant) => (
+            <div
+              key={variant}
+              style={{ ...rowStyle, marginBottom: '8px' }}
+            >
+              <span style={labelStyle}>{variant} (round)</span>
+              {sizes.map((size) => (
+                <IconButton
+                  key={size}
+                  icon={iconForVariant[variant]}
+                  label={`${variant} ${size} round`}
+                  variant={variant}
+                  size={size}
+                  shape="round"
+                />
+              ))}
+            </div>
+          ))}
+        </div>
+
+        {/* --- Selected (active) --- */}
+        <div>
+          <div style={sectionTitle}>Selected (active)</div>
+          {shapes.map((shape) => (
+            <div
+              key={shape}
+              style={{ ...rowStyle, marginBottom: '8px' }}
+            >
+              <span style={labelStyle}>active / {shape}</span>
+              {variants.map((variant) => (
+                <IconButton
+                  key={variant}
+                  icon={iconForVariant[variant]}
+                  label={`${variant} active ${shape}`}
+                  variant={variant}
+                  size="md"
+                  shape={shape}
+                  active
+                />
+              ))}
+            </div>
+          ))}
+        </div>
+
+        {/* --- Disabled --- */}
+        <div>
+          <div style={sectionTitle}>Disabled</div>
+          {shapes.map((shape) => (
+            <div
+              key={shape}
+              style={{ ...rowStyle, marginBottom: '8px' }}
+            >
+              <span style={labelStyle}>disabled / {shape}</span>
+              {variants.map((variant) => (
+                <IconButton
+                  key={variant}
+                  icon={iconForVariant[variant]}
+                  label={`${variant} disabled ${shape}`}
+                  variant={variant}
+                  size="md"
+                  shape={shape}
+                  disabled
+                />
+              ))}
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  },
+};
+
 export const AllVariantsAndSizes: Story = {
   render: () => (
     <div

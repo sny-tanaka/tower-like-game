@@ -1,0 +1,128 @@
+<!-- @dsCard group="Molecules" viewport="720x900" name="TabBar" subtitle="underline / pill × fullWidth × icon × badge × disabled" -->
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8" />
+<title>Molecule — TabBar</title>
+<link rel="stylesheet" href="../../styles.css" />
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+<script src="../../_ds_bundle.js"></script>
+<style>
+  body { padding: 32px; background: var(--c-bg-deep); min-height: 100vh; }
+  .page { max-width: 660px; margin: 0 auto; display: grid; gap: 22px; }
+  h1 { font-family: var(--ff-display); font-weight: 600; font-size: 24px; margin: 0; color: var(--c-text); letter-spacing: 0.02em; }
+  .sub { color: var(--c-text-dim); font-size: 12px; margin-top: 4px; }
+  section { background: var(--c-bg-elev); border: 1px solid var(--c-border-faint); border-radius: var(--r-m); padding: 18px 20px; }
+  h2 { font-family: var(--ff-display); font-weight: 600; font-size: 12px; letter-spacing: var(--ls-loose); text-transform: uppercase; color: var(--c-primary); margin: 0 0 14px; display: flex; align-items: center; gap: 10px; }
+  h2::before { content: ''; width: 6px; height: 6px; background: var(--c-primary); box-shadow: var(--glow-cyan-sm); transform: rotate(45deg); }
+  .stack { display: grid; gap: 12px; }
+  .info { font-size: 11px; color: var(--c-text-dim); margin-top: 6px; }
+</style>
+</head>
+<body>
+<div id="root"></div>
+<script type="text/babel" data-presets="env,react">
+  const { TabBar } = window.TowerLikeGame_28197d;
+
+  function Page() {
+    const [machine, setMachine] = React.useState('defense');
+    const [armory, setArmory] = React.useState('laser');
+    const [patch, setPatch] = React.useState('equipped');
+    const [speed, setSpeed] = React.useState('x2');
+    const [settings, setSettings] = React.useState('sound');
+
+    return (
+      <div className="page">
+        <header>
+          <h1>TAB BAR</h1>
+          <div className="sub">画面内の主要ナビゲーション。Atom Tab × N をまとめる。</div>
+        </header>
+
+        <section>
+          <h2>マシン強化 5 タブ (underline / fullWidth)</h2>
+          <TabBar
+            tabs={[
+              { key: 'defense', label: '防御' },
+              { key: 'attack', label: '攻撃' },
+              { key: 'active', label: 'アクティブ' },
+              { key: 'economy', label: '経済' },
+              { key: 'slot', label: 'スロット' },
+            ]}
+            value={machine}
+            onChange={setMachine}
+            fullWidth
+          />
+          <div className="info">selected: {machine}</div>
+        </section>
+
+        <section>
+          <h2>武器庫 (underline + icon + fullWidth)</h2>
+          <TabBar
+            tabs={[
+              { key: 'laser',   label: 'LASER',   iconName: 'laser' },
+              { key: 'cannon',  label: 'CANNON',  iconName: 'cannon' },
+              { key: 'thunder', label: 'THUNDER', iconName: 'thunder' },
+              { key: 'cutter',  label: 'CUTTER',  iconName: 'cutter' },
+            ]}
+            value={armory}
+            onChange={setArmory}
+            fullWidth
+          />
+          <div className="info">selected: {armory}</div>
+        </section>
+
+        <section>
+          <h2>パッチ庫 (badge)</h2>
+          <TabBar
+            tabs={[
+              { key: 'equipped', label: '装着', badge: '6/8' },
+              { key: 'inventory', label: '所持', badge: 42 },
+              { key: 'merge', label: '合成', badge: '!' },
+            ]}
+            value={patch}
+            onChange={setPatch}
+            fullWidth
+          />
+        </section>
+
+        <section>
+          <h2>速度 (pill / center)</h2>
+          <TabBar
+            variant="pill"
+            size="sm"
+            tabs={[
+              { key: 'x1', label: '×1' },
+              { key: 'x2', label: '×2' },
+              { key: 'x4', label: '×4' },
+              { key: 'x8', label: '×8' },
+            ]}
+            value={speed}
+            onChange={setSpeed}
+            align="center"
+          />
+        </section>
+
+        <section>
+          <h2>設定 (disabled item)</h2>
+          <TabBar
+            tabs={[
+              { key: 'sound', label: 'サウンド' },
+              { key: 'game', label: 'ゲーム' },
+              { key: 'data', label: 'データ' },
+              { key: 'about', label: 'ABOUT', disabled: true },
+            ]}
+            value={settings}
+            onChange={setSettings}
+            fullWidth
+          />
+        </section>
+      </div>
+    );
+  }
+
+  ReactDOM.createRoot(document.getElementById('root')).render(<Page />);
+</script>
+</body>
+</html>

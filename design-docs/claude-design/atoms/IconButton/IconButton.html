@@ -1,0 +1,118 @@
+<!-- @dsCard group="Atoms" viewport="720x900" name="IconButton" subtitle="square / round × primary / secondary / ghost / danger × sm / md / lg" -->
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8" />
+<title>Atom — IconButton</title>
+<link rel="stylesheet" href="../../styles.css" />
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+<script src="../../_ds_bundle.js"></script>
+<style>
+  body { padding: 32px; background: var(--c-bg-deep); min-height: 100vh; }
+  .page { max-width: 660px; margin: 0 auto; display: grid; gap: 22px; }
+  h1 { font-family: var(--ff-display); font-weight: 600; font-size: 24px; margin: 0; color: var(--c-text); letter-spacing: 0.02em; }
+  .sub { color: var(--c-text-dim); font-size: 12px; margin-top: 4px; }
+  section { background: var(--c-bg-elev); border: 1px solid var(--c-border-faint); border-radius: var(--r-m); padding: 18px 20px; }
+  h2 { font-family: var(--ff-display); font-weight: 600; font-size: 12px; letter-spacing: var(--ls-loose); text-transform: uppercase; color: var(--c-primary); margin: 0 0 14px; display: flex; align-items: center; gap: 10px; }
+  h2::before { content: ''; width: 6px; height: 6px; background: var(--c-primary); box-shadow: var(--glow-cyan-sm); transform: rotate(45deg); }
+  .row { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+  .row + .row { margin-top: 12px; }
+  .label-l { font-family: var(--ff-numeric); font-size: 10.5px; color: var(--c-text-dim); letter-spacing: var(--ls-num); width: 80px; flex: none; }
+</style>
+</head>
+<body>
+<div id="root"></div>
+<script type="text/babel" data-presets="env,react">
+  const { IconButton } = window.TowerLikeGame_28197d;
+
+  function Page() {
+    const [active, setActive] = React.useState('laser');
+
+    return (
+      <div className="page">
+        <header>
+          <h1>ICON BUTTON</h1>
+          <div className="sub">アイコンのみのタップターゲット。aria-label 必須。Button と同じ variant + size。</div>
+        </header>
+
+        <section>
+          <h2>variant × shape (md)</h2>
+          <div className="row">
+            <span className="label-l">square</span>
+            <IconButton icon="play" label="再生" variant="primary" />
+            <IconButton icon="settings" label="設定" variant="secondary" />
+            <IconButton icon="close" label="閉じる" variant="ghost" />
+            <IconButton icon="skull" label="撤退" variant="danger" />
+          </div>
+          <div className="row">
+            <span className="label-l">round</span>
+            <IconButton icon="play" label="再生" variant="primary" shape="round" />
+            <IconButton icon="settings" label="設定" variant="secondary" shape="round" />
+            <IconButton icon="close" label="閉じる" variant="ghost" shape="round" />
+            <IconButton icon="skull" label="撤退" variant="danger" shape="round" />
+          </div>
+        </section>
+
+        <section>
+          <h2>size</h2>
+          <div className="row">
+            <span className="label-l">sm 32</span>
+            <IconButton icon="play" label="再生" variant="primary" size="sm" />
+            <IconButton icon="pause" label="一時停止" variant="ghost" size="sm" />
+            <IconButton icon="menu" label="メニュー" variant="ghost" size="sm" />
+            <IconButton icon="check" label="確定" variant="secondary" size="sm" />
+          </div>
+          <div className="row">
+            <span className="label-l">md 40</span>
+            <IconButton icon="play" label="再生" variant="primary" size="md" />
+            <IconButton icon="pause" label="一時停止" variant="ghost" size="md" />
+            <IconButton icon="menu" label="メニュー" variant="ghost" size="md" />
+            <IconButton icon="check" label="確定" variant="secondary" size="md" />
+          </div>
+          <div className="row">
+            <span className="label-l">lg 48</span>
+            <IconButton icon="play" label="再生" variant="primary" size="lg" />
+            <IconButton icon="pause" label="一時停止" variant="ghost" size="lg" />
+            <IconButton icon="menu" label="メニュー" variant="ghost" size="lg" />
+            <IconButton icon="check" label="確定" variant="secondary" size="lg" />
+          </div>
+        </section>
+
+        <section>
+          <h2>武器スロット 4 (active 切替)</h2>
+          <div className="row">
+            {['laser', 'cannon', 'thunder', 'cutter'].map((w) => (
+              <IconButton
+                key={w}
+                icon={w}
+                label={w}
+                variant="ghost"
+                shape="round"
+                size="lg"
+                active={active === w}
+                onClick={() => setActive(w)}
+              />
+            ))}
+          </div>
+          <div style={{ fontSize: 11, color: 'var(--c-text-dim)', marginTop: 8 }}>active: {active}</div>
+        </section>
+
+        <section>
+          <h2>disabled</h2>
+          <div className="row">
+            <IconButton icon="play" label="再生" variant="primary" disabled />
+            <IconButton icon="settings" label="設定" variant="secondary" disabled />
+            <IconButton icon="close" label="閉じる" variant="ghost" disabled />
+            <IconButton icon="skull" label="撤退" variant="danger" disabled />
+          </div>
+        </section>
+      </div>
+    );
+  }
+
+  ReactDOM.createRoot(document.getElementById('root')).render(<Page />);
+</script>
+</body>
+</html>
