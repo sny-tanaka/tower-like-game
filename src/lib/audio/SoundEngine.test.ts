@@ -57,8 +57,9 @@ function createMockFilter(): MockNode & {
 function createMockBufferSource(): MockNode & {
   buffer: unknown;
   start: ReturnType<typeof vi.fn>;
+  stop: ReturnType<typeof vi.fn>;
 } {
-  return { buffer: null, connect: vi.fn().mockReturnThis(), start: vi.fn() };
+  return { buffer: null, connect: vi.fn().mockReturnThis(), start: vi.fn(), stop: vi.fn() };
 }
 
 class MockAudioContext {
@@ -181,5 +182,79 @@ describe('SoundEngine', () => {
     engine.init();
     engine.play('tap');
     expect(engine.isInitialized()).toBe(true);
+  });
+});
+
+describe('SoundEngine BGM', () => {
+  beforeEach(() => {
+    vi.useFakeTimers();
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it('playBgm() before init() is a no-op (no throw)', () => {
+    const engine = new SoundEngine();
+    expect(() => engine.playBgm('title')).not.toThrow();
+    expect(engine.getCurrentBgm()).toBeNull();
+  });
+
+  it('playBgm() starts BGM and getCurrentBgm() returns the id', () => {
+    const engine = new SoundEngine();
+    engine.init();
+    engine.playBgm('title');
+    expect(engine.getCurrentBgm()).toBe('title');
+  });
+
+  it('playBgm() with same id does not restart (idempotent)', () => {
+    const engine = new SoundEngine();
+    engine.init();
+    engine.playBgm('base');
+    engine.playBgm('base');
+    expect(engine.getCurrentBgm()).toBe('base');
+  });
+
+  it('playBgm() switches track when called with different id', () => {
+    const engine = new SoundEngine();
+    engine.init();
+    engine.playBgm('battleNormal');
+    expect(engine.getCurrentBgm()).toBe('battleNormal');
+    engine.playBgm('battleBoss');
+    expect(engine.getCurrentBgm()).toBe('battleBoss');
+  });
+
+  it('stopBgm() stops playing and getCurrentBgm() returns null', () => {
+    const engine = new SoundEngine();
+    engine.init();
+    engine.playBgm('title');
+    engine.stopBgm();
+    expect(engine.getCurrentBgm()).toBeNull();
+  });
+
+  it('stopBgm() before playBgm() is a no-op (no throw)', () => {
+    const engine = new SoundEngine();
+    engine.init();
+    expect(() => engine.stopBgm()).not.toThrow();
+  });
+
+  it('destroy() stops BGM and resets initialized state', () => {
+    const engine = new SoundEngine();
+    engine.init();
+    engine.playBgm('base');
+    engine.destroy();
+    expect(engine.isInitialized()).toBe(false);
+    expect(engine.getCurrentBgm()).toBeNull();
+  });
+
+  it('all BgmIds can be started without throw', () => {
+    const engine = new SoundEngine();
+    engine.init();
+    const ids = ['title', 'base', 'battleNormal', 'battleBoss'] as const;
+    for (const id of ids) {
+      engine.playBgm(id);
+      expect(engine.getCurrentBgm()).toBe(id);
+      engine.stopBgm();
+    }
   });
 });
