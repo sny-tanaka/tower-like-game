@@ -1,0 +1,15 @@
+.container {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--sp-s) 0 var(--sp-xs);
+  width: 100%;
+}
+
+.handle {
+  display: block;
+  width: 36px;
+  height: 4px;
+  border-radius: var(--r-pill);
+  background-color: var(--c-text-dim);
+}

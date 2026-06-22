@@ -1,0 +1,51 @@
+/* ConfirmDialog 固有の @keyframes */
+@keyframes dialogEnter {
+  from {
+    opacity: 0;
+    transform: scale(0.92);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.dialog {
+  /* Overlay 内の中央配置は Overlay の .content が担当 */
+  width: min(360px, calc(100vw - 32px));
+  animation: dialogEnter var(--mo-mid) var(--ease-default) both;
+  z-index: var(--z-dialog);
+}
+
+.card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-m);
+}
+
+.title {
+  color: var(--c-text);
+  margin: 0;
+}
+
+.message {
+  margin: 0;
+}
+
+.actions {
+  display: flex;
+  gap: var(--sp-s);
+  margin-top: var(--sp-xs);
+}
+
+/* variant=danger: カード枠を danger グロー */
+.variantDanger .card {
+  box-shadow: var(--glow-danger-md);
+  border: 1px solid var(--c-danger);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .dialog {
+    animation: none;
+  }
+}

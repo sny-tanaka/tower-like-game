@@ -1,0 +1,87 @@
+/* Toast 固有の @keyframes */
+@keyframes slideInRight {
+  from {
+    opacity: 0;
+    transform: translateX(calc(100% + var(--sp-l)));
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+.toast {
+  position: fixed;
+  bottom: var(--sp-xl);
+  right: var(--sp-l);
+  z-index: var(--z-toast);
+
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-s);
+
+  padding: var(--sp-s) var(--sp-m);
+  border-radius: var(--r-m);
+  border: 1px solid var(--c-border);
+  background: var(--c-bg-elev);
+  box-shadow: var(--sh-mid);
+
+  cursor: pointer;
+  user-select: none;
+  max-width: calc(100vw - var(--sp-xxl));
+
+  animation: slideInRight var(--mo-mid) var(--ease-default) both;
+}
+
+/* kind 別カラー */
+.kind-info {
+  border-color: var(--c-primary);
+  box-shadow: var(--sh-mid), var(--glow-cyan-sm);
+
+  .icon {
+    color: var(--c-primary);
+  }
+}
+
+.kind-success {
+  border-color: var(--c-success);
+  box-shadow: var(--sh-mid), var(--glow-success-md);
+
+  .icon {
+    color: var(--c-success);
+  }
+}
+
+.kind-error {
+  border-color: var(--c-danger);
+  box-shadow: var(--sh-mid), var(--glow-danger-md);
+
+  .icon {
+    color: var(--c-danger);
+  }
+}
+
+.kind-warning {
+  border-color: var(--c-warning);
+
+  .icon {
+    color: var(--c-warning);
+  }
+}
+
+.icon {
+  display: inline-flex;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+.message {
+  flex: 1;
+  min-width: 0;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .toast {
+    animation: none;
+  }
+}
