@@ -1,0 +1,14 @@
+@use 'variables' as var;
+
+// フッター 2 段（LaunchButton + BottomNav）のラッパー
+.footer {
+  display: flex;
+  flex-direction: column;
+}
+
+// タブコンテンツのスクロール領域
+.tabPanel {
+  display: flex;
+  flex-direction: column;
+  min-height: 100%;
+}
