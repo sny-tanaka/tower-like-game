@@ -1,39 +1,90 @@
+// --- 共通 ---
 .tab {
   position: relative;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   gap: var(--sp-xs);
-  padding: var(--sp-xs) var(--sp-m);
   border: none;
   background-color: transparent;
   cursor: pointer;
   font-family: var(--ff-display);
-  font-size: 12px;
   font-weight: 600;
-  letter-spacing: 0.06em;
+  letter-spacing: var(--ls-loose);
   text-transform: uppercase;
   color: var(--c-text-dim);
-  transition:
-    color var(--mo-fast) var(--ease-default);
-  min-height: 40px;
+  transition: color var(--mo-fast) var(--ease-default),
+              background-color var(--mo-fast) var(--ease-default);
   flex-shrink: 0;
+  white-space: nowrap;
 
   &:focus-visible {
     outline: 2px solid var(--c-primary);
     outline-offset: 2px;
     border-radius: var(--r-xs);
   }
+}
 
-  &:hover:not(.active) {
+// --- variant: underline ---
+.variant-underline {
+  padding: var(--sp-xs) var(--sp-m);
+  min-height: 40px;
+
+  &:hover:not(.active):not(.disabled) {
     color: var(--c-text-mid);
+  }
+
+  &.active {
+    color: var(--c-primary);
   }
 }
 
-.active {
-  color: var(--c-primary);
+// --- variant: pill ---
+.variant-pill {
+  padding: var(--sp-xxs) var(--sp-s);
+  border-radius: var(--r-pill);
+  background-color: transparent;
+  border: 1px solid transparent;
+
+  &:hover:not(.active):not(.disabled) {
+    background-color: rgba(255, 255, 255, 0.06);
+    color: var(--c-text-mid);
+  }
+
+  &.active {
+    background-color: var(--c-primary-bg);
+    border-color: var(--c-primary);
+    color: var(--c-primary);
+    box-shadow: var(--glow-cyan-sm);
+  }
 }
 
+// --- size ---
+.size-md {
+  font-size: 12px;
+}
+
+.size-sm {
+  font-size: 10px;
+
+  &.variant-underline {
+    min-height: 32px;
+    padding: var(--sp-xxs) var(--sp-s);
+  }
+
+  &.variant-pill {
+    padding: 1px var(--sp-xs);
+  }
+}
+
+// --- disabled ---
+.disabled {
+  opacity: 0.38;
+  cursor: not-allowed;
+  pointer-events: none;
+}
+
+// --- Icon slot ---
 .icon {
   display: inline-flex;
   align-items: center;
@@ -44,7 +95,31 @@
   flex-shrink: 0;
 }
 
-// アクティブインジケーター（下線）
+// --- Badge ---
+.badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 18px;
+  height: 16px;
+  padding: 0 var(--sp-xs);
+  border-radius: var(--r-pill);
+  background-color: var(--c-primary-bg);
+  border: 1px solid var(--c-primary);
+  color: var(--c-primary);
+  font-family: var(--ff-numeric);
+  font-size: 9px;
+  font-weight: var(--fw-bold);
+  letter-spacing: var(--ls-num);
+  line-height: 1;
+
+  .active & {
+    background-color: var(--c-primary);
+    color: var(--c-bg-deep);
+  }
+}
+
+// --- Underline indicator ---
 .indicator {
   position: absolute;
   bottom: 0;

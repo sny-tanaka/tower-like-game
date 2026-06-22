@@ -14,10 +14,11 @@ describe('Badge', () => {
     expect(screen.getByText('ELITE')).toBeInTheDocument();
   });
 
-  test('デフォルト variant は default', () => {
+  test('デフォルト variant は neutral (default は後方互換エイリアス)', () => {
     const { container } = render(<Badge text="N" />);
     const el = container.firstChild as HTMLElement;
-    expect(el.className).toMatch(/variant-default/);
+    // default は内部で neutral に解決される
+    expect(el.className).toMatch(/variant-neutral/);
   });
 
   test('elite variant クラスが付く', () => {

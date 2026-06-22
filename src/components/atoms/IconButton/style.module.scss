@@ -25,22 +25,45 @@
   }
 }
 
+// round 形状
+.round {
+  border-radius: var(--r-pill);
+}
+
 // --- Variants ---
-.variant-default {
-  background-color: var(--c-surface);
-  border-color: rgba(0, 217, 255, 0.2);
-  color: var(--c-text-mid);
+.variant-primary {
+  background-color: var(--c-primary-bg);
+  border-color: var(--c-primary);
+  color: var(--c-primary);
 
   &:hover:not(:disabled) {
-    border-color: var(--c-primary);
-    color: var(--c-primary);
+    background-color: var(--c-primary);
+    color: var(--c-bg-deep);
     box-shadow: var(--glow-cyan-sm);
   }
 
   &:active:not(:disabled) {
-    background-color: var(--c-primary-bg);
-    border-color: var(--c-primary);
-    color: var(--c-primary);
+    background-color: var(--c-primary-deep);
+    border-color: var(--c-primary-deep);
+    color: var(--c-bg-deep);
+  }
+}
+
+.variant-secondary {
+  background-color: var(--c-secondary-bg);
+  border-color: var(--c-secondary);
+  color: var(--c-secondary);
+
+  &:hover:not(:disabled) {
+    background-color: var(--c-secondary);
+    color: var(--c-bg-deep);
+    box-shadow: var(--glow-purple-sm);
+  }
+
+  &:active:not(:disabled) {
+    background-color: var(--c-secondary-deep);
+    border-color: var(--c-secondary-deep);
+    color: var(--c-bg-deep);
   }
 }
 
@@ -60,20 +83,54 @@
   }
 }
 
+.variant-danger {
+  background-color: rgba(255, 77, 109, 0.08);
+  border-color: var(--c-danger);
+  color: var(--c-danger);
+
+  &:hover:not(:disabled) {
+    background-color: var(--c-danger);
+    color: var(--c-bg-deep);
+    box-shadow: var(--glow-danger-md);
+  }
+
+  &:active:not(:disabled) {
+    background-color: var(--c-danger-deep);
+    border-color: var(--c-danger-deep);
+    color: var(--c-bg-deep);
+  }
+}
+
+// --- Active state (選択中) ---
+.active {
+  &.variant-ghost {
+    background-color: var(--c-primary-bg);
+    border-color: var(--c-primary);
+    color: var(--c-primary);
+    box-shadow: var(--glow-cyan-sm);
+  }
+
+  &.variant-secondary {
+    background-color: var(--c-secondary);
+    color: var(--c-bg-deep);
+    box-shadow: var(--glow-purple-sm);
+  }
+}
+
 // --- Sizes ---
 .size-sm {
-  width: 28px;
-  height: 28px;
+  width: 32px;
+  height: 32px;
 }
 
 .size-md {
-  width: 36px;
-  height: 36px;
+  width: 40px;
+  height: 40px;
 }
 
 .size-lg {
-  width: 44px;
-  height: 44px;
+  width: 48px;
+  height: 48px;
 }
 
 .iconWrap {

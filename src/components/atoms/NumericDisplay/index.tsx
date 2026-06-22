@@ -8,14 +8,27 @@ import { BigNum } from '@/lib/bignum/BigNum';
 // 型定義
 // ---------------------------------------------------------------------------
 
-export type NumericDisplaySize = 'sm' | 'md' | 'lg';
-export type NumericDisplayAccentColor = 'scale' | 'primary' | 'secondary' | 'danger' | 'success';
+export type NumericDisplaySize = 'sm' | 'md' | 'lg' | 'xl';
+export type NumericDisplayAccentColor =
+  | 'scale'
+  | 'primary'
+  | 'secondary'
+  | 'danger'
+  | 'success'
+  | 'warning'
+  | 'dim';
 
 export interface NumericDisplayProps {
   value: BigNum | number;
   size?: NumericDisplaySize;
   accentColor?: NumericDisplayAccentColor;
   glow?: boolean;
+  /** 値の前に付けるテキスト（例: "×", "+"） */
+  prefix?: string;
+  /** 値の後に付けるテキスト（例: "%", " Wave"） */
+  suffix?: string;
+  /** 小数点以下の桁数（BigNum では整数表示だが、生の数値を decimals 桁で表示） */
+  decimals?: number;
   style?: CSSProperties;
 }
 
@@ -64,11 +77,15 @@ function resolveColor(accentColor: NumericDisplayAccentColor, n: number): string
       return 'var(--c-danger)';
     case 'success':
       return 'var(--c-success)';
+    case 'warning':
+      return 'var(--c-warning)';
+    case 'dim':
+      return 'var(--c-text-dim)';
   }
 }
 
 /** accentColor ごとの glow text-shadow を返す */
-function resolveGlow(accentColor: NumericDisplayAccentColor): string {
+function resolveGlow(accentColor: NumericDisplayAccentColor): string | undefined {
   switch (accentColor) {
     case 'scale':
     case 'primary':
@@ -79,6 +96,10 @@ function resolveGlow(accentColor: NumericDisplayAccentColor): string {
       return 'var(--glow-danger-md)';
     case 'success':
       return 'var(--glow-success-md)';
+    case 'warning':
+      return '0 0 12px rgba(246,185,74,0.55), 0 0 24px rgba(246,185,74,0.25)';
+    case 'dim':
+      return undefined; // dim は glow しない
   }
 }
 
@@ -91,16 +112,25 @@ export function NumericDisplay({
   size = 'md',
   accentColor = 'scale',
   glow = false,
+  prefix,
+  suffix,
+  decimals,
   style,
 }: NumericDisplayProps) {
   const bn: BigNum = typeof value === 'number' ? BigNum.fromNumber(value) : value;
 
-  const text = bn.toDisplay();
+  let text: string;
+  if (decimals != null && typeof value === 'number') {
+    // decimals 指定時は生の数値を fixed 表示
+    text = value.toFixed(decimals);
+  } else {
+    text = bn.toDisplay();
+  }
 
   // サフィックス（アルファベット部分）を抽出
   const match = text.match(/^[\d.]+([A-Z]*)$/);
-  const suffix = match ? match[1] : '';
-  const n = suffixToN(suffix);
+  const alphaSuffix = match ? match[1] : '';
+  const n = suffixToN(alphaSuffix);
 
   const color = resolveColor(accentColor, n);
   const textShadow = glow ? resolveGlow(accentColor) : undefined;
@@ -109,11 +139,12 @@ export function NumericDisplay({
     sm: styles.sizeSm,
     md: styles.sizeMd,
     lg: styles.sizeLg,
+    xl: styles.sizeXl,
   }[size];
 
   const inlineStyle: CSSProperties = {
     color,
-    ...(textShadow !== undefined ? { textShadow } : {}),
+    ...(textShadow != null ? { textShadow } : {}),
     ...style,
   };
 
@@ -122,7 +153,9 @@ export function NumericDisplay({
       className={`${styles.root} ${sizeClass}`}
       style={inlineStyle}
     >
+      {prefix != null && <span className={styles.affix}>{prefix}</span>}
       {text}
+      {suffix != null && <span className={styles.affix}>{suffix}</span>}
     </span>
   );
 }

@@ -9,10 +9,10 @@ describe('Card', () => {
     expect(screen.getByText('テストコンテンツ')).toBeTruthy();
   });
 
-  it('デフォルト variant は elevated', () => {
+  it('デフォルト variant は default', () => {
     const { container } = render(<Card>content</Card>);
     const el = container.firstChild as HTMLElement;
-    expect(el.className).toContain('variant-elevated');
+    expect(el.className).toContain('variant-default');
   });
 
   it('variant="flat" のクラスが付く', () => {

@@ -75,16 +75,17 @@ describe('IconButton', () => {
       />
     );
     const btn = screen.getByRole('button');
-    expect(btn.className).toMatch(/variant-default/);
+    // variant='default' は後方互換エイリアスとして ghost に解決される
+    expect(btn.className).toMatch(/variant-ghost/);
 
     rerender(
       <IconButton
         icon={<span />}
         label="v"
-        variant="ghost"
+        variant="primary"
       />
     );
-    expect(btn.className).toMatch(/variant-ghost/);
+    expect(btn.className).toMatch(/variant-primary/);
   });
 
   test('size クラスが付く', () => {
