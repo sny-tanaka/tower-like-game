@@ -10,8 +10,8 @@
  * スケジューラ: setInterval 100ms 周期で残り2小節以下になったら先読み追加
  */
 
-import type { BgmTrack } from './types';
 import { CHORD_AM, CHORD_C, CHORD_EM, CHORD_G, noteHz, scheduleNote } from './helpers';
+import type { BgmTrack } from './types';
 
 const BPM = 80;
 const BEAT_SEC = 60 / BPM; // 0.75 sec / beat

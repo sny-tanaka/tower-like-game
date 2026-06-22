@@ -11,7 +11,6 @@
  * スケジューラ: setInterval 100ms 周期、残り2小節で先読み
  */
 
-import type { BgmTrack } from './types';
 import {
   noteHz,
   scheduleKick,
@@ -19,6 +18,7 @@ import {
   scheduleNote,
   createDeterministicNoiseBuffer,
 } from './helpers';
+import type { BgmTrack } from './types';
 
 const BPM = 120;
 const BEAT_SEC = 60 / BPM; // 0.5 sec / beat

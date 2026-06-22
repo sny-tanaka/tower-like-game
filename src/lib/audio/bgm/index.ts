@@ -3,13 +3,13 @@
  * createBgmTrack(id, ctx, dest) で BgmTrack を返す
  */
 
-import type { BgmId } from '@/lib/audio/types';
-
 import { createBaseBgm } from './base';
 import { createBattleBossBgm } from './battleBoss';
 import { createBattleNormalBgm } from './battleNormal';
 import { createTitleBgm } from './title';
 import type { BgmTrack } from './types';
+
+import type { BgmId } from '@/lib/audio/types';
 
 export type { BgmTrack } from './types';
 

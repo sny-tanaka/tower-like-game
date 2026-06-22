@@ -62,6 +62,12 @@ function createMockBufferSource(): MockNode & {
   return { buffer: null, connect: vi.fn().mockReturnThis(), start: vi.fn(), stop: vi.fn() };
 }
 
+function createMockDelay(): MockNode & {
+  delayTime: { value: number };
+} {
+  return { delayTime: { value: 0 }, connect: vi.fn().mockReturnThis() };
+}
+
 class MockAudioContext {
   state: 'running' | 'suspended' = 'running';
   currentTime = 0;
@@ -74,6 +80,7 @@ class MockAudioContext {
   createBuffer = vi.fn((_ch: number, length: number) => ({
     getChannelData: () => new Float32Array(length),
   }));
+  createDelay = vi.fn(createMockDelay);
   resume = vi.fn(() => Promise.resolve());
   close = vi.fn(() => Promise.resolve());
 }
