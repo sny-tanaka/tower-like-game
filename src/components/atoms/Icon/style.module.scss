@@ -1,0 +1,8 @@
+// Icon コンポーネントはインラインSVGのため、このファイルは
+// 外部からクラス注入で使うケース向けに最小限のスタイルのみ定義する。
+
+.icon {
+  display: inline-block;
+  flex-shrink: 0;
+  vertical-align: middle;
+}

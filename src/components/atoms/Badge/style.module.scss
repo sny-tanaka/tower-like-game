@@ -1,0 +1,72 @@
+.badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1px var(--sp-xs);
+  border-radius: var(--r-xs);
+  font-family: var(--ff-display);
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 1.4;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  border: 1px solid currentcolor;
+  white-space: nowrap;
+}
+
+// --- Variants ---
+.variant-default {
+  color: var(--c-text-mid);
+  border-color: rgba(153, 188, 212, 0.3);
+  background-color: rgba(153, 188, 212, 0.08);
+}
+
+.variant-tier {
+  // --badge-color は index.tsx から tier に応じてインライン変数で渡される
+  color: var(--badge-color, var(--c-primary));
+  border-color: var(--badge-color, var(--c-primary));
+  background-color: transparent;
+}
+
+.variant-elite {
+  color: var(--c-secondary);
+  border-color: var(--c-secondary);
+  background-color: var(--c-secondary-bg);
+}
+
+.variant-boss {
+  color: var(--c-danger);
+  border-color: var(--c-danger);
+  background-color: rgba(244, 63, 94, 0.08);
+}
+
+.variant-patch-tier {
+  color: var(--badge-color, var(--c-patch-t1));
+  border-color: var(--badge-color, var(--c-patch-t1));
+  background-color: transparent;
+}
+
+// --- Glow ---
+.glow {
+  &.variant-default {
+    box-shadow: var(--glow-cyan-sm);
+  }
+
+  &.variant-tier {
+    // tier の色に合わせて glow も badge-color を参照
+    // ブラウザが box-shadow に CSS 変数を使えるのでそのまま利用
+    filter: drop-shadow(0 0 4px var(--badge-color, var(--c-primary)));
+  }
+
+  &.variant-elite {
+    box-shadow: var(--glow-purple-sm);
+  }
+
+  &.variant-boss {
+    box-shadow: 0 0 6px rgba(244, 63, 94, 0.5);
+  }
+
+  &.variant-patch-tier {
+    filter: drop-shadow(0 0 4px var(--badge-color, var(--c-patch-t1)));
+  }
+}
