@@ -1,0 +1,48 @@
+.card {
+  width: min(320px, 90vw);
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-m);
+}
+
+.header {
+  text-align: center;
+  padding-bottom: var(--sp-xs);
+}
+
+.soundSection {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-xs);
+}
+
+.sliderRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-xs);
+}
+
+.sliderLabel {
+  flex: 0 0 auto;
+  min-width: 2.5rem;
+}
+
+.sliderValue {
+  flex: 0 0 auto;
+  min-width: 2rem;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.divider {
+  height: 1px;
+  background: var(--c-border-faint);
+  margin: var(--sp-xs) 0;
+}
+
+.actions {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-xs);
+}

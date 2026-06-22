@@ -1,0 +1,12 @@
+.fxContainer {
+  position: fixed;
+  inset: 0;
+  cursor: pointer;
+  /* キーボードフォーカス時のアウトラインを非表示にしてゲームUI感を維持 */
+  outline: none;
+
+  &:focus-visible {
+    outline: 2px solid var(--c-primary);
+    outline-offset: -2px;
+  }
+}
