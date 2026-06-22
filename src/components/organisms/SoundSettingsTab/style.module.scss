@@ -1,0 +1,33 @@
+.root {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-m);
+  padding: var(--sp-m);
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-s);
+}
+
+.row {
+  padding: var(--sp-s) 0;
+}
+
+.divider {
+  height: 1px;
+  background: var(--c-border-faint);
+}
+
+.sliderSection {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-xs);
+}
+
+.sliderHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}

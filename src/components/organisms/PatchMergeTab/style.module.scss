@@ -1,0 +1,42 @@
+.root {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-m);
+  padding: var(--sp-m);
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-s);
+}
+
+.tierControl {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-xs);
+  background: var(--c-bg-surface);
+  border: 1px solid var(--c-border-faint);
+  border-radius: var(--r-m);
+  padding: var(--sp-m);
+}
+
+.tierStepperRow {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-m);
+}
+
+.mergeList {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: var(--sp-s);
+}
+
+.empty {
+  padding: var(--sp-xl) var(--sp-m);
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-xs);
+}
