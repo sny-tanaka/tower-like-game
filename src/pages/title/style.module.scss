@@ -1,12 +1,18 @@
-.center {
+.layout {
   display: flex;
   flex-direction: column;
+  min-height: 100%;
+  width: 100%;
+  max-width: 412px;
+  margin: 0 auto;
+  padding: var(--sp-xxl) var(--sp-l) var(--sp-l);
+  gap: var(--sp-l);
+}
+
+.heroWrap {
+  flex: 1;
+  display: flex;
   align-items: center;
   justify-content: center;
-  gap: var(--sp-xxl);
-  flex: 1;
-  width: 100%;
-  max-width: 360px;
-  margin: 0 auto;
-  padding: var(--sp-xxl) var(--sp-l);
+  padding: var(--sp-m) var(--sp-l);
 }

@@ -28,7 +28,7 @@ describe('TitleScreen', () => {
 
   it('サブタイトルが表示される', () => {
     renderPage();
-    expect(screen.getByText('CYBER TOWER DEFENSE × INFINITE TIER')).toBeDefined();
+    expect(screen.getByText('TOWER DEFENSE × INFINITE TIER')).toBeDefined();
   });
 
   it('バージョンが表示される', () => {

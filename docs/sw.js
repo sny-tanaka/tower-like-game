@@ -31,12 +31,12 @@ define(['./workbox-8c29f6e4'], function (e) {
     e.precacheAndRoute(
       [
         { url: 'registerSW.js', revision: '810786f0a72d79372ff50293c13b9108' },
-        { url: 'index.html', revision: 'c4b0044c87818992df95370a39dbb56e' },
+        { url: 'index.html', revision: '705e5882296fd27b16a29b6d0c7593bd' },
         { url: 'icon-512.png', revision: '318032293ba71f818b57decedb9afadf' },
         { url: 'icon-192.png', revision: '755ecad9c3cf1a68cdc525ce5d7eb299' },
         { url: 'favicon.ico', revision: 'fd32cce62c8da11c49d9a6f0c9ada784' },
-        { url: 'assets/index-CemZ2Eia.js', revision: null },
-        { url: 'assets/index-8gO0Gmx9.css', revision: null },
+        { url: 'assets/index-C5U6r-FM.css', revision: null },
+        { url: 'assets/index-Bx3yFXYZ.js', revision: null },
         { url: 'favicon.ico', revision: 'fd32cce62c8da11c49d9a6f0c9ada784' },
         { url: 'icon-192.png', revision: '755ecad9c3cf1a68cdc525ce5d7eb299' },
         { url: 'icon-512.png', revision: '318032293ba71f818b57decedb9afadf' },
