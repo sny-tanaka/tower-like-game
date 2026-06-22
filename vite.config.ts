@@ -79,5 +79,7 @@ export default defineConfig({
     environment: 'jsdom',
     setupFiles: './src/setupTests.ts',
     css: true,
+    // 並列実装中の他 agent 用 worktree を走査対象から除外（自分のリポでの test/lint 二重スキャンを防止）
+    exclude: ['node_modules', 'dist', 'docs', '.claude/worktrees/**'],
   },
 });

@@ -8,7 +8,16 @@ import globals from 'globals';
 import tseslint from 'typescript-eslint';
 
 export default tseslint.config(
-  { ignores: ['node_modules/', 'docs/', 'dist/', 'coverage/', 'storybook-static/'] },
+  {
+    ignores: [
+      'node_modules/',
+      'docs/',
+      'dist/',
+      'coverage/',
+      'storybook-static/',
+      '.claude/worktrees/**',
+    ],
+  },
   js.configs.recommended,
   ...tseslint.configs.recommended,
   // Node.js スクリプト用（scripts/*.mjs 等）
