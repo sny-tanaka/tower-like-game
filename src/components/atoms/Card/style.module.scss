@@ -1,0 +1,53 @@
+.card {
+  background: var(--c-bg-elev);
+  border-radius: var(--r-m);
+  color: var(--c-text);
+}
+
+/* ---------- variant ---------- */
+.variant-elevated {
+  box-shadow: var(--sh-mid);
+}
+
+.variant-flat {
+  box-shadow: none;
+}
+
+.variant-outline {
+  border: 1px solid var(--c-border);
+  box-shadow: none;
+}
+
+/* ---------- padding ---------- */
+.padding-none {
+  padding: 0;
+}
+
+.padding-sm {
+  padding: var(--sp-s);
+}
+
+.padding-md {
+  padding: var(--sp-m);
+}
+
+.padding-lg {
+  padding: var(--sp-l);
+}
+
+/* ---------- interactive ---------- */
+.interactive {
+  cursor: pointer;
+  transition: background-color var(--mo-fast), box-shadow var(--mo-fast);
+
+  &:hover {
+    background: var(--c-surface);
+    box-shadow: var(--sh-high);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .interactive {
+    transition: none;
+  }
+}
