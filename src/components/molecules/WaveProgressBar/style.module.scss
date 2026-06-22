@@ -1,0 +1,19 @@
+.root {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-xs);
+  padding: var(--sp-xs) var(--sp-s);
+  background: var(--c-bg-elev);
+  border-radius: var(--r-m);
+}
+
+.bossWave {
+  border: 1px solid var(--c-secondary);
+}
+
+/* ヘッダー行: バッジ + 進行テキスト + 残り時間 */
+.header {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-s);
+}
