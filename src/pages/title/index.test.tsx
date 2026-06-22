@@ -65,9 +65,9 @@ describe('TitleScreen', () => {
       await userEvent.click(screen.getByRole('button', { name: '新規開始' }));
     });
 
-    it('「設定」をクリックすると settings へ遷移するコールバックが呼べる', async () => {
+    it('「設定」ボタンは表示しない (BottomNav 経由のみ)', () => {
       renderPage(0);
-      await userEvent.click(screen.getByRole('button', { name: '設定' }));
+      expect(screen.queryByRole('button', { name: '設定' })).toBeNull();
     });
   });
 });

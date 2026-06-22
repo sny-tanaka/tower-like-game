@@ -31,9 +31,9 @@ describe('TitleActions', () => {
       expect((btn as HTMLButtonElement).disabled).toBe(false);
     });
 
-    it('「設定」ボタンを表示する', () => {
+    it('「設定」ボタンは表示しない (BottomNav 経由のみ)', () => {
       renderWithNav(<TitleActions />);
-      expect(screen.getByRole('button', { name: '設定' })).toBeDefined();
+      expect(screen.queryByRole('button', { name: '設定' })).toBeNull();
     });
 
     it('lastSavedAt を表示しない', () => {
@@ -83,13 +83,6 @@ describe('TitleActions', () => {
       renderWithNav(<TitleActions onNewGame={onNewGame} />);
       await userEvent.click(screen.getByRole('button', { name: '新規開始' }));
       expect(onNewGame).toHaveBeenCalledOnce();
-    });
-
-    it('「設定」をクリックすると onSettings が呼ばれる', async () => {
-      const onSettings = vi.fn();
-      renderWithNav(<TitleActions onSettings={onSettings} />);
-      await userEvent.click(screen.getByRole('button', { name: '設定' }));
-      expect(onSettings).toHaveBeenCalledOnce();
     });
   });
 });

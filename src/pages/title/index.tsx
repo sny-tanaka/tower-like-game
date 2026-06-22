@@ -51,7 +51,6 @@ export function Page() {
           lastSavedAt={lastSavedAt}
           onResume={() => navigate('preparation')}
           onNewGame={() => navigate('preparation')}
-          onSettings={() => navigate('settings')}
         />
       </div>
     </AppShell>

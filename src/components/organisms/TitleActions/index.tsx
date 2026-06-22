@@ -4,15 +4,12 @@ import { Button } from '@/components/atoms/Button';
 import { Icon } from '@/components/atoms/Icon';
 import { Text } from '@/components/atoms/Text';
 import { useStore } from '@/store/index';
-import { useNavigation } from '@/store/navigation';
 
 export interface TitleActionsProps {
   /** 「続きから」押下コールバック。省略時は store 経由で画面遷移 */
   onResume?: () => void;
   /** 「新規開始」押下コールバック */
   onNewGame?: () => void;
-  /** 「設定」押下コールバック。省略時は navigation で 'settings' へ遷移 */
-  onSettings?: () => void;
   /** 最終セーブの相対時刻ラベル (例 "12 分前") */
   lastSavedAt?: string;
 }
@@ -21,22 +18,16 @@ export interface TitleActionsProps {
  * TitleActions — タイトル画面のアクション群 Organism
  *
  * store の `createdAt` でセーブ判定し、
- * - セーブあり: 「続きから (primary)」「新規開始 (ghost)」「設定」
- * - セーブなし: 「続きから (無効/ghost)」「新規開始 (primary)」「設定」
+ * - セーブあり: 「続きから (primary)」「新規開始 (ghost)」
+ * - セーブなし: 「続きから (無効)」「新規開始 (primary)」
+ *
+ * 設定への導線はタイトル画面では持たず、BottomNav 経由で各画面の右下から
+ * 開く動線に統一する。
  */
-export function TitleActions({ onResume, onNewGame, onSettings, lastSavedAt }: TitleActionsProps) {
+export function TitleActions({ onResume, onNewGame, lastSavedAt }: TitleActionsProps) {
   const createdAt = useStore((s) => s.createdAt);
-  const { navigate } = useNavigation();
 
   const hasSave = createdAt > 0;
-
-  function handleSettings() {
-    if (onSettings) {
-      onSettings();
-    } else {
-      navigate('settings');
-    }
-  }
 
   return (
     <div className={styles.root}>
@@ -81,21 +72,6 @@ export function TitleActions({ onResume, onNewGame, onSettings, lastSavedAt }: T
           />
         }
         onClick={onNewGame}
-      />
-
-      {/* 設定 */}
-      <Button
-        label="設定"
-        variant="ghost"
-        size="md"
-        fullWidth
-        iconLeft={
-          <Icon
-            name="settings"
-            size={16}
-          />
-        }
-        onClick={handleSettings}
       />
     </div>
   );

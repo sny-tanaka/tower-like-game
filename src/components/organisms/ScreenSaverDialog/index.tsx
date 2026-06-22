@@ -1,58 +1,45 @@
 import styles from './style.module.scss';
 
-import { Overlay } from '@/components/atoms/Overlay';
+import { Icon } from '@/components/atoms/Icon';
 import { ScreenSaverFx } from '@/components/fx/ScreenSaverFx';
-
-// ---------------------------------------------------------------------------
-// 型定義
-// ---------------------------------------------------------------------------
 
 export interface ScreenSaverDialogProps {
   open: boolean;
   onClose: () => void;
 }
 
-// ---------------------------------------------------------------------------
-// コンポーネント
-// ---------------------------------------------------------------------------
-
 /**
  * ScreenSaverDialog — スクリーンセーバー起動時のフルスクリーンダイアログ。
  *
- * 構成: Overlay (全画面、タップで onClose) + ScreenSaverFx (Fx)
- *
- * ゲームは進行中のまま、画面焼き付き防止アニメを前面に描画する。
- * 画面のどこかをタップすると復帰 (onClose 発火)。
+ * 背景は **完全な黒 (#000)** で覆い、その上に ScreenSaverFx でリング + タワーアイコンを
+ * ドリフト表示する。半透明オーバーレイは焼き付き防止の役目を果たさないため
+ * 採用しない。画面のどこかをタップで onClose 発火。
  */
 export function ScreenSaverDialog({ open, onClose }: ScreenSaverDialogProps) {
   if (!open) return null;
 
   return (
-    <Overlay
-      open={open}
-      onClose={onClose}
-      dimLevel="heavy"
-      dismissible
-      align="center"
-    >
-      {/* タップエリア全体を ScreenSaverFx で覆う */}
-      <div
-        className={styles.fxContainer}
-        onClick={(e) => {
-          e.stopPropagation();
+    <div
+      className={styles.root}
+      onClick={onClose}
+      role="button"
+      aria-label="スクリーンセーバーを終了"
+      tabIndex={0}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
           onClose();
-        }}
-        role="button"
-        aria-label="スクリーンセーバーを終了"
-        tabIndex={0}
-        onKeyDown={(e) => {
-          if (e.key === 'Enter' || e.key === ' ') {
-            onClose();
-          }
-        }}
-      >
-        <ScreenSaverFx showTower />
-      </div>
-    </Overlay>
+        }
+      }}
+    >
+      <ScreenSaverFx
+        showTower
+        towerContent={
+          <Icon
+            name="tower"
+            size={88}
+          />
+        }
+      />
+    </div>
   );
 }
