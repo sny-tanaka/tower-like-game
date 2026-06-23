@@ -49,6 +49,37 @@ export function decideWaveAdvance(
 }
 
 // ---------------------------------------------------------------------------
+// 純粋関数: Tier / Wave 切替時のリセット判定
+// ---------------------------------------------------------------------------
+
+export interface WaveTransitionReset {
+  /** Wave 経過時間 (spawn 進行) をリセットするか */
+  resetElapsed: boolean;
+  /** 敵リストをクリアするか */
+  resetEnemies: boolean;
+}
+
+/**
+ * Tier / Wave 切替時にリセットすべき内容を判定する。
+ * - Tier 切替: 経過時間 + 敵リストの両方をリセット
+ * - Wave 切替 (同 Tier 内): 経過時間のみリセット（敵は wave を跨いで生存）
+ * - 切替なし: 何もしない
+ */
+export function decideTransitionReset(
+  prevTier: number,
+  newTier: number,
+  prevWave: number,
+  newWave: number
+): WaveTransitionReset {
+  const tierChanged = prevTier !== newTier;
+  const waveChanged = prevWave !== newWave;
+  return {
+    resetElapsed: tierChanged || waveChanged,
+    resetEnemies: tierChanged,
+  };
+}
+
+// ---------------------------------------------------------------------------
 // 純粋関数: 敵 position (0-100%) からマシン中心 (50, 50) までの距離
 // ---------------------------------------------------------------------------
 
@@ -128,12 +159,30 @@ export function useBattleLoop({ range }: UseBattleLoopOpts): UseBattleLoopResult
   // Tier 切替時のみ build。 30 wave の Schedule[] を生成。
   const tierWaves = useMemo(() => buildTierWaves(currentTier), [currentTier]);
 
-  // Wave 切替時に経過時間と現在の敵をリセット
+  // 前回の Tier / Wave (切替検知用)
+  const prevTierRef = useRef(currentTier);
+  const prevWaveRef = useRef(currentWave);
+
+  // Tier 切替: 経過時間 + 敵リストをリセット
+  // Wave 切替: 経過時間のみリセット (敵は wave を跨いで生存)
   useEffect(() => {
-    waveElapsedMsRef.current = 0;
-    prevWaveElapsedMsRef.current = 0;
-    enemiesRef.current = [];
-    setEnemies([]);
+    const reset = decideTransitionReset(
+      prevTierRef.current,
+      currentTier,
+      prevWaveRef.current,
+      currentWave
+    );
+    prevTierRef.current = currentTier;
+    prevWaveRef.current = currentWave;
+
+    if (reset.resetElapsed) {
+      waveElapsedMsRef.current = 0;
+      prevWaveElapsedMsRef.current = 0;
+    }
+    if (reset.resetEnemies) {
+      enemiesRef.current = [];
+      setEnemies([]);
+    }
   }, [currentTier, currentWave]);
 
   const onDamageDone = useCallback((id: string) => {

@@ -3,6 +3,7 @@ import { describe, expect, test } from 'vitest';
 import {
   MAX_FRAME_GAME_SEC,
   calcFrameGameSec,
+  decideTransitionReset,
   decideWaveAdvance,
   distanceFromMachine,
 } from './useBattleLoop';
@@ -52,6 +53,36 @@ describe('decideWaveAdvance', () => {
 
   test('境界: 最終 Wave 進行中は continue', () => {
     expect(decideWaveAdvance(25_999, 26, 30, 30)).toBe('continue');
+  });
+});
+
+describe('decideTransitionReset', () => {
+  test('変化なし: 何もリセットしない', () => {
+    expect(decideTransitionReset(1, 1, 5, 5)).toEqual({
+      resetElapsed: false,
+      resetEnemies: false,
+    });
+  });
+
+  test('Wave 切替 (同 Tier 内): 経過時間のみリセット、敵は残す', () => {
+    expect(decideTransitionReset(1, 1, 5, 6)).toEqual({
+      resetElapsed: true,
+      resetEnemies: false,
+    });
+  });
+
+  test('Tier 切替: 経過時間 + 敵リストの両方をリセット', () => {
+    expect(decideTransitionReset(1, 2, 1, 1)).toEqual({
+      resetElapsed: true,
+      resetEnemies: true,
+    });
+  });
+
+  test('Tier 切替時に Wave も同時に変わる (30→1) ケース: 両方リセット', () => {
+    expect(decideTransitionReset(1, 2, 30, 1)).toEqual({
+      resetElapsed: true,
+      resetEnemies: true,
+    });
   });
 });
 
