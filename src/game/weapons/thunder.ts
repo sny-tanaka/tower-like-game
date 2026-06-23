@@ -20,6 +20,8 @@ export interface ThunderStats {
   plasmaCdSec: number;
   /** Plasma Discharge 1体目の威力倍率 (アクティブ底威力: ×15) */
   plasmaDamageMul: number;
+  /** Plasma Discharge の連鎖上限 (Lv0=7、+0.1/Lv、切り捨て) */
+  plasmaChainCount: number;
 }
 
 /**
@@ -51,6 +53,7 @@ export function thunderStats(weaponLv: number): ThunderStats {
   const damageMul = THUNDER_BASE_DAMAGE_MUL * Math.pow(1.02, lv);
   const attackPerSec = Math.min(10, THUNDER_BASE_AS * (1 + 0.03 * lv));
   const plasmaDamageMul = 15 * (1 + 0.05 * lv);
+  const plasmaChainCount = Math.floor(7 + 0.1 * lv);
 
   return {
     attackPerSec,
@@ -59,6 +62,7 @@ export function thunderStats(weaponLv: number): ThunderStats {
     damageMul,
     plasmaCdSec: THUNDER_PLASMA_CD_SEC,
     plasmaDamageMul,
+    plasmaChainCount,
   };
 }
 
@@ -149,8 +153,11 @@ export function thunderPlasmaDischarge(
 
   const hits: PlasmaResult['hits'] = [];
 
-  for (let i = 0; i < enemies.length; i++) {
-    const enemy = enemies[i]!;
+  // 連鎖上限でスライス（仕様: Lv0=7、+0.1/Lv）
+  const targets = enemies.slice(0, stats.plasmaChainCount);
+
+  for (let i = 0; i < targets.length; i++) {
+    const enemy = targets[i]!;
     // 1体目: plasmaDamageMul × 1.0, 2体目: × 0.9, 3体目: × 0.81, ...
     const falloffMul = Math.pow(stats.chainFalloff, i);
     const effectiveDamageMul = stats.damageMul * stats.plasmaDamageMul * falloffMul;

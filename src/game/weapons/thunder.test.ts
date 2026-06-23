@@ -173,6 +173,27 @@ describe('thunderNormalAttack', () => {
 });
 
 // ---------------------------------------------------------------------------
+// thunderStats — plasmaChainCount
+// ---------------------------------------------------------------------------
+
+describe('thunderStats — plasmaChainCount', () => {
+  it('Lv0: plasmaChainCount === 7', () => {
+    const stats = thunderStats(0);
+    expect(stats.plasmaChainCount).toBe(7); // Math.floor(7 + 0.1 * 0) = 7
+  });
+
+  it('Lv10: plasmaChainCount === 8', () => {
+    const stats = thunderStats(10);
+    expect(stats.plasmaChainCount).toBe(8); // Math.floor(7 + 0.1 * 10) = 8
+  });
+
+  it('Lv30: plasmaChainCount === 10', () => {
+    const stats = thunderStats(30);
+    expect(stats.plasmaChainCount).toBe(10); // Math.floor(7 + 0.1 * 30) = 10
+  });
+});
+
+// ---------------------------------------------------------------------------
 // thunderPlasmaDischarge — Plasma Discharge
 // ---------------------------------------------------------------------------
 
@@ -235,5 +256,35 @@ describe('thunderPlasmaDischarge', () => {
     const dmg0 = parseInt(resultLv0.hits[0]!.damage.toString(), 10);
     const dmg10 = parseInt(resultLv10.hits[0]!.damage.toString(), 10);
     expect(dmg10).toBeGreaterThan(dmg0);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// thunderPlasmaDischarge — 連鎖上限
+// ---------------------------------------------------------------------------
+
+describe('thunderPlasmaDischarge — 連鎖上限', () => {
+  it('Lv0 で 10 体渡したとき hits が 7 件', () => {
+    const machine = makeMachine();
+    const stats = thunderStats(0); // plasmaChainCount = 7
+    const enemies = Array.from({ length: 10 }, (_, i) => makeEnemy(`e${i + 1}`));
+    const result = thunderPlasmaDischarge(machine, stats, enemies);
+    expect(result.hits).toHaveLength(7);
+  });
+
+  it('Lv10 で 10 体渡したとき hits が 8 件', () => {
+    const machine = makeMachine();
+    const stats = thunderStats(10); // plasmaChainCount = 8
+    const enemies = Array.from({ length: 10 }, (_, i) => makeEnemy(`e${i + 1}`));
+    const result = thunderPlasmaDischarge(machine, stats, enemies);
+    expect(result.hits).toHaveLength(8);
+  });
+
+  it('敵数が plasmaChainCount 未満の場合は全員ヒット', () => {
+    const machine = makeMachine();
+    const stats = thunderStats(0); // plasmaChainCount = 7
+    const enemies = Array.from({ length: 5 }, (_, i) => makeEnemy(`e${i + 1}`)); // 5 < 7
+    const result = thunderPlasmaDischarge(machine, stats, enemies);
+    expect(result.hits).toHaveLength(5);
   });
 });
