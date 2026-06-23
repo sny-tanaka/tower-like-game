@@ -180,6 +180,24 @@ export function applyKnockback(
 }
 
 /**
+ * 純粋関数: HP リジェネ加算後の machineHp を計算する。
+ *
+ * - currentHp が 0 (ゲームオーバー) のときは 0 を返す
+ * - hpRegen × deltaSec を加算し、 maxHp を超えないようにクランプして返す
+ * - setMachineHp も maxHp クランプを行うが、 この関数でも明示的にクランプして純粋性を保つ
+ */
+export function calcHpRegen(
+  currentHp: BigNum,
+  maxHp: BigNum,
+  hpRegen: BigNum,
+  deltaSec: number
+): BigNum {
+  if (currentHp.isZero()) return BigNum.ZERO;
+  const healed = currentHp.add(hpRegen.mulNumber(deltaSec));
+  return healed.gte(maxHp) ? maxHp : healed;
+}
+
+/**
  * アクティブスキル CD 最大値 (秒)。 battle slice から再 export (互換のため残置)。
  * 値の真の定義は @/store/slices/battle に集約。
  */
@@ -1153,6 +1171,15 @@ export function useBattleLoop({ range, paused = false }: UseBattleLoopOpts): Use
                 hpAfter.isZero() && !hpBefore.isZero() ? 'machineDown' : 'machineHit'
               );
             }
+          }
+
+          // ---- HP リジェネ ----
+          // machineHp.isZero() = ゲームオーバー済みはスキップ
+          // setMachineHp が maxHp クランプ済みなので上限超え処理は不要
+          if (!state.machineHp.isZero()) {
+            state.setMachineHp(
+              calcHpRegen(state.machineHp, state.machineMaxHp, machineStats.hpRegen, deltaSec)
+            );
           }
 
           // ---- Wave 終了判定 (最終 wave は時間でなくボス撃破で advance) ----
