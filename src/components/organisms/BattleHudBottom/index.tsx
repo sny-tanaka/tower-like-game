@@ -167,6 +167,16 @@ export function BattleHudBottom({
             value={screw}
             size="lg"
           />
+          <CurrencyAmount
+            currency="bolt"
+            value={screw}
+            size="md"
+          />
+          <CurrencyAmount
+            currency="alloy"
+            value={screw}
+            size="md"
+          />
         </div>
 
         {/* システムボタン (右端)。 pause = メニュー開閉 を統合 (押すと pause + メニュー表示) */}

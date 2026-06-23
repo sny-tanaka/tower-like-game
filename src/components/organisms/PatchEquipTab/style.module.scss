@@ -42,3 +42,37 @@
   text-align: center;
   padding: var(--sp-m) 0;
 }
+
+/* 装着候補ダイアログ */
+.pickerDialog {
+  width: min(92vw, 480px);
+  max-height: min(80vh, 720px);
+  display: flex;
+  flex-direction: column;
+}
+
+.pickerHeader {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-xxs);
+  margin-bottom: var(--sp-m);
+}
+
+.pickerGrid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: var(--sp-s);
+  max-height: 60vh;
+  overflow-y: auto;
+  margin-bottom: var(--sp-m);
+}
+
+.pickerEmpty {
+  text-align: center;
+  padding: var(--sp-l) 0;
+}
+
+.pickerActions {
+  display: flex;
+  gap: var(--sp-s);
+}

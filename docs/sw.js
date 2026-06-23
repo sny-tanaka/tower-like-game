@@ -1,27 +1,27 @@
 if (!self.define) {
   let e,
     i = {};
-  const n = (n, c) => (
-    (n = new URL(n + '.js', c).href),
-    i[n] ||
+  const c = (c, n) => (
+    (c = new URL(c + '.js', n).href),
+    i[c] ||
       new Promise((i) => {
         if ('document' in self) {
           const e = document.createElement('script');
-          ((e.src = n), (e.onload = i), document.head.appendChild(e));
-        } else ((e = n), importScripts(n), i());
+          ((e.src = c), (e.onload = i), document.head.appendChild(e));
+        } else ((e = c), importScripts(c), i());
       }).then(() => {
-        let e = i[n];
-        if (!e) throw new Error(`Module ${n} didn’t register its module`);
+        let e = i[c];
+        if (!e) throw new Error(`Module ${c} didn’t register its module`);
         return e;
       })
   );
-  self.define = (c, o) => {
+  self.define = (n, o) => {
     const s = e || ('document' in self ? document.currentScript.src : '') || location.href;
     if (i[s]) return;
     let r = {};
-    const d = (e) => n(e, s),
-      a = { module: { uri: s }, exports: r, require: d };
-    i[s] = Promise.all(c.map((e) => a[e] || d(e))).then((e) => (o(...e), r));
+    const d = (e) => c(e, s),
+      f = { module: { uri: s }, exports: r, require: d };
+    i[s] = Promise.all(n.map((e) => f[e] || d(e))).then((e) => (o(...e), r));
   };
 }
 define(['./workbox-8c29f6e4'], function (e) {
@@ -30,13 +30,13 @@ define(['./workbox-8c29f6e4'], function (e) {
     e.clientsClaim(),
     e.precacheAndRoute(
       [
-        { url: 'index.html', revision: 'ca0efc4a50638a4a6d1f06a52c880235' },
+        { url: 'index.html', revision: '10f4589b81c2b27772a59ebcb190512b' },
         { url: 'icon-512.png', revision: '318032293ba71f818b57decedb9afadf' },
         { url: 'icon-192.png', revision: '755ecad9c3cf1a68cdc525ce5d7eb299' },
         { url: 'favicon.ico', revision: 'fd32cce62c8da11c49d9a6f0c9ada784' },
         { url: 'assets/workbox-window.prod.es5-BIl4cyR9.js', revision: null },
-        { url: 'assets/index-DOnCI5Q5.css', revision: null },
-        { url: 'assets/index-8dv0zwTN.js', revision: null },
+        { url: 'assets/index-ohR5fwcM.js', revision: null },
+        { url: 'assets/index-NfsPmET6.css', revision: null },
         { url: 'favicon.ico', revision: 'fd32cce62c8da11c49d9a6f0c9ada784' },
         { url: 'icon-192.png', revision: '755ecad9c3cf1a68cdc525ce5d7eb299' },
         { url: 'icon-512.png', revision: '318032293ba71f818b57decedb9afadf' },

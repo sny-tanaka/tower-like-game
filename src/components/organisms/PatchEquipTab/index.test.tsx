@@ -94,6 +94,33 @@ describe('PatchEquipTab', () => {
     expect(screen.getByLabelText('Slot 4 (locked)')).toBeDefined();
   });
 
+  it('空きスロットタップで装着候補ダイアログが開き、 選択で equipPatch される', async () => {
+    const user = userEvent.setup();
+    // store をリセット (在庫あり、 装着なし、 patchSlots=2)
+    useStore.setState({
+      patches: makePatches(),
+      equippedPatches: new Map(),
+      machineLevels: {
+        ...useStore.getState().machineLevels,
+        patchSlots: 2,
+      },
+    });
+
+    render(<PatchEquipTab />);
+
+    // Slot 1 (空き) をタップ → ダイアログ出る
+    await user.click(screen.getByLabelText('Slot 1 (empty)'));
+    expect(screen.getByText(/スロット 1 に装着/)).toBeDefined();
+
+    // 候補から freezeHit (Tier 2) を選択
+    const freezeCard = screen.getByRole('button', { name: /freezeHit/i });
+    await user.click(freezeCard);
+
+    // store に equip された
+    const equipped = useStore.getState().equippedPatches;
+    expect(equipped.get(0)).toEqual({ name: 'freezeHit', tier: 2 });
+  });
+
   it('装着数カウントが正しく表示される', () => {
     const equipped = new Map<number, { name: string; tier: number }>([
       [0, { name: 'damageImmune', tier: 1 }],
