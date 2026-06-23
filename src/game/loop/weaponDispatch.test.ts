@@ -3,8 +3,15 @@ import { describe, expect, test } from 'vitest';
 import { buildMachineStats } from './machineStats';
 import { fireWeapon, getAttackPerSec } from './weaponDispatch';
 
+import { MACHINE_UPGRADE_KEYS } from '@/data/schema';
 import type { SpawnedEnemy } from '@/game/types';
 import { BigNum } from '@/lib/bignum';
+import type { MachineLevels } from '@/store/slices/machine';
+
+/** machineLevels 全 key を 0 で初期化したテスト用フィクスチャ */
+const defaultMachineLevels: MachineLevels = Object.fromEntries(
+  MACHINE_UPGRADE_KEYS.map((k) => [k, 0])
+) as MachineLevels;
 
 // ---------------------------------------------------------------------------
 // テスト用ヘルパー: 単純な敵を 1 体作成
@@ -50,7 +57,12 @@ describe('getAttackPerSec', () => {
 
 describe('fireWeapon: RunWorkshop attackMul の反映', () => {
   const enemy = makeEnemy('e1');
-  const machine = buildMachineStats({ machineMaxHp: BigNum.fromNumber(100) });
+  // baseAttack Lv 9 で base=10 (累積差分: 1 + 9×1)。 BigNum 整数化の影響で
+  // base=1 だと「×2 のダメージ差分」 が天井丸めで埋もれるため、 倍率の検証に必要な底上げ
+  const machine = buildMachineStats({
+    machineMaxHp: BigNum.fromNumber(100),
+    machineLevels: { ...defaultMachineLevels, baseAttack: 9 },
+  });
 
   test('attackMul=1.0 と attackMul=2.0 でダメージが 2 倍になる (laser)', () => {
     const baseResult = fireWeapon({

@@ -6,12 +6,17 @@ import type {
   PickupEvent,
   ProjectileEvent,
 } from '@/components/organisms/BattleField';
+import {
+  MACHINE_UPGRADE_ITEMS,
+  calcEffectValue,
+} from '@/components/organisms/MachineUpgradeList/items';
 import { calcRunWorkshopMultiplier } from '@/components/organisms/RunWorkshopBottomSheet/items';
 import { calcReceivedDamage } from '@/game/damage';
 import { updateEnemyPosition } from '@/game/loop/enemyMovement';
 import { buildMachineStats } from '@/game/loop/machineStats';
 import { fireWeapon, getAttackPerSec } from '@/game/loop/weaponDispatch';
 import { evaluatePatches } from '@/game/patches';
+import { dropPatch } from '@/game/patches/drops';
 import type { EquippedPatch } from '@/game/patches.types';
 import type { SpawnedEnemy } from '@/game/types';
 import { buildTierWaves, getSpawnsAtTime } from '@/game/wave';
@@ -394,7 +399,10 @@ export function useBattleLoop({ range, paused = false }: UseBattleLoopOpts): Use
 
     soundEngine.play(WEAPON_ACTIVE_SOUND[state.currentWeapon]);
 
-    const machine = buildMachineStats({ machineMaxHp: state.machineMaxHp });
+    const machine = buildMachineStats({
+      machineMaxHp: state.machineMaxHp,
+      machineLevels: state.machineLevels,
+    });
     const attackMul = calcRunWorkshopMultiplier(state.runWorkshopLevels.attackMul);
     const newDamageEvents: DamageEvent[] = [];
     const newProjectileEvents: ProjectileEvent[] = [];
@@ -746,7 +754,10 @@ export function useBattleLoop({ range, paused = false }: UseBattleLoopOpts): Use
             // 武器発射 SE
             soundEngine.play(WEAPON_SHOOT_SOUND[state.currentWeapon]);
 
-            const machine = buildMachineStats({ machineMaxHp: state.machineMaxHp });
+            const machine = buildMachineStats({
+              machineMaxHp: state.machineMaxHp,
+              machineLevels: state.machineLevels,
+            });
             const result = fireWeapon({
               weapon: state.currentWeapon,
               weaponLv: state.weaponLv,
@@ -1026,6 +1037,23 @@ export function useBattleLoop({ range, paused = false }: UseBattleLoopOpts): Use
                 }
               }
 
+              // --- パッチドロップ (06-patches.md): elite/miniboss/boss のみ ---
+              // patchDropRate = machine 強化 (linear) × bonusDrop パッチの dropMultiplier
+              const patchDropRateMul =
+                calcEffectValue(
+                  MACHINE_UPGRADE_ITEMS.find((i) => i.key === 'patchDropRate')!,
+                  state.machineLevels.patchDropRate
+                ) * dropMul;
+              const dropped = dropPatch(
+                enemy.kind,
+                state.currentTier,
+                patchDropRateMul,
+                Math.random
+              );
+              if (dropped != null) {
+                state.addPatch(dropped.name, dropped.tier, 1);
+              }
+
               // 撃破 SE: boss/miniboss は bossKill、 それ以外は enemyKill
               soundEngine.play(
                 enemy.kind === 'boss' || enemy.kind === 'miniboss' ? 'bossKill' : 'enemyKill'
@@ -1060,7 +1088,10 @@ export function useBattleLoop({ range, paused = false }: UseBattleLoopOpts): Use
           // ダメージは「接触してる時間 × DPS」(現状通り)。 ノックバックは「新規接触フレームのみ」
           // 適用し、 押し戻された敵は MELEE 外に出るため次フレーム以降は DPS が止まる。
           // 敵が enemy.speed で再接近 → 再接触したらまたノックバック + 短時間 DPS、 を繰り返す。
-          const machineStats = buildMachineStats({ machineMaxHp: state.machineMaxHp });
+          const machineStats = buildMachineStats({
+            machineMaxHp: state.machineMaxHp,
+            machineLevels: state.machineLevels,
+          });
           let totalReceived = BigNum.ZERO;
           const newContactSet = new Set<string>();
           enemiesRef.current = enemiesRef.current.map((enemy) => {
