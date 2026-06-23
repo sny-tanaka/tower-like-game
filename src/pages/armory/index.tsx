@@ -9,7 +9,6 @@ import { PageHeader } from '@/components/organisms/PageHeader';
 import { WeaponDetailsTab } from '@/components/organisms/WeaponDetailsTab';
 import { WeaponLevelUpgradeTab } from '@/components/organisms/WeaponLevelUpgradeTab';
 import { useNavigation } from '@/store/navigation';
-import type { Screen } from '@/store/navigation';
 
 // ---------------------------------------------------------------------------
 // タブ定義
@@ -61,7 +60,7 @@ export function ArmoryScreen(props: ArmoryScreenProps = {}) {
       footer={
         <BottomNav
           active={screen as 'preparation' | 'machine' | 'armory' | 'patches' | 'settings'}
-          onChange={(target: Screen) => navigate(target)}
+          onChange={navigate}
         />
       }
     >

@@ -12,6 +12,7 @@ import { describe, it, expect } from 'vitest';
 import {
   CANNON_BASE_AS,
   CANNON_BASE_DAMAGE_MUL,
+  CANNON_SHELL_MS,
   VOLLEY_CD_SEC,
   VOLLEY_SHOTS,
   cannonNormalAttack,
@@ -332,5 +333,15 @@ describe('cannonVolley', () => {
       expect(s.blastX).toBeCloseTo(first.blastX, 5);
       expect(s.blastY).toBeCloseTo(first.blastY, 5);
     });
+  });
+});
+
+// ---------------------------------------------------------------------------
+// CANNON_SHELL_MS 定数値テスト
+// ---------------------------------------------------------------------------
+
+describe('CANNON_SHELL_MS', () => {
+  it('定数値が 480 (ms) であること', () => {
+    expect(CANNON_SHELL_MS).toBe(480);
   });
 });

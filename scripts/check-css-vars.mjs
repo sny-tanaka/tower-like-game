@@ -31,6 +31,7 @@ const BLESSED = new Set([
   'badge-color', // Badge: variant=tier の動的色
   'slider-fill-pct', // Slider: 進捗パーセント
   'start-scale', // WaveProgressBar: scaleX アニメ keyframes の開始倍率 (JSX が inline で渡す)
+  'divider-color', // Divider: color prop を JSX inline style から渡す
 ]);
 
 function listScssFiles(dir, acc = []) {

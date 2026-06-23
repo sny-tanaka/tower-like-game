@@ -588,3 +588,34 @@ describe('floating-point precision guard', () => {
     expect(a.mulNumber(1.02).toString()).toBe('1530000');
   });
 });
+
+// ---------------------------------------------------------------------------
+// Static factories: one / fromDigits
+// ---------------------------------------------------------------------------
+
+describe('BigNum.one', () => {
+  it('BigNum.one() が BigNum.fromNumber(1) と等値になる', () => {
+    expect(BigNum.one().eq(BigNum.fromNumber(1))).toBe(true);
+  });
+
+  it('BigNum.one().toString() === "1"', () => {
+    expect(BigNum.one().toString()).toBe('1');
+  });
+});
+
+describe('BigNum.fromDigits', () => {
+  it('fromDigits([1]) が 1 になる', () => {
+    expect(BigNum.fromDigits([1]).toString()).toBe('1');
+  });
+
+  it('fromDigits([1, 2]) が digits [1, 2] の内部表現と一致する（= 2001）', () => {
+    // LSB-first: digits[0]=1, digits[1]=2 → 1 + 2×1000 = 2001
+    const b = BigNum.fromDigits([1, 2]);
+    expect(b.toString()).toBe('2001');
+  });
+
+  it('fromDigits([0, 0, 1]) が 1000000 になる', () => {
+    // digits[2]=1 → 1×1000^2 = 1000000
+    expect(BigNum.fromDigits([0, 0, 1]).toString()).toBe('1000000');
+  });
+});

@@ -52,8 +52,12 @@ export function MachineUpgradeList() {
 
         // 3 オプション (+1 / +5 / MAX) のコストと disabled を計算
         const cost1 = calcCost(item, lv);
-        const cost5 = calcCostForN(item, lv, 5);
         const cost1Bn = BigNum.fromNumber(cost1);
+
+        // +5 ボタン: 残り Lv が 5 未満のときはその分までクランプしてコストを計算する
+        const remainingLevels5 = item.maxLv != null ? item.maxLv - lv : 5;
+        const clampedN5 = Math.min(5, remainingLevels5);
+        const cost5 = clampedN5 > 0 ? calcCostForN(item, lv, clampedN5) : calcCostForN(item, lv, 5);
         const cost5Bn = BigNum.fromNumber(cost5);
 
         // 残ボルトで何 Lv 上げられるか（BigNum 同士で比較するため number 経由しない）
@@ -64,7 +68,7 @@ export function MachineUpgradeList() {
         const costMaxBn = BigNum.fromNumber(costMax);
 
         const disabled1 = bolt.lt(cost1Bn);
-        const disabled5 = bolt.lt(cost5Bn) || (item.maxLv != null && lv + 5 > item.maxLv);
+        const disabled5 = bolt.lt(cost5Bn) || lv + clampedN5 > (item.maxLv ?? Infinity);
         const disabledMax = maxBuyClamped < 1;
 
         const options: UpgradeCardOption[] = isMaxed

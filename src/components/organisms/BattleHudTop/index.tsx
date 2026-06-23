@@ -151,6 +151,7 @@ export function BattleHudTop({
         secondsLeft={secondsRemaining}
         secondsMax={secondsTotal}
         nextMilestone={effectiveMilestone}
+        // ボス wave では時間を表示しない（isBossWave 側のバナーで代替）
         showSeconds={false}
         size="sm"
         paused={paused}

@@ -78,7 +78,7 @@ export function Page() {
         <TitleHeader
           subtitle="TOWER DEFENSE × INFINITE TIER"
           tagline="マシン + 武器 + パッチで攻略する放置寄りラン"
-          version="v0.2.0"
+          version={`v${__APP_VERSION__}`}
         />
         <div className={styles.heroWrap}>
           <TitleHero />

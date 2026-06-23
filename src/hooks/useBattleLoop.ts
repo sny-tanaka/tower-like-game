@@ -21,7 +21,7 @@ import { dropPatch } from '@/game/patches/drops';
 import type { EquippedPatch } from '@/game/patches.types';
 import type { SpawnedEnemy } from '@/game/types';
 import { buildTierWaves, getSpawnsAtTime } from '@/game/wave';
-import { cannonStats, cannonVolley } from '@/game/weapons/cannon';
+import { CANNON_SHELL_MS, cannonStats, cannonVolley } from '@/game/weapons/cannon';
 import {
   cutterStartOverdrive,
   cutterStats,
@@ -525,7 +525,7 @@ export function useBattleLoop({ range, paused = false }: UseBattleLoopOpts): Use
         const r = cannonVolley(machine, boosted, enemiesRef.current);
         // 通常攻撃と同じ shellMs (砲弾飛翔時間) を共有。 砲弾飛翔 + 着弾後爆発 +
         // 着弾と同じタイミングで HP 減算するため pendingCannonHits に積む。
-        const shellMs = 480;
+        const shellMs = CANNON_SHELL_MS;
         const nowGameMs = runElapsedGameMsRef.current;
         for (const shot of r.shots) {
           // 砲弾飛翔 (マシン → 着弾点)
@@ -901,7 +901,6 @@ export function useBattleLoop({ range, paused = false }: UseBattleLoopOpts): Use
               // Cannon は砲弾飛翔中なので、 hit 適用を着弾まで遅延する。
               // それ以外の武器は即時 HP 減算 + DamageEvent 発火。
               if (state.currentWeapon === 'cannon') {
-                const cannonShellMs = 480;
                 for (const hit of augmentedHits) {
                   pendingCannonHitsRef.current.push({
                     enemyId: hit.enemyId,
@@ -910,7 +909,7 @@ export function useBattleLoop({ range, paused = false }: UseBattleLoopOpts): Use
                     freeze: hit.freeze,
                     freezeSec: hit.freezeSec,
                     burnSec: hit.burnSec,
-                    applyAtMs: nowGameMs + cannonShellMs,
+                    applyAtMs: nowGameMs + CANNON_SHELL_MS,
                   });
                 }
               } else {
@@ -983,7 +982,7 @@ export function useBattleLoop({ range, paused = false }: UseBattleLoopOpts): Use
               } else if (state.currentWeapon === 'cannon') {
                 // 1 ショット = 1 砲弾 + 1 爆発。 splash 内の複数敵にダメージが入っても
                 // 物理的に飛翔する砲弾は 1 個 (result.impactX/Y = cannonNormalAttack の blastX/Y)。
-                const shellMs = 480;
+                const shellMs = CANNON_SHELL_MS;
                 const impactX = result.impactX;
                 const impactY = result.impactY;
                 if (impactX != null && impactY != null) {

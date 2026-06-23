@@ -10,6 +10,7 @@ import {
   putWeapons,
 } from '@/data/repository';
 import {
+  DB_VERSION,
   DEFAULT_CURRENCIES,
   DEFAULT_PROFILE,
   DEFAULT_SETTINGS,
@@ -183,7 +184,7 @@ export async function syncProfile(): Promise<void> {
     totalEnemiesKilled,
     createdAt,
     lastPlayedAt,
-    schemaVersion: 1,
+    schemaVersion: DB_VERSION,
   });
 }
 
