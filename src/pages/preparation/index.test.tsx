@@ -1,8 +1,10 @@
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { describe, expect, test } from 'vitest';
+import { afterEach, describe, expect, test } from 'vitest';
 
+import { BigNum } from '@/lib/bignum';
 import { Page } from '@/pages/preparation';
+import { useStore } from '@/store';
 import { NavigationProvider } from '@/store/navigation';
 
 // ---------------------------------------------------------------------------
@@ -73,5 +75,29 @@ describe('PreparationScreen Page', () => {
     await user.click(screen.getByRole('tab', { name: 'TIER' }));
 
     expect(screen.getByRole('tabpanel', { name: 'Tier 選択' })).toBeInTheDocument();
+  });
+
+  describe('出撃ボタン → startRun', () => {
+    afterEach(() => {
+      useStore.getState().endRun();
+    });
+
+    test('出撃ボタンを押すと isRunActive=true / machineMaxHp>0 になる', async () => {
+      const user = userEvent.setup();
+      renderPage();
+
+      // 押す前: ラン外 / HP 0
+      expect(useStore.getState().isRunActive).toBe(false);
+      expect(useStore.getState().machineMaxHp.isZero()).toBe(true);
+
+      await user.click(screen.getByRole('button', { name: '出撃' }));
+
+      // 押した後: ラン中 / HP は base 値 (=100, machineLevels.maxHp=0 のとき)
+      const s = useStore.getState();
+      expect(s.isRunActive).toBe(true);
+      expect(s.machineMaxHp.eq(BigNum.fromNumber(100))).toBe(true);
+      expect(s.machineHp.eq(BigNum.fromNumber(100))).toBe(true);
+      expect(s.currentWeapon).toBe(s.initialWeapon);
+    });
   });
 });

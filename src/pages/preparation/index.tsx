@@ -9,8 +9,13 @@ import { BottomNav } from '@/components/organisms/BottomNav';
 import { EquippedPatchesTab } from '@/components/organisms/EquippedPatchesTab';
 import { InitialWeaponTab } from '@/components/organisms/InitialWeaponTab';
 import { LaunchButton } from '@/components/organisms/LaunchButton';
+import {
+  MACHINE_UPGRADE_ITEMS,
+  calcEffectValue,
+} from '@/components/organisms/MachineUpgradeList/items';
 import { PageHeader } from '@/components/organisms/PageHeader';
 import { TierSelectTab } from '@/components/organisms/TierSelectTab';
+import { BigNum } from '@/lib/bignum';
 import { useStore } from '@/store';
 import { useNavigation } from '@/store/navigation';
 
@@ -63,7 +68,19 @@ export function Page(props: PreparationPageProps) {
   const equippedPatches = useStore((s) => s.equippedPatches);
   const patchCount = [...equippedPatches.values()].length;
 
+  // startRun に渡す: 永続強化 maxHp Lv から baseMachineMaxHp を算出
+  const machineLevels = useStore((s) => s.machineLevels);
+  const gameSpeed = useStore((s) => s.gameSpeed);
+  const startRun = useStore((s) => s.startRun);
+
   function handleLaunch() {
+    const maxHpItem = MACHINE_UPGRADE_ITEMS.find((i) => i.key === 'maxHp');
+    const baseMaxHpNum = maxHpItem != null ? calcEffectValue(maxHpItem, machineLevels.maxHp) : 100;
+    startRun({
+      initialWeapon,
+      baseMachineMaxHp: BigNum.fromNumber(baseMaxHpNum),
+      gameSpeed,
+    });
     navigate('battle');
   }
 
