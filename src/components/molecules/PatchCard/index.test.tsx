@@ -122,6 +122,16 @@ describe('PatchCard', () => {
     expect(el.className).toMatch(/disabled/);
   });
 
+  test('data-patch-id 属性が付与される', () => {
+    const { container } = render(
+      <PatchCard
+        {...defaultProps}
+        patchId="freeze#2"
+      />
+    );
+    expect(container.firstChild).toHaveAttribute('data-patch-id', 'freeze#2');
+  });
+
   test('trigger と effect が md サイズで描画される', () => {
     render(
       <PatchCard

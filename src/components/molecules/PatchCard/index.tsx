@@ -51,6 +51,7 @@ const ICON_WRAP_SIZE: Record<PatchCardSize, number> = {
 // ---------------------------------------------------------------------------
 
 export function PatchCard({
+  patchId,
   name,
   iconName,
   tier,
@@ -94,6 +95,7 @@ export function PatchCard({
 
   return (
     <div
+      data-patch-id={patchId}
       className={[
         styles.root,
         selected ? styles.selected : '',
