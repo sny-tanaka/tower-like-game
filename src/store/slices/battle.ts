@@ -1,5 +1,6 @@
 import type { StateCreator } from 'zustand';
 
+import { calcRunWorkshopMultiplier } from '@/components/organisms/RunWorkshopBottomSheet/items';
 import { BigNum } from '@/lib/bignum';
 import type { RootStore } from '@/store/index';
 import type { WeaponType } from '@/store/slices/weapons';
@@ -15,8 +16,14 @@ export interface BattleState {
   screw: BigNum;
   /** マシン現在 HP */
   machineHp: number;
-  /** マシン最大 HP (ラン開始時に計算して注入) */
+  /** マシン最大 HP (base × RunWorkshop hpMul) — RunWorkshop hpMul の変化で動的に再計算される */
   machineMaxHp: number;
+  /**
+   * マシン最大 HP の base 値 (永続強化 / 装着パッチ込み)。
+   * ラン中ワークショップの hpMul を適用する前の値で、 startRun 時に固定される。
+   * hpMul が上がっても base は変わらず、 machineMaxHp = baseMachineMaxHp × multiplier で再計算する。
+   */
+  baseMachineMaxHp: number;
   /** 現在 Tier */
   currentTier: number;
   /** 現在 Wave (Tier 内) */
@@ -31,6 +38,8 @@ export interface BattleState {
   isAutoActive: boolean;
   /** ゲームスピード (1 / 2 / 3) */
   gameSpeed: 1 | 2 | 3;
+  /** 一時停止中か */
+  isPaused: boolean;
 }
 
 // ---------------------------------------------------------------------------
@@ -40,7 +49,8 @@ export interface BattleState {
 export interface BattleActions {
   startRun: (opts: {
     initialWeapon: WeaponType;
-    machineMaxHp: number;
+    /** マシン本体最大 HP の base 値 (永続強化込み / RunWorkshop hpMul は含まない) */
+    baseMachineMaxHp: number;
     gameSpeed: 1 | 2 | 3;
   }) => void;
   endRun: () => void;
@@ -48,12 +58,21 @@ export interface BattleActions {
   spendScrew: (amount: BigNum) => boolean;
   setMachineHp: (hp: number) => void;
   damageHp: (amount: number) => void;
+  /**
+   * RunWorkshop hpMul 変化時に、 baseMachineMaxHp と新しい hpMul Lv から
+   * machineMaxHp を再計算する。 現在 HP は「減量を維持」で更新:
+   *   damage_taken = old_max - old_current
+   *   new_current  = new_max - damage_taken
+   * design-docs/04-run-workshop.md L28-44 参照。
+   */
+  recalcMachineMaxHpFromHpMul: (newHpMulLv: number) => void;
   advanceWave: () => void;
   advanceTier: () => void;
   switchWeapon: (weapon: WeaponType) => void;
   setWeaponSwitchCd: (sec: number) => void;
   setActiveCd: (sec: number) => void;
   setAutoActive: (auto: boolean) => void;
+  setPaused: (paused: boolean) => void;
   tickCooldowns: (deltaSecGameTime: number) => void;
 }
 
@@ -68,6 +87,7 @@ export const defaultBattleState: BattleState = {
   screw: BigNum.ZERO,
   machineHp: 0,
   machineMaxHp: 0,
+  baseMachineMaxHp: 0,
   currentTier: 1,
   currentWave: 1,
   currentWeapon: 'laser',
@@ -75,6 +95,7 @@ export const defaultBattleState: BattleState = {
   activeCdSec: 0,
   isAutoActive: false,
   gameSpeed: 1,
+  isPaused: false,
 };
 
 // ---------------------------------------------------------------------------
@@ -84,12 +105,18 @@ export const defaultBattleState: BattleState = {
 export const createBattleSlice: StateCreator<RootStore, [], [], BattleSlice> = (set, get) => ({
   ...defaultBattleState,
 
-  startRun: ({ initialWeapon, machineMaxHp, gameSpeed }) => {
+  startRun: ({ initialWeapon, baseMachineMaxHp, gameSpeed }) => {
+    // ラン開始時の hpMul は Lv 0 (×1.0) になる前提 (RunWorkshop もリセットされる) だが、
+    // 明示的に倍率を計算しておく。
+    const hpMulLv = get().runWorkshopLevels.hpMul;
+    const multiplier = calcRunWorkshopMultiplier(hpMulLv);
+    const machineMaxHp = baseMachineMaxHp * multiplier;
     set({
       isRunActive: true,
       screw: BigNum.ZERO,
       machineHp: machineMaxHp,
       machineMaxHp,
+      baseMachineMaxHp,
       currentTier: 1,
       currentWave: 1,
       currentWeapon: initialWeapon,
@@ -97,6 +124,7 @@ export const createBattleSlice: StateCreator<RootStore, [], [], BattleSlice> = (
       activeCdSec: 0,
       isAutoActive: false,
       gameSpeed,
+      isPaused: false,
     });
     // ラン跨ぎで RunWorkshop の Lv をリセット
     get().resetRunWorkshop();
@@ -120,6 +148,16 @@ export const createBattleSlice: StateCreator<RootStore, [], [], BattleSlice> = (
 
   damageHp: (amount) => set((s) => ({ machineHp: Math.max(0, s.machineHp - amount) })),
 
+  recalcMachineMaxHpFromHpMul: (newHpMulLv) => {
+    const s = get();
+    const oldMax = s.machineMaxHp;
+    const oldCurrent = s.machineHp;
+    const damageTaken = Math.max(0, oldMax - oldCurrent);
+    const newMax = s.baseMachineMaxHp * calcRunWorkshopMultiplier(newHpMulLv);
+    const newCurrent = Math.max(0, newMax - damageTaken);
+    set({ machineMaxHp: newMax, machineHp: newCurrent });
+  },
+
   advanceWave: () => set((s) => ({ currentWave: s.currentWave + 1 })),
 
   advanceTier: () => set((s) => ({ currentTier: s.currentTier + 1, currentWave: 1 })),
@@ -131,6 +169,8 @@ export const createBattleSlice: StateCreator<RootStore, [], [], BattleSlice> = (
   setActiveCd: (sec) => set({ activeCdSec: Math.max(0, sec) }),
 
   setAutoActive: (auto) => set({ isAutoActive: auto }),
+
+  setPaused: (paused) => set({ isPaused: paused }),
 
   tickCooldowns: (deltaSecGameTime) =>
     set((s) => ({

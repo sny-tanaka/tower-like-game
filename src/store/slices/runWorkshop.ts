@@ -87,12 +87,18 @@ export const createRunWorkshopSlice: StateCreator<RootStore, [], [], RunWorkshop
     const spent = get().spendScrew(totalCost);
     if (!spent) return false;
 
+    const newLv = currentLv + lvDelta;
     set((s) => ({
       runWorkshopLevels: {
         ...s.runWorkshopLevels,
-        [key]: currentLv + lvDelta,
+        [key]: newLv,
       },
     }));
+
+    // hpMul の場合は machineMaxHp を動的に再計算 ( design-docs/04-run-workshop.md L28-44 「減量維持」)
+    if (key === 'hpMul') {
+      get().recalcMachineMaxHpFromHpMul(newLv);
+    }
     return true;
   },
 
