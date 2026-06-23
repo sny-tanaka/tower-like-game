@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'vitest';
 
-import { MAX_FRAME_GAME_SEC, calcFrameGameSec } from './useBattleLoop';
+import { MAX_FRAME_GAME_SEC, calcFrameGameSec, decideWaveAdvance } from './useBattleLoop';
 
 describe('calcFrameGameSec', () => {
   test('isPaused=true なら常に 0', () => {
@@ -25,5 +25,27 @@ describe('calcFrameGameSec', () => {
 
   test('elapsedMs が負 (異常値) なら 0 にクランプ', () => {
     expect(calcFrameGameSec(-100, 1, false)).toBe(0);
+  });
+});
+
+describe('decideWaveAdvance', () => {
+  test('Wave 経過時間 < durationSec → continue', () => {
+    expect(decideWaveAdvance(10_000, 26, 5, 30)).toBe('continue');
+  });
+
+  test('Wave 経過時間 = durationSec → advanceWave (Tier 途中)', () => {
+    expect(decideWaveAdvance(26_000, 26, 5, 30)).toBe('advanceWave');
+  });
+
+  test('Wave 経過時間 > durationSec → advanceWave (Tier 途中)', () => {
+    expect(decideWaveAdvance(27_000, 26, 5, 30)).toBe('advanceWave');
+  });
+
+  test('Tier 最終 Wave (30) 終了で advanceTier', () => {
+    expect(decideWaveAdvance(26_000, 26, 30, 30)).toBe('advanceTier');
+  });
+
+  test('境界: 最終 Wave 進行中は continue', () => {
+    expect(decideWaveAdvance(25_999, 26, 30, 30)).toBe('continue');
   });
 });
