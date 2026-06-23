@@ -18,6 +18,12 @@ export interface MachineStats {
   maxHp: BigNum;
   /** HP リジェネ/秒 (#2) */
   hpRegen: BigNum;
+  /** 攻撃速度倍率 (#6)。1.02^Lv の乗算。Lv0 = 1.0 */
+  attackSpeed: number;
+  /** アクティブ威力倍率 (#10)。1.0 + 0.03 × Lv。Lv0 = 1.0 */
+  activePower: number;
+  /** アクティブ CD 短縮率 (#11)。0〜0.5 の漸近値。Lv0 = 0 */
+  activeCdReduction: number;
 }
 
 /**

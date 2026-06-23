@@ -398,15 +398,16 @@ export function useBattleLoop({ range, paused = false }: UseBattleLoopOpts): Use
     if (state.activeCdSec > 0 || state.machineHp.isZero() || !state.isRunActive) {
       return false;
     }
-    const fired = state.triggerActive(DEFAULT_ACTIVE_MAX_SEC);
-    if (!fired) return false;
-
-    soundEngine.play(WEAPON_ACTIVE_SOUND[state.currentWeapon]);
-
     const machine = buildMachineStats({
       machineMaxHp: state.machineMaxHp,
       machineLevels: state.machineLevels,
     });
+    const effectiveCdSec = DEFAULT_ACTIVE_MAX_SEC * (1 - machine.activeCdReduction);
+    const fired = state.triggerActive(effectiveCdSec);
+    if (!fired) return false;
+
+    soundEngine.play(WEAPON_ACTIVE_SOUND[state.currentWeapon]);
+
     const attackMul = calcRunWorkshopMultiplier(state.runWorkshopLevels.attackMul);
     const newDamageEvents: DamageEvent[] = [];
     const newProjectileEvents: ProjectileEvent[] = [];
@@ -431,7 +432,7 @@ export function useBattleLoop({ range, paused = false }: UseBattleLoopOpts): Use
     switch (state.currentWeapon) {
       case 'laser': {
         const s = laserStats(state.weaponLv);
-        const boosted = { ...s, damageMul: s.damageMul * attackMul };
+        const boosted = { ...s, damageMul: s.damageMul * attackMul * machine.activePower };
         // ビーム発射角度: 最寄り敵の方向 (敵がいなければ右 = 0°)
         let angleDeg = 0;
         if (enemiesRef.current.length > 0) {
@@ -464,7 +465,7 @@ export function useBattleLoop({ range, paused = false }: UseBattleLoopOpts): Use
       }
       case 'cannon': {
         const s = cannonStats(state.weaponLv);
-        const boosted = { ...s, damageMul: s.damageMul * attackMul };
+        const boosted = { ...s, damageMul: s.damageMul * attackMul * machine.activePower };
         const r = cannonVolley(machine, boosted, enemiesRef.current);
         // 通常攻撃と同じ shellMs (砲弾飛翔時間) を共有。 砲弾飛翔 + 着弾後爆発 +
         // 着弾と同じタイミングで HP 減算するため pendingCannonHits に積む。
@@ -506,7 +507,7 @@ export function useBattleLoop({ range, paused = false }: UseBattleLoopOpts): Use
       }
       case 'thunder': {
         const s = thunderStats(state.weaponLv);
-        const boosted = { ...s, damageMul: s.damageMul * attackMul };
+        const boosted = { ...s, damageMul: s.damageMul * attackMul * machine.activePower };
         const r = thunderPlasmaDischarge(machine, boosted, enemiesRef.current);
         // 連鎖の視覚: マシン → hit 順に points を結ぶ
         const points: { x: number; y: number }[] = [{ x: MACHINE_CENTER_X, y: MACHINE_CENTER_Y }];
@@ -719,9 +720,14 @@ export function useBattleLoop({ range, paused = false }: UseBattleLoopOpts): Use
           const overdriveAsMul = overdriveStateRef.current.active
             ? overdriveStateRef.current.attackSpeedMul
             : 1;
+          // tick ループ内の machine stats (attackSpeed 反映のため先行取得)
+          const machineTick = buildMachineStats({
+            machineMaxHp: state.machineMaxHp,
+            machineLevels: state.machineLevels,
+          });
           const effectivePerSec = Math.min(
             ATTACK_PER_SEC_CAP,
-            basePerSec * attackSpeedMul * overdriveAsMul
+            basePerSec * machineTick.attackSpeed * attackSpeedMul * overdriveAsMul
           );
           const intervalMs = effectivePerSec > 0 ? 1000 / effectivePerSec : Infinity;
 
@@ -758,14 +764,10 @@ export function useBattleLoop({ range, paused = false }: UseBattleLoopOpts): Use
             // 武器発射 SE
             soundEngine.play(WEAPON_SHOOT_SOUND[state.currentWeapon]);
 
-            const machine = buildMachineStats({
-              machineMaxHp: state.machineMaxHp,
-              machineLevels: state.machineLevels,
-            });
             const result = fireWeapon({
               weapon: state.currentWeapon,
               weaponLv: state.weaponLv,
-              machine,
+              machine: machineTick,
               enemiesInRange: sortedInRange,
               rng: Math.random,
               cutterAngleDeg: cutterAngleDegRef.current,
@@ -993,11 +995,15 @@ export function useBattleLoop({ range, paused = false }: UseBattleLoopOpts): Use
               );
               const dropMul = dropEffect.dropMultiplier ?? 1;
 
-              // --- ネジ (screw): 常時獲得 + screwGainMul + dropMul ---
+              // --- ネジ (screw): 常時獲得 + screwGainMul (RW) × machineScrewGainMul + dropMul ---
+              const machineScrewGainMul = calcEffectValue(
+                MACHINE_UPGRADE_ITEMS.find((i) => i.key === 'screwGain')!,
+                state.machineLevels.screwGain
+              );
               const baseScrew = enemy.reward.screw;
               if (baseScrew > 0) {
                 earnedScrew = earnedScrew.add(
-                  BigNum.fromNumber(baseScrew * screwGainMul * dropMul)
+                  BigNum.fromNumber(baseScrew * screwGainMul * machineScrewGainMul * dropMul)
                 );
                 pickupEventIdRef.current += 1;
                 newPickupEvents.push({
@@ -1008,13 +1014,17 @@ export function useBattleLoop({ range, paused = false }: UseBattleLoopOpts): Use
                 });
               }
 
-              // --- ボルト (bolt): 通常敵は 50% 確率、 上位敵は 100% + dropMul ---
+              // --- ボルト (bolt): 通常敵は 50% 確率、 上位敵は 100% + boltGainMul + dropMul ---
+              const boltGainMul = calcEffectValue(
+                MACHINE_UPGRADE_ITEMS.find((i) => i.key === 'boltGain')!,
+                state.machineLevels.boltGain
+              );
               const baseBolt = enemy.reward.bolt;
               if (baseBolt > 0) {
                 const boltDropRoll =
                   enemy.kind === 'normal' ? Math.random() < NORMAL_BOLT_DROP_CHANCE : true;
                 if (boltDropRoll) {
-                  earnedBolt = earnedBolt.add(BigNum.fromNumber(baseBolt * dropMul));
+                  earnedBolt = earnedBolt.add(BigNum.fromNumber(baseBolt * boltGainMul * dropMul));
                   pickupEventIdRef.current += 1;
                   newPickupEvents.push({
                     id: `pk-${pickupEventIdRef.current}`,
@@ -1025,11 +1035,15 @@ export function useBattleLoop({ range, paused = false }: UseBattleLoopOpts): Use
                 }
               }
 
-              // --- 超合金 (alloy): reward.alloyChance で reward.alloyAmount を獲得 + dropMul ---
+              // --- 超合金 (alloy): reward.alloyChance で reward.alloyAmount を獲得 + alloyGainMul + dropMul ---
+              const alloyGainMul = calcEffectValue(
+                MACHINE_UPGRADE_ITEMS.find((i) => i.key === 'alloyGain')!,
+                state.machineLevels.alloyGain
+              );
               if (enemy.reward.alloyChance > 0 && enemy.reward.alloyAmount > 0) {
                 if (Math.random() < enemy.reward.alloyChance) {
                   earnedAlloy = earnedAlloy.add(
-                    BigNum.fromNumber(enemy.reward.alloyAmount * dropMul)
+                    BigNum.fromNumber(enemy.reward.alloyAmount * alloyGainMul * dropMul)
                   );
                   pickupEventIdRef.current += 1;
                   newPickupEvents.push({

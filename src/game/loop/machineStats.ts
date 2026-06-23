@@ -42,5 +42,8 @@ export function buildMachineStats({
     critMultiplier: effect('critMultiplier', machineLevels.critMultiplier, 1.5),
     maxHp: machineMaxHp.isZero() ? BigNum.fromNumber(1) : machineMaxHp,
     hpRegen: BigNum.fromNumber(effect('hpRegen', machineLevels.hpRegen, 1)),
+    attackSpeed: effect('attackSpeed', machineLevels.attackSpeed, 1),
+    activePower: effect('activePower', machineLevels.activePower, 1),
+    activeCdReduction: effect('activeCdReduction', machineLevels.activeCdReduction, 0),
   };
 }

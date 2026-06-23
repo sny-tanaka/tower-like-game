@@ -27,6 +27,9 @@ function makeMachine(overrides: Partial<MachineStats> = {}): MachineStats {
     critMultiplier: 2.0,
     maxHp: BigNum.fromNumber(1000),
     hpRegen: BigNum.fromNumber(1),
+    attackSpeed: 1,
+    activePower: 1,
+    activeCdReduction: 0,
     ...overrides,
   };
 }
