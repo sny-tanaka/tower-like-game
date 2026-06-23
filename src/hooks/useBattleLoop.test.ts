@@ -198,6 +198,63 @@ describe('calcIntervalTicks', () => {
     expect(result.ticks).toBe(0);
     expect(result.nextAccumulatorMs).toBeCloseTo(500);
   });
+
+  // ケース 5: 60fps (16ms × 62 フレーム) の累積端数シミュレーション
+  // 16ms × 62 = 992ms → 未発火、63 枚目 = 1008ms → 1 回発火
+  test('16ms × 62 フレームでは未発火、63 枚目で 1 回発火', () => {
+    const frameSec = 16 / 1000; // 0.016 秒
+    let acc = 0;
+    let totalTicks = 0;
+    for (let i = 0; i < 62; i++) {
+      const r = calcIntervalTicks(acc, frameSec);
+      totalTicks += r.ticks;
+      acc = r.nextAccumulatorMs;
+    }
+    expect(totalTicks).toBe(0);
+    // 63 枚目で閾値超え
+    const r63 = calcIntervalTicks(acc, frameSec);
+    totalTicks += r63.ticks;
+    expect(totalTicks).toBe(1);
+    // 残余は 63 * 16 - 1000 = 8ms
+    expect(r63.nextAccumulatorMs).toBeCloseTo(63 * 16 - 1000, 5);
+  });
+
+  // ケース 6: カスタム thresholdMs — 500ms 間隔で 3 回発火
+  test('thresholdMs=500 で 1700ms 経過 → ticks=3、残余 200ms', () => {
+    const result = calcIntervalTicks(0, 1.7, 500);
+    expect(result.ticks).toBe(3);
+    expect(result.nextAccumulatorMs).toBeCloseTo(200);
+  });
+
+  // ケース 7: 3 フレームにわたる連続シミュレーション
+  // f1: 400ms → acc=400, ticks=0
+  // f2: 400ms → acc=800, ticks=0
+  // f3: 400ms → 合計 1200ms → ticks=1, 残余 200ms
+  test('連続 3 フレーム (各 400ms) で合計 1200ms → ticks=1、残余 200ms', () => {
+    let acc = 0;
+    let totalTicks = 0;
+    for (let i = 0; i < 3; i++) {
+      const r = calcIntervalTicks(acc, 0.4);
+      totalTicks += r.ticks;
+      acc = r.nextAccumulatorMs;
+    }
+    expect(totalTicks).toBe(1);
+    expect(acc).toBeCloseTo(200);
+  });
+
+  // ケース 8: 境界値 — accumulator=999ms + 1ms で ticks=1、残余 0ms
+  test('accumulator=999 + deltaSec=0.001 (1ms) → ticks=1、残余 0ms', () => {
+    const result = calcIntervalTicks(999, 0.001);
+    expect(result.ticks).toBe(1);
+    expect(result.nextAccumulatorMs).toBeCloseTo(0);
+  });
+
+  // ケース 9: MAX_FRAME_GAME_SEC=1.0 クランプ後の最大 deltaSec で ticks=1
+  // accumulator=0 から deltaSec=1.0 → ticks=1（複数発火は起きない）
+  test('deltaSec=1.0 (最大クランプ後) + acc=0 → ticks=1', () => {
+    const result = calcIntervalTicks(0, 1.0);
+    expect(result.ticks).toBe(1);
+  });
 });
 
 // ---------------------------------------------------------------------------
