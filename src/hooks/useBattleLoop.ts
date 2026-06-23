@@ -204,6 +204,35 @@ export function calcHpRegen(
  */
 export { DEFAULT_ACTIVE_MAX_SEC };
 
+// ---------------------------------------------------------------------------
+// 純粋関数: interval パッチトリガーの発火回数と残余 accumulator を計算する
+// ---------------------------------------------------------------------------
+
+export interface CalcIntervalTicksResult {
+  /** 今フレームで発火する interval tick 数 */
+  ticks: number;
+  /** 次フレームへ持ち越す残余 accumulator (ms) */
+  nextAccumulatorMs: number;
+}
+
+/**
+ * interval パッチトリガーの発火回数と次フレームへ持ち越す残余を計算する。
+ *
+ * @param currentAccumulatorMs 現在の累積 ms
+ * @param deltaSec             今フレームのゲーム内経過秒
+ * @param thresholdMs          発火閾値 (通常 1000ms)
+ */
+export function calcIntervalTicks(
+  currentAccumulatorMs: number,
+  deltaSec: number,
+  thresholdMs = 1000
+): CalcIntervalTicksResult {
+  const next = currentAccumulatorMs + deltaSec * 1000;
+  const ticks = Math.floor(next / thresholdMs);
+  const nextAccumulatorMs = next - ticks * thresholdMs;
+  return { ticks, nextAccumulatorMs };
+}
+
 /**
  * Cutter (回転刃武器) の当たり判定半径 (%)。
  * CutterOrbitFx の length=14vmin と合わせ、 視覚的な刃の範囲内の敵のみヒットする。
@@ -309,6 +338,12 @@ export function useBattleLoop({ range, paused = false }: UseBattleLoopOpts): Use
    * deltaSec * 1000 で累積する「ゲーム内時間」。
    */
   const runElapsedGameMsRef = useRef<number>(0);
+  /**
+   * interval パッチトリガー用の累積ゲーム内時間 (ms)。
+   * 1000ms を超えるたびに evaluatePatches({ type: 'interval', deltaMs: 1000 }) を呼ぶ。
+   * ラン開始 / wave 切替でリセットしない（interval は絶対時間ベース）。
+   */
+  const intervalAccumulatorMsRef = useRef<number>(0);
   /**
    * 前フレームに「接触中」だった敵 ID の集合。 ノックバックは「新規接触したフレームのみ」
    * 適用するための状態遷移マーカー。 frame N で接触 → frame N+1 で非接触 (押し戻された) →
@@ -589,6 +624,31 @@ export function useBattleLoop({ range, paused = false }: UseBattleLoopOpts): Use
 
         // ---- 装着パッチ配列 (Map → Array) ----
         const equippedPatchesArr: EquippedPatch[] = Array.from(state.equippedPatches.values());
+
+        // ---- interval パッチトリガー ----
+        {
+          const { ticks, nextAccumulatorMs } = calcIntervalTicks(
+            intervalAccumulatorMsRef.current,
+            deltaSec
+          );
+          intervalAccumulatorMsRef.current = nextAccumulatorMs;
+          for (let i = 0; i < ticks; i++) {
+            const intervalEffect = evaluatePatches(
+              equippedPatchesArr,
+              { type: 'interval', deltaMs: 1000 },
+              Math.random
+            );
+            // heal: machineHp に加算
+            if (intervalEffect.heal != null && !intervalEffect.heal.isZero()) {
+              state.setMachineHp(state.machineHp.add(intervalEffect.heal));
+            }
+            // boltGain: addBolt
+            if (intervalEffect.boltGain != null && !intervalEffect.boltGain.isZero()) {
+              state.addBolt(intervalEffect.boltGain);
+            }
+            // shieldRecover: 将来実装のためスキップ（現状 store に shieldHp がないため）
+          }
+        }
 
         // ---- CD 減算 ----
         state.tickCooldowns(deltaSec);

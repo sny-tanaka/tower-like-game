@@ -6,6 +6,7 @@ import {
   applyKnockback,
   calcFrameGameSec,
   calcHpRegen,
+  calcIntervalTicks,
   decideTransitionReset,
   decideWaveAdvance,
   distanceFromMachine,
@@ -199,5 +200,42 @@ describe('calcHpRegen', () => {
     );
     // 100 + 5 = 105 → クランプ → 100
     expect(result.eq(BigNum.fromNumber(100))).toBe(true);
+  });
+});
+
+describe('calcIntervalTicks', () => {
+  // ケース 1: 1 秒未満では interval 未発火
+  test('500ms 経過では ticks=0、accumulator が 500ms に増える', () => {
+    const result = calcIntervalTicks(0, 0.5);
+    expect(result.ticks).toBe(0);
+    expect(result.nextAccumulatorMs).toBeCloseTo(500);
+  });
+
+  // ケース 2: 1 秒経過で interval が 1 回発火
+  test('1000ms 経過では ticks=1、accumulator が 0ms にリセットされる', () => {
+    const result = calcIntervalTicks(0, 1.0);
+    expect(result.ticks).toBe(1);
+    expect(result.nextAccumulatorMs).toBeCloseTo(0);
+  });
+
+  // ケース 3: 2500ms 経過で 2 回発火（端数は次フレームへ持越し）
+  test('2500ms 経過では ticks=2、余り 500ms が次フレームへ持ち越される', () => {
+    const result = calcIntervalTicks(0, 2.5);
+    expect(result.ticks).toBe(2);
+    expect(result.nextAccumulatorMs).toBeCloseTo(500);
+  });
+
+  // ケース 3 補足: 前フレームの残余 500ms + 600ms = 1100ms → 1 回発火、残余 100ms
+  test('前フレームの残余 500ms + 600ms → ticks=1、残余 100ms が次フレームへ', () => {
+    const result = calcIntervalTicks(500, 0.6);
+    expect(result.ticks).toBe(1);
+    expect(result.nextAccumulatorMs).toBeCloseTo(100);
+  });
+
+  // ケース 4: pause 中は deltaSec=0 → accumulator が増えない
+  test('deltaSec=0 (pause 中) では ticks=0、accumulator が変化しない', () => {
+    const result = calcIntervalTicks(500, 0);
+    expect(result.ticks).toBe(0);
+    expect(result.nextAccumulatorMs).toBeCloseTo(500);
   });
 });
