@@ -458,6 +458,16 @@ describe('battle slice', () => {
     expect(s.activeCdSec).toBe(60); // DEFAULT_ACTIVE_MAX_SEC
   });
 
+  it('startRun: initialTier=1 を明示指定すると currentTier が 1 になる', () => {
+    const store = makeStore();
+    store.getState().startRun({
+      initialWeapon: 'laser',
+      baseMachineMaxHp: BigNum.fromNumber(100),
+      initialTier: 1,
+    });
+    expect(store.getState().currentTier).toBe(1);
+  });
+
   it('startRun: initialTier=3 を渡すと currentTier が 3 になる', () => {
     const store = makeStore();
     store.getState().startRun({
@@ -466,6 +476,28 @@ describe('battle slice', () => {
       initialTier: 3,
     });
     expect(store.getState().currentTier).toBe(3);
+  });
+
+  it('startRun: initialTier=10 (大きい値) でも currentTier がそのまま 10 になる', () => {
+    // 仕様: startRun 側はクランプしない。UI 層 (TierSelectTab / highestTier) でガード済み
+    const store = makeStore();
+    store.getState().startRun({
+      initialWeapon: 'laser',
+      baseMachineMaxHp: BigNum.fromNumber(100),
+      initialTier: 10,
+    });
+    expect(store.getState().currentTier).toBe(10);
+  });
+
+  it('startRun: initialTier=100 (大きい値) でも currentTier がそのまま 100 になる', () => {
+    // 仕様: startRun 側はクランプしない。UI 層 (TierSelectTab / highestTier) でガード済み
+    const store = makeStore();
+    store.getState().startRun({
+      initialWeapon: 'laser',
+      baseMachineMaxHp: BigNum.fromNumber(100),
+      initialTier: 100,
+    });
+    expect(store.getState().currentTier).toBe(100);
   });
 
   it('startRun: initialTier 省略 (undefined) のとき currentTier が 1 になる', () => {

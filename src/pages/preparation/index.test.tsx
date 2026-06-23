@@ -130,6 +130,16 @@ describe('PreparationScreen Page', () => {
       expect(s.currentWeapon).toBe(s.initialWeapon);
     });
 
+    test('initialSelectedTier 未指定のとき selectedTier のデフォルト (highestTier=1) で currentTier が 1 になる', async () => {
+      // highestTier=1 (初期値) → selectedTier=1 → currentTier=1
+      const user = userEvent.setup();
+      renderPage();
+
+      await user.click(screen.getByRole('button', { name: '出撃' }));
+
+      expect(useStore.getState().currentTier).toBe(1);
+    });
+
     test('initialSelectedTier=3 で出撃すると store の currentTier が 3 になる', async () => {
       const user = userEvent.setup();
       render(
@@ -141,6 +151,19 @@ describe('PreparationScreen Page', () => {
       await user.click(screen.getByRole('button', { name: '出撃' }));
 
       expect(useStore.getState().currentTier).toBe(3);
+    });
+
+    test('initialSelectedTier=5 で出撃すると store の currentTier が 5 になる', async () => {
+      const user = userEvent.setup();
+      render(
+        <NavigationProvider initialScreen="preparation">
+          <Page initialSelectedTier={5} />
+        </NavigationProvider>
+      );
+
+      await user.click(screen.getByRole('button', { name: '出撃' }));
+
+      expect(useStore.getState().currentTier).toBe(5);
     });
   });
 });
