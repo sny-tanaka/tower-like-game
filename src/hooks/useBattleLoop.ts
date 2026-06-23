@@ -1,11 +1,13 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
-import type { DamageEvent } from '@/components/organisms/BattleField';
+import type { DamageEvent, DeathEvent } from '@/components/organisms/BattleField';
 import { calcRunWorkshopMultiplier } from '@/components/organisms/RunWorkshopBottomSheet/items';
+import { calcReceivedDamage } from '@/game/damage';
 import { buildMachineStats } from '@/game/loop/machineStats';
 import { fireWeapon, getAttackPerSec } from '@/game/loop/weaponDispatch';
 import type { SpawnedEnemy } from '@/game/types';
 import { buildTierWaves, getSpawnsAtTime } from '@/game/wave';
+import { BigNum } from '@/lib/bignum';
 import { useStore } from '@/store/index';
 
 // ---------------------------------------------------------------------------
@@ -58,6 +60,9 @@ export function distanceFromMachine(position: { x: number; y: number }): number 
 /** 仕様: 攻撃速度 hard cap = 10 attacks/sec (design-docs/04-run-workshop.md L64) */
 export const ATTACK_PER_SEC_CAP = 10;
 
+/** マシン本体への被ダメ近接判定距離 (%)。 現状は敵移動ロジック未実装のための placeholder */
+export const MELEE_CONTACT_RANGE = 5;
+
 // ---------------------------------------------------------------------------
 // useBattleLoop
 // ---------------------------------------------------------------------------
@@ -70,7 +75,9 @@ export interface UseBattleLoopOpts {
 export interface UseBattleLoopResult {
   enemies: SpawnedEnemy[];
   damageEvents: DamageEvent[];
+  deathEvents: DeathEvent[];
   onDamageDone: (id: string) => void;
+  onDeathDone: (id: string) => void;
 }
 
 export function useBattleLoop({ range }: UseBattleLoopOpts): UseBattleLoopResult {
@@ -83,9 +90,11 @@ export function useBattleLoop({ range }: UseBattleLoopOpts): UseBattleLoopResult
   const fireAccumulatorMsRef = useRef<number>(0);
   const cutterAngleDegRef = useRef<number>(0);
   const damageEventIdRef = useRef<number>(0);
+  const deathEventIdRef = useRef<number>(0);
 
   const [enemies, setEnemies] = useState<SpawnedEnemy[]>([]);
   const [damageEvents, setDamageEvents] = useState<DamageEvent[]>([]);
+  const [deathEvents, setDeathEvents] = useState<DeathEvent[]>([]);
 
   const isRunActive = useStore((s) => s.isRunActive);
   const currentTier = useStore((s) => s.currentTier);
@@ -104,6 +113,10 @@ export function useBattleLoop({ range }: UseBattleLoopOpts): UseBattleLoopResult
 
   const onDamageDone = useCallback((id: string) => {
     setDamageEvents((prev) => prev.filter((e) => e.id !== id));
+  }, []);
+
+  const onDeathDone = useCallback((id: string) => {
+    setDeathEvents((prev) => prev.filter((e) => e.id !== id));
   }, []);
 
   useEffect(() => {
@@ -214,6 +227,51 @@ export function useBattleLoop({ range }: UseBattleLoopOpts): UseBattleLoopResult
             setDamageEvents((prev) => [...prev, ...newDamageEvents]);
           }
 
+          // ---- 撃破処理 (HP <= 0) + ネジ獲得 (screwGainMul 反映) + DeathEvent ----
+          const screwGainMul = calcRunWorkshopMultiplier(state.runWorkshopLevels.screwGainMul);
+          const newDeathEvents: DeathEvent[] = [];
+          const survivors: SpawnedEnemy[] = [];
+          let earnedScrew = BigNum.ZERO;
+          for (const enemy of enemiesRef.current) {
+            if (enemy.hp.lte(BigNum.ZERO)) {
+              deathEventIdRef.current += 1;
+              newDeathEvents.push({
+                id: `dh-${deathEventIdRef.current}`,
+                x: enemy.position.x,
+                y: enemy.position.y,
+              });
+              const baseScrew = enemy.reward.screw;
+              if (baseScrew > 0) {
+                earnedScrew = earnedScrew.add(BigNum.fromNumber(baseScrew * screwGainMul));
+              }
+            } else {
+              survivors.push(enemy);
+            }
+          }
+          if (newDeathEvents.length > 0) {
+            enemiesRef.current = survivors;
+            setDeathEvents((prev) => [...prev, ...newDeathEvents]);
+          }
+          if (!earnedScrew.isZero()) {
+            state.addScrew(earnedScrew);
+          }
+
+          // ---- 被ダメ処理 (マシン近接の敵から enemy.atk × deltaSec) ----
+          // 敵移動ロジック未実装のため、 spawn 時点で近接位置にいる場合のみ被ダメ発生する placeholder。
+          // 敵移動 + 経路は別 issue で実装する。
+          const machineStats = buildMachineStats({ maxHpNumber: state.machineMaxHp });
+          let totalReceived = BigNum.ZERO;
+          for (const enemy of enemiesRef.current) {
+            if (distanceFromMachine(enemy.position) <= MELEE_CONTACT_RANGE) {
+              const dmgPerSec = calcReceivedDamage(enemy.atk, machineStats);
+              totalReceived = totalReceived.add(dmgPerSec.mulNumber(deltaSec));
+            }
+          }
+          if (!totalReceived.isZero()) {
+            const dmgNum = parseFloat(totalReceived.toString());
+            state.damageHp(dmgNum);
+          }
+
           // ---- Wave 終了判定 ----
           const decision = decideWaveAdvance(
             waveElapsedMsRef.current,
@@ -245,5 +303,5 @@ export function useBattleLoop({ range }: UseBattleLoopOpts): UseBattleLoopResult
     };
   }, [isRunActive, tierWaves, range]);
 
-  return { enemies, damageEvents, onDamageDone };
+  return { enemies, damageEvents, deathEvents, onDamageDone, onDeathDone };
 }
