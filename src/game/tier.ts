@@ -12,9 +12,9 @@ export const TIER_BASE = {
   /** T1W1 Standard の ATK */
   ATK: 2,
   /** T1W1 Standard の移動速度（px/s） */
-  SPD: 30,
+  SPD: 10,
   /** T1W1 のスポーン間隔（秒/体） */
-  SPAWN_INTERVAL: 0.5,
+  SPAWN_INTERVAL: 2,
   /** HP の Tier ごとの成長倍率 */
   HP_GROWTH: 1.8,
   /** ATK の Tier ごとの成長倍率 */
@@ -36,7 +36,7 @@ export function waveHpFactor(waveIndex: number): number {
   } else if (waveIndex <= 20) {
     return 1 + 0.074 * 9 + 0.133 * (waveIndex - 10);
   } else {
-    return 1 + 0.074 * 9 + 0.133 * 10 + 0.200 * (waveIndex - 20);
+    return 1 + 0.074 * 9 + 0.133 * 10 + 0.2 * (waveIndex - 20);
   }
 }
 
@@ -51,7 +51,7 @@ export function waveAtkFactor(waveIndex: number): number {
   } else if (waveIndex <= 20) {
     return 1 + 0.037 * 9 + 0.067 * (waveIndex - 10);
   } else {
-    return 1 + 0.037 * 9 + 0.067 * 10 + 0.100 * (waveIndex - 20);
+    return 1 + 0.037 * 9 + 0.067 * 10 + 0.1 * (waveIndex - 20);
   }
 }
 
@@ -66,7 +66,7 @@ export function waveSpawnFactor(waveIndex: number): number {
   } else if (waveIndex <= 20) {
     return 1 + 0.019 * 9 + 0.033 * (waveIndex - 10);
   } else {
-    return 1 + 0.019 * 9 + 0.033 * 10 + 0.050 * (waveIndex - 20);
+    return 1 + 0.019 * 9 + 0.033 * 10 + 0.05 * (waveIndex - 20);
   }
 }
 

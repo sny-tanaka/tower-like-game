@@ -1,9 +1,12 @@
 import { describe, it, expect } from 'vitest';
 
 import {
-  cutterStats,
+  CUTTER_OVERDRIVE_ATTACK_SPEED_MUL,
+  CUTTER_OVERDRIVE_CD_SEC,
+  CUTTER_OVERDRIVE_DURATION_SEC,
   cutterNormalAttack,
   cutterStartOverdrive,
+  cutterStats,
   cutterTickOverdrive,
 } from './cutter';
 
@@ -61,9 +64,9 @@ describe('cutterStats', () => {
     expect(stats.orbitRadius).toBeCloseTo(80);
     expect(stats.simultaneousHits).toBe(1);
     expect(stats.damageMul).toBeCloseTo(1.0);
-    expect(stats.overdriveCdSec).toBe(35);
-    expect(stats.overdriveDurationSec).toBe(8);
-    expect(stats.overdriveAttackSpeedMul).toBe(3);
+    expect(stats.overdriveCdSec).toBe(CUTTER_OVERDRIVE_CD_SEC);
+    expect(stats.overdriveDurationSec).toBe(CUTTER_OVERDRIVE_DURATION_SEC);
+    expect(stats.overdriveAttackSpeedMul).toBe(CUTTER_OVERDRIVE_ATTACK_SPEED_MUL);
     expect(stats.overdriveDamageMul).toBe(1);
   });
 

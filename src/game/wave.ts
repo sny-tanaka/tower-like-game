@@ -11,7 +11,7 @@ import type { WaveSchedule, NormalSpawnRow, SpawnedEnemy } from './types';
 const WAVES_PER_TIER = 30;
 
 /** ウェーブ持続時間（秒）。仕様: ウェーブ間隔 26 秒 */
-const WAVE_DURATION_SEC = 26;
+export const WAVE_DURATION_SEC = 26;
 
 // ---------------------------------------------------------------------------
 // 通常敵の出現テーブル
@@ -117,7 +117,7 @@ export function getSpawnsAtTime(
   elapsedMs: number,
   prevElapsedMs: number,
   rng: () => number,
-  idGenerator: () => string,
+  idGenerator: () => string
 ): SpawnedEnemy[] {
   const spawns: SpawnedEnemy[] = [];
   const elapsedSec = elapsedMs / 1000;
@@ -143,11 +143,7 @@ export function getSpawnsAtTime(
     prevElapsedSec < upperSpawnSec &&
     elapsedSec >= upperSpawnSec
   ) {
-    const template = createEnemyTemplate(
-      schedule.tier,
-      schedule.waveIndex,
-      schedule.eliteKind,
-    );
+    const template = createEnemyTemplate(schedule.tier, schedule.waveIndex, schedule.eliteKind);
     spawns.push(spawnEnemy(template, idGenerator(), elapsedMs, rng));
   }
 
@@ -162,10 +158,7 @@ export function getSpawnsAtTime(
  * 重み付きランダムでサブタイプを選択する。
  * rng() が 0〜1 の一様乱数を返すことを前提とする。
  */
-function pickSubtype(
-  table: NormalSpawnRow[],
-  rng: () => number,
-): import('./types').NormalSubtype {
+function pickSubtype(table: NormalSpawnRow[], rng: () => number): import('./types').NormalSubtype {
   const r = rng();
   let cumulative = 0;
   for (const row of table) {

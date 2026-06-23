@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 
 import { TIER_BASE } from './tier';
-import { buildTierWaves, getSpawnsAtTime } from './wave';
+import { WAVE_DURATION_SEC, buildTierWaves, getSpawnsAtTime } from './wave';
 
 // ---------------------------------------------------------------------------
 // buildTierWaves
@@ -27,10 +27,10 @@ describe('buildTierWaves', () => {
     }
   });
 
-  it('全ウェーブの durationSec が 26 秒', () => {
+  it('全ウェーブの durationSec が WAVE_DURATION_SEC と一致', () => {
     const waves = buildTierWaves(1);
     for (const w of waves) {
-      expect(w.durationSec).toBe(26);
+      expect(w.durationSec).toBe(WAVE_DURATION_SEC);
     }
   });
 
@@ -139,7 +139,10 @@ describe('buildTierWaves', () => {
 
 describe('getSpawnsAtTime', () => {
   const waves = buildTierWaves(1);
-  const w1 = waves[0]!; // W1: spawnIntervalSec ≈ 0.5s
+  const w1 = waves[0]!; // W1: spawnIntervalSec = TIER_BASE.SPAWN_INTERVAL
+
+  // W1 での 1 体あたりの spawn 間隔 (ms)。 定数調整に追従するよう TIER_BASE 由来で計算。
+  const intervalMs = TIER_BASE.SPAWN_INTERVAL * 1000;
 
   // deterministic rng: 常に 0.3 を返す → x=0, y=30
   const constRng = () => 0.3;
@@ -152,29 +155,28 @@ describe('getSpawnsAtTime', () => {
     expect(spawns).toHaveLength(0);
   });
 
-  it('0〜500ms の間に通常敵が 1 体スポーンする', () => {
+  it('0 〜 spawn 間隔 1 回分の間に通常敵が 1 体スポーンする', () => {
     idCounter = 0;
-    // 0ms → 500ms: Math.floor(0.5 / 0.5) - Math.floor(0 / 0.5) = 1 - 0 = 1
-    const spawns = getSpawnsAtTime(w1, 500, 0, constRng, idGen);
+    const spawns = getSpawnsAtTime(w1, intervalMs, 0, constRng, idGen);
     expect(spawns).toHaveLength(1);
     expect(spawns[0]!.kind).toBe('normal');
   });
 
-  it('0〜1000ms の間に通常敵が 2 体スポーンする', () => {
+  it('0 〜 spawn 間隔 2 回分の間に通常敵が 2 体スポーンする', () => {
     idCounter = 0;
-    const spawns = getSpawnsAtTime(w1, 1000, 0, constRng, idGen);
+    const spawns = getSpawnsAtTime(w1, intervalMs * 2, 0, constRng, idGen);
     expect(spawns).toHaveLength(2);
   });
 
-  it('差分計算: 500ms〜1000ms の間に 1 体スポーンする', () => {
+  it('差分計算: 間隔 1 回分 〜 間隔 2 回分の間に 1 体スポーンする', () => {
     idCounter = 0;
-    const spawns = getSpawnsAtTime(w1, 1000, 500, constRng, idGen);
+    const spawns = getSpawnsAtTime(w1, intervalMs * 2, intervalMs, constRng, idGen);
     expect(spawns).toHaveLength(1);
   });
 
-  it('差分計算: 0ms 〜 0ms（同一時刻）では敵が出ない', () => {
+  it('差分計算: 同一時刻では敵が出ない', () => {
     idCounter = 0;
-    const spawns = getSpawnsAtTime(w1, 500, 500, constRng, idGen);
+    const spawns = getSpawnsAtTime(w1, intervalMs, intervalMs, constRng, idGen);
     expect(spawns).toHaveLength(0);
   });
 

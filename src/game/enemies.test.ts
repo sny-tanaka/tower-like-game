@@ -1,46 +1,62 @@
 import { describe, it, expect } from 'vitest';
 
-import { createEnemyTemplate, spawnEnemy, scaledReward } from './enemies';
+import {
+  NORMAL_HP_MULT,
+  UPPER_REWARD,
+  createEnemyTemplate,
+  scaledReward,
+  spawnEnemy,
+} from './enemies';
 import { TIER_BASE } from './tier';
+
+import { BigNum } from '@/lib/bignum/BigNum';
+
+// T1W1 (waveHpFactor=1.0 / waveAtkFactor=1.0) の期待値を TIER_BASE と倍率から計算するヘルパー
+function expectedHp(mult: number): string {
+  return BigNum.fromNumber(TIER_BASE.HP).mulNumber(mult).toString();
+}
+function expectedAtk(mult: number): string {
+  return BigNum.fromNumber(TIER_BASE.ATK).mulNumber(mult).toString();
+}
 
 // ---------------------------------------------------------------------------
 // createEnemyTemplate — 通常敵
 // ---------------------------------------------------------------------------
 
 describe('createEnemyTemplate: normal', () => {
-  it('T=1 W=1 standard の HP は 10（TIER_BASE.HP × 1.0 × 1.0）', () => {
+  it('T=1 W=1 standard の HP は TIER_BASE.HP × NORMAL_HP_MULT.standard', () => {
     const t = createEnemyTemplate(1, 1, 'normal', 'standard');
-    expect(t.hp.toString()).toBe('10');
+    expect(t.hp.toString()).toBe(expectedHp(NORMAL_HP_MULT.standard));
   });
 
-  it('T=1 W=1 standard の ATK は 2', () => {
+  it('T=1 W=1 standard の ATK は TIER_BASE.ATK', () => {
     const t = createEnemyTemplate(1, 1, 'normal', 'standard');
-    expect(t.atk.toString()).toBe('2');
+    expect(t.atk.toString()).toBe(expectedAtk(1.0));
   });
 
-  it('T=1 W=1 standard の speed は TIER_BASE.SPD * 1.0 = 30', () => {
+  it('T=1 W=1 standard の speed は TIER_BASE.SPD × 1.0', () => {
     const t = createEnemyTemplate(1, 1, 'normal', 'standard');
     expect(t.speed).toBe(TIER_BASE.SPD);
   });
 
-  it('T=1 W=1 swift の HP は 6（10 × 0.6）', () => {
+  it('T=1 W=1 swift の HP は TIER_BASE.HP × NORMAL_HP_MULT.swift', () => {
     const t = createEnemyTemplate(1, 1, 'normal', 'swift');
-    expect(t.hp.toString()).toBe('6');
+    expect(t.hp.toString()).toBe(expectedHp(NORMAL_HP_MULT.swift));
   });
 
-  it('T=1 W=1 swift の speed は 60（30 × 2.0）', () => {
+  it('T=1 W=1 swift の speed は TIER_BASE.SPD × 2.0', () => {
     const t = createEnemyTemplate(1, 1, 'normal', 'swift');
-    expect(t.speed).toBe(60);
+    expect(t.speed).toBe(TIER_BASE.SPD * 2.0);
   });
 
-  it('T=1 W=1 tough の HP は 50（10 × 5.0）', () => {
+  it('T=1 W=1 tough の HP は TIER_BASE.HP × NORMAL_HP_MULT.tough', () => {
     const t = createEnemyTemplate(1, 1, 'normal', 'tough');
-    expect(t.hp.toString()).toBe('50');
+    expect(t.hp.toString()).toBe(expectedHp(NORMAL_HP_MULT.tough));
   });
 
-  it('T=1 W=1 tough の speed は 15（30 × 0.5）', () => {
+  it('T=1 W=1 tough の speed は TIER_BASE.SPD × 0.5', () => {
     const t = createEnemyTemplate(1, 1, 'normal', 'tough');
-    expect(t.speed).toBe(15);
+    expect(t.speed).toBe(TIER_BASE.SPD * 0.5);
   });
 
   it('kind が "normal" である', () => {
@@ -95,9 +111,9 @@ describe('createEnemyTemplate: elite', () => {
     expect(t.subtype).toBeUndefined();
   });
 
-  it('報酬 screw が 10', () => {
+  it('報酬 screw が UPPER_REWARD.elite.screw と一致', () => {
     const t = createEnemyTemplate(1, 5, 'elite');
-    expect(t.reward.screw).toBe(10);
+    expect(t.reward.screw).toBe(UPPER_REWARD.elite.screw);
   });
 });
 
@@ -115,9 +131,9 @@ describe('createEnemyTemplate: miniboss', () => {
     expect(miniboss.hp.gt(eliteFive)).toBe(true);
   });
 
-  it('報酬の alloyChance が 1.0（確定ドロップ）', () => {
+  it('報酬の alloyChance が UPPER_REWARD.miniboss.alloyChance と一致', () => {
     const t = createEnemyTemplate(1, 10, 'miniboss');
-    expect(t.reward.alloyChance).toBe(1.0);
+    expect(t.reward.alloyChance).toBe(UPPER_REWARD.miniboss.alloyChance);
   });
 });
 
@@ -134,9 +150,9 @@ describe('createEnemyTemplate: boss', () => {
     expect(boss.hp.gt(normal.hp)).toBe(true);
   });
 
-  it('報酬 alloyAmount が 5（仕様: Tier ボス確定 5 個）', () => {
+  it('報酬 alloyAmount が UPPER_REWARD.boss.alloyAmount と一致', () => {
     const t = createEnemyTemplate(1, 30, 'boss');
-    expect(t.reward.alloyAmount).toBe(5);
+    expect(t.reward.alloyAmount).toBe(UPPER_REWARD.boss.alloyAmount);
   });
 
   it('T=1000 W=30 boss の HP が ZERO でない（BigNum スケール確認）', () => {

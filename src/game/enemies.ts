@@ -6,21 +6,21 @@ import type { EnemyKind, EnemyTemplate, NormalSubtype, SpawnedEnemy } from './ty
 // ---------------------------------------------------------------------------
 
 /** 通常敵サブタイプごとの HP 倍率 */
-const NORMAL_HP_MULT: Record<NormalSubtype, number> = {
+export const NORMAL_HP_MULT: Record<NormalSubtype, number> = {
   standard: 1.0,
   swift: 0.6,
   tough: 5.0,
 };
 
 /** 通常敵サブタイプごとの ATK 倍率 */
-const NORMAL_ATK_MULT: Record<NormalSubtype, number> = {
+export const NORMAL_ATK_MULT: Record<NormalSubtype, number> = {
   standard: 1.0,
   swift: 0.5,
   tough: 1.0,
 };
 
 /** 通常敵サブタイプごとの SPD 倍率 */
-const NORMAL_SPD_MULT: Record<NormalSubtype, number> = {
+export const NORMAL_SPD_MULT: Record<NormalSubtype, number> = {
   standard: 1.0,
   swift: 2.0,
   tough: 0.5,
@@ -31,17 +31,27 @@ const NORMAL_SPD_MULT: Record<NormalSubtype, number> = {
 // ---------------------------------------------------------------------------
 
 /** 上位敵の HP 倍率（Standard を ×1 として） */
-const UPPER_HP_MULT: Record<Exclude<EnemyKind, 'normal'>, number> = {
+export const UPPER_HP_MULT: Record<Exclude<EnemyKind, 'normal'>, number> = {
   elite: 10,
   miniboss: 50,
   boss: 250,
 };
 
 /** 上位敵の ATK 倍率 */
-const UPPER_ATK_MULT: Record<Exclude<EnemyKind, 'normal'>, number> = {
+export const UPPER_ATK_MULT: Record<Exclude<EnemyKind, 'normal'>, number> = {
   elite: 2.5,
   miniboss: 5,
   boss: 8,
+};
+
+/** 上位敵の基礎ドロップ報酬 */
+export const UPPER_REWARD: Record<
+  Exclude<EnemyKind, 'normal'>,
+  { screw: number; bolt: number; alloyChance: number; alloyAmount: number }
+> = {
+  elite: { screw: 10, bolt: 10, alloyChance: 0.3, alloyAmount: 1 },
+  miniboss: { screw: 50, bolt: 50, alloyChance: 1.0, alloyAmount: 1 },
+  boss: { screw: 250, bolt: 250, alloyChance: 1.0, alloyAmount: 5 },
 };
 
 // ---------------------------------------------------------------------------
@@ -76,7 +86,7 @@ export function createEnemyTemplate(
   tier: number,
   waveIndex: number,
   kind: EnemyKind,
-  subtype?: NormalSubtype,
+  subtype?: NormalSubtype
 ): EnemyTemplate {
   const baseHp = tierBaseHp(tier);
   const baseAtk = tierBaseAtk(tier);
@@ -110,40 +120,14 @@ export function createEnemyTemplate(
   const atk = baseAtk.mulNumber(UPPER_ATK_MULT[upperKind]).mulNumber(atkFactor);
   const speed = TIER_BASE.SPD; // 上位敵は standard 速度（仕様に特記なし）
 
-  let screw: number;
-  let bolt: number;
-  let alloyChance: number;
-  let alloyAmount: number;
-
-  if (kind === 'elite') {
-    screw = 10;
-    bolt = 10;
-    alloyChance = 0.3;
-    alloyAmount = 1;
-  } else if (kind === 'miniboss') {
-    screw = 50;
-    bolt = 50;
-    alloyChance = 1.0;
-    alloyAmount = 1;
-  } else {
-    // boss
-    screw = 250;
-    bolt = 250;
-    alloyChance = 1.0;
-    alloyAmount = 5;
-  }
+  const reward = UPPER_REWARD[upperKind];
 
   return {
     kind,
     hp,
     atk,
     speed,
-    reward: {
-      screw,
-      bolt,
-      alloyChance,
-      alloyAmount,
-    },
+    reward: { ...reward },
   };
 }
 
@@ -164,7 +148,7 @@ export function spawnEnemy(
   template: EnemyTemplate,
   id: string,
   spawnedAtMs: number,
-  rng: () => number,
+  rng: () => number
 ): SpawnedEnemy {
   // 画面端（x=0 or x=100）からランダムに出現、y はランダムに配置
   // x: 0（左端）or 100（右端）をランダムに選択
@@ -187,14 +171,6 @@ export function spawnEnemy(
  * 撃破報酬をTier² スケールで補正した値を返す。
  * ゲームロジック側でこの関数を使って実際の獲得量を計算する。
  */
-export function scaledReward(
-  baseAmount: number,
-  tier: number,
-): number {
+export function scaledReward(baseAmount: number, tier: number): number {
   return baseAmount * tier * tier;
 }
-
-// 型の再エクスポートはしない（index.ts でまとめる）
-// 内部ユーティリティ: 上位敵の倍率テーブルを外から参照したい場合のみエクスポート
-export { UPPER_HP_MULT, UPPER_ATK_MULT, NORMAL_HP_MULT, NORMAL_ATK_MULT, NORMAL_SPD_MULT };
-

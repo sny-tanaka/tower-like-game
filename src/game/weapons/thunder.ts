@@ -33,23 +33,26 @@ export interface ThunderStats {
  * - plasmaDamageMul: 15 × (1 + 0.05 × Lv)
  * - chainFalloff: 固定 0.9 (10%減衰)
  */
+/** Thunder 通常攻撃の同時ターゲット数 (武器 Lv で伸びない仕様固定値) */
+export const THUNDER_BASE_CHAIN_COUNT = 3;
+/** Thunder 連鎖ごとの減衰率 (固定 0.9 = 10% 減衰) */
+export const THUNDER_CHAIN_FALLOFF = 0.9;
+/** Thunder アクティブ (Plasma) のクールダウン秒 */
+export const THUNDER_PLASMA_CD_SEC = 30;
+
 export function thunderStats(weaponLv: number): ThunderStats {
   const lv = Math.max(0, weaponLv);
 
   const damageMul = Math.pow(1.02, lv);
   const attackPerSec = Math.min(10, 0.7 * (1 + 0.03 * lv));
-  // 通常攻撃の同時ターゲット数: 仕様固定 3 体（武器 Lv で伸びない）
-  const chainCount = 3;
-  const chainFalloff = 0.9;
-  const plasmaCdSec = 30;
   const plasmaDamageMul = 15 * (1 + 0.05 * lv);
 
   return {
     attackPerSec,
-    chainCount,
-    chainFalloff,
+    chainCount: THUNDER_BASE_CHAIN_COUNT,
+    chainFalloff: THUNDER_CHAIN_FALLOFF,
     damageMul,
-    plasmaCdSec,
+    plasmaCdSec: THUNDER_PLASMA_CD_SEC,
     plasmaDamageMul,
   };
 }

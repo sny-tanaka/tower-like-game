@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { laserMegaBeam, laserNormalAttack, laserStats } from './laser';
+import { LASER_MEGA_CD_SEC, laserMegaBeam, laserNormalAttack, laserStats } from './laser';
 
 import type { MachineStats } from '@/game/damage.types';
 import type { SpawnedEnemy } from '@/game/types';
@@ -50,7 +50,7 @@ describe('laserStats', () => {
     expect(s.attackPerSec).toBeCloseTo(1.0);
     expect(s.pierce).toBe(1);
     expect(s.damageMul).toBeCloseTo(1.0);
-    expect(s.megaCdSec).toBe(20);
+    expect(s.megaCdSec).toBe(LASER_MEGA_CD_SEC);
     expect(s.megaDamageMul).toBeCloseTo(10.0);
   });
 

@@ -51,15 +51,15 @@ export function laserStats(weaponLv: number): LaserStats {
   // 武器ダメ倍率: 1.02 ^ Lv
   const damageMul = Math.pow(1.02, lv);
 
-  // Mega Beam CD: 固定 20 秒
-  const megaCdSec = 20;
-
   // Mega Beam 威力: アクティブ底値 10 × (1 + 0.05 × Lv)
   // 仕様: アクティブ威力 = +0.05 × アクティブ底威力/Lv → 底値 10 × (1 + 0.05 × Lv)
   const megaDamageMul = 10 * (1 + 0.05 * lv);
 
-  return { attackPerSec, pierce, damageMul, megaCdSec, megaDamageMul };
+  return { attackPerSec, pierce, damageMul, megaCdSec: LASER_MEGA_CD_SEC, megaDamageMul };
 }
+
+/** Laser アクティブ (Mega Beam) のクールダウン秒 (固定) */
+export const LASER_MEGA_CD_SEC = 20;
 
 // ---------------------------------------------------------------------------
 // Laser 通常攻撃

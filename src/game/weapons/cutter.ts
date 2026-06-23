@@ -49,9 +49,6 @@ export function cutterStats(weaponLv: number): CutterStats {
   const orbitRadius = BASE_ORBIT_RADIUS + 0.5 * weaponLv;
   const simultaneousHits = Math.floor(BASE_SIMULTANEOUS_HITS + 0.05 * weaponLv);
   const damageMul = Math.pow(1.02, weaponLv);
-  const overdriveCdSec = 35;
-  const overdriveDurationSec = 8;
-  const overdriveAttackSpeedMul = 3;
   const overdriveDamageMul = 1;
 
   return {
@@ -59,12 +56,19 @@ export function cutterStats(weaponLv: number): CutterStats {
     orbitRadius,
     simultaneousHits,
     damageMul,
-    overdriveCdSec,
-    overdriveDurationSec,
-    overdriveAttackSpeedMul,
+    overdriveCdSec: CUTTER_OVERDRIVE_CD_SEC,
+    overdriveDurationSec: CUTTER_OVERDRIVE_DURATION_SEC,
+    overdriveAttackSpeedMul: CUTTER_OVERDRIVE_ATTACK_SPEED_MUL,
     overdriveDamageMul,
   };
 }
+
+/** Cutter アクティブ (Overdrive) のクールダウン秒 */
+export const CUTTER_OVERDRIVE_CD_SEC = 35;
+/** Cutter アクティブ (Overdrive) の持続秒 */
+export const CUTTER_OVERDRIVE_DURATION_SEC = 8;
+/** Cutter アクティブ (Overdrive) 中の攻撃速度倍率 */
+export const CUTTER_OVERDRIVE_ATTACK_SPEED_MUL = 3;
 
 // ---------------------------------------------------------------------------
 // cutterNormalAttack

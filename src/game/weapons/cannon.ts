@@ -27,10 +27,10 @@ const BASE_AS = 0.5;
 const BASE_SPLASH_RADIUS_PX = 30;
 
 /** Volley CD 秒数 */
-const VOLLEY_CD_SEC = 25;
+export const VOLLEY_CD_SEC = 25;
 
 /** Volley 発射数 */
-const VOLLEY_SHOTS = 5;
+export const VOLLEY_SHOTS = 5;
 
 /** Volley 角度間隔 (度) */
 const VOLLEY_SPREAD_DEG = 360 / VOLLEY_SHOTS; // 72°

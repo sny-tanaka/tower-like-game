@@ -1,6 +1,13 @@
 import { describe, expect, it } from 'vitest';
 
-import { thunderNormalAttack, thunderPlasmaDischarge, thunderStats } from './thunder';
+import {
+  THUNDER_BASE_CHAIN_COUNT,
+  THUNDER_CHAIN_FALLOFF,
+  THUNDER_PLASMA_CD_SEC,
+  thunderNormalAttack,
+  thunderPlasmaDischarge,
+  thunderStats,
+} from './thunder';
 
 import type { MachineStats } from '@/game/damage.types';
 import type { SpawnedEnemy } from '@/game/types';
@@ -49,10 +56,10 @@ describe('thunderStats', () => {
   it('Lv0 の基本値が仕様通り', () => {
     const stats = thunderStats(0);
     expect(stats.attackPerSec).toBeCloseTo(0.7);
-    expect(stats.chainCount).toBe(3);
-    expect(stats.chainFalloff).toBe(0.9);
+    expect(stats.chainCount).toBe(THUNDER_BASE_CHAIN_COUNT);
+    expect(stats.chainFalloff).toBe(THUNDER_CHAIN_FALLOFF);
     expect(stats.damageMul).toBeCloseTo(1.0);
-    expect(stats.plasmaCdSec).toBe(30);
+    expect(stats.plasmaCdSec).toBe(THUNDER_PLASMA_CD_SEC);
     // Lv0: plasmaDamageMul = 15 × (1 + 0) = 15
     expect(stats.plasmaDamageMul).toBeCloseTo(15);
   });

@@ -9,7 +9,13 @@
 
 import { describe, it, expect } from 'vitest';
 
-import { cannonStats, cannonNormalAttack, cannonVolley } from './cannon';
+import {
+  VOLLEY_CD_SEC,
+  VOLLEY_SHOTS,
+  cannonNormalAttack,
+  cannonStats,
+  cannonVolley,
+} from './cannon';
 import type { CannonStats } from './cannon';
 
 import type { MachineStats } from '@/game/damage.types';
@@ -66,8 +72,8 @@ describe('cannonStats', () => {
     expect(s.attackPerSec).toBeCloseTo(0.5);
     expect(s.splashRadius).toBeCloseTo(30);
     expect(s.damageMul).toBeCloseTo(1.0);
-    expect(s.volleyCdSec).toBe(25);
-    expect(s.volleyShots).toBe(5);
+    expect(s.volleyCdSec).toBe(VOLLEY_CD_SEC);
+    expect(s.volleyShots).toBe(VOLLEY_SHOTS);
     expect(s.volleyDamageMul).toBeCloseTo(20);
   });
 
