@@ -63,6 +63,7 @@ export function WeaponSlotIcon({
     styles.root,
     active ? styles.active : '',
     onCd ? styles.onCd : '',
+    !active && !onCd && ready ? styles.ready : '',
     swapDisabled ? styles.swapDisabled : '',
   ]
     .filter(Boolean)

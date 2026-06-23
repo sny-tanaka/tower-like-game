@@ -108,6 +108,31 @@ export function Page() {
   const [isWorkshopOpen, setIsWorkshopOpen] = useState(false);
   const [isScreenSaverOpen, setIsScreenSaverOpen] = useState(false);
 
+  // ── 被ダメ検知 (machineHp の prev/current 比較) ──
+  // HP が前フレームより減少したとき damaging=true にして 200ms 後に false に戻す。
+  // HP 回復 (onKill heal) では HP が増加するため lt 比較で誤発火しない。
+  const prevMachineHpRef = useRef<typeof machineHp>(machineHp);
+  const [damaging, setDamaging] = useState(false);
+  const damagingTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(() => {
+    if (machineHp.lt(prevMachineHpRef.current)) {
+      setDamaging(true);
+      if (damagingTimerRef.current != null) {
+        clearTimeout(damagingTimerRef.current);
+      }
+      damagingTimerRef.current = setTimeout(() => {
+        setDamaging(false);
+        damagingTimerRef.current = null;
+      }, 200);
+    }
+    prevMachineHpRef.current = machineHp;
+    return () => {
+      if (damagingTimerRef.current != null) {
+        clearTimeout(damagingTimerRef.current);
+      }
+    };
+  }, [machineHp]);
+
   // ── BATTLE START バナー: 「isRunActive が false→true に切り替わった瞬間」 のみ表示 ──
   // 単に isRunActive=true で発火すると、 同一ラン中の画面再マウントや内部 state 変動で
   // 戦闘途中に再発火することがあるため、 prev/current 比較で「ラン開始の瞬間」 だけ拾う。
@@ -314,6 +339,7 @@ export function Page() {
             secondsTotal={WAVE_DURATION_SEC}
             isBossWave={currentWave === TOTAL_WAVES}
             paused={isPaused || isResultOpen}
+            damaging={damaging}
           />
         }
         footer={
