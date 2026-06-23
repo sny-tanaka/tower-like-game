@@ -102,8 +102,9 @@ export function Page() {
   const weaponSwitchCdSec = useStore((s) => s.weaponSwitchCdSec);
 
   // ── ローカル UI state (overlay 開閉) ──
+  // pause と BattleMenuOverlay は連動: isPaused が真のときに menu を表示する。
+  // 「メニュー開いてるけど pause じゃない」 状態を作らないため、 isMenuOpen 単独 state は持たない。
   const [isWorkshopOpen, setIsWorkshopOpen] = useState(false);
-  const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isScreenSaverOpen, setIsScreenSaverOpen] = useState(false);
 
   // ── BATTLE START バナー: 「isRunActive が false→true に切り替わった瞬間」 のみ表示 ──
@@ -190,14 +191,11 @@ export function Page() {
   const hpMaxBn = machineMaxHp.isZero() ? BigNum.fromNumber(1) : machineMaxHp;
 
   // ── ハンドラ ──
+  // pause トグル: 「pause + メニュー開閉」 を同期 (= メニュー単独で開かない / pause 単独でも開かない)
   const handleTogglePause = () => {
-    setPaused(!isPaused);
-    soundEngine.play('tap');
-  };
-
-  const handleOpenMenu = () => {
-    setIsMenuOpen(true);
-    soundEngine.play('dialogOpen');
+    const next = !isPaused;
+    setPaused(next);
+    soundEngine.play(next ? 'dialogOpen' : 'tap');
   };
 
   const handleOpenScreenSaver = () => {
@@ -206,7 +204,8 @@ export function Page() {
   };
 
   const handleRetreat = () => {
-    setIsMenuOpen(false);
+    // retreat 時はメニューも閉じる (= pause 解除)。 ResultDialog 側で停止が担保される
+    setPaused(false);
     setResultStatus('retreat');
     soundEngine.play('resultRetreat');
   };
@@ -289,7 +288,6 @@ export function Page() {
               onToggleAuto={setAutoActive}
               isPaused={isPaused}
               onTogglePause={handleTogglePause}
-              onOpenMenu={handleOpenMenu}
               onOpenScreenSaver={handleOpenScreenSaver}
               isWorkshopOpen={isWorkshopOpen}
               onToggleWorkshop={() => {
@@ -332,16 +330,17 @@ export function Page() {
         className={styles.overlayLayer}
         aria-live="polite"
       >
-        {/* バトルメニュー */}
+        {/* バトルメニュー (isPaused と完全連動: pause = メニュー開) */}
         <BattleMenuOverlay
-          open={isMenuOpen}
+          open={isPaused}
           bgmVolume={bgmVolume}
           seVolume={seVolume}
           onBgmChange={setBgmVolume}
           onSeChange={setSeVolume}
           onRetreat={handleRetreat}
           onClose={() => {
-            setIsMenuOpen(false);
+            // メニューを閉じる = pause 解除
+            setPaused(false);
           }}
         />
 

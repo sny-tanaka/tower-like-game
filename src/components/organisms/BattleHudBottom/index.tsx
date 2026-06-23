@@ -36,9 +36,8 @@ export interface BattleHudBottomProps {
   onToggleAuto: (auto: boolean) => void;
   /** 一時停止中か */
   isPaused: boolean;
+  /** 一時停止トグル。 押下で pause 切替 + メニューも同期して開閉 */
   onTogglePause: () => void;
-  /** メニューを開く */
-  onOpenMenu: () => void;
   /** スクリーンセーバーを開く */
   onOpenScreenSaver: () => void;
   /** ラン内ワークショップ (overlay Sheet) の開閉状態。アップグレード Badge tap で onToggleWorkshop が発火 */
@@ -62,7 +61,6 @@ export function BattleHudBottom({
   onToggleAuto,
   isPaused,
   onTogglePause,
-  onOpenMenu,
   onOpenScreenSaver,
   isWorkshopOpen = false,
   onToggleWorkshop,
@@ -171,22 +169,15 @@ export function BattleHudBottom({
           />
         </div>
 
-        {/* システムボタン (右端) */}
+        {/* システムボタン (右端)。 pause = メニュー開閉 を統合 (押すと pause + メニュー表示) */}
         <div className={styles.sysButtons}>
           <IconButton
             icon={isPaused ? 'play' : 'pause'}
-            label={isPaused ? '再開' : '一時停止'}
+            label={isPaused ? '再開 (メニューを閉じる)' : '一時停止 (メニューを開く)'}
             size="md"
             variant="ghost"
             active={isPaused}
             onClick={onTogglePause}
-          />
-          <IconButton
-            icon="menu"
-            label="メニューを開く"
-            size="md"
-            variant="ghost"
-            onClick={onOpenMenu}
           />
           <IconButton
             icon="ice"

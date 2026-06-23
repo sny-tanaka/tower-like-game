@@ -40,7 +40,6 @@ const meta: Meta<typeof BattleHudBottom> = {
     onToggleAuto: () => {},
     isPaused: false,
     onTogglePause: () => {},
-    onOpenMenu: () => {},
     onOpenScreenSaver: () => {},
   },
 };

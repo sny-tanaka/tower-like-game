@@ -25,7 +25,6 @@ function makeProps(overrides?: Partial<Props>): Props {
     onToggleAuto: vi.fn(),
     isPaused: false,
     onTogglePause: vi.fn(),
-    onOpenMenu: vi.fn(),
     onOpenScreenSaver: vi.fn(),
     ...overrides,
   };
@@ -115,30 +114,27 @@ describe('BattleHudBottom', () => {
   });
 
   describe('システムボタン', () => {
-    it('一時停止ボタン、メニューボタン、スクリーンセーバーボタンが表示される', () => {
+    it('一時停止ボタンとスクリーンセーバーボタンが表示される (メニューは pause と統合)', () => {
       render(<BattleHudBottom {...makeProps()} />);
-      expect(screen.getByRole('button', { name: '一時停止' })).toBeInTheDocument();
-      expect(screen.getByRole('button', { name: 'メニューを開く' })).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: /一時停止/ })).toBeInTheDocument();
       expect(screen.getByRole('button', { name: 'スクリーンセーバーを起動' })).toBeInTheDocument();
     });
 
     it('一時停止中は「再開」ラベルになる', () => {
       render(<BattleHudBottom {...makeProps({ isPaused: true })} />);
-      expect(screen.getByRole('button', { name: '再開' })).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: /再開/ })).toBeInTheDocument();
     });
 
     it('一時停止ボタンをクリックすると onTogglePause が呼ばれる', async () => {
       const onTogglePause = vi.fn();
       render(<BattleHudBottom {...makeProps({ onTogglePause })} />);
-      await userEvent.click(screen.getByRole('button', { name: '一時停止' }));
+      await userEvent.click(screen.getByRole('button', { name: /一時停止/ }));
       expect(onTogglePause).toHaveBeenCalled();
     });
 
-    it('メニューボタンをクリックすると onOpenMenu が呼ばれる', async () => {
-      const onOpenMenu = vi.fn();
-      render(<BattleHudBottom {...makeProps({ onOpenMenu })} />);
-      await userEvent.click(screen.getByRole('button', { name: 'メニューを開く' }));
-      expect(onOpenMenu).toHaveBeenCalled();
+    it('メニュー専用ボタンは廃止 (pause と統合)', () => {
+      render(<BattleHudBottom {...makeProps()} />);
+      expect(screen.queryByRole('button', { name: 'メニューを開く' })).toBeNull();
     });
 
     it('スクリーンセーバーボタンをクリックすると onOpenScreenSaver が呼ばれる', async () => {
