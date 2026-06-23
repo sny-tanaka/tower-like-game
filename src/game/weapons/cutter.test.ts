@@ -1,6 +1,8 @@
 import { describe, it, expect } from 'vitest';
 
 import {
+  CUTTER_BASE_AS,
+  CUTTER_BASE_DAMAGE_MUL,
   CUTTER_OVERDRIVE_ATTACK_SPEED_MUL,
   CUTTER_OVERDRIVE_CD_SEC,
   CUTTER_OVERDRIVE_DURATION_SEC,
@@ -41,6 +43,7 @@ function makeEnemy(id: string, x = 0, y = 0): SpawnedEnemy {
     speed: 1,
     spawnedAtMs: 0,
     position: { x, y },
+    maxHp: BigNum.fromNumber(1000),
     reward: {
       screw: 1,
       bolt: 1,
@@ -60,10 +63,10 @@ const rngNever = () => 0;
 describe('cutterStats', () => {
   it('Lv0 で初期値が正しい', () => {
     const stats = cutterStats(0);
-    expect(stats.attackPerSec).toBeCloseTo(2.0);
+    expect(stats.attackPerSec).toBeCloseTo(CUTTER_BASE_AS);
     expect(stats.orbitRadius).toBeCloseTo(80);
     expect(stats.simultaneousHits).toBe(1);
-    expect(stats.damageMul).toBeCloseTo(1.0);
+    expect(stats.damageMul).toBeCloseTo(CUTTER_BASE_DAMAGE_MUL);
     expect(stats.overdriveCdSec).toBe(CUTTER_OVERDRIVE_CD_SEC);
     expect(stats.overdriveDurationSec).toBe(CUTTER_OVERDRIVE_DURATION_SEC);
     expect(stats.overdriveAttackSpeedMul).toBe(CUTTER_OVERDRIVE_ATTACK_SPEED_MUL);
@@ -72,44 +75,31 @@ describe('cutterStats', () => {
 
   it('Lv10 でスケールが正しい', () => {
     const stats = cutterStats(10);
-    // attackPerSec: 2.0 * (1 + 0.03 * 10) = 2.0 * 1.3 = 2.6
-    expect(stats.attackPerSec).toBeCloseTo(2.6);
-    // orbitRadius: 80 + 0.5 * 10 = 85
+    expect(stats.attackPerSec).toBeCloseTo(CUTTER_BASE_AS * 1.3);
     expect(stats.orbitRadius).toBeCloseTo(85);
-    // simultaneousHits: floor(1 + 0.05 * 10) = floor(1.5) = 1
     expect(stats.simultaneousHits).toBe(1);
-    // damageMul: 1.02^10 ≈ 1.2190
-    expect(stats.damageMul).toBeCloseTo(Math.pow(1.02, 10), 5);
+    expect(stats.damageMul).toBeCloseTo(CUTTER_BASE_DAMAGE_MUL * Math.pow(1.02, 10), 5);
   });
 
   it('Lv20 で simultaneousHits が 2 になる', () => {
     const stats = cutterStats(20);
-    // floor(1 + 0.05 * 20) = floor(2.0) = 2
     expect(stats.simultaneousHits).toBe(2);
   });
 
   it('Lv50 でスケールが正しい', () => {
     const stats = cutterStats(50);
-    // attackPerSec: 2.0 * (1 + 0.03 * 50) = 2.0 * 2.5 = 5.0
-    expect(stats.attackPerSec).toBeCloseTo(5.0);
-    // orbitRadius: 80 + 0.5 * 50 = 105
+    expect(stats.attackPerSec).toBeCloseTo(CUTTER_BASE_AS * (1 + 0.03 * 50));
     expect(stats.orbitRadius).toBeCloseTo(105);
-    // simultaneousHits: floor(1 + 0.05 * 50) = floor(3.5) = 3
     expect(stats.simultaneousHits).toBe(3);
-    // damageMul: 1.02^50 ≈ 2.6916
-    expect(stats.damageMul).toBeCloseTo(Math.pow(1.02, 50), 5);
+    expect(stats.damageMul).toBeCloseTo(CUTTER_BASE_DAMAGE_MUL * Math.pow(1.02, 50), 5);
   });
 
   it('Lv100 でスケールが正しい', () => {
     const stats = cutterStats(100);
-    // attackPerSec: 2.0 * (1 + 0.03 * 100) = 2.0 * 4.0 = 8.0
-    expect(stats.attackPerSec).toBeCloseTo(8.0);
-    // orbitRadius: 80 + 0.5 * 100 = 130
+    expect(stats.attackPerSec).toBeCloseTo(CUTTER_BASE_AS * (1 + 0.03 * 100));
     expect(stats.orbitRadius).toBeCloseTo(130);
-    // simultaneousHits: floor(1 + 0.05 * 100) = floor(6.0) = 6
     expect(stats.simultaneousHits).toBe(6);
-    // damageMul: 1.02^100 ≈ 7.2446
-    expect(stats.damageMul).toBeCloseTo(Math.pow(1.02, 100), 3);
+    expect(stats.damageMul).toBeCloseTo(CUTTER_BASE_DAMAGE_MUL * Math.pow(1.02, 100), 3);
   });
 });
 
@@ -151,37 +141,45 @@ describe('cutterNormalAttack', () => {
   });
 
   it('ダメージが正しく計算される（クリットなし）', () => {
-    const stats = cutterStats(0); // damageMul=1.0
-    const m = makeMachine({ baseAttack: BigNum.fromNumber(200) });
+    const baseAttack = 200;
+    const stats = cutterStats(0); // damageMul = CUTTER_BASE_DAMAGE_MUL
+    const m = makeMachine({ baseAttack: BigNum.fromNumber(baseAttack) });
     const enemies = [makeEnemy('e1')];
     const result = cutterNormalAttack(m, stats, enemies, 0, rngNever);
     expect(result.hits[0].crit).toBe(false);
-    // finalDmg = 200 * 1.0 = 200
-    expect(result.hits[0].damage.eq(BigNum.fromNumber(200))).toBe(true);
+    const expected = BigNum.fromNumber(baseAttack).mulNumber(CUTTER_BASE_DAMAGE_MUL);
+    expect(result.hits[0].damage.eq(expected)).toBe(true);
   });
 
   it('クリット時にクリ倍率が乗算される', () => {
-    // critRate=1 で常にクリット
-    const m = makeMachine({ baseAttack: BigNum.fromNumber(100), critRate: 1, critMultiplier: 2.0 });
-    const stats = cutterStats(0); // damageMul=1.0
+    const baseAttack = 100;
+    const m = makeMachine({
+      baseAttack: BigNum.fromNumber(baseAttack),
+      critRate: 1,
+      critMultiplier: 2.0,
+    });
+    const stats = cutterStats(0);
     const enemies = [makeEnemy('e1')];
     const result = cutterNormalAttack(m, stats, enemies, 0, rngNever);
     expect(result.hits[0].crit).toBe(true);
-    // finalDmg = 100 * 1.0 * 2.0 = 200
-    expect(result.hits[0].damage.eq(BigNum.fromNumber(200))).toBe(true);
+    // baseAttack × CUTTER_BASE_DAMAGE_MUL × 2.0
+    const expected = BigNum.fromNumber(baseAttack).mulNumber(CUTTER_BASE_DAMAGE_MUL).mulNumber(2.0);
+    expect(result.hits[0].damage.eq(expected)).toBe(true);
   });
 
   it('旋回角度が更新される（angle は currentAngleDeg + 360/attackPerSec）', () => {
-    const stats = cutterStats(0); // attackPerSec=2.0 → 1 hit あたり 180°
+    const stats = cutterStats(0);
     const result = cutterNormalAttack(machine, stats, [], 0, rngNever);
-    expect(result.angle).toBeCloseTo((0 + 360 / 2.0) % 360); // 180
+    expect(result.angle).toBeCloseTo((0 + 360 / CUTTER_BASE_AS) % 360);
   });
 
   it('angle が 360 を超えたとき 0〜360 に正規化される', () => {
-    const stats = cutterStats(0); // attackPerSec=2.0 → 180°/hit
-    const result = cutterNormalAttack(machine, stats, [], 270, rngNever);
-    // 270 + 180 = 450 → 90
-    expect(result.angle).toBeCloseTo(90);
+    const stats = cutterStats(0);
+    // 360 / CUTTER_BASE_AS 度ずつ進む。 0 + step*N が >360 の場合は剰余で 0-360 に
+    const step = 360 / CUTTER_BASE_AS;
+    const start = 360 - step + 30; // 1 hit で 360 を超える位置から開始
+    const result = cutterNormalAttack(machine, stats, [], start, rngNever);
+    expect(result.angle).toBeCloseTo((((start + step) % 360) + 360) % 360);
   });
 });
 

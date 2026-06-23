@@ -40,15 +40,20 @@ export interface CutterStats {
  *   - ダメ倍率: 1.02^Lv
  *   - Overdrive: 持続 8s、AS×3、ダメ倍率×1（なし）、CD 35s
  */
-export function cutterStats(weaponLv: number): CutterStats {
-  const BASE_AS = 2.0;
-  const BASE_ORBIT_RADIUS = 80;
-  const BASE_SIMULTANEOUS_HITS = 1;
+/** Cutter 底値 attacks/sec (回転攻撃が常時続く感、 高 AS) */
+export const CUTTER_BASE_AS = 5.0;
+/** Cutter 底値 旋回半径 (px) */
+export const CUTTER_BASE_ORBIT_RADIUS = 80;
+/** Cutter 底値 同時ヒット数 */
+export const CUTTER_BASE_SIMULTANEOUS_HITS = 1;
+/** Cutter 底値 武器ダメージ倍率 (短射程の代償で高 DPS。 AS 5.0/s × 0.6 = 3.0) */
+export const CUTTER_BASE_DAMAGE_MUL = 0.6;
 
-  const attackPerSec = BASE_AS * (1 + 0.03 * weaponLv);
-  const orbitRadius = BASE_ORBIT_RADIUS + 0.5 * weaponLv;
-  const simultaneousHits = Math.floor(BASE_SIMULTANEOUS_HITS + 0.05 * weaponLv);
-  const damageMul = Math.pow(1.02, weaponLv);
+export function cutterStats(weaponLv: number): CutterStats {
+  const attackPerSec = CUTTER_BASE_AS * (1 + 0.03 * weaponLv);
+  const orbitRadius = CUTTER_BASE_ORBIT_RADIUS + 0.5 * weaponLv;
+  const simultaneousHits = Math.floor(CUTTER_BASE_SIMULTANEOUS_HITS + 0.05 * weaponLv);
+  const damageMul = CUTTER_BASE_DAMAGE_MUL * Math.pow(1.02, weaponLv);
   const overdriveDamageMul = 1;
 
   return {

@@ -46,7 +46,8 @@ function scheduleHeavySnare(
   ctx: AudioContext,
   dest: AudioNode,
   startTime: number,
-  peakGain: number
+  peakGain: number,
+  outNodes: { stop(t: number): void }[]
 ): void {
   const noiseSrc = ctx.createBufferSource();
   noiseSrc.buffer = createDeterministicNoiseBuffer(ctx, 0.2);
@@ -59,7 +60,8 @@ function scheduleHeavySnare(
   gain.gain.exponentialRampToValueAtTime(0.0001, startTime + 0.18);
   noiseSrc.connect(bpf).connect(gain).connect(dest);
   noiseSrc.start(startTime);
-  scheduleNote(ctx, dest, 'sine', 120, startTime, 0.12, peakGain * 0.5, 300);
+  outNodes.push(noiseSrc);
+  scheduleNote(ctx, dest, 'sine', 120, startTime, 0.12, peakGain * 0.5, 300, outNodes);
 }
 
 function scheduleLoop(
@@ -93,18 +95,38 @@ function scheduleLoop(
     const barStart = loopStart + bar * BAR_SEC;
     for (let b = 0; b < 4; b++) {
       const beatStart = barStart + b * BEAT_SEC;
-      scheduleNote(ctx, dest, 'sawtooth', noteHz('E2'), beatStart, BEAT_SEC * 0.9, 0.22, 400);
+      scheduleNote(
+        ctx,
+        dest,
+        'sawtooth',
+        noteHz('E2'),
+        beatStart,
+        BEAT_SEC * 0.9,
+        0.22,
+        400,
+        scheduledNodes
+      );
       // 5度上を重ねる (サイバー金属感)
-      scheduleNote(ctx, dest, 'sawtooth', noteHz('B2'), beatStart, BEAT_SEC * 0.8, 0.1, 600);
+      scheduleNote(
+        ctx,
+        dest,
+        'sawtooth',
+        noteHz('B2'),
+        beatStart,
+        BEAT_SEC * 0.8,
+        0.1,
+        600,
+        scheduledNodes
+      );
     }
 
     // --- Heavy Kick (1, 3 拍) ---
-    scheduleKick(ctx, dest, barStart, 0.5);
-    scheduleKick(ctx, dest, barStart + BEAT_SEC * 2, 0.45);
+    scheduleKick(ctx, dest, barStart, 0.5, scheduledNodes);
+    scheduleKick(ctx, dest, barStart + BEAT_SEC * 2, 0.45, scheduledNodes);
 
     // --- Heavy Snare (2, 4 拍) ---
-    scheduleHeavySnare(ctx, dest, barStart + BEAT_SEC, 0.4);
-    scheduleHeavySnare(ctx, dest, barStart + BEAT_SEC * 3, 0.38);
+    scheduleHeavySnare(ctx, dest, barStart + BEAT_SEC, 0.4, scheduledNodes);
+    scheduleHeavySnare(ctx, dest, barStart + BEAT_SEC * 3, 0.38, scheduledNodes);
   }
 
   // --- Dissonant Pad (Bm5b + 半音上の C) ---
@@ -131,7 +153,17 @@ function scheduleLoop(
   // --- Sparse Descend Arp (2 拍ごとに 1 音、暗い下降) ---
   for (let i = 0; i < ARP_DESCEND.length; i++) {
     const arpStart = loopStart + i * BEAT_SEC * 2;
-    scheduleNote(ctx, dest, 'sawtooth', ARP_DESCEND[i], arpStart, BEAT_SEC * 1.6, 0.08, 2000);
+    scheduleNote(
+      ctx,
+      dest,
+      'sawtooth',
+      ARP_DESCEND[i],
+      arpStart,
+      BEAT_SEC * 1.6,
+      0.08,
+      2000,
+      scheduledNodes
+    );
   }
 
   // --- Noise Rumble (全ループ、低域 drone noise) ---

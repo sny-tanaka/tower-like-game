@@ -74,7 +74,7 @@ describe('openDatabase', () => {
     const db = await openDatabase();
     const settings = await db.get(STORES.settings, 'singleton');
     expect(settings).toBeDefined();
-    expect(settings?.defaultGameSpeed).toBe(1);
+    expect(settings?.bgmVolume).toBe(0.8);
     db.close();
   });
 

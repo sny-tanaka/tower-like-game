@@ -65,7 +65,8 @@ function scheduleSnare(
   ctx: AudioContext,
   dest: AudioNode,
   startTime: number,
-  peakGain: number
+  peakGain: number,
+  outNodes: { stop(t: number): void }[]
 ): void {
   const noiseSrc = ctx.createBufferSource();
   noiseSrc.buffer = createDeterministicNoiseBuffer(ctx, 0.15);
@@ -78,8 +79,9 @@ function scheduleSnare(
   gain.gain.exponentialRampToValueAtTime(0.0001, startTime + 0.13);
   noiseSrc.connect(bpf).connect(gain).connect(dest);
   noiseSrc.start(startTime);
+  outNodes.push(noiseSrc);
   // tone body
-  scheduleNote(ctx, dest, 'triangle', 200, startTime, 0.08, peakGain * 0.4);
+  scheduleNote(ctx, dest, 'triangle', 200, startTime, 0.08, peakGain * 0.4, undefined, outNodes);
 }
 
 function scheduleLoop(
@@ -102,22 +104,23 @@ function scheduleLoop(
         barStart + b * BEAT_SEC,
         BEAT_SEC * 0.85,
         0.26,
-        280
+        280,
+        scheduledNodes
       );
     }
 
     // --- Kick (四つ打ち: 1,2,3,4 拍) ---
     for (let b = 0; b < 4; b++) {
-      scheduleKick(ctx, dest, barStart + b * BEAT_SEC, 0.42);
+      scheduleKick(ctx, dest, barStart + b * BEAT_SEC, 0.42, scheduledNodes);
     }
 
     // --- Snare (2, 4 拍) ---
-    scheduleSnare(ctx, dest, barStart + BEAT_SEC, 0.3);
-    scheduleSnare(ctx, dest, barStart + BEAT_SEC * 3, 0.3);
+    scheduleSnare(ctx, dest, barStart + BEAT_SEC, 0.3, scheduledNodes);
+    scheduleSnare(ctx, dest, barStart + BEAT_SEC * 3, 0.3, scheduledNodes);
 
     // --- HiHat (8分音符) ---
     for (let i = 0; i < 8; i++) {
-      scheduleHihat(ctx, dest, barStart + i * BEAT_SEC * 0.5, 0.12, 0.08);
+      scheduleHihat(ctx, dest, barStart + i * BEAT_SEC * 0.5, 0.12, 0.08, scheduledNodes);
     }
 
     // --- Aggressive Arp (16分音符) ---
@@ -132,7 +135,8 @@ function scheduleLoop(
         arpStart,
         BEAT_SEC * 0.22,
         0.06,
-        3200
+        3200,
+        scheduledNodes
       );
     }
   }

@@ -118,7 +118,6 @@ export type EquippedPatchRecord = {
 
 export type SettingsRecord = {
   id: 'singleton';
-  defaultGameSpeed: 1 | 2 | 3;
   bgmVolume: number; // 0.0 〜 1.0
   seVolume: number; // 0.0 〜 1.0
   vibrationEnabled: boolean;
@@ -164,7 +163,6 @@ export const DEFAULT_WEAPONS: WeaponsRecord = {
 
 export const DEFAULT_SETTINGS: SettingsRecord = {
   id: 'singleton',
-  defaultGameSpeed: 1,
   bgmVolume: 0.8,
   seVolume: 0.8,
   vibrationEnabled: true,

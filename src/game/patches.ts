@@ -18,7 +18,7 @@ import { BigNum } from '@/lib/bignum/BigNum';
 type PatchApplyFn = (
   patch: EquippedPatch,
   trigger: PatchTrigger,
-  rng: () => number,
+  rng: () => number
 ) => PatchEffect | null;
 
 const PATCH_APPLY_MAP: Record<string, PatchApplyFn> = {
@@ -84,9 +84,9 @@ function mergeEffects(a: PatchEffect, b: PatchEffect): PatchEffect {
     result.dropMultiplier = (result.dropMultiplier ?? 1) + (b.dropMultiplier - 1);
   }
 
-  // boltCastDamage: BigNum 加算
-  if (b.boltCastDamage !== undefined) {
-    result.boltCastDamage = (result.boltCastDamage ?? BigNum.ZERO).add(b.boltCastDamage);
+  // boltGain: BigNum 加算
+  if (b.boltGain !== undefined) {
+    result.boltGain = (result.boltGain ?? BigNum.ZERO).add(b.boltGain);
   }
 
   // extraShot: OR
@@ -121,7 +121,7 @@ function mergeEffects(a: PatchEffect, b: PatchEffect): PatchEffect {
 export function evaluatePatches(
   equipped: EquippedPatch[],
   trigger: PatchTrigger,
-  rng: () => number,
+  rng: () => number
 ): PatchEffect {
   let merged: PatchEffect = {};
 

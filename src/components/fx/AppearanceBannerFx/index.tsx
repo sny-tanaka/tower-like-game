@@ -2,7 +2,7 @@ import { useId } from 'react';
 
 import { Text } from '@/components/atoms/Text';
 
-export type AppearanceKind = 'elite' | 'boss';
+export type AppearanceKind = 'elite' | 'boss' | 'battle-start';
 
 interface KindPreset {
   color: string;
@@ -21,13 +21,18 @@ const KIND_PRESET: Record<AppearanceKind, KindPreset> = {
     label: 'BOSS',
     glow: '0 0 24px rgba(255,77,109,0.7)',
   },
+  'battle-start': {
+    color: 'var(--c-primary)',
+    label: 'BATTLE START',
+    glow: '0 0 20px rgba(80,220,255,0.7)',
+  },
 };
 
 export interface AppearanceBannerFxProps {
-  /** エリートかボスか */
+  /** エリート / ボス / 出撃 のどれか */
   kind?: AppearanceKind;
-  /** 敵の名前 */
-  name: string;
+  /** 敵の名前 (elite / boss のとき必須、 battle-start のときは省略可) */
+  name?: string;
   /** アニメーション時間 ms（デフォルト: 1600） */
   duration?: number;
   /** アニメーション完了コールバック */
@@ -121,19 +126,21 @@ export function AppearanceBannerFx({
           >
             {preset.label}
           </Text>
-          <Text
-            variant="heading-1"
-            className={`${id}-name`}
-            style={{
-              color: 'var(--c-text)',
-              fontSize: 22,
-              fontFamily: 'var(--ff-display)',
-              fontWeight: 700,
-              textShadow: preset.glow,
-            }}
-          >
-            {name}
-          </Text>
+          {name != null && name !== '' && (
+            <Text
+              variant="heading-1"
+              className={`${id}-name`}
+              style={{
+                color: 'var(--c-text)',
+                fontSize: 22,
+                fontFamily: 'var(--ff-display)',
+                fontWeight: 700,
+                textShadow: preset.glow,
+              }}
+            >
+              {name}
+            </Text>
+          )}
         </div>
       </div>
     </>

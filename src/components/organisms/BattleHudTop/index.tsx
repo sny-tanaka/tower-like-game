@@ -32,6 +32,8 @@ export interface BattleHudTopProps {
   nextMilestone?: WaveMilestone;
   /** HP バー赤フラッシュ (被ダメ Fx 連動) */
   damaging?: boolean;
+  /** ゲーム pause 状態。 Wave タイマーアニメを停止する */
+  paused?: boolean;
 }
 
 /**
@@ -56,6 +58,7 @@ export function BattleHudTop({
   isBossWave = false,
   nextMilestone,
   damaging = false,
+  paused = false,
 }: BattleHudTopProps) {
   const effectiveMilestone =
     nextMilestone ?? (isBossWave ? ({ wave, kind: 'boss' } as WaveMilestone) : undefined);
@@ -150,6 +153,7 @@ export function BattleHudTop({
         nextMilestone={effectiveMilestone}
         showSeconds={false}
         size="sm"
+        paused={paused}
       />
 
       {/* SR 用に wave/total を hidden で残す（既存テスト互換） */}

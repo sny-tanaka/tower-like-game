@@ -96,4 +96,22 @@ describe('AppearanceBannerFx', () => {
       )
     ).not.toThrow();
   });
+
+  test('battle-start: "BATTLE START" ラベルが表示される', () => {
+    render(<AppearanceBannerFx kind="battle-start" />);
+    expect(screen.getByText('BATTLE START')).toBeInTheDocument();
+  });
+
+  test('battle-start: name 省略時は副題テキストが描画されない', () => {
+    const { container } = render(<AppearanceBannerFx kind="battle-start" />);
+    // ラベル "BATTLE START" 以外の Text 要素は出ない
+    const texts = container.querySelectorAll('[class*="-name"]');
+    expect(texts).toHaveLength(0);
+  });
+
+  test('battle-start は primary カラーを使う', () => {
+    const { container } = render(<AppearanceBannerFx kind="battle-start" />);
+    const styleEl = container.querySelector('style');
+    expect(styleEl?.innerHTML).toContain('var(--c-primary)');
+  });
 });

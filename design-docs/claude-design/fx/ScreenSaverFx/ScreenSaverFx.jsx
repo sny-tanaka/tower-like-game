@@ -24,57 +24,28 @@ export function ScreenSaverFx(props) {
   const id = React.useMemo(() => 'ssfx-' + Math.random().toString(36).slice(2, 8), []);
 
   const PATHS = [
-    [
-      [20, 28],
-      [78, 38],
-      [42, 72],
-      [85, 82],
-    ],
-    [
-      [62, 18],
-      [16, 48],
-      [82, 62],
-      [32, 86],
-    ],
-    [
-      [80, 24],
-      [44, 55],
-      [14, 76],
-      [70, 90],
-    ],
-    [
-      [34, 30],
-      [90, 52],
-      [26, 68],
-      [58, 86],
-    ],
-    [
-      [50, 14],
-      [22, 42],
-      [76, 70],
-      [46, 94],
-    ],
+    [[20, 28], [78, 38], [42, 72], [85, 82]],
+    [[62, 18], [16, 48], [82, 62], [32, 86]],
+    [[80, 24], [44, 55], [14, 76], [70, 90]],
+    [[34, 30], [90, 52], [26, 68], [58, 86]],
+    [[50, 14], [22, 42], [76, 70], [46, 94]],
   ];
 
   const driftCss = PATHS.map((path, idx) => {
     const segLen = 100 / path.length;
-    const frames = path
-      .map(([x, y], i) => {
-        const s = i * segLen;
-        return `
+    const frames = path.map(([x, y], i) => {
+      const s = i * segLen;
+      return `
         ${s}%               { left: ${x}%; top: ${y}%; opacity: 0; }
         ${(s + 3).toFixed(2)}%   { left: ${x}%; top: ${y}%; opacity: 1; }
         ${(s + segLen - 7).toFixed(2)}%  { left: ${x}%; top: ${y}%; opacity: 1; }
         ${(s + segLen - 3).toFixed(2)}%  { left: ${x}%; top: ${y}%; opacity: 0; }
       `;
-      })
-      .join('');
+    }).join('');
     return `@keyframes ${id}-drift-${idx + 1} { ${frames} 100% { opacity: 0; } }`;
   }).join('\n');
 
-  const styleEl = React.createElement('style', {
-    dangerouslySetInnerHTML: {
-      __html: `
+  const styleEl = React.createElement('style', { dangerouslySetInnerHTML: { __html: `
     .${id}-slot {
       position: absolute;
       transform: translate(-50%, -50%);
@@ -107,9 +78,7 @@ export function ScreenSaverFx(props) {
       .${id}-rm-show { position: relative; transform: none; left: auto; top: auto; }
       .${id}-tower-r1, .${id}-tower-r2, .${id}-tower-core { animation: none !important; }
     }
-  `,
-    },
-  });
+  ` } });
 
   const wrapStyle = {
     position: 'relative',

@@ -6,8 +6,7 @@
  */
 export function VolleyFx(props) {
   const {
-    x = 50,
-    y = 50,
+    x = 50, y = 50,
     count = 5,
     spreadDeg = 360,
     range = 40,
@@ -38,9 +37,7 @@ export function VolleyFx(props) {
   const balls = Array.from({ length: count }, (_, i) => {
     const a = full
       ? (360 / count) * i
-      : count > 1
-        ? -spreadDeg / 2 + (spreadDeg / (count - 1)) * i
-        : 0;
+      : (count > 1 ? -spreadDeg / 2 + (spreadDeg / (count - 1)) * i : 0);
     return React.createElement('div', {
       key: i,
       className: id + '-b',
@@ -48,8 +45,7 @@ export function VolleyFx(props) {
     });
   });
   return React.createElement(
-    React.Fragment,
-    null,
+    React.Fragment, null,
     React.createElement('style', { dangerouslySetInnerHTML: { __html: css } }),
     React.createElement('div', { className: id + '-w', onAnimationEnd: onDone }, ...balls)
   );

@@ -13,6 +13,8 @@ export interface BlastFxProps {
   color?: string;
   /** アニメ時間 ms (default 520) */
   duration?: number;
+  /** アニメ開始遅延 ms (default 0)。 砲弾着弾後に爆発を出したい場合に使う */
+  delayMs?: number;
   /** アニメ完了時に親へ通知 */
   onDone?: () => void;
 }
@@ -27,6 +29,7 @@ export function BlastFx({
   radius = 12,
   color = 'var(--c-warning)',
   duration = 520,
+  delayMs = 0,
   onDone,
 }: BlastFxProps) {
   const uid = useId().replace(/:/g, 'bl');
@@ -48,13 +51,13 @@ export function BlastFx({
       width: ${radius * 2}vmin; height: ${radius * 2}vmin; border-radius: 50%;
       border: 3px solid ${color};
       box-shadow: 0 0 24px ${color}aa, inset 0 0 24px ${color}66;
-      animation: ${uid}-ring ${duration}ms var(--ease-out) both;
+      animation: ${uid}-ring ${duration}ms ${delayMs}ms var(--ease-out) both;
     }
     .${uid}-flash {
       position: absolute; left: 0; top: 0;
       width: ${radius * 2}vmin; height: ${radius * 2}vmin; border-radius: 50%;
       background: radial-gradient(circle, ${color} 0%, transparent 60%);
-      animation: ${uid}-flash ${flashDuration}ms var(--ease-out) both;
+      animation: ${uid}-flash ${flashDuration}ms ${delayMs}ms var(--ease-out) both;
     }
     @media (prefers-reduced-motion: reduce) {
       .${uid}-ring, .${uid}-flash { animation-duration: 1ms; opacity: 0; }

@@ -58,7 +58,6 @@ beforeEach(async () => {
     initialWeapon: 'laser',
     patches: new Map(),
     equippedPatches: new Map(),
-    defaultGameSpeed: 1,
     bgmVolume: 0.8,
     seVolume: 0.8,
     vibrationEnabled: true,
@@ -158,16 +157,14 @@ describe('sync: weapons round-trip', () => {
 
 describe('sync: settings round-trip', () => {
   it('settings を書いて読み直すと同じ値になる', async () => {
-    useStore.getState().setDefaultGameSpeed(3);
     useStore.getState().setBgmVolume(0.5);
     useStore.getState().setVibrationEnabled(false);
 
     await syncSettings();
 
-    useStore.setState({ defaultGameSpeed: 1, bgmVolume: 0.8, vibrationEnabled: true });
+    useStore.setState({ bgmVolume: 0.8, vibrationEnabled: true });
     await hydrateStore();
 
-    expect(useStore.getState().defaultGameSpeed).toBe(3);
     expect(useStore.getState().bgmVolume).toBe(0.5);
     expect(useStore.getState().vibrationEnabled).toBe(false);
   });

@@ -23,7 +23,6 @@ function WithBattleSeed({ children }: { children: React.ReactNode }) {
       currentWeapon: 'laser',
       activeCdSec: 0,
       isAutoActive: false,
-      gameSpeed: 1,
     });
   }, []);
   return <>{children}</>;

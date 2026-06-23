@@ -10,6 +10,8 @@
 import { describe, it, expect } from 'vitest';
 
 import {
+  CANNON_BASE_AS,
+  CANNON_BASE_DAMAGE_MUL,
   VOLLEY_CD_SEC,
   VOLLEY_SHOTS,
   cannonNormalAttack,
@@ -59,6 +61,7 @@ function makeEnemy(id: string, x: number, y: number): SpawnedEnemy {
     reward: { screw: 1, bolt: 1, alloyChance: 0, alloyAmount: 0 },
     spawnedAtMs: 0,
     position: { x, y },
+    maxHp: BigNum.fromNumber(1000),
   };
 }
 
@@ -69,56 +72,49 @@ function makeEnemy(id: string, x: number, y: number): SpawnedEnemy {
 describe('cannonStats', () => {
   it('Lv 0 は底値を返す', () => {
     const s = cannonStats(0);
-    expect(s.attackPerSec).toBeCloseTo(0.5);
+    expect(s.attackPerSec).toBeCloseTo(CANNON_BASE_AS);
     expect(s.splashRadius).toBeCloseTo(30);
-    expect(s.damageMul).toBeCloseTo(1.0);
+    expect(s.damageMul).toBeCloseTo(CANNON_BASE_DAMAGE_MUL);
     expect(s.volleyCdSec).toBe(VOLLEY_CD_SEC);
     expect(s.volleyShots).toBe(VOLLEY_SHOTS);
     expect(s.volleyDamageMul).toBeCloseTo(20);
   });
 
-  it('Lv 10 のスケール確認（仕様早見表と一致）', () => {
+  it('Lv 10 のスケール: damageMul と attackPerSec が Lv で増加', () => {
     const s = cannonStats(10);
-    // 武器ダメージ倍率: 1.02^10 ≈ 1.2190
-    expect(s.damageMul).toBeCloseTo(Math.pow(1.02, 10), 4);
-    // AS: 0.5 × (1 + 0.03 × 10) = 0.5 × 1.30 = 0.65
-    expect(s.attackPerSec).toBeCloseTo(0.65, 5);
+    // 武器ダメージ倍率: CANNON_BASE_DAMAGE_MUL × 1.02^10
+    expect(s.damageMul).toBeCloseTo(CANNON_BASE_DAMAGE_MUL * Math.pow(1.02, 10), 4);
+    // AS: CANNON_BASE_AS × (1 + 0.03 × 10)
+    expect(s.attackPerSec).toBeCloseTo(CANNON_BASE_AS * 1.3, 5);
     // 爆発半径: 30 + 0.5 × 10 = 35
     expect(s.splashRadius).toBeCloseTo(35, 5);
-    // Volley ダメ倍率: 20 × (1 + 0.05 × 10) = 20 × 1.5 = 30
+    // Volley ダメ倍率: 20 × (1 + 0.05 × 10) = 30
     expect(s.volleyDamageMul).toBeCloseTo(30, 5);
   });
 
-  it('Lv 50 のスケール確認', () => {
+  it('Lv 50 のスケール', () => {
     const s = cannonStats(50);
-    // 武器ダメージ倍率: 1.02^50 ≈ 2.6916
-    expect(s.damageMul).toBeCloseTo(Math.pow(1.02, 50), 4);
-    // AS: 0.5 × (1 + 0.03 × 50) = 0.5 × 2.50 = 1.25
-    expect(s.attackPerSec).toBeCloseTo(1.25, 5);
-    // 爆発半径: 30 + 0.5 × 50 = 55
+    expect(s.damageMul).toBeCloseTo(CANNON_BASE_DAMAGE_MUL * Math.pow(1.02, 50), 4);
+    expect(s.attackPerSec).toBeCloseTo(CANNON_BASE_AS * (1 + 0.03 * 50), 5);
     expect(s.splashRadius).toBeCloseTo(55, 5);
   });
 
-  it('Lv 100 のスケール確認', () => {
+  it('Lv 100 のスケール', () => {
     const s = cannonStats(100);
-    // AS: 0.5 × (1 + 0.03 × 100) = 0.5 × 4.0 = 2.0
-    expect(s.attackPerSec).toBeCloseTo(2.0, 5);
+    expect(s.attackPerSec).toBeCloseTo(CANNON_BASE_AS * (1 + 0.03 * 100), 5);
   });
 
   it('AS 上限 10 attacks/sec を超えない', () => {
-    // 0.5 × (1 + 0.03 × Lv) = 10 → Lv = (10/0.5 - 1) / 0.03 = 633.33...
-    // Lv 634 で初めて上限に達する
-    const s = cannonStats(634);
-    expect(s.attackPerSec).toBe(10);
-    const sHigh = cannonStats(999);
+    // BASE_AS × (1 + 0.03 × Lv) = 10 を超える Lv で必ず 10 にクランプ
+    const sHigh = cannonStats(9999);
     expect(sHigh.attackPerSec).toBe(10);
   });
 
   it('負の Lv は Lv 0 として扱う', () => {
     const s = cannonStats(-5);
-    expect(s.attackPerSec).toBeCloseTo(0.5);
+    expect(s.attackPerSec).toBeCloseTo(CANNON_BASE_AS);
     expect(s.splashRadius).toBeCloseTo(30);
-    expect(s.damageMul).toBeCloseTo(1.0);
+    expect(s.damageMul).toBeCloseTo(CANNON_BASE_DAMAGE_MUL);
   });
 
   it('小数 Lv は切り捨て', () => {
@@ -138,59 +134,54 @@ describe('cannonNormalAttack', () => {
   const machine = defaultMachine();
   const stats = cannonStats(0); // Lv 0: splashRadius = 30, damageMul = 1.0
 
-  it('敵が 0 体のとき hits は空で blastX/Y はデフォルト', () => {
+  it('敵が 0 体のとき hits は空で blastX/Y はマシン中心', () => {
     const result = cannonNormalAttack(machine, stats, [], rngFixed);
     expect(result.hits).toHaveLength(0);
-    expect(result.blastX).toBe(0);
+    expect(result.blastX).toBe(50);
     expect(result.blastY).toBe(50);
   });
 
-  it('最遠の敵が着弾点になる', () => {
-    // マシンは x=0, y=50
-    // enemyA: x=20, y=50 → 距離 20
-    // enemyB: x=50, y=50 → 距離 50 (最遠)
-    const enemyA = makeEnemy('A', 20, 50);
-    const enemyB = makeEnemy('B', 50, 50);
+  it('最寄り敵が着弾点になる (マシン中心 50,50 基準)', () => {
+    // マシン中心 (50, 50)
+    // enemyA: (60, 50) → 距離 10 (最寄り)
+    // enemyB: (90, 50) → 距離 40
+    const enemyA = makeEnemy('A', 60, 50);
+    const enemyB = makeEnemy('B', 90, 50);
     const result = cannonNormalAttack(machine, stats, [enemyA, enemyB], rngFixed);
-    expect(result.blastX).toBe(50);
+    expect(result.blastX).toBe(60);
     expect(result.blastY).toBe(50);
   });
 
   it('splashRadius 内の全敵がヒットする', () => {
     // splashRadius = 30
-    // マシン(x=0, y=50)
-    //   FAR(x=80, y=50):  マシンから距離 80 → 最遠、着弾点
-    //   NEAR(x=75, y=50): 着弾点 FAR から距離 5 ≤ 30 → ヒット（マシンから 75 < 80）
-    //   OUT(x=60, y=15):  マシンから √(3600+1225)≈69.4 < 80、FAR から √(400+1225)≈40.3 > 30 → スプラッシュ外
+    // マシン中心 (50, 50)
+    //   NEAR(x=60, y=50):  マシンから距離 10 → 最寄り、 着弾点
+    //   MID (x=65, y=50):  着弾点 NEAR から距離 5 ≤ 30 → ヒット
+    //   OUT (x=30, y=20):  着弾点 NEAR から √(900+900)≈42.4 > 30 → スプラッシュ外
     const statsLv0: CannonStats = { ...stats, splashRadius: 30 };
-    const enemyFar = makeEnemy('FAR', 80, 50);
-    const enemyNear = makeEnemy('NEAR', 75, 50); // FAR から距離 5、マシンから 75
-    const enemyOut = makeEnemy('OUT', 60, 15); // FAR から距離 ~40.3
+    const enemyNear = makeEnemy('NEAR', 60, 50);
+    const enemyMid = makeEnemy('MID', 65, 50);
+    const enemyOut = makeEnemy('OUT', 30, 20);
 
-    const result = cannonNormalAttack(machine, statsLv0, [enemyFar, enemyNear, enemyOut], rngFixed);
+    const result = cannonNormalAttack(machine, statsLv0, [enemyNear, enemyMid, enemyOut], rngFixed);
 
-    // 着弾点は enemyFar (最遠、距離 80)
-    expect(result.blastX).toBe(80);
+    // 着弾点は enemyNear (最寄り)
+    expect(result.blastX).toBe(60);
     const hitIds = result.hits.map((h) => h.enemyId);
-    // FAR: 着弾点、距離 0 ≤ 30 → ヒット
-    expect(hitIds).toContain('FAR');
-    // NEAR: 距離 5 ≤ 30 → ヒット
     expect(hitIds).toContain('NEAR');
-    // OUT: 距離 40.3 > 30 → ヒットしない
+    expect(hitIds).toContain('MID');
     expect(hitIds).not.toContain('OUT');
   });
 
-  it('splashRadius=0 のときメインターゲットのみヒット', () => {
-    // splashRadius=0 のとき、着弾点の敵（距離 0）のみヒット
-    // マシン(0,50) から: NEAR(80.001,50) の方が FAR(80,50) より遠い → NEAR が着弾点
-    // FAR は着弾点から距離 0.001 > 0 → ヒットしない
+  it('splashRadius=0 のときメインターゲット (最寄り敵) のみヒット', () => {
     const statsZeroRadius: CannonStats = { ...stats, splashRadius: 0 };
-    const enemyFar = makeEnemy('FAR', 80, 50);
-    const enemyNear = makeEnemy('NEAR', 80.001, 50); // マシンから距離 80.001 → 最遠、着弾点
+    // マシン中心 (50,50) から: NEAR(60,50) が距離 10 で最寄り、 FAR(90,50) は 40
+    const enemyNear = makeEnemy('NEAR', 60, 50);
+    const enemyFar = makeEnemy('FAR', 90, 50);
 
     const result = cannonNormalAttack(machine, statsZeroRadius, [enemyFar, enemyNear], rngFixed);
-    // NEAR が着弾点（最遠）、距離 0 → ヒット
-    // FAR は着弾点から距離 0.001 > 0 → ヒットしない
+    // NEAR が着弾点 (最寄り)、 距離 0 → ヒット
+    // FAR は着弾点から距離 30 > 0 → ヒットしない
     expect(result.hits).toHaveLength(1);
     expect(result.hits[0]!.enemyId).toBe('NEAR');
   });
@@ -309,19 +300,16 @@ describe('cannonVolley', () => {
     expect(shot0.hits.map((h) => h.enemyId)).toContain('EXTRA');
   });
 
-  it('Volley ダメージは通常攻撃の volleyDamageMul 倍になっている', () => {
-    // Lv 0: damageMul=1.0, volleyDamageMul=20
-    // 通常攻撃ダメ = 100 (baseAttack=100, damageMul=1.0, 防御/軽減 0)
-    // Volley ダメ = 100 × 20 = 2000
+  it('Volley ダメージは通常攻撃の damageMul × volleyDamageMul 倍になっている', () => {
+    // baseAttack=100, Lv0: damageMul=CANNON_BASE_DAMAGE_MUL, volleyDamageMul=20
     const enemy = makeEnemy('A', 50, 50);
     const result = cannonVolley(machine, stats, [enemy]);
 
     const shot0 = result.shots[0]!;
-    // 少なくとも 1 体ヒットしている
     expect(shot0.hits.length).toBeGreaterThan(0);
 
-    // ダメージを確認: 100 × 1.0 × 20 = 2000
-    const expectedDmg = BigNum.fromNumber(100 * 1.0 * 20);
+    // 100 × CANNON_BASE_DAMAGE_MUL × 20
+    const expectedDmg = BigNum.fromNumber(100 * CANNON_BASE_DAMAGE_MUL * 20);
     expect(shot0.hits[0]!.damage.eq(expectedDmg)).toBe(true);
   });
 

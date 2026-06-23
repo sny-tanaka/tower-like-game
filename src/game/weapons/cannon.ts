@@ -20,8 +20,11 @@ import { BigNum } from '@/lib/bignum/BigNum';
 // 定数
 // ---------------------------------------------------------------------------
 
-/** Cannon 底値 attacks/sec */
-const BASE_AS = 0.5;
+/** Cannon 底値 attacks/sec (低速・高ダメ型 — 未強化状態で 2 秒に 1 発) */
+export const CANNON_BASE_AS = 0.5;
+
+/** Cannon 底値 武器ダメージ倍率 (高ダメ。 AS 0.5/s × 2.0 で DPS=1.0) */
+export const CANNON_BASE_DAMAGE_MUL = 2.0;
 
 /** 爆発半径 底値 (px) */
 const BASE_SPLASH_RADIUS_PX = 30;
@@ -74,11 +77,11 @@ export interface CannonStats {
 export function cannonStats(weaponLv: number): CannonStats {
   const lv = Math.max(0, Math.floor(weaponLv));
 
-  // 武器ダメージ倍率: 1.02^Lv
-  const damageMul = Math.pow(1.02, lv);
+  // 武器ダメージ倍率: CANNON_BASE_DAMAGE_MUL × 1.02^Lv
+  const damageMul = CANNON_BASE_DAMAGE_MUL * Math.pow(1.02, lv);
 
-  // 攻撃速度: BASE_AS × (1 + 0.03 × Lv)、上限 10
-  const attackPerSec = Math.min(10, BASE_AS * (1 + 0.03 * lv));
+  // 攻撃速度: CANNON_BASE_AS × (1 + 0.03 × Lv)、上限 10
+  const attackPerSec = Math.min(10, CANNON_BASE_AS * (1 + 0.03 * lv));
 
   // 爆発半径: 30 + 0.5 × Lv (px)
   const splashRadius = BASE_SPLASH_RADIUS_PX + 0.5 * lv;
@@ -145,28 +148,28 @@ export function cannonNormalAttack(
   rng: () => number
 ): CannonAttackResult {
   if (enemiesInRange.length === 0) {
-    return { hits: [], blastX: 0, blastY: 50 };
+    return { hits: [], blastX: 50, blastY: 50 };
   }
 
-  // マシン座標（左端中央固定）
-  const machineX = 0;
+  // マシン座標（フィールド中央固定。 useBattleLoop の MACHINE_CENTER と一致）
+  const machineX = 50;
   const machineY = 50;
 
-  // 最遠の敵を着弾点として選択
-  let farthestEnemy = enemiesInRange[0]!;
-  let maxD = dist(machineX, machineY, farthestEnemy.position.x, farthestEnemy.position.y);
+  // 着弾点 = 最寄り敵 (design-docs/05-weapons.md 仕様)
+  let nearestEnemy = enemiesInRange[0]!;
+  let minD = dist(machineX, machineY, nearestEnemy.position.x, nearestEnemy.position.y);
 
   for (let i = 1; i < enemiesInRange.length; i++) {
     const e = enemiesInRange[i]!;
     const d = dist(machineX, machineY, e.position.x, e.position.y);
-    if (d > maxD) {
-      maxD = d;
-      farthestEnemy = e;
+    if (d < minD) {
+      minD = d;
+      nearestEnemy = e;
     }
   }
 
-  const blastX = farthestEnemy.position.x;
-  const blastY = farthestEnemy.position.y;
+  const blastX = nearestEnemy.position.x;
+  const blastY = nearestEnemy.position.y;
 
   // クリ判定（1 回ロール、全スプラッシュヒットに適用）
   const isCrit = rollCrit(machine.critRate, rng);

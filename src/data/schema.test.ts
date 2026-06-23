@@ -33,7 +33,6 @@ describe('schema 定数', () => {
   });
 
   it('DEFAULT_SETTINGS のデフォルト値が正しい', () => {
-    expect(DEFAULT_SETTINGS.defaultGameSpeed).toBe(1);
     expect(DEFAULT_SETTINGS.bgmVolume).toBe(0.8);
     expect(DEFAULT_SETTINGS.seVolume).toBe(0.8);
     expect(DEFAULT_SETTINGS.vibrationEnabled).toBe(true);

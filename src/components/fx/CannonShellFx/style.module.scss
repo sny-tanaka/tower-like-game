@@ -1,0 +1,45 @@
+.shell {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+  z-index: var(--z-fx-field);
+}
+
+.inner {
+  position: absolute;
+  inset: 0;
+  transform-origin: center;
+}
+
+.ball {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background: radial-gradient(
+    circle at 32% 28%,
+    #e8eef5 0%,
+    #9aa6b4 15%,
+    #525b67 45%,
+    #2a2f37 80%,
+    #15181d 100%
+  );
+  box-shadow:
+    inset -1px -1px 2px rgba(0, 0, 0, 0.6),
+    0 0 4px rgba(255, 140, 60, 0.4),
+    0 0 10px rgba(255, 100, 40, 0.25),
+    0 1px 2px rgba(0, 0, 0, 0.6);
+  border: 1px solid rgba(0, 0, 0, 0.5);
+}
+
+.highlight {
+  position: absolute;
+  left: 28%;
+  top: 24%;
+  border-radius: 50%;
+  background: radial-gradient(
+    circle,
+    rgba(255, 255, 255, 0.9) 0%,
+    rgba(255, 255, 255, 0) 70%
+  );
+  pointer-events: none;
+}

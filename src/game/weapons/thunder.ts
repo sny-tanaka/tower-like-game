@@ -40,11 +40,16 @@ export const THUNDER_CHAIN_FALLOFF = 0.9;
 /** Thunder アクティブ (Plasma) のクールダウン秒 */
 export const THUNDER_PLASMA_CD_SEC = 30;
 
+/** Thunder 底値 武器ダメージ倍率 (低ダメ。 3 体同時で総 DPS を稼ぐ。 AS 2.5/s × 0.18 = 0.45) */
+export const THUNDER_BASE_DAMAGE_MUL = 0.18;
+/** Thunder 底値 attacks/sec (Laser と同等の標準テンポ) */
+export const THUNDER_BASE_AS = 2.5;
+
 export function thunderStats(weaponLv: number): ThunderStats {
   const lv = Math.max(0, weaponLv);
 
-  const damageMul = Math.pow(1.02, lv);
-  const attackPerSec = Math.min(10, 0.7 * (1 + 0.03 * lv));
+  const damageMul = THUNDER_BASE_DAMAGE_MUL * Math.pow(1.02, lv);
+  const attackPerSec = Math.min(10, THUNDER_BASE_AS * (1 + 0.03 * lv));
   const plasmaDamageMul = 15 * (1 + 0.05 * lv);
 
   return {
@@ -94,15 +99,12 @@ export function thunderNormalAttack(
   const hits: ThunderAttackResult['hits'] = [];
   const path: ThunderAttackResult['path'] = [];
 
-  for (let i = 0; i < targets.length; i++) {
-    const enemy = targets[i]!;
-    // 連鎖減衰: chainFalloff ^ i (始点 i=0 は 1.0)
-    const falloffMul = Math.pow(stats.chainFalloff, i);
-    const effectiveDamageMul = stats.damageMul * falloffMul;
-
+  // 仕様: 連鎖ではなく「同時 3 体に独立落雷」。 chainFalloff は通常攻撃には適用しない
+  // (Plasma アクティブのみ chainFalloff を使う)。
+  for (const enemy of targets) {
     const isCrit = rollCrit(machine.critRate, rng);
     const result = calcOutgoingDamage(
-      { machine, weapon: { damageMultiplier: effectiveDamageMul }, isCrit },
+      { machine, weapon: { damageMultiplier: stats.damageMul }, isCrit },
       BigNum.ZERO,
       0
     );

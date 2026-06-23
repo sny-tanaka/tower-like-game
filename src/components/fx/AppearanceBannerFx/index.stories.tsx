@@ -9,7 +9,7 @@ const meta: Meta<typeof AppearanceBannerFx> = {
     backgrounds: { default: 'dark' },
   },
   argTypes: {
-    kind: { control: 'select', options: ['elite', 'boss'] },
+    kind: { control: 'select', options: ['elite', 'boss', 'battle-start'] },
     name: { control: 'text' },
     duration: { control: { type: 'range', min: 400, max: 4000, step: 100 } },
   },
@@ -67,6 +67,19 @@ export const BossLongName: Story = {
   args: {
     kind: 'boss',
     name: 'THE ANCIENT MECHANICAL DRAGON',
+    duration: 1600,
+  },
+  render: (args) => (
+    <AppearanceBannerFx
+      key={JSON.stringify(args)}
+      {...args}
+    />
+  ),
+};
+
+export const BattleStart: Story = {
+  args: {
+    kind: 'battle-start',
     duration: 1600,
   },
   render: (args) => (

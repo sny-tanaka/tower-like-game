@@ -1,7 +1,9 @@
 import { describe, expect, it } from 'vitest';
 
 import {
+  THUNDER_BASE_AS,
   THUNDER_BASE_CHAIN_COUNT,
+  THUNDER_BASE_DAMAGE_MUL,
   THUNDER_CHAIN_FALLOFF,
   THUNDER_PLASMA_CD_SEC,
   thunderNormalAttack,
@@ -41,6 +43,7 @@ function makeEnemy(id: string, x = 50, y = 50): SpawnedEnemy {
     reward: { screw: 1, bolt: 0, alloyChance: 0, alloyAmount: 0 },
     spawnedAtMs: 0,
     position: { x, y },
+    maxHp: BigNum.fromNumber(500),
   };
 }
 
@@ -55,23 +58,23 @@ const rngAlwaysCrit = (): number => 0; // critRate > 0 なら true
 describe('thunderStats', () => {
   it('Lv0 の基本値が仕様通り', () => {
     const stats = thunderStats(0);
-    expect(stats.attackPerSec).toBeCloseTo(0.7);
+    expect(stats.attackPerSec).toBeCloseTo(THUNDER_BASE_AS);
     expect(stats.chainCount).toBe(THUNDER_BASE_CHAIN_COUNT);
     expect(stats.chainFalloff).toBe(THUNDER_CHAIN_FALLOFF);
-    expect(stats.damageMul).toBeCloseTo(1.0);
+    expect(stats.damageMul).toBeCloseTo(THUNDER_BASE_DAMAGE_MUL);
     expect(stats.plasmaCdSec).toBe(THUNDER_PLASMA_CD_SEC);
     // Lv0: plasmaDamageMul = 15 × (1 + 0) = 15
     expect(stats.plasmaDamageMul).toBeCloseTo(15);
   });
 
-  it('Lv10: damageMul ≈ 1.22 (1.02^10)', () => {
+  it('Lv10: damageMul = THUNDER_BASE_DAMAGE_MUL × 1.02^10', () => {
     const stats = thunderStats(10);
-    expect(stats.damageMul).toBeCloseTo(Math.pow(1.02, 10), 5);
+    expect(stats.damageMul).toBeCloseTo(THUNDER_BASE_DAMAGE_MUL * Math.pow(1.02, 10), 5);
   });
 
-  it('Lv10: attackPerSec ≈ 0.7 × 1.3 = 0.91', () => {
+  it('Lv10: attackPerSec = THUNDER_BASE_AS × (1 + 0.03 × 10)', () => {
     const stats = thunderStats(10);
-    expect(stats.attackPerSec).toBeCloseTo(0.7 * 1.3, 5);
+    expect(stats.attackPerSec).toBeCloseTo(THUNDER_BASE_AS * 1.3, 5);
   });
 
   it('Lv10: plasmaDamageMul = 15 × 1.5 = 22.5', () => {
@@ -129,32 +132,34 @@ describe('thunderNormalAttack', () => {
     expect(result.hits.map((h) => h.enemyId)).toEqual(['e1', 'e2', 'e3']);
   });
 
-  it('連鎖先でダメージが chainFalloff で減衰する', () => {
-    const machine = makeMachine({ baseAttack: BigNum.fromNumber(1000) });
-    const stats = thunderStats(0); // damageMul=1.0, chainFalloff=0.9
+  it('3 体同時ヒットでダメージは全員同じ (通常攻撃の連鎖減衰は廃止)', () => {
+    const baseAttack = 1000;
+    const machine = makeMachine({ baseAttack: BigNum.fromNumber(baseAttack) });
+    const stats = thunderStats(0); // damageMul = THUNDER_BASE_DAMAGE_MUL
     const enemies = [makeEnemy('e1'), makeEnemy('e2'), makeEnemy('e3')];
     const result = thunderNormalAttack(machine, stats, enemies, rngNoCrit);
 
-    // e1: 1000 × 1.0 = 1000
-    // e2: 1000 × 0.9 = 900
-    // e3: 1000 × 0.81 = 810
-    expect(result.hits[0]!.damage.toString()).toBe('1000');
-    const dmg2 = parseInt(result.hits[1]!.damage.toString(), 10);
-    const dmg3 = parseInt(result.hits[2]!.damage.toString(), 10);
-    expect(dmg2).toBeGreaterThanOrEqual(900);
-    expect(dmg2).toBeLessThanOrEqual(901);
-    expect(dmg3).toBeGreaterThanOrEqual(810);
-    expect(dmg3).toBeLessThanOrEqual(811);
+    // 全員 baseAttack × THUNDER_BASE_DAMAGE_MUL ダメージ (chainFalloff は通常攻撃には適用されない)
+    const expected = String(Math.floor(baseAttack * THUNDER_BASE_DAMAGE_MUL));
+    expect(result.hits[0]!.damage.toString()).toBe(expected);
+    expect(result.hits[1]!.damage.toString()).toBe(expected);
+    expect(result.hits[2]!.damage.toString()).toBe(expected);
   });
 
   it('クリ判定が反映される（rng=0 で常にクリ）', () => {
-    const machine = makeMachine({ critRate: 0.5, critMultiplier: 2.0 });
+    const baseAttack = 100;
+    const machine = makeMachine({
+      baseAttack: BigNum.fromNumber(baseAttack),
+      critRate: 0.5,
+      critMultiplier: 2.0,
+    });
     const stats = thunderStats(0);
     const enemies = [makeEnemy('e1')];
     const result = thunderNormalAttack(machine, stats, enemies, rngAlwaysCrit);
     expect(result.hits[0]!.crit).toBe(true);
-    // 100 × 1.0 × 2.0 = 200
-    expect(result.hits[0]!.damage.toString()).toBe('200');
+    // baseAttack × THUNDER_BASE_DAMAGE_MUL × 2.0
+    const expected = String(Math.floor(baseAttack * THUNDER_BASE_DAMAGE_MUL * 2));
+    expect(result.hits[0]!.damage.toString()).toBe(expected);
   });
 
   it('path が各敵の position を順番通り含む', () => {
@@ -189,30 +194,33 @@ describe('thunderPlasmaDischarge', () => {
   });
 
   it('1体目ダメージは baseAttack × damageMul × plasmaDamageMul', () => {
-    const machine = makeMachine({ baseAttack: BigNum.fromNumber(100) });
-    const stats = thunderStats(0); // damageMul=1.0, plasmaDamageMul=15
+    const baseAttack = 100;
+    const machine = makeMachine({ baseAttack: BigNum.fromNumber(baseAttack) });
+    const stats = thunderStats(0); // damageMul=THUNDER_BASE_DAMAGE_MUL, plasmaDamageMul=15
     const enemies = [makeEnemy('e1')];
     const result = thunderPlasmaDischarge(machine, stats, enemies);
-    // 100 × 1.0 × 15 = 1500
-    expect(result.hits[0]!.damage.toString()).toBe('1500');
+    const expected = String(Math.floor(baseAttack * THUNDER_BASE_DAMAGE_MUL * 15));
+    expect(result.hits[0]!.damage.toString()).toBe(expected);
   });
 
-  it('連鎖ごとに 10% 減衰する', () => {
-    const machine = makeMachine({ baseAttack: BigNum.fromNumber(1000) });
-    const stats = thunderStats(0); // damageMul=1.0, plasmaDamageMul=15, chainFalloff=0.9
+  it('連鎖ごとに chainFalloff で減衰する', () => {
+    const baseAttack = 1000;
+    const machine = makeMachine({ baseAttack: BigNum.fromNumber(baseAttack) });
+    const stats = thunderStats(0);
     const enemies = [makeEnemy('e1'), makeEnemy('e2'), makeEnemy('e3')];
     const result = thunderPlasmaDischarge(machine, stats, enemies);
 
-    // e1: 1000 × 1.0 × 15 × 0.9^0 = 15000
-    // e2: 1000 × 1.0 × 15 × 0.9^1 = 13500
-    // e3: 1000 × 1.0 × 15 × 0.9^2 = 12150
-    expect(result.hits[0]!.damage.toString()).toBe('15000');
+    const baseDmg = baseAttack * THUNDER_BASE_DAMAGE_MUL * 15;
+    // 1体目 = baseDmg、 以降は chainFalloff^i で減衰
+    expect(result.hits[0]!.damage.toString()).toBe(String(Math.floor(baseDmg)));
     const dmg2 = parseInt(result.hits[1]!.damage.toString(), 10);
     const dmg3 = parseInt(result.hits[2]!.damage.toString(), 10);
-    expect(dmg2).toBeGreaterThanOrEqual(13500);
-    expect(dmg2).toBeLessThanOrEqual(13501);
-    expect(dmg3).toBeGreaterThanOrEqual(12150);
-    expect(dmg3).toBeLessThanOrEqual(12151);
+    const expected2 = Math.floor(baseDmg * THUNDER_CHAIN_FALLOFF);
+    const expected3 = Math.floor(baseDmg * THUNDER_CHAIN_FALLOFF * THUNDER_CHAIN_FALLOFF);
+    expect(dmg2).toBeGreaterThanOrEqual(expected2);
+    expect(dmg2).toBeLessThanOrEqual(expected2 + 1);
+    expect(dmg3).toBeGreaterThanOrEqual(expected3);
+    expect(dmg3).toBeLessThanOrEqual(expected3 + 1);
   });
 
   it('Lv が上がるとダメージが増加する', () => {

@@ -93,7 +93,7 @@ describe('RunWorkshop slice', () => {
     });
     useStore
       .getState()
-      .startRun({ initialWeapon: 'laser', baseMachineMaxHp: BigNum.fromNumber(100), gameSpeed: 1 });
+      .startRun({ initialWeapon: 'laser', baseMachineMaxHp: BigNum.fromNumber(100) });
     expect(useStore.getState().runWorkshopLevels.attackMul).toBe(0);
   });
 

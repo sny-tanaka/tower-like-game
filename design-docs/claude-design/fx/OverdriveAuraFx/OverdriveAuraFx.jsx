@@ -22,12 +22,9 @@ export function OverdriveAuraFx(props) {
     @media (prefers-reduced-motion: reduce) { .${id}-w, .${id}-r1, .${id}-r2 { animation: none; } }
   `;
   return React.createElement(
-    React.Fragment,
-    null,
+    React.Fragment, null,
     React.createElement('style', { dangerouslySetInnerHTML: { __html: css } }),
-    React.createElement(
-      'div',
-      { className: id + '-w' },
+    React.createElement('div', { className: id + '-w' },
       React.createElement('div', { className: id + '-r1' }),
       React.createElement('div', { className: id + '-r2' })
     )

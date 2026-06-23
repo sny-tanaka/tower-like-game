@@ -111,7 +111,6 @@ export async function hydrateStore(): Promise<void> {
   // --- settings ---
   const s: SettingsRecord = save.settings ?? DEFAULT_SETTINGS;
   useStore.setState({
-    defaultGameSpeed: s.defaultGameSpeed,
     bgmVolume: s.bgmVolume,
     seVolume: s.seVolume,
     vibrationEnabled: s.vibrationEnabled,
@@ -152,10 +151,9 @@ export async function syncWeapons(): Promise<void> {
 /** settings slice を IndexedDB に書き戻す */
 export async function syncSettings(): Promise<void> {
   const db = await getDb();
-  const { defaultGameSpeed, bgmVolume, seVolume, vibrationEnabled } = useStore.getState();
+  const { bgmVolume, seVolume, vibrationEnabled } = useStore.getState();
   await putSettings(db, {
     id: 'singleton',
-    defaultGameSpeed,
     bgmVolume,
     seVolume,
     vibrationEnabled,
@@ -257,4 +255,91 @@ export function setupVisibilityChangeFlush(): () => void {
   };
   document.addEventListener('visibilitychange', handler);
   return () => document.removeEventListener('visibilitychange', handler);
+}
+
+// ---------------------------------------------------------------------------
+// オートセーブ (主動): store の各 slice 変更を購読し debounced で IndexedDB に書き戻す
+// ---------------------------------------------------------------------------
+
+/** 同一 slice 連続更新時の書き込みを束ねるためのデバウンス幅 (ms) */
+const AUTOSAVE_DEBOUNCE_MS = 500;
+
+function makeDebounced(label: string, fn: () => Promise<void>): () => void {
+  let timer: ReturnType<typeof setTimeout> | null = null;
+  return () => {
+    if (timer != null) clearTimeout(timer);
+    timer = setTimeout(() => {
+      fn().catch((err) => {
+        console.error(`[autosave:${label}] failed`, err);
+      });
+    }, AUTOSAVE_DEBOUNCE_MS);
+  };
+}
+
+/**
+ * アプリ起動時に 1 回呼ぶ。
+ * - store の各 slice の変化を購読し、 debounced で対応する sync* を呼ぶ
+ * - visibilitychange (hidden) で全 slice を flush
+ * - beforeunload で best-effort flush
+ *
+ * cleanup は不要 (アプリ全体ライフサイクル想定)。
+ */
+export function setupAutoSave(): void {
+  setupVisibilityChangeFlush();
+
+  // ブラウザ閉じる直前 best-effort flush
+  window.addEventListener('beforeunload', () => {
+    void flushAll();
+  });
+
+  const saveCurrencies = makeDebounced('currencies', syncCurrencies);
+  const saveMachine = makeDebounced('machine', syncMachine);
+  const saveWeapons = makeDebounced('weapons', syncWeapons);
+  const saveSettings = makeDebounced('settings', syncSettings);
+  const saveProfile = makeDebounced('profile', syncProfile);
+  const savePatches = makeDebounced('patches', syncPatches);
+  const saveEquippedPatches = makeDebounced('equippedPatches', syncEquippedPatches);
+
+  // 1 つの subscribe で全 slice を監視 (差分判定で対応する sync を起動)
+  useStore.subscribe((state, prev) => {
+    // currencies (bolt / alloy)
+    if (state.bolt !== prev.bolt || state.alloy !== prev.alloy) {
+      saveCurrencies();
+    }
+    // machine
+    if (state.machineLevels !== prev.machineLevels) {
+      saveMachine();
+    }
+    // weapons
+    if (state.weaponLv !== prev.weaponLv || state.initialWeapon !== prev.initialWeapon) {
+      saveWeapons();
+    }
+    // settings
+    if (
+      state.bgmVolume !== prev.bgmVolume ||
+      state.seVolume !== prev.seVolume ||
+      state.vibrationEnabled !== prev.vibrationEnabled
+    ) {
+      saveSettings();
+    }
+    // profile
+    if (
+      state.highestTier !== prev.highestTier ||
+      state.highestWave !== prev.highestWave ||
+      state.totalPlayTimeSec !== prev.totalPlayTimeSec ||
+      state.totalRuns !== prev.totalRuns ||
+      state.totalEnemiesKilled !== prev.totalEnemiesKilled ||
+      state.lastPlayedAt !== prev.lastPlayedAt
+    ) {
+      saveProfile();
+    }
+    // patches
+    if (state.patches !== prev.patches) {
+      savePatches();
+    }
+    // equipped patches
+    if (state.equippedPatches !== prev.equippedPatches) {
+      saveEquippedPatches();
+    }
+  });
 }

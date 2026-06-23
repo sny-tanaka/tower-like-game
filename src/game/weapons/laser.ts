@@ -34,6 +34,11 @@ export interface LaserStats {
   megaDamageMul: number;
 }
 
+/** Laser 底値 attacks/sec (4 武器のテンポ基準) */
+export const LASER_BASE_AS = 2.5;
+/** Laser 底値 武器ダメージ倍率 (4 武器の DPS 基準: 2.5 × 0.4 = 1.0) */
+export const LASER_BASE_DAMAGE_MUL = 0.4;
+
 /**
  * 武器強化 Lv から LaserStats を計算して返す。
  *
@@ -42,17 +47,16 @@ export interface LaserStats {
 export function laserStats(weaponLv: number): LaserStats {
   const lv = Math.max(0, weaponLv);
 
-  // AS: 底値 1.0 × (1 + 0.03 × Lv)
-  const attackPerSec = 1.0 * (1 + 0.03 * lv);
+  // AS: LASER_BASE_AS × (1 + 0.03 × Lv)
+  const attackPerSec = LASER_BASE_AS * (1 + 0.03 * lv);
 
   // 貫通数: floor(1 + 0.1 × Lv)  ← 仕様: Lv0=1, +0.1/Lv, 切り捨て
   const pierce = Math.floor(1 + 0.1 * lv);
 
-  // 武器ダメ倍率: 1.02 ^ Lv
-  const damageMul = Math.pow(1.02, lv);
+  // 武器ダメ倍率: LASER_BASE_DAMAGE_MUL × 1.02^Lv
+  const damageMul = LASER_BASE_DAMAGE_MUL * Math.pow(1.02, lv);
 
   // Mega Beam 威力: アクティブ底値 10 × (1 + 0.05 × Lv)
-  // 仕様: アクティブ威力 = +0.05 × アクティブ底威力/Lv → 底値 10 × (1 + 0.05 × Lv)
   const megaDamageMul = 10 * (1 + 0.05 * lv);
 
   return { attackPerSec, pierce, damageMul, megaCdSec: LASER_MEGA_CD_SEC, megaDamageMul };

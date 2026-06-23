@@ -24,22 +24,13 @@ export function BurnFx(props) {
     @media (prefers-reduced-motion: reduce) { .${id}-core, .${id}-em { animation: none; } }
   `;
   return React.createElement(
-    React.Fragment,
-    null,
+    React.Fragment, null,
     React.createElement('style', { dangerouslySetInnerHTML: { __html: css } }),
-    React.createElement(
-      'div',
-      { className: id + '-w', style: { left: x + '%', top: y + '%' } },
+    React.createElement('div', { className: id + '-w', style: { left: x + '%', top: y + '%' } },
       React.createElement('div', { className: id + '-core' }),
       React.createElement('div', { className: id + '-em', style: { animationDelay: '0ms' } }),
-      React.createElement('div', {
-        className: id + '-em',
-        style: { animationDelay: '180ms', left: '4px' },
-      }),
-      React.createElement('div', {
-        className: id + '-em',
-        style: { animationDelay: '360ms', left: '-4px' },
-      })
+      React.createElement('div', { className: id + '-em', style: { animationDelay: '180ms', left: '4px' } }),
+      React.createElement('div', { className: id + '-em', style: { animationDelay: '360ms', left: '-4px' } })
     )
   );
 }

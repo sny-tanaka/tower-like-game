@@ -38,8 +38,6 @@ const meta: Meta<typeof BattleHudBottom> = {
     onSwitchWeapon: () => {},
     onActivate: () => {},
     onToggleAuto: () => {},
-    gameSpeed: 1,
-    onSpeedChange: () => {},
     isPaused: false,
     onTogglePause: () => {},
     onOpenMenu: () => {},
@@ -105,24 +103,12 @@ export const Paused: Story = {
 };
 
 // ---------------------------------------------------------------------------
-// 速度 2x
+// ネジ大量
 // ---------------------------------------------------------------------------
 
-export const Speed2x: Story = {
-  name: '速度 2x',
+export const RichScrew: Story = {
+  name: 'ネジ大量',
   args: {
-    gameSpeed: 2,
-  },
-};
-
-// ---------------------------------------------------------------------------
-// 速度 3x + ネジ大量
-// ---------------------------------------------------------------------------
-
-export const Speed3xRichScrew: Story = {
-  name: '速度 3x + ネジ大量',
-  args: {
-    gameSpeed: 3,
     screw: BigNum.fromNumber(9999999),
   },
 };

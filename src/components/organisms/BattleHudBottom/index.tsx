@@ -5,7 +5,6 @@ import { CircularProgress } from '@/components/atoms/CircularProgress';
 import { CurrencyAmount } from '@/components/atoms/CurrencyAmount';
 import { Icon } from '@/components/atoms/Icon';
 import { IconButton } from '@/components/atoms/IconButton';
-import { SegmentedControl } from '@/components/atoms/SegmentedControl';
 import { WeaponSlotIcon } from '@/components/molecules/WeaponSlotIcon';
 import type { WeaponType } from '@/components/molecules/WeaponSlotIcon';
 import type { BigNum } from '@/lib/bignum/BigNum';
@@ -14,15 +13,7 @@ import type { BigNum } from '@/lib/bignum/BigNum';
 // 型定義
 // ---------------------------------------------------------------------------
 
-export type GameSpeed = 1 | 2 | 3;
-
 const WEAPON_ORDER: readonly WeaponType[] = ['laser', 'cannon', 'thunder', 'cutter'];
-
-const SPEED_OPTIONS = [
-  { label: '1x', value: 1 as GameSpeed },
-  { label: '2x', value: 2 as GameSpeed },
-  { label: '3x', value: 3 as GameSpeed },
-] as const;
 
 export interface BattleHudBottomProps {
   /** ネジ残高 */
@@ -43,9 +34,6 @@ export interface BattleHudBottomProps {
   onActivate: () => void;
   /** アクティブ手動/自動 Toggle 変更時 */
   onToggleAuto: (auto: boolean) => void;
-  /** 速度切替 */
-  gameSpeed: GameSpeed;
-  onSpeedChange: (speed: GameSpeed) => void;
   /** 一時停止中か */
   isPaused: boolean;
   onTogglePause: () => void;
@@ -72,8 +60,6 @@ export function BattleHudBottom({
   onSwitchWeapon,
   onActivate,
   onToggleAuto,
-  gameSpeed,
-  onSpeedChange,
   isPaused,
   onTogglePause,
   onOpenMenu,
@@ -172,7 +158,7 @@ export function BattleHudBottom({
         </div>
       </div>
 
-      {/* ──── 下段: 通貨 + 速度切替 + 一時停止 + メニュー + SS ──── */}
+      {/* ──── 下段: 通貨 + 一時停止 + メニュー + SS ──── */}
       <div className={styles.bottomRow}>
         {/* 通貨大表示 (左端) */}
         <div className={styles.currencyArea}>
@@ -180,16 +166,6 @@ export function BattleHudBottom({
             currency="screw"
             value={screw}
             size="lg"
-          />
-        </div>
-
-        {/* 速度切替 (中央) */}
-        <div className={styles.speedArea}>
-          <SegmentedControl
-            options={SPEED_OPTIONS}
-            value={gameSpeed}
-            onChange={onSpeedChange}
-            size="sm"
           />
         </div>
 

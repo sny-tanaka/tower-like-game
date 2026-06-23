@@ -128,8 +128,19 @@ export function createDroneOsc(
 }
 
 /**
+ * 予約済み音源ノード (track.stop() で一括停止する対象) を表す最小インターフェース。
+ * AudioBufferSourceNode / OscillatorNode のいずれも `stop(t)` を持つ。
+ */
+export interface StoppableNode {
+  stop(t: number): void;
+}
+
+/**
  * ローパスフィルタを経由した短いゲイン包絡線付きノート。
  * BGM アルペジオなど短尺ノート向け。
+ *
+ * outNodes を渡すと、 内部で作成した osc を push する。 BGM track の stop()
+ * で一括停止するために必須 (push し忘れると stop が効かず BGM が止まらなくなる)。
  */
 export function scheduleNote(
   ctx: AudioContext,
@@ -139,7 +150,8 @@ export function scheduleNote(
   startTime: number,
   duration: number,
   peakGain: number,
-  filterFreq?: number
+  filterFreq?: number,
+  outNodes?: StoppableNode[]
 ): void {
   const osc = ctx.createOscillator();
   const gain = ctx.createGain();
@@ -165,6 +177,7 @@ export function scheduleNote(
 
   osc.start(startTime);
   osc.stop(startTime + duration + 0.02);
+  outNodes?.push(osc);
 }
 
 /**
@@ -188,13 +201,15 @@ export function createDeterministicNoiseBuffer(
 }
 
 /**
- * キックドラム: サイン波 + ノイズで低音 thump
+ * キックドラム: サイン波 + ノイズで低音 thump。
+ * outNodes に body osc と click noise を両方 push する。
  */
 export function scheduleKick(
   ctx: AudioContext,
   dest: AudioNode,
   startTime: number,
-  peakGain: number
+  peakGain: number,
+  outNodes?: StoppableNode[]
 ): void {
   // Body: sine が 80Hz → 30Hz にポルタメント
   const osc = ctx.createOscillator();
@@ -207,6 +222,7 @@ export function scheduleKick(
   osc.connect(gain).connect(dest);
   osc.start(startTime);
   osc.stop(startTime + 0.22);
+  outNodes?.push(osc);
 
   // Click: 短いノイズバースト (highpass)
   const noiseSrc = ctx.createBufferSource();
@@ -219,6 +235,7 @@ export function scheduleKick(
   noiseGain.gain.exponentialRampToValueAtTime(0.0001, startTime + 0.04);
   noiseSrc.connect(hpf).connect(noiseGain).connect(dest);
   noiseSrc.start(startTime);
+  outNodes?.push(noiseSrc);
 }
 
 /**
@@ -229,7 +246,8 @@ export function scheduleHihat(
   dest: AudioNode,
   startTime: number,
   peakGain: number,
-  duration: number
+  duration: number,
+  outNodes?: StoppableNode[]
 ): void {
   const noiseSrc = ctx.createBufferSource();
   noiseSrc.buffer = createDeterministicNoiseBuffer(ctx, duration + 0.01);
@@ -241,4 +259,5 @@ export function scheduleHihat(
   gain.gain.exponentialRampToValueAtTime(0.0001, startTime + duration);
   noiseSrc.connect(hpf).connect(gain).connect(dest);
   noiseSrc.start(startTime);
+  outNodes?.push(noiseSrc);
 }

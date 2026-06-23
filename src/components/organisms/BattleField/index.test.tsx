@@ -46,11 +46,10 @@ describe('BattleField — レンダリング', () => {
 
   test('敵 0 体のとき敵要素が存在しない', () => {
     const { container } = render(<BattleField {...defaultProps} />);
-    // .enemy クラス要素がない
-    expect(container.querySelectorAll('[aria-label="normal"]').length).toBe(0);
+    expect(container.querySelectorAll('[data-enemy-type]').length).toBe(0);
   });
 
-  test('通常敵 3 体が表示される', () => {
+  test('通常敵 3 体が表示される (Enemy コンポーネント → standard enemy ラベル)', () => {
     const enemies = [
       makeEnemy('e1', 'normal', 20, 30),
       makeEnemy('e2', 'normal', 50, 50),
@@ -62,7 +61,7 @@ describe('BattleField — レンダリング', () => {
         enemies={enemies}
       />
     );
-    expect(screen.getAllByLabelText('normal')).toHaveLength(3);
+    expect(screen.getAllByLabelText('standard enemy')).toHaveLength(3);
   });
 
   test('elite 敵が表示される', () => {
@@ -73,7 +72,7 @@ describe('BattleField — レンダリング', () => {
         enemies={enemies}
       />
     );
-    expect(screen.getByLabelText('elite')).toBeInTheDocument();
+    expect(screen.getByLabelText('elite enemy')).toBeInTheDocument();
   });
 
   test('boss 敵が表示される', () => {
@@ -84,7 +83,7 @@ describe('BattleField — レンダリング', () => {
         enemies={enemies}
       />
     );
-    expect(screen.getByLabelText('boss')).toBeInTheDocument();
+    expect(screen.getByLabelText('boss enemy')).toBeInTheDocument();
   });
 
   test('miniboss 敵が表示される', () => {
@@ -95,7 +94,7 @@ describe('BattleField — レンダリング', () => {
         enemies={enemies}
       />
     );
-    expect(screen.getByLabelText('miniboss')).toBeInTheDocument();
+    expect(screen.getByLabelText('miniboss enemy')).toBeInTheDocument();
   });
 });
 

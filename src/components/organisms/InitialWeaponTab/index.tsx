@@ -3,18 +3,28 @@ import styles from './style.module.scss';
 import { Text } from '@/components/atoms/Text';
 import { WeaponPreview } from '@/components/molecules/WeaponPreview';
 import type { WeaponStat } from '@/components/molecules/WeaponPreview';
+import {
+  buildCannonStats,
+  buildCutterStats,
+  buildLaserStats,
+  buildThunderStats,
+  calcMachineBaseAttack,
+  calcMachineRange,
+} from '@/components/organisms/WeaponDetailsTab';
 import { useStore } from '@/store';
 import type { WeaponType } from '@/store/slices/weapons';
 
 // ---------------------------------------------------------------------------
-// 武器定義
+// 武器メタ定義 (Lv 0 固定の表示)
+// 数値は WeaponDetailsTab と同じ計算経路 (game/weapons の *Stats(0)) を使うので、
+// 仕様変更時に両画面とも自動追従する。
 // ---------------------------------------------------------------------------
 
 interface WeaponDef {
   kind: WeaponType;
   name: string;
   description: string;
-  stats: WeaponStat[];
+  buildStats: (lv: number, baseAttack: number, machineRange: number) => WeaponStat[];
 }
 
 const WEAPON_DEFS: WeaponDef[] = [
@@ -22,45 +32,25 @@ const WEAPON_DEFS: WeaponDef[] = [
     kind: 'laser',
     name: 'LASER',
     description: '高速直進ビーム。貫通で削る。',
-    stats: [
-      { label: 'DMG', value: 120, accent: 'primary' },
-      { label: '貫通', value: 3 },
-      { label: '射程', value: 580, suffix: 'm' },
-      { label: '連射', value: 6.2, suffix: '/s' },
-    ],
+    buildStats: buildLaserStats,
   },
   {
     kind: 'cannon',
     name: 'CANNON',
     description: '範囲爆発で群れを薙ぐ。',
-    stats: [
-      { label: 'DMG', value: 480, accent: 'primary' },
-      { label: '半径', value: 120, suffix: 'm' },
-      { label: '射程', value: 520, suffix: 'm' },
-      { label: '連射', value: 0.9, suffix: '/s' },
-    ],
+    buildStats: buildCannonStats,
   },
   {
     kind: 'thunder',
     name: 'THUNDER',
-    description: '隣接敵に連鎖する電撃。',
-    stats: [
-      { label: 'DMG', value: 84, accent: 'primary' },
-      { label: '連鎖', value: 5 },
-      { label: '射程', value: 420, suffix: 'm' },
-      { label: '連射', value: 3.4, suffix: '/s' },
-    ],
+    description: '同時 3 体を撃つ電撃。',
+    buildStats: buildThunderStats,
   },
   {
     kind: 'cutter',
     name: 'CUTTER',
     description: 'マシン周囲を旋回する斬撃。',
-    stats: [
-      { label: 'DMG', value: 62, accent: 'primary' },
-      { label: '旋回', value: 180, suffix: 'm' },
-      { label: '同時', value: 4 },
-      { label: '連射', value: 8.0, suffix: '/s' },
-    ],
+    buildStats: (lv, baseAttack) => buildCutterStats(lv, baseAttack),
   },
 ];
 
@@ -81,12 +71,16 @@ export interface InitialWeaponTabProps {
  * InitialWeaponTab — 出撃準備画面の初期武器選択タブ Organism
  *
  * 4 武器 (laser / cannon / thunder / cutter) を WeaponPreview (tall) で
- * 2 列グリッドに表示する。store の initialWeapon と接続済み。
- * selectedWeapon / onSelect を外部から渡してもよい（Storybook 用）。
+ * 2 列グリッドに表示する。 数値はラン開始想定で weaponLv=0 を基準に
+ * 永続強化された機体 baseAttack / range を使った値で出す。
  */
 export function InitialWeaponTab({ selectedWeapon, onSelect }: InitialWeaponTabProps) {
   const storeWeapon = useStore((s) => s.initialWeapon);
   const setInitialWeapon = useStore((s) => s.setInitialWeapon);
+  const machineLevels = useStore((s) => s.machineLevels);
+
+  const baseAttack = calcMachineBaseAttack(machineLevels.baseAttack);
+  const machineRange = calcMachineRange(machineLevels.range);
 
   const active = selectedWeapon ?? storeWeapon;
 
@@ -119,7 +113,7 @@ export function InitialWeaponTab({ selectedWeapon, onSelect }: InitialWeaponTabP
             weapon={w.kind}
             name={w.name}
             description={w.description}
-            stats={w.stats}
+            stats={w.buildStats(0, baseAttack, machineRange)}
             layout="tall"
             active={w.kind === active}
             onClick={() => handleSelect(w.kind)}

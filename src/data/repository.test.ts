@@ -194,20 +194,18 @@ describe('settings リポジトリ', () => {
   it('getSettings: singleton を取得できる', async () => {
     const s = await getSettings(db);
     expect(s?.id).toBe('singleton');
-    expect(s?.defaultGameSpeed).toBe(1);
+    expect(s?.bgmVolume).toBe(0.8);
   });
 
   it('putSettings → getSettings ラウンドトリップ', async () => {
     const updated = {
       id: 'singleton' as const,
-      defaultGameSpeed: 2 as const,
       bgmVolume: 0.5,
       seVolume: 0.3,
       vibrationEnabled: false,
     };
     await putSettings(db, updated);
     const result = await getSettings(db);
-    expect(result?.defaultGameSpeed).toBe(2);
     expect(result?.bgmVolume).toBe(0.5);
     expect(result?.vibrationEnabled).toBe(false);
   });

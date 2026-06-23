@@ -1,8 +1,9 @@
+import { useState } from 'react';
+
 import styles from './style.module.scss';
 
 import { Badge } from '@/components/atoms/Badge';
 import { Icon } from '@/components/atoms/Icon';
-import { ProgressBar } from '@/components/atoms/ProgressBar';
 import { Text } from '@/components/atoms/Text';
 
 // ---------------------------------------------------------------------------
@@ -20,11 +21,17 @@ export type WaveProgressBarSize = 'sm' | 'md' | 'lg';
 
 export interface WaveProgressBarProps {
   waveNumber: number;
+  /** テキスト表示用の残り秒数 (showSeconds=true のときのみ使用) */
   secondsLeft: number;
+  /** バー満タンから 0 までのアニメーション時間 (秒) */
   secondsMax: number;
   nextMilestone?: WaveMilestone;
   showSeconds?: boolean;
   size?: WaveProgressBarSize;
+  /**
+   * ゲームの一時停止状態。 true のときバーアニメーションを停止する。
+   */
+  paused?: boolean;
 }
 
 // ---------------------------------------------------------------------------
@@ -51,9 +58,11 @@ export function WaveProgressBar({
   nextMilestone,
   showSeconds = true,
   size = 'md',
+  paused = false,
 }: WaveProgressBarProps) {
   const isBoss = nextMilestone?.kind === 'boss';
   const milestone = nextMilestone != null ? MILESTONE_CONFIG[nextMilestone.kind] : null;
+  const safeSecondsMax = Math.max(1, secondsMax);
 
   return (
     <div
@@ -86,27 +95,77 @@ export function WaveProgressBar({
           </span>
         )}
 
-        {/* 残り秒数 */}
+        {/* 残り秒数 (テキスト表示) */}
         {showSeconds && (
           <span className={styles.seconds}>
             <Text
               variant="numeric-s"
               color="mid"
             >
-              {secondsLeft}s
+              {Math.ceil(secondsLeft)}s
             </Text>
           </span>
         )}
       </div>
 
-      {/* 残量バー（right→left で減る: reverse） */}
-      <ProgressBar
-        value={secondsLeft}
-        max={Math.max(1, secondsMax)}
-        color={isBoss ? 'secondary' : 'wave'}
-        size={size === 'lg' ? 'md' : 'sm'}
-        glow={isBoss}
-      />
+      {/* 残量バー (CSS animation で連続描画) */}
+      <div
+        className={styles.timerTrack}
+        role="progressbar"
+        aria-label={`Wave ${waveNumber} timer`}
+        aria-valuemin={0}
+        aria-valuemax={safeSecondsMax}
+        aria-valuenow={Math.max(0, secondsLeft)}
+      >
+        <AnimatedTimerBar
+          key={waveNumber}
+          secondsRemaining={secondsLeft}
+          secondsMax={safeSecondsMax}
+          isBoss={isBoss}
+          paused={paused}
+        />
+      </div>
     </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// AnimatedTimerBar: マウント時の残り時間を snapshot で固定し、 CSS animation で連続描画する。
+// 親が key を変えると新規マウントされ、 そのときの残り時間で再起動。
+// 同じ key の間に親が rerender しても snapshot は変わらないので、 animation は途切れない。
+// ---------------------------------------------------------------------------
+
+interface AnimatedTimerBarProps {
+  secondsRemaining: number;
+  secondsMax: number;
+  isBoss: boolean;
+  paused: boolean;
+}
+
+function AnimatedTimerBar({ secondsRemaining, secondsMax, isBoss, paused }: AnimatedTimerBarProps) {
+  // mount 時 1 回だけ計算: 残り時間から initial width / animation duration を決める。
+  // 以後の rerender (秒の更新等) では useState の初期化関数は呼ばれないので snapshot は不変。
+  const [snapshot] = useState(() => {
+    const initialWidthPct = Math.max(0, Math.min(100, (secondsRemaining / secondsMax) * 100));
+    const durationSec = Math.max(0.01, secondsRemaining);
+    return { initialWidthPct, durationSec };
+  });
+
+  const className = [
+    styles.timerFill,
+    isBoss ? styles.timerFillBoss : '',
+    paused ? styles.timerFillPaused : '',
+  ]
+    .filter(Boolean)
+    .join(' ');
+
+  return (
+    <div
+      className={className}
+      style={{
+        width: `${snapshot.initialWidthPct}%`,
+        animationDuration: `${snapshot.durationSec}s`,
+      }}
+    />
   );
 }

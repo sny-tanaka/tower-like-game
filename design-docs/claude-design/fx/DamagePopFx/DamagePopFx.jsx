@@ -30,8 +30,7 @@ export function DamagePopFx(props) {
     @media (prefers-reduced-motion: reduce) { .${id} { animation-duration: 1ms; opacity: 0; } }
   `;
   return React.createElement(
-    React.Fragment,
-    null,
+    React.Fragment, null,
     React.createElement('style', { dangerouslySetInnerHTML: { __html: css } }),
     React.createElement(
       'div',

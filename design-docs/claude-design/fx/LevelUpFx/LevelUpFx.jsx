@@ -32,20 +32,14 @@ export function LevelUpFx(props) {
     @media (prefers-reduced-motion: reduce) { .${id}-b, .${id}-s { animation-duration: 1ms; opacity: 0; } }
   `;
   return React.createElement(
-    React.Fragment,
-    null,
+    React.Fragment, null,
     React.createElement('style', { dangerouslySetInnerHTML: { __html: css } }),
     React.createElement(
-      'div',
-      { className: id + '-w', style: { left: x + '%', top: y + '%' }, onAnimationEnd: onDone },
+      'div', { className: id + '-w', style: { left: x + '%', top: y + '%' }, onAnimationEnd: onDone },
       React.createElement('div', { className: id + '-b' }),
-      [0, 45, 90, 135, 180, 225, 270, 315].map((a) =>
-        React.createElement('div', {
-          key: a,
-          className: id + '-s',
-          style: { ['--a']: a + 'deg' },
-        })
-      )
+      [0, 45, 90, 135, 180, 225, 270, 315].map((a) => React.createElement('div', {
+        key: a, className: id + '-s', style: { ['--a']: a + 'deg' },
+      }))
     )
   );
 }

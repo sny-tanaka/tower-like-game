@@ -23,8 +23,6 @@ function makeProps(overrides?: Partial<Props>): Props {
     onSwitchWeapon: vi.fn(),
     onActivate: vi.fn(),
     onToggleAuto: vi.fn(),
-    gameSpeed: 1,
-    onSpeedChange: vi.fn(),
     isPaused: false,
     onTogglePause: vi.fn(),
     onOpenMenu: vi.fn(),
@@ -113,27 +111,6 @@ describe('BattleHudBottom', () => {
       const toggle = screen.getByRole('button', { name: /自動モードに切り替え/ });
       await userEvent.click(toggle);
       expect(onToggleAuto).toHaveBeenCalledWith(true);
-    });
-  });
-
-  describe('速度切替', () => {
-    it('1x / 2x / 3x のセグメントが表示される', () => {
-      render(<BattleHudBottom {...makeProps()} />);
-      expect(screen.getByRole('radio', { name: '1x' })).toBeInTheDocument();
-      expect(screen.getByRole('radio', { name: '2x' })).toBeInTheDocument();
-      expect(screen.getByRole('radio', { name: '3x' })).toBeInTheDocument();
-    });
-
-    it('現在の gameSpeed のセグメントが aria-checked=true', () => {
-      render(<BattleHudBottom {...makeProps({ gameSpeed: 2 })} />);
-      expect(screen.getByRole('radio', { name: '2x' })).toHaveAttribute('aria-checked', 'true');
-    });
-
-    it('2x をタップすると onSpeedChange(2) が呼ばれる', async () => {
-      const onSpeedChange = vi.fn();
-      render(<BattleHudBottom {...makeProps({ onSpeedChange })} />);
-      await userEvent.click(screen.getByRole('radio', { name: '2x' }));
-      expect(onSpeedChange).toHaveBeenCalledWith(2);
     });
   });
 

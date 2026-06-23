@@ -7,7 +7,6 @@ import type { RootStore } from '@/store/index';
 // ---------------------------------------------------------------------------
 
 export interface SettingsState {
-  defaultGameSpeed: 1 | 2 | 3;
   bgmVolume: number; // 0.0 〜 1.0
   seVolume: number; // 0.0 〜 1.0
   vibrationEnabled: boolean;
@@ -18,7 +17,6 @@ export interface SettingsState {
 // ---------------------------------------------------------------------------
 
 export interface SettingsActions {
-  setDefaultGameSpeed: (speed: 1 | 2 | 3) => void;
   setBgmVolume: (volume: number) => void;
   setSeVolume: (volume: number) => void;
   setVibrationEnabled: (enabled: boolean) => void;
@@ -32,7 +30,6 @@ export type SettingsSlice = SettingsState & SettingsActions;
 // ---------------------------------------------------------------------------
 
 export const defaultSettingsState: SettingsState = {
-  defaultGameSpeed: 1,
   bgmVolume: 0.8,
   seVolume: 0.8,
   vibrationEnabled: true,
@@ -44,8 +41,6 @@ export const defaultSettingsState: SettingsState = {
 
 export const createSettingsSlice: StateCreator<RootStore, [], [], SettingsSlice> = (set) => ({
   ...defaultSettingsState,
-
-  setDefaultGameSpeed: (speed) => set({ defaultGameSpeed: speed }),
 
   setBgmVolume: (volume) => set({ bgmVolume: Math.max(0, Math.min(1, volume)) }),
 

@@ -24,16 +24,12 @@ export function EnemyDeathFx(props) {
     @media (prefers-reduced-motion: reduce) { .${id}-flash, .${id}-shard { animation-duration: 1ms; opacity: 0; } }
   `;
   const N = 8;
-  const shards = Array.from({ length: N }, (_, i) =>
-    React.createElement('div', {
-      key: i,
-      className: id + '-shard',
-      style: { ['--a']: (i * 360) / N + 'deg' },
-    })
-  );
+  const shards = Array.from({ length: N }, (_, i) => React.createElement('div', {
+    key: i, className: id + '-shard',
+    style: { ['--a']: (i * 360 / N) + 'deg' },
+  }));
   return React.createElement(
-    React.Fragment,
-    null,
+    React.Fragment, null,
     React.createElement('style', { dangerouslySetInnerHTML: { __html: css } }),
     React.createElement(
       'div',

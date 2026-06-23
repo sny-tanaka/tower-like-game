@@ -50,6 +50,21 @@ export interface SpawnedEnemy extends EnemyTemplate {
   spawnedAtMs: number;
   /** 位置をパーセントで表現（0-100） */
   position: { x: number; y: number };
+  /**
+   * spawn 時点の最大 HP (= template.hp のスナップショット)。
+   * HP バーの残量比 (current / max) 算出に使う。 現在 HP (hp) が減っても変わらない。
+   */
+  maxHp: BigNum;
+  /**
+   * 凍結解除時刻 (ラン開始からの経過 ms)。
+   * 現在の経過 ms より大きい間、 敵は移動を停止する (近接ダメは止めない仕様)。
+   * 期限切れ後は undefined に戻る。
+   */
+  frozenUntilMs?: number;
+  /** 燃焼継続終了時刻 (ラン開始からの経過 ms)。 期限切れ後は undefined に戻る */
+  burnUntilMs?: number;
+  /** 燃焼中の毎秒ダメージ量 (BigNum)。 burnUntilMs と組で有効 */
+  burnPerSec?: BigNum;
 }
 
 // ---------------------------------------------------------------------------

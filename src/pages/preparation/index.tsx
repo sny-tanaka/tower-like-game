@@ -70,7 +70,6 @@ export function Page(props: PreparationPageProps) {
 
   // startRun に渡す: 永続強化 maxHp Lv から baseMachineMaxHp を算出
   const machineLevels = useStore((s) => s.machineLevels);
-  const gameSpeed = useStore((s) => s.gameSpeed);
   const startRun = useStore((s) => s.startRun);
 
   function handleLaunch() {
@@ -79,7 +78,6 @@ export function Page(props: PreparationPageProps) {
     startRun({
       initialWeapon,
       baseMachineMaxHp: BigNum.fromNumber(baseMaxHpNum),
-      gameSpeed,
     });
     navigate('battle');
   }
@@ -87,7 +85,7 @@ export function Page(props: PreparationPageProps) {
   const header = (
     <PageHeader
       title="出撃準備"
-      currencies={['screw', 'bolt', 'alloy']}
+      currencies={['bolt', 'alloy']}
       tabBar={
         <TabBar
           tabs={TABS}

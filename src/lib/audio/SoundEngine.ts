@@ -85,8 +85,13 @@ export class SoundEngine {
     if (this.ctx.state === 'suspended') void this.ctx.resume();
     // 同じ id なら継続再生
     if (this.currentBgm?.id === id) return;
-    // 違う id なら停止して新規
-    this.currentBgm?.track.stop();
+    // 違う id: 先に古い track を完全停止してから新規開始
+    // (currentBgm を null にしてから新規 createBgmTrack することで、
+    //  万一 createBgmTrack 内で例外が出ても古い参照が残らない)
+    if (this.currentBgm != null) {
+      this.currentBgm.track.stop();
+      this.currentBgm = null;
+    }
     const track = createBgmTrack(id, this.ctx, this.bgmGain);
     track.start();
     this.currentBgm = { id, track };

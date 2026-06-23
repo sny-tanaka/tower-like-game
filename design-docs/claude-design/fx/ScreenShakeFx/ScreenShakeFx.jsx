@@ -25,13 +25,8 @@ export function ScreenShakeFx(props) {
     @media (prefers-reduced-motion: reduce) { .${id} { animation: none; } }
   `;
   return React.createElement(
-    React.Fragment,
-    null,
+    React.Fragment, null,
     React.createElement('style', { dangerouslySetInnerHTML: { __html: css } }),
-    React.createElement(
-      'div',
-      { className: id, onAnimationEnd: onDone, style: { width: '100%', height: '100%' } },
-      children
-    )
+    React.createElement('div', { className: id, onAnimationEnd: onDone, style: { width: '100%', height: '100%' } }, children)
   );
 }

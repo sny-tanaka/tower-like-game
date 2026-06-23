@@ -41,6 +41,53 @@
   white-space: nowrap;
 }
 
+/* タイマーバー (CSS animation で連続的に減少) */
+.timerTrack {
+  position: relative;
+  width: 100%;
+  height: 4px;
+  background-color: var(--c-bg-base);
+  border: 1px solid var(--c-border-faint);
+  border-radius: var(--r-pill);
+  overflow: hidden;
+}
+
+.timerFill {
+  width: 100%;
+  height: 100%;
+  background-color: var(--c-wave);
+  border-radius: var(--r-pill);
+  transform-origin: left center;
+  animation-name: drainBar;
+  animation-timing-function: linear;
+  animation-fill-mode: forwards;
+  animation-iteration-count: 1;
+  /* animation-duration は inline style で個別指定 */
+}
+
+.timerFillBoss {
+  background-color: var(--c-secondary);
+  box-shadow: var(--glow-purple-md);
+}
+
+.timerFillPaused {
+  animation-play-state: paused;
+}
+
+@keyframes drainBar {
+  /* from は inline style の width を採用 (= 現在の残量から開始) */
+  to {
+    width: 0%;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .timerFill {
+    /* モーション削減モード: アニメせず満タン表示のまま */
+    animation: none;
+  }
+}
+
 /* size バリアント */
 .size-sm {
   padding: var(--sp-xxs) var(--sp-xs);

@@ -98,9 +98,29 @@ function scheduleLoop(
   for (let i = 0; i < ARP_NOTES.length; i++) {
     // 各arp音を 2 beat 間隔でゆっくり配置
     const arpStart = loopStart + i * BEAT_SEC * 2;
-    scheduleNote(ctx, dest, 'sawtooth', ARP_NOTES[i], arpStart, BEAT_SEC * 1.5, 0.09, 1800);
+    scheduleNote(
+      ctx,
+      dest,
+      'sawtooth',
+      ARP_NOTES[i],
+      arpStart,
+      BEAT_SEC * 1.5,
+      0.09,
+      1800,
+      scheduledNodes
+    );
     // 同音を少し後に残響として重ねる
-    scheduleNote(ctx, dest, 'sine', ARP_NOTES[i] * 0.5, arpStart + 0.12, BEAT_SEC * 1.2, 0.05, 600);
+    scheduleNote(
+      ctx,
+      dest,
+      'sine',
+      ARP_NOTES[i] * 0.5,
+      arpStart + 0.12,
+      BEAT_SEC * 1.2,
+      0.05,
+      600,
+      scheduledNodes
+    );
   }
 }
 

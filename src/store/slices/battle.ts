@@ -36,10 +36,15 @@ export interface BattleState {
   activeCdSec: number;
   /** アクティブスキル: 手動(false) / 自動(true) */
   isAutoActive: boolean;
-  /** ゲームスピード (1 / 2 / 3) */
-  gameSpeed: 1 | 2 | 3;
   /** 一時停止中か */
   isPaused: boolean;
+  /**
+   * ラン開始時点の bolt 残高。
+   * リザルトで「このランで獲得したボルト数」を `currentBolt - runStartBolt` で算出する。
+   */
+  runStartBolt: BigNum;
+  /** ラン開始時点の alloy 残高 (同上) */
+  runStartAlloy: BigNum;
 }
 
 // ---------------------------------------------------------------------------
@@ -51,7 +56,6 @@ export interface BattleActions {
     initialWeapon: WeaponType;
     /** マシン本体最大 HP の base 値 (永続強化込み / RunWorkshop hpMul は含まない) */
     baseMachineMaxHp: BigNum;
-    gameSpeed: 1 | 2 | 3;
   }) => void;
   endRun: () => void;
   addScrew: (amount: BigNum) => void;
@@ -73,7 +77,6 @@ export interface BattleActions {
   setActiveCd: (sec: number) => void;
   setAutoActive: (auto: boolean) => void;
   setPaused: (paused: boolean) => void;
-  setGameSpeed: (speed: 1 | 2 | 3) => void;
   /**
    * アクティブスキル発動。 CD 中 (activeCdSec > 0) なら何もせず false を返す。
    * 発動成功なら activeCdSec を maxSec にセットして true を返す。
@@ -102,8 +105,9 @@ export const defaultBattleState: BattleState = {
   weaponSwitchCdSec: 0,
   activeCdSec: 0,
   isAutoActive: false,
-  gameSpeed: 1,
   isPaused: false,
+  runStartBolt: BigNum.ZERO,
+  runStartAlloy: BigNum.ZERO,
 };
 
 // ---------------------------------------------------------------------------
@@ -123,12 +127,13 @@ function clampBig(value: BigNum, min: BigNum, max: BigNum): BigNum {
 export const createBattleSlice: StateCreator<RootStore, [], [], BattleSlice> = (set, get) => ({
   ...defaultBattleState,
 
-  startRun: ({ initialWeapon, baseMachineMaxHp, gameSpeed }) => {
+  startRun: ({ initialWeapon, baseMachineMaxHp }) => {
     // ラン開始時の hpMul は Lv 0 (×1.0) になる前提 (RunWorkshop もリセットされる) だが、
     // 明示的に倍率を計算しておく。
     const hpMulLv = get().runWorkshopLevels.hpMul;
     const multiplier = calcRunWorkshopMultiplier(hpMulLv);
     const machineMaxHp = baseMachineMaxHp.mulNumber(multiplier);
+    const currentState = get();
     set({
       isRunActive: true,
       screw: BigNum.ZERO,
@@ -141,8 +146,10 @@ export const createBattleSlice: StateCreator<RootStore, [], [], BattleSlice> = (
       weaponSwitchCdSec: 0,
       activeCdSec: 0,
       isAutoActive: false,
-      gameSpeed,
       isPaused: false,
+      // ラン開始時の bolt/alloy 残高をスナップショット (リザルト獲得量算出用)
+      runStartBolt: currentState.bolt,
+      runStartAlloy: currentState.alloy,
     });
     // ラン跨ぎで RunWorkshop の Lv をリセット
     get().resetRunWorkshop();
@@ -196,8 +203,6 @@ export const createBattleSlice: StateCreator<RootStore, [], [], BattleSlice> = (
   setAutoActive: (auto) => set({ isAutoActive: auto }),
 
   setPaused: (paused) => set({ isPaused: paused }),
-
-  setGameSpeed: (speed) => set({ gameSpeed: speed }),
 
   triggerActive: (maxSec) => {
     if (get().activeCdSec > 0) return false;

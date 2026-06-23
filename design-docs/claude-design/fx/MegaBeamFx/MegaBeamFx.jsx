@@ -3,14 +3,7 @@
  * 親内の (x, y) からアングル度の方向に太い直線ビームを撃つ。
  */
 export function MegaBeamFx(props) {
-  const {
-    x = 50,
-    y = 50,
-    angle = 0,
-    duration = 600,
-    color = 'var(--c-primary-hi)',
-    onDone,
-  } = props;
+  const { x = 50, y = 50, angle = 0, duration = 600, color = 'var(--c-primary-hi)', onDone } = props;
   const id = React.useMemo(() => 'mb-' + Math.random().toString(36).slice(2, 8), []);
   const css = `
     @keyframes ${id}-grow {
@@ -34,8 +27,7 @@ export function MegaBeamFx(props) {
     @media (prefers-reduced-motion: reduce) { .${id} { animation-duration: 1ms; opacity: 0; } }
   `;
   return React.createElement(
-    React.Fragment,
-    null,
+    React.Fragment, null,
     React.createElement('style', { dangerouslySetInnerHTML: { __html: css } }),
     React.createElement('div', { className: id, onAnimationEnd: onDone })
   );

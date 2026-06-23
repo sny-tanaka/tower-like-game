@@ -160,6 +160,7 @@ export function spawnEnemy(
     id,
     spawnedAtMs,
     position: { x, y },
+    maxHp: template.hp,
   };
 }
 

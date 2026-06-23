@@ -24,12 +24,10 @@ export function InstantKillFx(props) {
     @media (prefers-reduced-motion: reduce) { .${id}-fl, .${id}-rg { animation-duration: 1ms; opacity: 0; } }
   `;
   return React.createElement(
-    React.Fragment,
-    null,
+    React.Fragment, null,
     React.createElement('style', { dangerouslySetInnerHTML: { __html: css } }),
     React.createElement(
-      'div',
-      { className: id + '-w', onAnimationEnd: onDone },
+      'div', { className: id + '-w', onAnimationEnd: onDone },
       React.createElement('div', { className: id + '-fl' }),
       React.createElement('div', { className: id + '-rg' })
     )

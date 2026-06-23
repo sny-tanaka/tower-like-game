@@ -27,8 +27,12 @@ const triggerAttackElite: PatchTrigger = { type: 'onAttack', enemyKind: 'elite' 
 const triggerHit: PatchTrigger = { type: 'onHit', receivedDamage: BigNum.fromNumber(100) };
 const triggerKillNormal: PatchTrigger = { type: 'onKill', enemyKind: 'normal' };
 const triggerKillBoss: PatchTrigger = { type: 'onKill', enemyKind: 'boss' };
-const triggerDrop: PatchTrigger = { type: 'onDropRoll', baseDrops: { screw: 10, bolt: 5, alloy: 0 } };
+const triggerDrop: PatchTrigger = {
+  type: 'onDropRoll',
+  baseDrops: { screw: 10, bolt: 5, alloy: 0 },
+};
 const triggerInterval: PatchTrigger = { type: 'interval', deltaMs: 1000 };
+const triggerWaveClear: PatchTrigger = { type: 'onWaveClear' };
 
 // ---------------------------------------------------------------------------
 // instantKill
@@ -163,7 +167,9 @@ describe('damageImmune', () => {
     // rng=0.08 で T1 は null、T10 は発火
     const rng08 = fixedRng(0.08);
     expect(applyPatchDamageImmune(patch, triggerHit, rng08)).toBeNull();
-    expect(applyPatchDamageImmune(patchT10, triggerHit, rng08)?.overrideReceivedDamage?.isZero()).toBe(true);
+    expect(
+      applyPatchDamageImmune(patchT10, triggerHit, rng08)?.overrideReceivedDamage?.isZero()
+    ).toBe(true);
   });
 });
 
@@ -204,15 +210,21 @@ describe('killHeal', () => {
 // ---------------------------------------------------------------------------
 
 describe('shieldRegen', () => {
-  it('interval → shieldRecover = 5 * T', () => {
+  it('onWaveClear → heal = 5 * T (HP 回復に振替)', () => {
     const patch: EquippedPatch = { name: 'shieldRegen', tier: 3 };
-    const effect = applyPatchShieldRegen(patch, triggerInterval, fixedRng(0));
-    expect(effect?.shieldRecover).toBe(15);
+    const effect = applyPatchShieldRegen(patch, triggerWaveClear, fixedRng(0));
+    expect(effect?.heal?.toString()).toBe('15');
   });
 
   it('onAttack → null（対応外トリガー）', () => {
     const patch: EquippedPatch = { name: 'shieldRegen', tier: 3 };
     const effect = applyPatchShieldRegen(patch, triggerAttackNormal, fixedRng(0));
+    expect(effect).toBeNull();
+  });
+
+  it('interval → null (onWaveClear 専用に変更されたため)', () => {
+    const patch: EquippedPatch = { name: 'shieldRegen', tier: 3 };
+    const effect = applyPatchShieldRegen(patch, triggerInterval, fixedRng(0));
     expect(effect).toBeNull();
   });
 });
@@ -245,15 +257,21 @@ describe('bonusDrop', () => {
 // ---------------------------------------------------------------------------
 
 describe('boltCast', () => {
-  it('interval → boltCastDamage = 5 * T', () => {
+  it('onWaveClear → boltGain = 5 * T (currencies.bolt 加算用)', () => {
     const patch: EquippedPatch = { name: 'boltCast', tier: 2 };
-    const effect = applyPatchBoltCast(patch, triggerInterval, fixedRng(0));
-    expect(effect?.boltCastDamage?.toString()).toBe('10');
+    const effect = applyPatchBoltCast(patch, triggerWaveClear, fixedRng(0));
+    expect(effect?.boltGain?.toString()).toBe('10');
   });
 
   it('onAttack → null（対応外トリガー）', () => {
     const patch: EquippedPatch = { name: 'boltCast', tier: 1 };
     const effect = applyPatchBoltCast(patch, triggerAttackNormal, fixedRng(0));
+    expect(effect).toBeNull();
+  });
+
+  it('interval → null (onWaveClear 専用に変更されたため)', () => {
+    const patch: EquippedPatch = { name: 'boltCast', tier: 1 };
+    const effect = applyPatchBoltCast(patch, triggerInterval, fixedRng(0));
     expect(effect).toBeNull();
   });
 });
@@ -352,20 +370,18 @@ describe('evaluatePatches', () => {
     expect(effect.damageMultiplier).toBeCloseTo(1.5);
   });
 
-  it('killHeal + shieldRegen → killHeal は onKill、shieldRegen は interval → それぞれ別トリガー', () => {
+  it('killHeal + shieldRegen → killHeal は onKill、shieldRegen は onWaveClear → それぞれ別トリガー', () => {
     const equipped: EquippedPatch[] = [
       { name: 'killHeal', tier: 2 },
       { name: 'shieldRegen', tier: 2 },
     ];
-    // onKill では killHeal のみ発火
+    // onKill では killHeal のみ発火 (heal=1)
     const killEffect = evaluatePatches(equipped, triggerKillNormal, fixedRng(0));
     expect(killEffect.heal?.toString()).toBe('1');
-    expect(killEffect.shieldRecover).toBeUndefined();
 
-    // interval では shieldRegen のみ発火
-    const intervalEffect = evaluatePatches(equipped, triggerInterval, fixedRng(0));
-    expect(intervalEffect.shieldRecover).toBe(10);
-    expect(intervalEffect.heal).toBeUndefined();
+    // onWaveClear では shieldRegen のみ発火 (heal=5*T=10)
+    const clearEffect = evaluatePatches(equipped, triggerWaveClear, fixedRng(0));
+    expect(clearEffect.heal?.toString()).toBe('10');
   });
 
   it('instantKill + doubleShot → onAttack(normal) で両方独立判定', () => {
@@ -385,14 +401,15 @@ describe('evaluatePatches', () => {
     expect(effect.overrideReceivedDamage?.isZero()).toBe(true);
   });
 
-  it('shieldRegen + boltCast (interval) → 両方発火し合算', () => {
+  it('shieldRegen + boltCast (onWaveClear) → 両方発火し合算', () => {
     const equipped: EquippedPatch[] = [
       { name: 'shieldRegen', tier: 2 },
       { name: 'boltCast', tier: 3 },
     ];
-    const effect = evaluatePatches(equipped, triggerInterval, fixedRng(0));
-    expect(effect.shieldRecover).toBe(10);
-    expect(effect.boltCastDamage?.toString()).toBe('15');
+    const effect = evaluatePatches(equipped, triggerWaveClear, fixedRng(0));
+    // shieldRegen: heal=5*2=10、 boltCast: boltGain=5*3=15
+    expect(effect.heal?.toString()).toBe('10');
+    expect(effect.boltGain?.toString()).toBe('15');
   });
 
   it('freezeHit + burnHit → onAttack で両方発火', () => {

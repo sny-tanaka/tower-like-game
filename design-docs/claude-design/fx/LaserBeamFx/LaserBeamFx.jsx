@@ -4,15 +4,7 @@
  * 親内の (x1, y1) → (x2, y2) % 座標を結ぶビーム。
  */
 export function LaserBeamFx(props) {
-  const {
-    x1 = 50,
-    y1 = 50,
-    x2 = 80,
-    y2 = 30,
-    duration = 220,
-    color = 'var(--c-primary)',
-    onDone,
-  } = props;
+  const { x1 = 50, y1 = 50, x2 = 80, y2 = 30, duration = 220, color = 'var(--c-primary)', onDone } = props;
   const id = React.useMemo(() => 'lsr-' + Math.random().toString(36).slice(2, 8), []);
 
   const css = `
@@ -34,26 +26,27 @@ export function LaserBeamFx(props) {
   `;
 
   // distance & angle in % (with vw/vh approximation)
-  const dx = x2 - x1,
-    dy = y2 - y1;
+  const dx = x2 - x1, dy = y2 - y1;
   // use vmin so % look approximately correct in square-ish containers
   const length = Math.hypot(dx, dy);
-  const angle = (Math.atan2(dy, dx) * 180) / Math.PI;
+  const angle = Math.atan2(dy, dx) * 180 / Math.PI;
 
   return React.createElement(
-    React.Fragment,
-    null,
+    React.Fragment, null,
     React.createElement('style', { dangerouslySetInnerHTML: { __html: css } }),
-    React.createElement('div', {
-      className: id,
-      style: {
-        left: x1 + '%',
-        top: y1 + '%',
-        width: length + '%',
-        transform: `rotate(${angle}deg)`,
-        transformOrigin: '0 50%',
-      },
-      onAnimationEnd: onDone,
-    })
+    React.createElement(
+      'div',
+      {
+        className: id,
+        style: {
+          left: x1 + '%',
+          top: y1 + '%',
+          width: length + '%',
+          transform: `rotate(${angle}deg)`,
+          transformOrigin: '0 50%',
+        },
+        onAnimationEnd: onDone,
+      }
+    )
   );
 }

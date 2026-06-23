@@ -5,7 +5,7 @@
  */
 const KIND_PRESET = {
   elite: { color: 'var(--c-warning)', label: 'ELITE', glow: '0 0 16px rgba(246,185,74,0.6)' },
-  boss: { color: 'var(--c-danger)', label: 'BOSS', glow: '0 0 24px rgba(255,77,109,0.7)' },
+  boss:  { color: 'var(--c-danger)',  label: 'BOSS',  glow: '0 0 24px rgba(255,77,109,0.7)' },
 };
 
 export function AppearanceBannerFx(props) {
@@ -43,45 +43,21 @@ export function AppearanceBannerFx(props) {
     @media (prefers-reduced-motion: reduce) { .${id}-fl, .${id}-bd { animation: none; opacity: 1; transform: none; } }
   `;
   return React.createElement(
-    React.Fragment,
-    null,
+    React.Fragment, null,
     React.createElement('style', { dangerouslySetInnerHTML: { __html: css } }),
     React.createElement(
-      'div',
-      { className: id + '-w', onAnimationEnd: onDone },
+      'div', { className: id + '-w', onAnimationEnd: onDone },
       React.createElement('div', { className: id + '-fl' }),
       React.createElement(
-        'div',
-        { className: id + '-bd' },
-        React.createElement(
-          Text,
-          {
-            variant: 'label',
-            style: {
-              color: preset.color,
-              fontSize: 12,
-              letterSpacing: '0.32em',
-              display: 'block',
-              marginBottom: 4,
-            },
-          },
-          preset.label
-        ),
-        React.createElement(
-          Text,
-          {
-            variant: 'heading-1',
-            style: {
-              color: 'var(--c-text)',
-              fontSize: 22,
-              fontFamily: 'var(--ff-display)',
-              fontWeight: 700,
-              display: 'block',
-              textShadow: preset.glow,
-            },
-          },
-          name || ''
-        )
+        'div', { className: id + '-bd' },
+        React.createElement(Text, {
+          variant: 'label',
+          style: { color: preset.color, fontSize: 12, letterSpacing: '0.32em', display: 'block', marginBottom: 4 },
+        }, preset.label),
+        React.createElement(Text, {
+          variant: 'heading-1',
+          style: { color: 'var(--c-text)', fontSize: 22, fontFamily: 'var(--ff-display)', fontWeight: 700, display: 'block', textShadow: preset.glow },
+        }, name || '')
       )
     )
   );

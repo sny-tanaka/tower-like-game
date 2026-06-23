@@ -6,13 +6,10 @@
 export function PickupFx(props) {
   const {
     icon = 'screw',
-    x = 50,
-    y = 70,
-    targetX = 90,
-    targetY = 5,
+    x = 50, y = 70,
+    targetX = 90, targetY = 5,
     color = 'var(--c-screw)',
-    duration = 540,
-    onDone,
+    duration = 540, onDone,
   } = props;
   const { Icon } = window.TowerLikeGame_28197d;
   const id = React.useMemo(() => 'pk-' + Math.random().toString(36).slice(2, 8), []);
@@ -36,8 +33,7 @@ export function PickupFx(props) {
     @media (prefers-reduced-motion: reduce) { .${id} { animation-duration: 1ms; opacity: 0; } }
   `;
   return React.createElement(
-    React.Fragment,
-    null,
+    React.Fragment, null,
     React.createElement('style', { dangerouslySetInnerHTML: { __html: css } }),
     React.createElement(
       'div',

@@ -17,13 +17,10 @@ type Story = StoryObj<typeof GameSettingsTab>;
 
 function DefaultStory() {
   const [vibration, setVibration] = useState(true);
-  const [speed, setSpeed] = useState<1 | 2 | 3>(1);
   return (
     <GameSettingsTab
       overrideVibration={vibration}
-      overrideSpeed={speed}
       onVibrationChange={setVibration}
-      onSpeedChange={setSpeed}
     />
   );
 }
@@ -33,12 +30,7 @@ export const Default: Story = {
   render: () => <DefaultStory />,
 };
 
-/** バイブ OFF + 速度×3 */
-export const VibrationOffSpeed3: Story = {
-  render: () => (
-    <GameSettingsTab
-      overrideVibration={false}
-      overrideSpeed={3}
-    />
-  ),
+/** バイブ OFF */
+export const VibrationOff: Story = {
+  render: () => <GameSettingsTab overrideVibration={false} />,
 };

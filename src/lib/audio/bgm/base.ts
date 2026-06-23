@@ -65,7 +65,17 @@ function scheduleLoop(
 
     // --- Bass (sawtooth, 2 拍ごとに1音) ---
     const bassFreq = BASS_NOTES[bar];
-    scheduleNote(ctx, dest, 'sawtooth', bassFreq, barStart, BEAT_SEC * 1.8, 0.22, 300);
+    scheduleNote(
+      ctx,
+      dest,
+      'sawtooth',
+      bassFreq,
+      barStart,
+      BEAT_SEC * 1.8,
+      0.22,
+      300,
+      scheduledNodes
+    );
     scheduleNote(
       ctx,
       dest,
@@ -74,18 +84,29 @@ function scheduleLoop(
       barStart + BEAT_SEC * 2,
       BEAT_SEC * 1.8,
       0.22,
-      300
+      300,
+      scheduledNodes
     );
 
     // --- Kick (1, 3 拍) ---
-    scheduleKick(ctx, dest, barStart, 0.35);
-    scheduleKick(ctx, dest, barStart + BEAT_SEC * 2, 0.28);
+    scheduleKick(ctx, dest, barStart, 0.35, scheduledNodes);
+    scheduleKick(ctx, dest, barStart + BEAT_SEC * 2, 0.28, scheduledNodes);
 
     // --- Arp (8分音符, 1小節8音) ---
     for (let i = 0; i < 8; i++) {
       const arpIdx = (bar * 8 + i) % ARP_PATTERN.length;
       const arpStart = barStart + i * BEAT_SEC * 0.5;
-      scheduleNote(ctx, dest, 'square', ARP_PATTERN[arpIdx], arpStart, BEAT_SEC * 0.4, 0.07, 2400);
+      scheduleNote(
+        ctx,
+        dest,
+        'square',
+        ARP_PATTERN[arpIdx],
+        arpStart,
+        BEAT_SEC * 0.4,
+        0.07,
+        2400,
+        scheduledNodes
+      );
     }
   }
 

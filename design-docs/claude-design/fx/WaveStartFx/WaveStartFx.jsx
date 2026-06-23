@@ -24,30 +24,14 @@ export function WaveStartFx(props) {
     @media (prefers-reduced-motion: reduce) { .${id}-w { animation: none; opacity: 1; } }
   `;
   return React.createElement(
-    React.Fragment,
-    null,
+    React.Fragment, null,
     React.createElement('style', { dangerouslySetInnerHTML: { __html: css } }),
     React.createElement(
-      'div',
-      { className: id + '-w', onAnimationEnd: onDone },
+      'div', { className: id + '-w', onAnimationEnd: onDone },
       React.createElement(
-        'div',
-        { className: id + '-b' },
-        React.createElement(
-          Text,
-          { variant: 'label', color: 'primary', style: { fontSize: 11 } },
-          'WAVE'
-        ),
-        React.createElement(
-          Text,
-          {
-            variant: 'numeric-l',
-            color: 'primary',
-            glow: true,
-            style: { fontSize: 24, fontWeight: 700 },
-          },
-          String(waveNumber)
-        )
+        'div', { className: id + '-b' },
+        React.createElement(Text, { variant: 'label', color: 'primary', style: { fontSize: 11 } }, 'WAVE'),
+        React.createElement(Text, { variant: 'numeric-l', color: 'primary', glow: true, style: { fontSize: 24, fontWeight: 700 } }, String(waveNumber))
       )
     )
   );

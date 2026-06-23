@@ -16,11 +16,23 @@ export const MACHINE_Y = 50;
  *     対応は未確定。 当面は「% / 秒」と解釈してチューニング想定 (敵速 ~1-2 で
  *     T1 W1 が 25-50 秒で到達する妥当なバランス)
  * - マシンに到達 (距離 ≤ 移動量) で position を (50, 50) にスナップ
+ * - **凍結中 (frozenUntilMs > nowMs) は移動しない** (近接ダメは止めない仕様)
  *
  * 副作用なし。 新しい SpawnedEnemy オブジェクトを返す (position が変わらない場合
  * は元のオブジェクトを返す)。
+ *
+ * @param nowMs ラン開始からの現在経過 ms (凍結期限判定に使用)。 省略時は凍結無視
  */
-export function updateEnemyPosition(enemy: SpawnedEnemy, deltaSec: number): SpawnedEnemy {
+export function updateEnemyPosition(
+  enemy: SpawnedEnemy,
+  deltaSec: number,
+  nowMs?: number
+): SpawnedEnemy {
+  // 凍結中はそのまま (移動量 0)
+  if (enemy.frozenUntilMs != null && nowMs != null && enemy.frozenUntilMs > nowMs) {
+    return enemy;
+  }
+
   const dx = MACHINE_X - enemy.position.x;
   const dy = MACHINE_Y - enemy.position.y;
   const dist = Math.sqrt(dx * dx + dy * dy);

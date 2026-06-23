@@ -1,12 +1,13 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 
 import styles from './style.module.scss';
 
+import { AppearanceBannerFx } from '@/components/fx/AppearanceBannerFx';
+import { WaveStartFx } from '@/components/fx/WaveStartFx';
 import { AppShell } from '@/components/organisms/AppShell';
 import { BattleField } from '@/components/organisms/BattleField';
 import type { HitEvent } from '@/components/organisms/BattleField';
 import { BattleHudBottom } from '@/components/organisms/BattleHudBottom';
-import type { GameSpeed } from '@/components/organisms/BattleHudBottom';
 import { BattleHudTop } from '@/components/organisms/BattleHudTop';
 import { BattleMenuOverlay } from '@/components/organisms/BattleMenuOverlay';
 import { ResultDialog } from '@/components/organisms/ResultDialog';
@@ -14,6 +15,7 @@ import type { ResultReward, ResultStatus } from '@/components/organisms/ResultDi
 import { RunWorkshopBottomSheet } from '@/components/organisms/RunWorkshopBottomSheet';
 import type { RunWorkshopKey } from '@/components/organisms/RunWorkshopBottomSheet/items';
 import { ScreenSaverDialog } from '@/components/organisms/ScreenSaverDialog';
+import { WAVE_DURATION_SEC } from '@/game/wave';
 import { useBattleLoop } from '@/hooks/useBattleLoop';
 import { soundEngine } from '@/lib/audio';
 import { BigNum } from '@/lib/bignum/BigNum';
@@ -59,6 +61,10 @@ export function Page() {
   // ── store から状態取得 ──
   const isRunActive = useStore((s) => s.isRunActive);
   const screw = useStore((s) => s.screw);
+  const bolt = useStore((s) => s.bolt);
+  const alloy = useStore((s) => s.alloy);
+  const runStartBolt = useStore((s) => s.runStartBolt);
+  const runStartAlloy = useStore((s) => s.runStartAlloy);
   const machineHp = useStore((s) => s.machineHp);
   const machineMaxHp = useStore((s) => s.machineMaxHp);
   const currentTier = useStore((s) => s.currentTier);
@@ -66,7 +72,6 @@ export function Page() {
   const currentWeapon = useStore((s) => s.currentWeapon);
   const activeCdSec = useStore((s) => s.activeCdSec);
   const isAutoActive = useStore((s) => s.isAutoActive);
-  const gameSpeed = useStore((s) => s.gameSpeed);
   const isPaused = useStore((s) => s.isPaused);
   const runWorkshopLevels = useStore((s) => s.runWorkshopLevels);
 
@@ -78,7 +83,6 @@ export function Page() {
   const setAutoActive = useStore((s) => s.setAutoActive);
   const switchWeapon = useStore((s) => s.switchWeapon);
   const setPaused = useStore((s) => s.setPaused);
-  const setGameSpeed = useStore((s) => s.setGameSpeed);
   const upgradeRunWorkshop = useStore((s) => s.upgradeRunWorkshop);
   const triggerActive = useStore((s) => s.triggerActive);
 
@@ -87,12 +91,60 @@ export function Page() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isScreenSaverOpen, setIsScreenSaverOpen] = useState(false);
 
-  // ── ゲームループ (敵 spawn / 武器発射 / ダメージ / 撃破 / 被ダメ) ──
-  const { enemies, damageEvents, deathEvents, onDamageDone, onDeathDone } = useBattleLoop({
+  // ── BATTLE START バナー: マウント時 + isRunActive=true で 1.6 秒表示 ──
+  const [isBattleStartShown, setIsBattleStartShown] = useState(false);
+  useEffect(() => {
+    if (isRunActive) setIsBattleStartShown(true);
+  }, [isRunActive]);
+
+  // ── BGM: wave に応じて切替 (App.tsx の画面別 BGM を wave 30 のみ上書き) ──
+  useEffect(() => {
+    if (currentWave === 30) {
+      soundEngine.playBgm('battleBoss');
+    } else {
+      soundEngine.playBgm('battleNormal');
+    }
+  }, [currentWave]);
+
+  // ── WaveStartFx: 「次の wave へ進んだ瞬間」のみ表示 (出撃直後は出さない) ──
+  const prevWaveRef = useRef(currentWave);
+  const [waveStartKey, setWaveStartKey] = useState<number | null>(null);
+  useEffect(() => {
+    if (prevWaveRef.current !== currentWave) {
+      setWaveStartKey((k) => (k ?? 0) + 1);
+    }
+    prevWaveRef.current = currentWave;
+  }, [currentWave]);
+
+  // ── リザルト状態 (useBattleLoop に paused として渡すため先に計算) ──
+  const autoResultStatus = resolveResultStatus(isRunActive, machineHp);
+  // 撤退時は 'retreat' を手動で set するためローカル state で保持
+  const [resultStatus, setResultStatus] = useState<ResultStatus | null>(null);
+  const effectiveResultStatus = resultStatus ?? autoResultStatus;
+  const isResultOpen = effectiveResultStatus !== null;
+
+  // ── ゲームループ (敵 spawn / 武器発射 / ダメージ / 撃破 / 被ダメ / 弾道 / ドロップ) ──
+  // ResultDialog 表示中 (撤退 / gameover) は paused で完全停止させる
+  const {
+    enemies,
+    damageEvents,
+    deathEvents,
+    projectileEvents,
+    pickupEvents,
+    waveElapsedSec,
+    onDamageDone,
+    onDeathDone,
+    onProjectileDone,
+    onPickupDone,
+  } = useBattleLoop({
     range: DEFAULT_RANGE,
+    paused: isResultOpen,
   });
 
-  // HitEvent は #92 時点では未配線 (各武器の hit に enemy 位置を取り出す形で別途追加予定)
+  // Wave 残り時間: 0 になったら advanceWave が走り経過秒はリセットされる
+  const waveSecondsRemaining = Math.max(0, WAVE_DURATION_SEC - waveElapsedSec);
+
+  // HitEvent (EnemyHitFx) は別途配線予定。 当面 [] のまま (弾道は projectileEvents が担う)
   const hitEvents: HitEvent[] = [];
 
   // 武器切替 CD（暫定: すべて 100 = CD なし）
@@ -103,23 +155,11 @@ export function Page() {
     cutter: 100,
   } as const;
 
-  // ── リザルト状態 ──
-  const autoResultStatus = resolveResultStatus(isRunActive, machineHp);
-  // 撤退時は 'retreat' を手動で set するためローカル state で保持
-  const [resultStatus, setResultStatus] = useState<ResultStatus | null>(null);
-  const effectiveResultStatus = resultStatus ?? autoResultStatus;
-  const isResultOpen = effectiveResultStatus !== null;
-
   // BattleHudTop は BigNum を受け取る — machineMaxHp が 0 (ラン外) のときは 1 にクランプ
   const hpCurrentBn = machineHp;
   const hpMaxBn = machineMaxHp.isZero() ? BigNum.fromNumber(1) : machineMaxHp;
 
   // ── ハンドラ ──
-  const handleSpeedChange = (speed: GameSpeed) => {
-    setGameSpeed(speed);
-    soundEngine.play('tap');
-  };
-
   const handleTogglePause = () => {
     setPaused(!isPaused);
     soundEngine.play('tap');
@@ -172,17 +212,17 @@ export function Page() {
     soundEngine.play(sid);
   };
 
-  // リザルトダイアログ用ダミーリワード（バトルロジック配線前）
-  const dummyReward: ResultReward = {
-    bolt: BigNum.ZERO,
-    alloy: BigNum.ZERO,
+  // リザルトリワード: ラン開始時残高からの差分で算出 (負にならないようクランプ)
+  const earnedBolt = bolt.sub(runStartBolt);
+  const earnedAlloy = alloy.sub(runStartAlloy);
+  const resultReward: ResultReward = {
+    bolt: earnedBolt.lt(BigNum.ZERO) ? BigNum.ZERO : earnedBolt,
+    alloy: earnedAlloy.lt(BigNum.ZERO) ? BigNum.ZERO : earnedAlloy,
     patches: [],
   };
 
-  // ── wave 関連（暫定値） ──
+  // ── wave 関連 ──
   const TOTAL_WAVES = 30;
-  const WAVE_SECONDS_TOTAL = 30;
-  const WAVE_SECONDS_REMAINING = 20;
 
   return (
     <div className={styles.root}>
@@ -196,9 +236,10 @@ export function Page() {
             tier={currentTier}
             wave={currentWave}
             totalWaves={TOTAL_WAVES}
-            secondsRemaining={WAVE_SECONDS_REMAINING}
-            secondsTotal={WAVE_SECONDS_TOTAL}
+            secondsRemaining={waveSecondsRemaining}
+            secondsTotal={WAVE_DURATION_SEC}
             isBossWave={currentWave === TOTAL_WAVES}
+            paused={isPaused || isResultOpen}
           />
         }
         footer={
@@ -224,8 +265,6 @@ export function Page() {
               onSwitchWeapon={handleSwitchWeapon}
               onActivate={handleManualActivate}
               onToggleAuto={setAutoActive}
-              gameSpeed={gameSpeed}
-              onSpeedChange={handleSpeedChange}
               isPaused={isPaused}
               onTogglePause={handleTogglePause}
               onOpenMenu={handleOpenMenu}
@@ -244,8 +283,13 @@ export function Page() {
           damageEvents={damageEvents}
           hitEvents={hitEvents}
           deathEvents={deathEvents}
+          projectileEvents={projectileEvents}
+          pickupEvents={pickupEvents}
           onDamageDone={onDamageDone}
           onDeathDone={onDeathDone}
+          onProjectileDone={onProjectileDone}
+          onPickupDone={onPickupDone}
+          showCutterOrbit={currentWeapon === 'cutter' && isRunActive && !isPaused && !isResultOpen}
           range={DEFAULT_RANGE}
         />
       </AppShell>
@@ -277,7 +321,7 @@ export function Page() {
             reachedWave={currentWave}
             killed={0}
             elapsedSec={0}
-            reward={dummyReward}
+            reward={resultReward}
             onClose={handleResultClose}
           />
         )}
@@ -289,6 +333,27 @@ export function Page() {
             setIsScreenSaverOpen(false);
           }}
         />
+
+        {/* BATTLE START バナー (出撃直後 1.6 秒) */}
+        {isBattleStartShown && (
+          <AppearanceBannerFx
+            kind="battle-start"
+            onDone={() => {
+              setIsBattleStartShown(false);
+            }}
+          />
+        )}
+
+        {/* Wave 進行バナー (wave 切替時の 1.1 秒) */}
+        {waveStartKey != null && (
+          <WaveStartFx
+            key={waveStartKey}
+            waveNumber={currentWave}
+            onDone={() => {
+              setWaveStartKey(null);
+            }}
+          />
+        )}
       </div>
     </div>
   );

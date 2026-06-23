@@ -1,7 +1,4 @@
-export interface ChainBoltPoint {
-  x: number;
-  y: number;
-}
+export interface ChainBoltPoint { x: number; y: number; }
 export interface ChainBoltFxProps {
   /** 連鎖経路 (% 座標) */
   points: ChainBoltPoint[];

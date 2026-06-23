@@ -38,20 +38,14 @@ export function TierClearFx(props) {
       animation: ${id}-band ${duration}ms var(--ease-out) both; }
     @media (prefers-reduced-motion: reduce) { .${id}-fl, .${id}-rw, .${id}-bd { animation-duration: 1ms; opacity: 0; } }
   `;
-  const rays = [0, 45, 90, 135].map((a) =>
-    React.createElement('div', {
-      key: a,
-      className: id + '-rw',
-      style: { ['--a']: a + 'deg' },
-    })
-  );
+  const rays = [0, 45, 90, 135].map((a) => React.createElement('div', {
+    key: a, className: id + '-rw', style: { ['--a']: a + 'deg' },
+  }));
   return React.createElement(
-    React.Fragment,
-    null,
+    React.Fragment, null,
     React.createElement('style', { dangerouslySetInnerHTML: { __html: css } }),
     React.createElement(
-      'div',
-      { className: id + '-w', onAnimationEnd: onDone },
+      'div', { className: id + '-w', onAnimationEnd: onDone },
       React.createElement('div', { className: id + '-fl' }),
       React.createElement('div', { className: id + '-bd', style: { top: '34%' } }),
       React.createElement('div', { className: id + '-bd', style: { top: '64%' } }),

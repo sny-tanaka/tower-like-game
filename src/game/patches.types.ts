@@ -32,7 +32,9 @@ export type PatchTrigger =
   | { type: 'onHit'; receivedDamage: BigNum }
   | { type: 'onKill'; enemyKind: EnemyKind }
   | { type: 'onDropRoll'; baseDrops: { screw: number; bolt: number; alloy: number } }
-  | { type: 'interval'; deltaMs: number };
+  | { type: 'interval'; deltaMs: number }
+  /** ウェーブクリア時に 1 回 発火 (shieldRegen / boltCast 用) */
+  | { type: 'onWaveClear' };
 
 // ---------------------------------------------------------------------------
 // パッチ効果
@@ -52,8 +54,11 @@ export interface PatchEffect {
   shieldRecover?: number;
   /** ドロップ倍率（bonusDrop） */
   dropMultiplier?: number;
-  /** boltCast の全敵への固定ダメ */
-  boltCastDamage?: BigNum;
+  /**
+   * boltCast による ボルト 獲得量 (currencies.addBolt に加算)。
+   * onWaveClear で評価。
+   */
+  boltGain?: BigNum;
   /** 2 連射フラグ */
   extraShot?: boolean;
   /** 凍結発動 */
