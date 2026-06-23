@@ -165,11 +165,14 @@ export function BattleHudBottom({
       <div className={styles.bottomRow}>
         {/* 通貨大表示 (左端) */}
         <div className={styles.currencyArea}>
-          <CurrencyAmount
-            currency="screw"
-            value={screw}
-            size="lg"
-          />
+          {/* ネジは桁が変動するためラッパーで min-width を固定 (ボルト位置の安定化) */}
+          <span className={styles.screwSlot}>
+            <CurrencyAmount
+              currency="screw"
+              value={screw}
+              size="lg"
+            />
+          </span>
           <CurrencyAmount
             currency="bolt"
             value={earnedBolt}

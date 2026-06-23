@@ -134,6 +134,14 @@
   gap: var(--sp-s);
 }
 
+/* screw 表示枠: 桁が増えてもボルト位置がズレないよう「999.9AB」 が収まる min-width を確保
+   (ff-numeric = JetBrains Mono の等幅前提。 数値 6 文字 = 6ch + アイコン分 + 内余白) */
+.screwSlot {
+  display: inline-flex;
+  align-items: center;
+  min-width: 9.5ch;
+}
+
 .speedArea {
   flex: 1;
   display: flex;
