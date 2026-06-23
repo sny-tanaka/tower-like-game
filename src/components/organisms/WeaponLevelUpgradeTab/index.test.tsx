@@ -68,31 +68,25 @@ describe('calcMaxLevels', () => {
 });
 
 describe('buildStatsImpact', () => {
-  it('Lv 0 → 1 の laser DMG が 120 → 122 程度', () => {
-    const impact = buildStatsImpact(0);
-    const laser = impact.find((i) => i.label === 'LASER DMG');
-    expect(laser?.before).toBe(120);
-    expect(laser?.after).toBe(122); // round(120 * 1.02) = round(122.4) = 122
+  it('baseAttackLv=0 と baseAttackLv=10 でビフォーDMG が異なる', () => {
+    const a = buildStatsImpact(0, 0, 0);
+    const b = buildStatsImpact(0, 10, 0);
+    expect(a[0]!.before).not.toBe(b[0]!.before);
   });
 
-  it('Lv 0 → 1 の THUNDER 連鎖は 7 → 7 (floor(7 + 0.1) = 7)', () => {
-    const impact = buildStatsImpact(0);
-    const thunder = impact.find((i) => i.label === 'THUNDER 連鎖');
-    expect(thunder?.before).toBe(7);
-    expect(thunder?.after).toBe(7);
+  it('LASER DMG は weaponLv+1 で上昇する', () => {
+    // weaponLv=100, baseAttackLv=100 で before/after の差が BigNum 切り上げを上回ることを確認
+    const items = buildStatsImpact(100, 100, 0);
+    const item = items.find((i) => i.label === 'LASER DMG')!;
+    // BigNum.toString() は整数を返す（例: "123", "1234"）ので Number() で安全に比較できる
+    expect(Number(item.after)).toBeGreaterThan(Number(item.before));
   });
 
-  it('Lv 9 → 10 の THUNDER 連鎖は 7 → 8', () => {
-    const impact = buildStatsImpact(9);
-    const thunder = impact.find((i) => i.label === 'THUNDER 連鎖');
-    expect(thunder?.before).toBe(7); // floor(7 + 0.1*9) = floor(7.9) = 7
-    expect(thunder?.after).toBe(8); // floor(7 + 0.1*10) = floor(8.0) = 8
-  });
-
-  it('suffix: CANNON 半径は m', () => {
-    const impact = buildStatsImpact(0);
-    const cannon = impact.find((i) => i.label === 'CANNON 半径');
-    expect(cannon?.suffix).toBe('m');
+  it('LASER DMG が旧ハードコード値 120 と一致しない（実値を使っている）', () => {
+    // baseAttackLv=0, weaponLv=0 のとき baseAttack=1, damageMul=0.4 → DMG=1
+    const items = buildStatsImpact(0, 0, 0);
+    const laser = items.find((i) => i.label === 'LASER DMG')!;
+    expect(laser.before).not.toBe('120');
   });
 });
 

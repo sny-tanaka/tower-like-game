@@ -2,9 +2,17 @@ import styles from './style.module.scss';
 
 import { Card } from '@/components/atoms/Card';
 import { CurrencyAmount } from '@/components/atoms/CurrencyAmount';
-import { NumericDisplay } from '@/components/atoms/NumericDisplay';
 import { Text } from '@/components/atoms/Text';
 import { UpgradeCard } from '@/components/molecules/UpgradeCard';
+import type { WeaponStat } from '@/components/molecules/WeaponPreview';
+import {
+  buildLaserStats,
+  buildCannonStats,
+  buildThunderStats,
+  buildCutterStats,
+  calcMachineBaseAttack,
+  calcMachineRange,
+} from '@/components/organisms/WeaponDetailsTab';
 import { BigNum } from '@/lib/bignum/BigNum';
 import { useStore } from '@/store';
 
@@ -51,64 +59,47 @@ export function calcMaxLevels(currentLv: number, alloy: BigNum): number {
 }
 
 // ---------------------------------------------------------------------------
-// ステ計算ユーティリティ（04-weapons.md 準拠）
+// ステ計算ユーティリティ（buildXStats / calcMachineBaseAttack 経由でゲーム実値を使う）
 // ---------------------------------------------------------------------------
-
-/**
- * 武器ダメージ倍率: ×1.02^Lv
- */
-export function calcDamageMulLv(lv: number): number {
-  return Math.pow(1.02, lv);
-}
-
-/**
- * 武器ごとの底値 DMG（Lv=0 の表示用代表値）
- */
-const BASE_DAMAGE: Record<string, number> = {
-  laser: 120,
-  cannon: 480,
-  thunder: 84,
-  cutter: 62,
-};
 
 /** stats impact プレビュー用の 1 行 */
 export interface StatsImpactItem {
   label: string;
-  before: number;
-  after: number;
+  before: string;
+  after: string;
   suffix?: string;
 }
 
 /**
  * weaponLv → weaponLv+1 の主要ステ変化プレビューを生成
+ * baseAttackLv / rangeLv は store の machineLevels から渡す。
  */
-export function buildStatsImpact(lv: number): StatsImpactItem[] {
+export function buildStatsImpact(
+  lv: number,
+  baseAttackLv: number,
+  rangeLv: number,
+): StatsImpactItem[] {
+  const baseAttack = calcMachineBaseAttack(baseAttackLv);
+  const machineRange = calcMachineRange(rangeLv);
   const nextLv = lv + 1;
-  const mulNow = calcDamageMulLv(lv);
-  const mulNext = calcDamageMulLv(nextLv);
+
+  const laserBefore   = buildLaserStats(lv,     baseAttack, machineRange);
+  const laserAfter    = buildLaserStats(nextLv,  baseAttack, machineRange);
+  const cannonBefore  = buildCannonStats(lv,     baseAttack, machineRange);
+  const cannonAfter   = buildCannonStats(nextLv,  baseAttack, machineRange);
+  const thunderBefore = buildThunderStats(lv,    baseAttack, machineRange);
+  const thunderAfter  = buildThunderStats(nextLv, baseAttack, machineRange);
+  const cutterBefore  = buildCutterStats(lv,     baseAttack);
+  const cutterAfter   = buildCutterStats(nextLv,  baseAttack);
+
+  /** buildXStats が返す配列の DMG 値（index 0、label='DMG'）を文字列で取り出す */
+  const dmg = (stats: WeaponStat[]) => String(stats[0]!.value);
 
   return [
-    {
-      label: 'LASER DMG',
-      before: Math.round(BASE_DAMAGE.laser * mulNow),
-      after: Math.round(BASE_DAMAGE.laser * mulNext),
-    },
-    {
-      label: 'CANNON 半径',
-      before: Math.round((30 + 0.5 * lv) * 10) / 10,
-      after: Math.round((30 + 0.5 * nextLv) * 10) / 10,
-      suffix: 'm',
-    },
-    {
-      label: 'THUNDER 連鎖',
-      before: Math.floor(7 + 0.1 * lv),
-      after: Math.floor(7 + 0.1 * nextLv),
-    },
-    {
-      label: 'CUTTER 同時',
-      before: Math.floor(1 + 0.05 * lv),
-      after: Math.floor(1 + 0.05 * nextLv),
-    },
+    { label: 'LASER DMG',   before: dmg(laserBefore),   after: dmg(laserAfter) },
+    { label: 'CANNON DMG',  before: dmg(cannonBefore),  after: dmg(cannonAfter) },
+    { label: 'THUNDER DMG', before: dmg(thunderBefore), after: dmg(thunderAfter) },
+    { label: 'CUTTER DMG',  before: dmg(cutterBefore),  after: dmg(cutterAfter) },
   ];
 }
 
@@ -119,6 +110,7 @@ export function buildStatsImpact(lv: number): StatsImpactItem[] {
 export function WeaponLevelUpgradeTab() {
   const weaponLv = useStore((s) => s.weaponLv);
   const alloy = useStore((s) => s.alloy);
+  const machineLevels = useStore((s) => s.machineLevels);
   const incrementWeaponLv = useStore((s) => s.incrementWeaponLv);
   const setWeaponLv = useStore((s) => s.setWeaponLv);
   const spendAlloy = useStore((s) => s.spendAlloy);
@@ -134,7 +126,7 @@ export function WeaponLevelUpgradeTab() {
   const canAffordMax = maxLevels >= 1;
 
   // stats プレビュー (現 Lv → +1 後)
-  const statsImpact = buildStatsImpact(weaponLv);
+  const statsImpact = buildStatsImpact(weaponLv, machineLevels.baseAttack, machineLevels.range);
 
   function handleBuy(amount: string) {
     if (amount === '+1') {
@@ -221,21 +213,21 @@ export function WeaponLevelUpgradeTab() {
                 {item.label}
               </Text>
               <span className={styles.impactValues}>
-                <NumericDisplay
-                  value={item.before}
-                  size="sm"
-                  accentColor="dim"
-                  suffix={item.suffix}
-                  decimals={item.suffix === 'm' ? 1 : 0}
-                />
+                <Text
+                  variant="body"
+                  color="dim"
+                  className={styles.impactValue}
+                >
+                  {item.before}{item.suffix != null ? item.suffix : ''}
+                </Text>
                 <span className={styles.arrow}>→</span>
-                <NumericDisplay
-                  value={item.after}
-                  size="sm"
-                  accentColor="secondary"
-                  suffix={item.suffix}
-                  decimals={item.suffix === 'm' ? 1 : 0}
-                />
+                <Text
+                  variant="body"
+                  color="secondary"
+                  className={styles.impactValue}
+                >
+                  {item.after}{item.suffix != null ? item.suffix : ''}
+                </Text>
               </span>
             </div>
           ))}
