@@ -1,8 +1,9 @@
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 
 import styles from './style.module.scss';
 
 import { AppUpdater } from '@/components/molecules/AppUpdater';
+import { ConfirmDialog } from '@/components/molecules/ConfirmDialog';
 import { AppShell } from '@/components/organisms/AppShell';
 import { TitleActions } from '@/components/organisms/TitleActions';
 import { TitleHeader } from '@/components/organisms/TitleHeader';
@@ -34,10 +35,42 @@ export function Page() {
   const createdAt = useStore((s) => s.createdAt);
   const { banner, checkForUpdate, isChecking, applyUpdate } = useAppUpdate();
 
+  const resetProfile = useStore((s) => s.resetProfile);
+  const resetCurrencies = useStore((s) => s.resetCurrencies);
+  const resetMachine = useStore((s) => s.resetMachine);
+  const resetWeapons = useStore((s) => s.resetWeapons);
+  const resetPatches = useStore((s) => s.resetPatches);
+  const clearEquippedPatches = useStore((s) => s.clearEquippedPatches);
+  const endRun = useStore((s) => s.endRun);
+
+  const [isConfirmOpen, setIsConfirmOpen] = useState(false);
+
   const lastSavedAt = useMemo(
     () => (createdAt > 0 ? formatRelativeTime(Date.now() - createdAt) : undefined),
     [createdAt]
   );
+
+  const doNewGame = () => {
+    const now = Date.now();
+    resetProfile(now);
+    resetCurrencies();
+    resetMachine();
+    resetWeapons();
+    resetPatches();
+    clearEquippedPatches();
+    endRun();
+    navigate('preparation');
+  };
+
+  const handleNewGameRequest = () => {
+    if (createdAt > 0) {
+      // セーブあり → 確認ダイアログを開く
+      setIsConfirmOpen(true);
+    } else {
+      // セーブなし → そのまま遷移
+      doNewGame();
+    }
+  };
 
   return (
     <AppShell>
@@ -53,13 +86,27 @@ export function Page() {
         <TitleActions
           lastSavedAt={lastSavedAt}
           onResume={() => navigate('preparation')}
-          onNewGame={() => navigate('preparation')}
+          onNewGame={handleNewGameRequest}
           onCheckUpdate={() => void checkForUpdate()}
           isCheckingUpdate={isChecking}
         />
         <AppUpdater
           banner={banner}
           onApply={applyUpdate}
+        />
+        <ConfirmDialog
+          open={isConfirmOpen}
+          variant="danger"
+          iconName="skull"
+          title="新規開始"
+          message="現在のセーブデータは消えます。本当に新規開始しますか?"
+          confirmLabel="新規開始"
+          cancelLabel="キャンセル"
+          onConfirm={() => {
+            setIsConfirmOpen(false);
+            doNewGame();
+          }}
+          onCancel={() => setIsConfirmOpen(false)}
         />
       </div>
     </AppShell>
