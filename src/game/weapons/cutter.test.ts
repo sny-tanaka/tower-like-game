@@ -6,10 +6,13 @@ import {
   CUTTER_OVERDRIVE_ATTACK_SPEED_MUL,
   CUTTER_OVERDRIVE_CD_SEC,
   CUTTER_OVERDRIVE_DURATION_SEC,
+  calcCutterRotateMs,
   cutterNormalAttack,
   cutterStartOverdrive,
   cutterStats,
   cutterTickOverdrive,
+  isAngleInRange,
+  shortestAngleDiff,
 } from './cutter';
 
 import type { MachineStats } from '@/game/damage.types';
@@ -61,12 +64,14 @@ const rngNever = () => 0;
 // ---------------------------------------------------------------------------
 
 describe('cutterStats', () => {
-  it('Lv0 で初期値が正しい', () => {
+  it('Lv0 で初期値が正しい (AS×damageMul で DPS=3.0 維持)', () => {
     const stats = cutterStats(0);
     expect(stats.attackPerSec).toBeCloseTo(CUTTER_BASE_AS);
     expect(stats.orbitRadius).toBeCloseTo(80);
     expect(stats.simultaneousHits).toBe(1);
     expect(stats.damageMul).toBeCloseTo(CUTTER_BASE_DAMAGE_MUL);
+    // DPS 確認: 旧 (AS=5.0 × dmg=0.6) と新 (AS=2.5 × dmg=1.2) で同じ 3.0
+    expect(stats.attackPerSec * stats.damageMul).toBeCloseTo(3.0);
     expect(stats.overdriveCdSec).toBe(CUTTER_OVERDRIVE_CD_SEC);
     expect(stats.overdriveDurationSec).toBe(CUTTER_OVERDRIVE_DURATION_SEC);
     expect(stats.overdriveAttackSpeedMul).toBe(CUTTER_OVERDRIVE_ATTACK_SPEED_MUL);
@@ -104,15 +109,16 @@ describe('cutterStats', () => {
 });
 
 // ---------------------------------------------------------------------------
-// cutterNormalAttack: 通常攻撃
+// cutterNormalAttack: sweep ベースの当たり判定
 // ---------------------------------------------------------------------------
 
 describe('cutterNormalAttack', () => {
   const machine = makeMachine();
+  const inRange = (id: string, x = 70, y = 50) => makeEnemy(id, x, y);
 
-  it('simultaneousHits=1 のとき、1 体だけヒットする', () => {
-    const stats = cutterStats(0); // simultaneousHits=1
-    const enemies = [makeEnemy('e1'), makeEnemy('e2'), makeEnemy('e3')];
+  it('simultaneousHits=1 のとき、 1 体だけヒットする', () => {
+    const stats = cutterStats(0);
+    const enemies = [inRange('e1', 70), inRange('e2', 75), inRange('e3', 80)];
     const result = cutterNormalAttack(machine, stats, enemies, 0, rngNever);
     expect(result.hits).toHaveLength(1);
     expect(result.hits[0].enemyId).toBe('e1');
@@ -124,28 +130,44 @@ describe('cutterNormalAttack', () => {
     expect(result.hits).toHaveLength(0);
   });
 
-  it('simultaneousHits=2 のとき、2 体ヒットする', () => {
+  it('blades=2 default: 1 fire の sweep 合計は 360° → どの方向の敵も候補', () => {
     const stats = cutterStats(20); // simultaneousHits=2
-    const enemies = [makeEnemy('e1'), makeEnemy('e2'), makeEnemy('e3')];
-    const result = cutterNormalAttack(machine, stats, enemies, 0, rngNever);
-    expect(result.hits).toHaveLength(2);
-    expect(result.hits[0].enemyId).toBe('e1');
-    expect(result.hits[1].enemyId).toBe('e2');
+    const right = inRange('right', 70, 50); // 0°
+    const down = inRange('down', 50, 70); // 90°
+    const left = inRange('left', 30, 50); // 180°
+    const up = inRange('up', 50, 30); // 270°
+    const result = cutterNormalAttack(machine, stats, [right, down, left, up], 0, rngNever);
+    // simultaneousHits=2 で先頭 2 体 (enemiesInRange の順)
+    expect(result.hits.map((h) => h.enemyId)).toEqual(['right', 'down']);
   });
 
-  it('enemiesInRange に simultaneousHits 未満の敵しかいないとき全員ヒット', () => {
-    const stats = cutterStats(20); // simultaneousHits=2
-    const enemies = [makeEnemy('e1')];
+  it('simultaneousHits=2 のとき、 先頭 2 体ヒット', () => {
+    const stats = cutterStats(20);
+    const enemies = [inRange('e1', 70), inRange('e2', 75), inRange('e3', 80)];
     const result = cutterNormalAttack(machine, stats, enemies, 0, rngNever);
+    expect(result.hits).toHaveLength(2);
+    expect(result.hits.map((h) => h.enemyId)).toEqual(['e1', 'e2']);
+  });
+
+  it('enemiesInRange が simultaneousHits 未満なら全員ヒット', () => {
+    const stats = cutterStats(20);
+    const result = cutterNormalAttack(machine, stats, [inRange('e1', 70)], 0, rngNever);
     expect(result.hits).toHaveLength(1);
   });
 
-  it('ダメージが正しく計算される（クリットなし）', () => {
+  it('blades=2 default: 反対側 (180°) の敵にもヒット', () => {
+    const stats = cutterStats(0);
+    const leftEnemy = inRange('left', 30, 50);
+    const result = cutterNormalAttack(machine, stats, [leftEnemy], 0, rngNever);
+    expect(result.hits).toHaveLength(1);
+    expect(result.hits[0].enemyId).toBe('left');
+  });
+
+  it('ダメージが正しく計算される (クリなし、 damageMul=1.2)', () => {
     const baseAttack = 200;
-    const stats = cutterStats(0); // damageMul = CUTTER_BASE_DAMAGE_MUL
+    const stats = cutterStats(0);
     const m = makeMachine({ baseAttack: BigNum.fromNumber(baseAttack) });
-    const enemies = [makeEnemy('e1')];
-    const result = cutterNormalAttack(m, stats, enemies, 0, rngNever);
+    const result = cutterNormalAttack(m, stats, [inRange('e1', 70)], 0, rngNever);
     expect(result.hits[0].crit).toBe(false);
     const expected = BigNum.fromNumber(baseAttack).mulNumber(CUTTER_BASE_DAMAGE_MUL);
     expect(result.hits[0].damage.eq(expected)).toBe(true);
@@ -159,27 +181,29 @@ describe('cutterNormalAttack', () => {
       critMultiplier: 2.0,
     });
     const stats = cutterStats(0);
-    const enemies = [makeEnemy('e1')];
-    const result = cutterNormalAttack(m, stats, enemies, 0, rngNever);
+    const result = cutterNormalAttack(m, stats, [inRange('e1', 70)], 0, rngNever);
     expect(result.hits[0].crit).toBe(true);
-    // baseAttack × CUTTER_BASE_DAMAGE_MUL × 2.0
     const expected = BigNum.fromNumber(baseAttack).mulNumber(CUTTER_BASE_DAMAGE_MUL).mulNumber(2.0);
     expect(result.hits[0].damage.eq(expected)).toBe(true);
   });
 
-  it('旋回角度が更新される（angle は currentAngleDeg + 360/attackPerSec）', () => {
+  it('旋回角度が 1 fire で 360/blades 度進む (blades=2 → 180°)', () => {
     const stats = cutterStats(0);
     const result = cutterNormalAttack(machine, stats, [], 0, rngNever);
-    expect(result.angle).toBeCloseTo((0 + 360 / CUTTER_BASE_AS) % 360);
+    expect(result.angle).toBeCloseTo(180);
+  });
+
+  it('blades=4 のときは 1 fire で 90° 進む', () => {
+    const stats = cutterStats(0);
+    const result = cutterNormalAttack(machine, stats, [], 0, rngNever, 4);
+    expect(result.angle).toBeCloseTo(90);
   });
 
   it('angle が 360 を超えたとき 0〜360 に正規化される', () => {
     const stats = cutterStats(0);
-    // 360 / CUTTER_BASE_AS 度ずつ進む。 0 + step*N が >360 の場合は剰余で 0-360 に
-    const step = 360 / CUTTER_BASE_AS;
-    const start = 360 - step + 30; // 1 hit で 360 を超える位置から開始
-    const result = cutterNormalAttack(machine, stats, [], start, rngNever);
-    expect(result.angle).toBeCloseTo((((start + step) % 360) + 360) % 360);
+    // currentAngleDeg=270 + 180 (blades=2) = 450 → 90 に正規化
+    const result = cutterNormalAttack(machine, stats, [], 270, rngNever);
+    expect(result.angle).toBeCloseTo(90);
   });
 });
 
@@ -188,7 +212,7 @@ describe('cutterNormalAttack', () => {
 // ---------------------------------------------------------------------------
 
 describe('cutterStartOverdrive', () => {
-  it('active=true、remainingSec=8、attackSpeedMul=3、damageMul=1 で開始する', () => {
+  it('active=true、 remainingSec=8、 attackSpeedMul=3、 damageMul=1 で開始する', () => {
     const stats = cutterStats(0);
     const state = cutterStartOverdrive(stats);
     expect(state.active).toBe(true);
@@ -218,7 +242,7 @@ describe('cutterTickOverdrive', () => {
     expect(after.damageMul).toBe(1);
   });
 
-  it('残り時間を超える deltaSec でも active=false、remainingSec=0', () => {
+  it('残り時間を超える deltaSec でも active=false、 remainingSec=0', () => {
     const stats = cutterStats(0);
     const initial = cutterStartOverdrive(stats);
     const after = cutterTickOverdrive(initial, 100);
@@ -249,5 +273,84 @@ describe('cutterTickOverdrive', () => {
     state = cutterTickOverdrive(state, 3); // 0s
     expect(state.active).toBe(false);
     expect(state.remainingSec).toBe(0);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// calcCutterRotateMs: CutterOrbitFx の 1 周時間
+// ---------------------------------------------------------------------------
+
+describe('calcCutterRotateMs', () => {
+  it('attackPerSec=1, blades=2 → 2000ms (2 秒で 1 周、 1 周で 2 ヒット)', () => {
+    expect(calcCutterRotateMs(1, 2)).toBe(2000);
+  });
+
+  it('attackPerSec=2.5, blades=2 → 800ms (Lv0 基本値: AS=2.5/sec)', () => {
+    expect(calcCutterRotateMs(2.5, 2)).toBe(800);
+  });
+
+  it('Overdrive ×3 (AS=7.5, blades=2) → 約 267ms', () => {
+    expect(calcCutterRotateMs(7.5, 2)).toBeCloseTo(266.67, 1);
+  });
+
+  it('刃の数が増えると 1 周時間も伸びる (AS=2.5, blades=4 → 1600ms)', () => {
+    expect(calcCutterRotateMs(2.5, 4)).toBe(1600);
+  });
+
+  it('AS=0 のとき Infinity (静止扱い)', () => {
+    expect(calcCutterRotateMs(0, 2)).toBe(Number.POSITIVE_INFINITY);
+  });
+
+  it('負値 (異常入力) も Infinity', () => {
+    expect(calcCutterRotateMs(-1, 2)).toBe(Number.POSITIVE_INFINITY);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// shortestAngleDiff / isAngleInRange: 角度ヘルパー
+// ---------------------------------------------------------------------------
+
+describe('shortestAngleDiff', () => {
+  it('同じ角度なら 0', () => {
+    expect(shortestAngleDiff(45, 45)).toBe(0);
+  });
+
+  it('境界をまたぐ場合に最短差を返す (350° と 10° → 20°)', () => {
+    expect(shortestAngleDiff(350, 10)).toBeCloseTo(20);
+    expect(shortestAngleDiff(10, 350)).toBeCloseTo(20);
+  });
+
+  it('180° の半周差', () => {
+    expect(shortestAngleDiff(0, 180)).toBe(180);
+  });
+
+  it('結果は常に 0〜180', () => {
+    expect(shortestAngleDiff(720, 0)).toBe(0);
+    expect(shortestAngleDiff(-90, 0)).toBe(90);
+  });
+});
+
+describe('isAngleInRange', () => {
+  it('範囲内ならtrue', () => {
+    expect(isAngleInRange(50, 0, 90)).toBe(true);
+    expect(isAngleInRange(0, 0, 90)).toBe(true);
+    expect(isAngleInRange(90, 0, 90)).toBe(true);
+  });
+
+  it('範囲外なら false', () => {
+    expect(isAngleInRange(91, 0, 90)).toBe(false);
+    expect(isAngleInRange(-1, 0, 90)).toBe(false);
+  });
+
+  it('360° 境界をまたぐ範囲 (start=350, span=20 → [350, 370 = 10])', () => {
+    expect(isAngleInRange(355, 350, 20)).toBe(true);
+    expect(isAngleInRange(5, 350, 20)).toBe(true);
+    expect(isAngleInRange(20, 350, 20)).toBe(false);
+  });
+
+  it('span=180 ならちょうど半周をカバー', () => {
+    expect(isAngleInRange(0, 0, 180)).toBe(true);
+    expect(isAngleInRange(180, 0, 180)).toBe(true);
+    expect(isAngleInRange(181, 0, 180)).toBe(false);
   });
 });

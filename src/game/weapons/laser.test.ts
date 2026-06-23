@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 import {
   LASER_BASE_AS,
   LASER_BASE_DAMAGE_MUL,
+  LASER_MEGA_BEAM_WIDTH_PCT,
   LASER_MEGA_CD_SEC,
   laserMegaBeam,
   laserNormalAttack,
@@ -202,20 +203,24 @@ describe('laserNormalAttack', () => {
 // ---------------------------------------------------------------------------
 
 describe('laserMegaBeam', () => {
+  // テスト用デフォルト: マシン (50,50)、 ビームは右 (angle=0°) 方向に発射する
+  // → 敵は x > 50, y ≈ 50 に置くと「ビーム軸上」 として判定される
+
   it('敵が 0 体のとき hits=[]', () => {
     const machine = makeMachine();
     const stats = laserStats(0);
-    const result = laserMegaBeam(machine, stats, []);
+    const result = laserMegaBeam(machine, stats, [], 0);
     expect(result.hits).toHaveLength(0);
   });
 
-  it('全敵にヒットする（範囲外含む）', () => {
+  it('ビーム軸上の敵にヒットする (範囲は射程によらず画面端まで)', () => {
     const machine = makeMachine({ critRate: 0 });
-    const stats = laserStats(0); // damageMul=1.0, megaDamageMul=10.0
-    const e1 = makeEnemy({ id: 'mega-e1' });
-    const e2 = makeEnemy({ id: 'mega-e2' });
-    const e3 = makeEnemy({ id: 'mega-e3' });
-    const result = laserMegaBeam(machine, stats, [e1, e2, e3]);
+    const stats = laserStats(0);
+    // 全敵を angle=0 (右) のビーム軸 (y=50) 上に配置 → 全員ヒット
+    const e1 = makeEnemy({ id: 'mega-e1', position: { x: 60, y: 50 } });
+    const e2 = makeEnemy({ id: 'mega-e2', position: { x: 75, y: 50 } });
+    const e3 = makeEnemy({ id: 'mega-e3', position: { x: 90, y: 50 } });
+    const result = laserMegaBeam(machine, stats, [e1, e2, e3], 0);
     expect(result.hits).toHaveLength(3);
     const ids = result.hits.map((h) => h.enemyId);
     expect(ids).toContain('mega-e1');
@@ -223,12 +228,47 @@ describe('laserMegaBeam', () => {
     expect(ids).toContain('mega-e3');
   });
 
+  it('ビーム軸から幅の半分より外の敵はヒットしない', () => {
+    const machine = makeMachine();
+    const stats = laserStats(0);
+    // beamWidthPct=LASER_MEGA_BEAM_WIDTH_PCT の半分より上の敵は外れる
+    const inside = makeEnemy({ id: 'in', position: { x: 70, y: 50 } });
+    const outside = makeEnemy({
+      id: 'out',
+      position: { x: 70, y: 50 + LASER_MEGA_BEAM_WIDTH_PCT },
+    });
+    const result = laserMegaBeam(machine, stats, [inside, outside], 0);
+    const ids = result.hits.map((h) => h.enemyId);
+    expect(ids).toContain('in');
+    expect(ids).not.toContain('out');
+  });
+
+  it('ビーム背後 (parallel < 0) の敵はヒットしない', () => {
+    const machine = makeMachine();
+    const stats = laserStats(0);
+    const front = makeEnemy({ id: 'front', position: { x: 70, y: 50 } });
+    const back = makeEnemy({ id: 'back', position: { x: 30, y: 50 } }); // angle=0 の真逆
+    const result = laserMegaBeam(machine, stats, [front, back], 0);
+    const ids = result.hits.map((h) => h.enemyId);
+    expect(ids).toContain('front');
+    expect(ids).not.toContain('back');
+  });
+
+  it('angleDeg=90 (下) の敵にヒットする', () => {
+    const machine = makeMachine();
+    const stats = laserStats(0);
+    // y 軸 (下方向) ビーム → 敵は x=50, y>50 に置く
+    const enemy = makeEnemy({ id: 'down', position: { x: 50, y: 80 } });
+    const result = laserMegaBeam(machine, stats, [enemy], 90);
+    expect(result.hits).toHaveLength(1);
+  });
+
   it('Mega Beam のダメージは通常攻撃の ×megaDamageMul になる（Lv0）', () => {
     const baseAttack = 100;
     const machine = makeMachine({ baseAttack: BigNum.fromNumber(baseAttack), critRate: 0 });
     const stats = laserStats(0);
-    const enemy = makeEnemy({ id: 'mega-dmg' });
-    const result = laserMegaBeam(machine, stats, [enemy]);
+    const enemy = makeEnemy({ id: 'mega-dmg', position: { x: 70, y: 50 } });
+    const result = laserMegaBeam(machine, stats, [enemy], 0);
     // damage = baseAttack × LASER_BASE_DAMAGE_MUL × megaDamageMul(=10)
     const expected = String(Math.floor(baseAttack * LASER_BASE_DAMAGE_MUL * 10));
     expect(result.hits[0].damage.toString()).toBe(expected);
@@ -237,13 +277,11 @@ describe('laserMegaBeam', () => {
   it('Lv10 の Mega Beam: damage = baseAttack × damageMul × megaDamageMul', () => {
     const machine = makeMachine({ baseAttack: BigNum.fromNumber(100), critRate: 0 });
     const stats = laserStats(10);
-    // damageMul = 1.02^10, megaDamageMul = 15.0
     const totalMul = stats.damageMul * stats.megaDamageMul;
     const expected = Math.floor(100 * totalMul);
-    const enemy = makeEnemy({ id: 'mega-lv10' });
-    const result = laserMegaBeam(machine, stats, [enemy]);
+    const enemy = makeEnemy({ id: 'mega-lv10', position: { x: 70, y: 50 } });
+    const result = laserMegaBeam(machine, stats, [enemy], 0);
     const actual = parseInt(result.hits[0].damage.toString(), 10);
-    // 丸め誤差 ±1 を許容
     expect(actual).toBeGreaterThanOrEqual(expected - 1);
     expect(actual).toBeLessThanOrEqual(expected + 2);
   });
@@ -256,9 +294,8 @@ describe('laserMegaBeam', () => {
       critMultiplier: 3.0,
     });
     const stats = laserStats(0);
-    const enemy = makeEnemy({ id: 'mega-nocrit' });
-    const result = laserMegaBeam(machine, stats, [enemy]);
-    // クリ無効を期待。 baseAttack × LASER_BASE_DAMAGE_MUL × megaDamageMul(=10)
+    const enemy = makeEnemy({ id: 'mega-nocrit', position: { x: 70, y: 50 } });
+    const result = laserMegaBeam(machine, stats, [enemy], 0);
     const expected = String(Math.floor(baseAttack * LASER_BASE_DAMAGE_MUL * 10));
     expect(result.hits[0].damage.toString()).toBe(expected);
   });

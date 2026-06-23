@@ -4,9 +4,11 @@ import {
   TIER_BASE,
   tierBaseHp,
   tierBaseAtk,
+  tierScrewFactor,
   getTierConfig,
   waveHpFactor,
   waveAtkFactor,
+  waveScrewFactor,
   waveSpawnFactor,
 } from './tier';
 
@@ -225,5 +227,47 @@ describe('getTierConfig', () => {
   it('T=1 の baseAtk は 2', () => {
     const config = getTierConfig(1);
     expect(config.baseAtk.eq(BigNum.fromNumber(TIER_BASE.ATK))).toBe(true);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// screw スケール
+// ---------------------------------------------------------------------------
+
+describe('waveScrewFactor', () => {
+  it('W=1 で 1.0', () => {
+    expect(waveScrewFactor(1)).toBeCloseTo(1.0);
+  });
+
+  it('W=10 で 2.8 (= 1 + 0.2 × 9)', () => {
+    expect(waveScrewFactor(10)).toBeCloseTo(2.8);
+  });
+
+  it('W=30 で 6.8 (= 1 + 0.2 × 29)', () => {
+    expect(waveScrewFactor(30)).toBeCloseTo(6.8);
+  });
+
+  it('W=0 / 負値でも下限 1.0 (factor=1)', () => {
+    expect(waveScrewFactor(0)).toBeCloseTo(1.0);
+    expect(waveScrewFactor(-5)).toBeCloseTo(1.0);
+  });
+});
+
+describe('tierScrewFactor', () => {
+  it('T=1 で 1.0', () => {
+    expect(tierScrewFactor(1)).toBeCloseTo(1.0);
+  });
+
+  it('T=2 で 1.5', () => {
+    expect(tierScrewFactor(2)).toBeCloseTo(1.5);
+  });
+
+  it('T=5 で 5.0625 (= 1.5^4)', () => {
+    expect(tierScrewFactor(5)).toBeCloseTo(5.0625);
+  });
+
+  it('T=0 / 負値でも下限 1.0', () => {
+    expect(tierScrewFactor(0)).toBeCloseTo(1.0);
+    expect(tierScrewFactor(-3)).toBeCloseTo(1.0);
   });
 });

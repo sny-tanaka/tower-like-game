@@ -124,7 +124,9 @@ export function BattleHudBottom({
             aria-label={`アクティブスキル発動${activeOnCd ? ' (クールダウン中)' : isAutoActive ? ' (自動モード)' : ''}`}
           >
             <CircularProgress
-              value={activeOnCd ? activeCd : activeMax}
+              // 「発動 = 0 → 時計回りで溜まっていく」 仕様。 activeCd は残り CD 秒数なので
+              // 経過時間 = activeMax - activeCd を進捗値として渡す。
+              value={activeOnCd ? activeMax - activeCd : activeMax}
               max={activeMax > 0 ? activeMax : 1}
               size={64}
               color={activeOnCd ? 'cd' : 'primary'}

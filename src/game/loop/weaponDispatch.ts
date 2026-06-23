@@ -19,6 +19,18 @@ export interface UnifiedHit {
 
 export interface UnifiedAttackResult {
   hits: UnifiedHit[];
+  /**
+   * 単一着弾点 (現在は cannon のみ設定)。 1 ショットで splash 範囲の複数敵に当たっても、
+   * 物理的に飛翔する砲弾は 1 個。 useBattleLoop はこの座標を起点に砲弾飛翔 + 爆発の
+   * Fx を 1 セットだけ生成する。
+   */
+  impactX?: number;
+  impactY?: number;
+  /**
+   * 更新後の刃の角度 (cutter のみ設定)。 useBattleLoop は cutterAngleDegRef に書き戻して
+   * 次フレームの fire / 描画 (CutterOrbitFx) に反映する。
+   */
+  cutterAngle?: number;
 }
 
 // ---------------------------------------------------------------------------
@@ -82,6 +94,8 @@ export function fireWeapon({
       const r = cannonNormalAttack(machine, boosted, enemiesInRange, rng);
       return {
         hits: r.hits.map((h) => ({ enemyId: h.enemyId, damage: h.damage, crit: h.crit })),
+        impactX: r.blastX,
+        impactY: r.blastY,
       };
     }
     case 'thunder': {
@@ -98,6 +112,7 @@ export function fireWeapon({
       const r = cutterNormalAttack(machine, boosted, enemiesInRange, cutterAngleDeg, rng);
       return {
         hits: r.hits.map((h) => ({ enemyId: h.enemyId, damage: h.damage, crit: h.crit })),
+        cutterAngle: r.angle,
       };
     }
   }

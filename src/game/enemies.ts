@@ -1,4 +1,12 @@
-import { TIER_BASE, tierBaseHp, tierBaseAtk, waveHpFactor, waveAtkFactor } from './tier';
+import {
+  TIER_BASE,
+  tierBaseHp,
+  tierBaseAtk,
+  tierScrewFactor,
+  waveHpFactor,
+  waveAtkFactor,
+  waveScrewFactor,
+} from './tier';
 import type { EnemyKind, EnemyTemplate, NormalSubtype, SpawnedEnemy } from './types';
 
 // ---------------------------------------------------------------------------
@@ -93,6 +101,9 @@ export function createEnemyTemplate(
   const hpFactor = waveHpFactor(waveIndex);
   const atkFactor = waveAtkFactor(waveIndex);
 
+  // screw ドロップは wave / tier 進行でスケール (ラン中強化の進行速度確保)
+  const screwScale = waveScrewFactor(waveIndex) * tierScrewFactor(tier);
+
   if (kind === 'normal') {
     const st = subtype ?? 'standard';
     const hp = baseHp.mulNumber(NORMAL_HP_MULT[st]).mulNumber(hpFactor);
@@ -106,7 +117,7 @@ export function createEnemyTemplate(
       atk,
       speed,
       reward: {
-        screw: NORMAL_SCREW_REWARD[st],
+        screw: Math.max(1, Math.round(NORMAL_SCREW_REWARD[st] * screwScale)),
         bolt: NORMAL_BOLT_BASE[st],
         alloyChance: 0,
         alloyAmount: 0,
@@ -120,14 +131,17 @@ export function createEnemyTemplate(
   const atk = baseAtk.mulNumber(UPPER_ATK_MULT[upperKind]).mulNumber(atkFactor);
   const speed = TIER_BASE.SPD; // 上位敵は standard 速度（仕様に特記なし）
 
-  const reward = UPPER_REWARD[upperKind];
+  const baseReward = UPPER_REWARD[upperKind];
 
   return {
     kind,
     hp,
     atk,
     speed,
-    reward: { ...reward },
+    reward: {
+      ...baseReward,
+      screw: Math.max(1, Math.round(baseReward.screw * screwScale)),
+    },
   };
 }
 

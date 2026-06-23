@@ -9,6 +9,8 @@ import { DamagePopFx } from '@/components/fx/DamagePopFx';
 import { EnemyDeathFx } from '@/components/fx/EnemyDeathFx';
 import { EnemyHitFx } from '@/components/fx/EnemyHitFx';
 import { LaserBeamFx } from '@/components/fx/LaserBeamFx';
+import { MegaBeamFx } from '@/components/fx/MegaBeamFx';
+import { OverdriveAuraFx } from '@/components/fx/OverdriveAuraFx';
 import { PickupFx } from '@/components/fx/PickupFx';
 import type { PickupIconName } from '@/components/fx/PickupFx';
 import { ThunderStrikeFx } from '@/components/fx/ThunderStrikeFx';
@@ -75,7 +77,8 @@ export type ProjectileEvent =
     }
   | { id: string; kind: 'blast'; x: number; y: number; delayMs?: number }
   | { id: string; kind: 'thunderStrike'; x: number; y: number; durationMs: number }
-  | { id: string; kind: 'chain'; points: { x: number; y: number }[]; delayMs?: number };
+  | { id: string; kind: 'chain'; points: { x: number; y: number }[]; delayMs?: number }
+  | { id: string; kind: 'megaBeam'; x: number; y: number; angle: number };
 
 /**
  * 撃破時の通貨ドロップ演出 (HUD へ吸い込まれる)。
@@ -131,6 +134,16 @@ export interface BattleFieldProps {
    * battle 画面側で `currentWeapon === 'cutter' && isRunActive && !paused` を判定して渡す。
    */
   showCutterOrbit?: boolean;
+  /**
+   * Cutter Overdrive 中のオーラを表示するか。
+   * battle 画面側で useBattleLoop().isOverdriveActive を渡す。
+   */
+  showOverdriveAura?: boolean;
+  /**
+   * CutterOrbitFx の 1 周時間 (ms)。 未指定なら CutterOrbitFx の default (1300ms) を使う。
+   * Overdrive 中は battle 画面側で 1/3 (≈433ms) を渡して刃の回転を体感 3 倍速にする。
+   */
+  cutterRotateMs?: number;
   /** 索敵半径（パーセント） */
   range: number;
   /**
@@ -184,6 +197,8 @@ export function BattleField({
   pickupEvents = [],
   onPickupDone,
   showCutterOrbit = false,
+  showOverdriveAura = false,
+  cutterRotateMs,
   range,
   dummyPins = [],
 }: BattleFieldProps) {
@@ -302,6 +317,15 @@ export function BattleField({
           <CutterOrbitFx
             cx={machineX}
             cy={machineY}
+            rotateMs={cutterRotateMs}
+          />
+        )}
+
+        {/* Cutter Overdrive 中のオーラ (8 秒間継続表示) */}
+        {showOverdriveAura && (
+          <OverdriveAuraFx
+            x={machineX}
+            y={machineY}
           />
         )}
 
@@ -402,6 +426,16 @@ export function BattleField({
                   key={evt.id}
                   points={evt.points}
                   delayMs={evt.delayMs}
+                  onDone={() => onProjectileDone?.(evt.id)}
+                />
+              );
+            case 'megaBeam':
+              return (
+                <MegaBeamFx
+                  key={evt.id}
+                  x={evt.x}
+                  y={evt.y}
+                  angle={evt.angle}
                   onDone={() => onProjectileDone?.(evt.id)}
                 />
               );

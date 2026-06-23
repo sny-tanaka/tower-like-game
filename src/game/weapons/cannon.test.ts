@@ -251,7 +251,7 @@ describe('cannonVolley', () => {
     // 敵なし（全 shot が仮想着弾点）で角度を検証する
     // 敵なし → baseDeg = 0°（デフォルト）
     // shot[i] の着弾点 = (cos(72°×i), sin(72°×i)) × 100 + マシン座標
-    const machineX = 0;
+    const machineX = 50; // useBattleLoop の MACHINE_CENTER と一致
     const machineY = 50;
     const result = cannonVolley(machine, stats, []);
 
@@ -274,23 +274,18 @@ describe('cannonVolley', () => {
 
   it('shot の爆発半径は通常の 3 倍（Volley は splashRadius × 3 を使う）', () => {
     // splashRadius=30 → volley splashRadius=90
-    // マシン(x=0, y=50)
-    // baseDeg は最近の敵 CLOSE(x=10,y=50) の方向 = 0°
+    // マシン(x=50, y=50)
+    // baseDeg は最近の敵 CLOSE(x=60,y=50) の方向 = 0°
     // shot[0] 方向 cos(0°)=1, sin(0°)=0
-    //   CLOSE 射影 = 10
-    //   FAR 射影 = 50 → shot[0] 着弾点
-    //   EXTRA は y 方向にずらして 0° 方向の射影を小さくする
-    //   EXTRA(x=50, y=85): 射影 = 50×1 + (85-50)×0 = 50（FAR と等しい）
-    //   同一射影の場合は最初に見つかった方 → EXTRA を CLOSE, FAR の後に渡す
-    //   ただし結果が不安定なので、EXTRA を FAR から上方向（y 方向）にずらす
-    //   EXTRA(x=15, y=50): 射影 = 15 < 50 なので着弾点は FAR
-    //   FAR(x=50,y=50) から EXTRA(x=15,y=50) の距離 = 35 > 30（通常外）、≤ 90（Volley 内）
+    //   各敵の射影 = (ex - 50) × 1 + (ey - 50) × 0 = ex - 50
+    //   CLOSE 射影 = 10、FAR 射影 = 40（最大）→ shot[0] 着弾点 = FAR
+    //   EXTRA(x=55, y=50): 射影 = 5 < 40。
+    //     FAR(x=90, y=50) から EXTRA(x=55, y=50) の距離 = 35 > 30（通常外）、≤ 90（Volley 内）
     const statsLv0 = cannonStats(0); // splashRadius=30
 
-    const close = makeEnemy('CLOSE', 10, 50); // 最近の敵 → baseDeg=0°
-    const far = makeEnemy('FAR', 50, 50); // 射影最大 → shot[0] の着弾点
-    // EXTRA: FAR から距離 35（通常半径 30 外）、Volley 半径 90 内、射影 15 < 50
-    const extra = makeEnemy('EXTRA', 15, 50); // FAR から距離 35、射影 15
+    const close = makeEnemy('CLOSE', 60, 50); // 最近の敵 → baseDeg=0°
+    const far = makeEnemy('FAR', 90, 50); // 射影最大 → shot[0] の着弾点
+    const extra = makeEnemy('EXTRA', 55, 50); // FAR から距離 35、射影 5
 
     const result = cannonVolley(machine, statsLv0, [close, far, extra]);
 
@@ -302,7 +297,8 @@ describe('cannonVolley', () => {
 
   it('Volley ダメージは通常攻撃の damageMul × volleyDamageMul 倍になっている', () => {
     // baseAttack=100, Lv0: damageMul=CANNON_BASE_DAMAGE_MUL, volleyDamageMul=20
-    const enemy = makeEnemy('A', 50, 50);
+    // 敵をマシン (50,50) から離して baseDeg / 射影 が決定するようにする
+    const enemy = makeEnemy('A', 70, 50);
     const result = cannonVolley(machine, stats, [enemy]);
 
     const shot0 = result.shots[0]!;
@@ -314,9 +310,8 @@ describe('cannonVolley', () => {
   });
 
   it('同一敵が複数 shot にまたがってヒットし得る', () => {
-    // 全 5 shot が着弾点を共有するような位置に敵を配置
-    // 敵を複数配置して複数 shot でヒットするか確認
-    const enemy = makeEnemy('A', 50, 50);
+    // 敵をマシン (50,50) から右に置いて shot[0] にヒットすることを保証
+    const enemy = makeEnemy('A', 70, 50);
     const result = cannonVolley(machine, stats, [enemy]);
 
     // どこかの shot に enemy A のヒットがある
@@ -325,7 +320,7 @@ describe('cannonVolley', () => {
   });
 
   it('spreadDeg=0 のとき全 shot が同じ方向を向く', () => {
-    const enemy = makeEnemy('A', 50, 50);
+    const enemy = makeEnemy('A', 70, 50);
     const result = cannonVolley(machine, stats, [enemy], 0);
 
     // 全 5 shot の blastX / blastY が同一

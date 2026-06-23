@@ -143,43 +143,74 @@ export interface MegaBeamHit {
 }
 
 export interface MegaBeamResult {
-  /** 全敵へのヒット結果 */
+  /** ビーム上にいる敵へのヒット結果 */
   hits: MegaBeamHit[];
 }
 
 /**
- * Mega Beam アクティブ。画面端まで届く全敵に大ダメージ。
+ * Mega Beam の幅 (パーセント)。 仕様 (05-weapons.md): 「幅 30 px の太いビーム」を
+ * BattleField 座標系 (短辺 0-100%) に概算 ≈ 6%。 export して調整可能に。
+ */
+export const LASER_MEGA_BEAM_WIDTH_PCT = 6;
+
+/**
+ * Mega Beam アクティブ。 マシン中心 (machineX, machineY) から angleDeg 方向に伸びる、
+ * 幅 beamWidthPct の太いビーム。 そのビーム矩形上にいる敵だけにダメージ。
  *
- * アクティブ素ダメ = baseAttack × damageMul × megaDamageMul
- * クリ判定: なし（仕様に記載なし。通常攻撃と同様にクリが乗ることも考えられるが
- *            明示なしのため固定ダメとして実装。変更コメントで明記）
- * NOTE: 敵防御・軽減は BattleField 側が責務のため 0 で計算している。
+ * 判定:
+ *  - 敵の (ex - mx, ey - my) を角度方向 (cos, sin) と垂直方向 (-sin, cos) に射影
+ *  - 軸方向 (parallel) > 0 (= 後方にいる敵は対象外) かつ
+ *  - 垂直距離 (perpendicular) の絶対値 ≤ beamWidthPct/2 → ヒット
  *
- * @param machine  マシン本体ステ
- * @param stats    Laser 固有ステ
- * @param enemies  全敵リスト（範囲外含む）
+ * アクティブ素ダメ = baseAttack × damageMul × megaDamageMul、 クリなし。
+ *
+ * @param machine          マシン本体ステ
+ * @param stats            Laser 固有ステ
+ * @param enemies          全敵リスト
+ * @param angleDeg         ビームを発射する角度 (0=右、 90=下。 CSS rotate 互換)
+ * @param machineX         マシン中心 X % (default 50)
+ * @param machineY         マシン中心 Y % (default 50)
+ * @param beamWidthPct     ビーム幅 % (default LASER_MEGA_BEAM_WIDTH_PCT)
  */
 export function laserMegaBeam(
   machine: MachineStats,
   stats: LaserStats,
-  enemies: SpawnedEnemy[]
+  enemies: SpawnedEnemy[],
+  angleDeg = 0,
+  machineX = 50,
+  machineY = 50,
+  beamWidthPct = LASER_MEGA_BEAM_WIDTH_PCT
 ): MegaBeamResult {
   if (enemies.length === 0) {
     return { hits: [] };
   }
 
+  const angleRad = (angleDeg * Math.PI) / 180;
+  const cos = Math.cos(angleRad);
+  const sin = Math.sin(angleRad);
+  const halfWidth = beamWidthPct / 2;
+
   // megaDamageMul は通常攻撃 damageMul に対する追加倍率
   const totalMul = stats.damageMul * stats.megaDamageMul;
 
-  const hits: MegaBeamHit[] = enemies.map((enemy) => {
-    // isCrit=false でクリなし固定
+  const hits: MegaBeamHit[] = [];
+  for (const enemy of enemies) {
+    const dx = enemy.position.x - machineX;
+    const dy = enemy.position.y - machineY;
+    // ビーム軸方向への射影 (進行方向)
+    const parallel = dx * cos + dy * sin;
+    if (parallel <= 0) continue; // ビーム背後にいる敵は当たらない
+    // 垂直方向への射影 (ビーム軸からの離れ)
+    const perpendicular = -dx * sin + dy * cos;
+    if (Math.abs(perpendicular) > halfWidth) continue;
+
     const result = calcOutgoingDamage(
       { machine, weapon: { damageMultiplier: totalMul }, isCrit: false },
       BigNum.ZERO,
       0
     );
-    return { enemyId: enemy.id, damage: result.finalDmg };
-  });
+    hits.push({ enemyId: enemy.id, damage: result.finalDmg });
+  }
 
   return { hits };
 }

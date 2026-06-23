@@ -70,6 +70,25 @@ export function waveSpawnFactor(waveIndex: number): number {
   }
 }
 
+/**
+ * Wave 進行に応じた screw ドロップ倍率。
+ *   waveScrewFactor(W) = 1 + 0.2 × (W - 1)
+ * 例: W1=1.0, W10=2.8, W20=4.8, W30=6.8
+ * 仕様: ラン中強化に必要な screw 量を稼ぎやすくする。 wave 末ほど旨味が増える設計。
+ */
+export function waveScrewFactor(waveIndex: number): number {
+  return 1 + 0.2 * Math.max(0, waveIndex - 1);
+}
+
+/**
+ * Tier 進行に応じた screw ドロップ倍率。 1.5^(T-1)。
+ * 例: T1=1.0, T2=1.5, T3=2.25, T5=5.06
+ * 仕様: 高 tier ほど強化コストも上がるので screw 報酬も指数で増やす。
+ */
+export function tierScrewFactor(tier: number): number {
+  return Math.pow(1.5, Math.max(0, tier - 1));
+}
+
 // ---------------------------------------------------------------------------
 // Tier 計算
 // ---------------------------------------------------------------------------

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, type CSSProperties } from 'react';
 
 import styles from './style.module.scss';
 
@@ -32,6 +32,12 @@ export interface WaveProgressBarProps {
    * ゲームの一時停止状態。 true のときバーアニメーションを停止する。
    */
   paused?: boolean;
+  /**
+   * 現在の wave がボス wave (= tier 最終 wave) かどうか。
+   * true のとき時間バーと残秒数を非表示にし、 「BOSS WAVE」 ラベルを出す。
+   * (ボス wave はカウントダウンでなくボス撃破で次 tier に進むため)
+   */
+  isBossWave?: boolean;
 }
 
 // ---------------------------------------------------------------------------
@@ -59,8 +65,9 @@ export function WaveProgressBar({
   showSeconds = true,
   size = 'md',
   paused = false,
+  isBossWave = false,
 }: WaveProgressBarProps) {
-  const isBoss = nextMilestone?.kind === 'boss';
+  const isBoss = isBossWave || nextMilestone?.kind === 'boss';
   const milestone = nextMilestone != null ? MILESTONE_CONFIG[nextMilestone.kind] : null;
   const safeSecondsMax = Math.max(1, secondsMax);
 
@@ -78,8 +85,8 @@ export function WaveProgressBar({
           variant="tier"
         />
 
-        {/* 次マイルストーン */}
-        {milestone != null && nextMilestone != null && (
+        {/* 次マイルストーン (ボス wave 中は「次」 が無いので表示しない) */}
+        {!isBossWave && milestone != null && nextMilestone != null && (
           <span
             className={styles.milestone}
             style={{ color: milestone.color }}
@@ -95,8 +102,23 @@ export function WaveProgressBar({
           </span>
         )}
 
-        {/* 残り秒数 (テキスト表示) */}
-        {showSeconds && (
+        {/* ボス wave のときは「BOSS WAVE」 ラベル (時間バーの代わり) */}
+        {isBossWave && (
+          <span
+            className={styles.milestone}
+            style={{ color: 'var(--c-secondary)' }}
+          >
+            <Icon
+              name="skull"
+              size={12}
+              color="var(--c-secondary)"
+            />
+            <span className={styles.milestoneText}>BOSS WAVE</span>
+          </span>
+        )}
+
+        {/* 残り秒数 (テキスト表示。 ボス wave では出さない) */}
+        {showSeconds && !isBossWave && (
           <span className={styles.seconds}>
             <Text
               variant="numeric-s"
@@ -108,23 +130,25 @@ export function WaveProgressBar({
         )}
       </div>
 
-      {/* 残量バー (CSS animation で連続描画) */}
-      <div
-        className={styles.timerTrack}
-        role="progressbar"
-        aria-label={`Wave ${waveNumber} timer`}
-        aria-valuemin={0}
-        aria-valuemax={safeSecondsMax}
-        aria-valuenow={Math.max(0, secondsLeft)}
-      >
-        <AnimatedTimerBar
-          key={waveNumber}
-          secondsRemaining={secondsLeft}
-          secondsMax={safeSecondsMax}
-          isBoss={isBoss}
-          paused={paused}
-        />
-      </div>
+      {/* 残量バー (CSS animation で連続描画)。 ボス wave ではカウントダウンしないので非表示 */}
+      {!isBossWave && (
+        <div
+          className={styles.timerTrack}
+          role="progressbar"
+          aria-label={`Wave ${waveNumber} timer`}
+          aria-valuemin={0}
+          aria-valuemax={safeSecondsMax}
+          aria-valuenow={Math.max(0, secondsLeft)}
+        >
+          <AnimatedTimerBar
+            key={waveNumber}
+            secondsRemaining={secondsLeft}
+            secondsMax={safeSecondsMax}
+            isBoss={isBoss}
+            paused={paused}
+          />
+        </div>
+      )}
     </div>
   );
 }
@@ -143,12 +167,12 @@ interface AnimatedTimerBarProps {
 }
 
 function AnimatedTimerBar({ secondsRemaining, secondsMax, isBoss, paused }: AnimatedTimerBarProps) {
-  // mount 時 1 回だけ計算: 残り時間から initial width / animation duration を決める。
+  // mount 時 1 回だけ計算: 残り時間から initial scale (0〜1) / animation duration を決める。
   // 以後の rerender (秒の更新等) では useState の初期化関数は呼ばれないので snapshot は不変。
   const [snapshot] = useState(() => {
-    const initialWidthPct = Math.max(0, Math.min(100, (secondsRemaining / secondsMax) * 100));
+    const initialScale = Math.max(0, Math.min(1, secondsRemaining / secondsMax));
     const durationSec = Math.max(0.01, secondsRemaining);
-    return { initialWidthPct, durationSec };
+    return { initialScale, durationSec };
   });
 
   const className = [
@@ -159,13 +183,16 @@ function AnimatedTimerBar({ secondsRemaining, secondsMax, isBoss, paused }: Anim
     .filter(Boolean)
     .join(' ');
 
+  // --start-scale を CSS custom property として渡す。 keyframes の from で参照される。
   return (
     <div
       className={className}
-      style={{
-        width: `${snapshot.initialWidthPct}%`,
-        animationDuration: `${snapshot.durationSec}s`,
-      }}
+      style={
+        {
+          '--start-scale': snapshot.initialScale,
+          animationDuration: `${snapshot.durationSec}s`,
+        } as CSSProperties
+      }
     />
   );
 }

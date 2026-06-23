@@ -40,14 +40,17 @@ export interface CutterStats {
  *   - ダメ倍率: 1.02^Lv
  *   - Overdrive: 持続 8s、AS×3、ダメ倍率×1（なし）、CD 35s
  */
-/** Cutter 底値 attacks/sec (回転攻撃が常時続く感、 高 AS) */
-export const CUTTER_BASE_AS = 5.0;
+/** Cutter 底値 attacks/sec。 1 fire = 「視覚 1 周のうち 1 / blades 分」 を判定する周期 */
+export const CUTTER_BASE_AS = 2.5;
 /** Cutter 底値 旋回半径 (px) */
 export const CUTTER_BASE_ORBIT_RADIUS = 80;
 /** Cutter 底値 同時ヒット数 */
 export const CUTTER_BASE_SIMULTANEOUS_HITS = 1;
-/** Cutter 底値 武器ダメージ倍率 (短射程の代償で高 DPS。 AS 5.0/s × 0.6 = 3.0) */
-export const CUTTER_BASE_DAMAGE_MUL = 0.6;
+/**
+ * Cutter 底値 武器ダメージ倍率。 DPS は AS × damageMul で 2.5 × 1.2 = 3.0 を維持。
+ * (回転速度を半分にして 1 撃の威力を倍にする方針)
+ */
+export const CUTTER_BASE_DAMAGE_MUL = 1.2;
 
 export function cutterStats(weaponLv: number): CutterStats {
   const attackPerSec = CUTTER_BASE_AS * (1 + 0.03 * weaponLv);
@@ -75,6 +78,18 @@ export const CUTTER_OVERDRIVE_DURATION_SEC = 8;
 /** Cutter アクティブ (Overdrive) 中の攻撃速度倍率 */
 export const CUTTER_OVERDRIVE_ATTACK_SPEED_MUL = 3;
 
+/**
+ * 純粋関数: 攻撃速度 (attacks/sec) と刃の枚数から CutterOrbitFx の 1 周時間 (ms) を算出。
+ *
+ * Cutter は「刃 N 枚 = 1 周あたり N ヒット」なので、 attackPerSec ヒット/秒 を
+ * 視覚的な「刃の回転」で表現するには rotateMs = (blades / attackPerSec) × 1000。
+ * 例: attackPerSec=1, blades=2 → 2000ms (= 2 秒で 1 周、 1 周で 2 ヒット)
+ */
+export function calcCutterRotateMs(attackPerSec: number, blades: number): number {
+  if (attackPerSec <= 0) return Number.POSITIVE_INFINITY;
+  return (blades / attackPerSec) * 1000;
+}
+
 // ---------------------------------------------------------------------------
 // cutterNormalAttack
 // ---------------------------------------------------------------------------
@@ -86,33 +101,77 @@ export interface CutterAttackResult {
 }
 
 /**
+ * 2 つの角度 (度) の最短差を返す。 例: shortestAngleDiff(350, 10) = 20 (340 ではない)。
+ * 戻り値は常に 0〜180 の非負値。
+ */
+export function shortestAngleDiff(a: number, b: number): number {
+  let d = (((a - b) % 360) + 360) % 360;
+  if (d > 180) d = 360 - d;
+  return d;
+}
+
+/**
+ * 角度 angle が「角度範囲 [startDeg, startDeg + spanDeg]」 (CCW 方向) に入っているか。
+ * 360° をまたぐ場合 (start=350, span=20 で end=10) も正しく扱う。
+ */
+export function isAngleInRange(angleDeg: number, startDeg: number, spanDeg: number): boolean {
+  const norm = (v: number) => ((v % 360) + 360) % 360;
+  const a = norm(angleDeg);
+  const s = norm(startDeg);
+  const offset = norm(a - s);
+  return offset <= spanDeg;
+}
+
+/**
  * Cutter 通常攻撃。
  *
- * 旋回半径上（position が orbitRadius 以内）の敵を対象に、
- * simultaneousHits 体まで同時ヒットする。
+ * 1 fire = 「視覚 1 周の 1 / blades 分」 を担当する判定。 各刃 (blades 個、 360/blades 度間隔) が
+ * 前フレームの fire 時点 currentAngleDeg から sweepDeg(=360/blades) 度 進む間に通過する弧 を
+ * 担当範囲とし、 その範囲内 (= orbitRadius 以内 + 角度) に居る敵にヒット判定。
+ * 全 blades 個の担当範囲を合わせると 360° = 全周をカバーする (= 「視覚的に刃が通過した = 当たる」)。
  *
- * 敵の選定: enemiesInRange 先頭から simultaneousHits 体。
- * 旋回角度は currentAngleDeg + 360/attackPerSec の増分で更新される（描画用）。
+ * @param machine           マシンステ
+ * @param stats             Cutter ステ
+ * @param enemiesInRange    旋回半径 (orbitRadius) 以内の敵 (caller がフィルタ済み)
+ * @param currentAngleDeg   前 fire 時の基準刃の角度 (度)。 useBattleLoop の cutterAngleDegRef
+ * @param rng               クリ判定用
+ * @param blades            刃の枚数 (default 2)
+ * @param machineX          マシン中心 X % (default 50)
+ * @param machineY          マシン中心 Y % (default 50)
  */
 export function cutterNormalAttack(
   machine: MachineStats,
   stats: CutterStats,
   enemiesInRange: SpawnedEnemy[],
   currentAngleDeg: number,
-  rng: () => number
+  rng: () => number,
+  blades = 2,
+  machineX = 50,
+  machineY = 50
 ): CutterAttackResult {
-  // 旋回半径内の敵に絞る
-  // position は 0-100 のパーセント値なので、orbitRadius はピクセル単位を想定。
-  // ゲームロジック側で「orbitRadius 以内」の敵を渡してもらう前提だが、
-  // 念のため distance チェックも行う（position 単位系は caller に依存するため、
-  // ここでは渡された enemiesInRange をそのまま使用する）。
-  const targets = enemiesInRange.slice(0, stats.simultaneousHits);
+  // 各刃が担当する弧 = sweepDeg。 blades 個の弧を合計すると 360° (全周カバー)
+  const sweepDeg = 360 / blades;
+  // 担当弧の開始角度: 基準刃 (currentAngleDeg) からの各刃のオフセット位置
+  const bladeStarts: number[] = [];
+  for (let i = 0; i < blades; i++) {
+    bladeStarts.push(currentAngleDeg + i * sweepDeg);
+  }
+
+  // 敵がいずれかの刃の sweep 範囲に入っていればヒット候補
+  const onSweep = enemiesInRange.filter((enemy) => {
+    const dx = enemy.position.x - machineX;
+    const dy = enemy.position.y - machineY;
+    const enemyAngle = (Math.atan2(dy, dx) * 180) / Math.PI;
+    return bladeStarts.some((start) => isAngleInRange(enemyAngle, start, sweepDeg));
+  });
+
+  const targets = onSweep.slice(0, stats.simultaneousHits);
 
   const hits = targets.map((enemy) => {
     const isCrit = rollCrit(machine.critRate, rng);
     const result = calcOutgoingDamage(
       { machine, weapon: { damageMultiplier: stats.damageMul }, isCrit },
-      BigNum.ZERO, // 敵防御力は caller 側が事前にフィルタ済み想定（0 でパス）
+      BigNum.ZERO,
       0
     );
     return {
@@ -122,8 +181,8 @@ export function cutterNormalAttack(
     };
   });
 
-  // 旋回角度の更新（1 attack あたりの進み）
-  const angle = (currentAngleDeg + 360 / stats.attackPerSec) % 360;
+  // 旋回角度の更新: 視覚的にも 1 fire で sweepDeg ぶん進む (= rotateMs と完全同期)
+  const angle = (((currentAngleDeg + sweepDeg) % 360) + 360) % 360;
 
   return { hits, angle };
 }

@@ -111,9 +111,10 @@ describe('createEnemyTemplate: elite', () => {
     expect(t.subtype).toBeUndefined();
   });
 
-  it('報酬 screw が UPPER_REWARD.elite.screw と一致', () => {
+  it('報酬 screw は UPPER_REWARD.elite.screw × waveScrewFactor × tierScrewFactor', () => {
     const t = createEnemyTemplate(1, 5, 'elite');
-    expect(t.reward.screw).toBe(UPPER_REWARD.elite.screw);
+    // T1 W5: waveScrewFactor=1.8, tierScrewFactor=1.0 → 10 × 1.8 × 1 = 18
+    expect(t.reward.screw).toBe(Math.round(UPPER_REWARD.elite.screw * 1.8));
   });
 });
 

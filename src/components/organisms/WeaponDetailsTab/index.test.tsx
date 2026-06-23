@@ -14,7 +14,13 @@ import { CANNON_BASE_DAMAGE_MUL } from '@/game/weapons/cannon';
 import { CUTTER_BASE_DAMAGE_MUL } from '@/game/weapons/cutter';
 import { LASER_BASE_DAMAGE_MUL } from '@/game/weapons/laser';
 import { THUNDER_BASE_DAMAGE_MUL } from '@/game/weapons/thunder';
+import { BigNum } from '@/lib/bignum';
 import { useStore } from '@/store/index';
+
+/** ゲーム実値と同じ BigNum 計算でダメージ表示文字列を作る */
+function expectDamage(baseAttack: number, damageMul: number): string {
+  return BigNum.fromNumber(baseAttack).mulNumber(damageMul).toString();
+}
 
 // ---------------------------------------------------------------------------
 // テスト用ダミー値: baseAttack=100, range=200 を渡して計算結果を検証
@@ -34,10 +40,11 @@ describe('buildLaserStats', () => {
     expect(stats.find((s) => s.label === '貫通')?.value).toBe(2);
   });
 
-  it('Lv 0 で DMG = baseAttack × LASER_BASE_DAMAGE_MUL', () => {
+  it('Lv 0 で DMG = baseAttack × LASER_BASE_DAMAGE_MUL (ゲーム実値の BigNum と一致)', () => {
     const stats = buildLaserStats(0, BASE_ATTACK, RANGE);
-    const expected = Math.round(BASE_ATTACK * LASER_BASE_DAMAGE_MUL);
-    expect(stats.find((s) => s.label === 'DMG')?.value).toBe(expected);
+    expect(stats.find((s) => s.label === 'DMG')?.value).toBe(
+      expectDamage(BASE_ATTACK, LASER_BASE_DAMAGE_MUL)
+    );
   });
 
   it('射程は machineRange を suffix m で表示', () => {
@@ -56,8 +63,9 @@ describe('buildCannonStats', () => {
 
   it('Lv 0 で DMG = baseAttack × CANNON_BASE_DAMAGE_MUL', () => {
     const stats = buildCannonStats(0, BASE_ATTACK, RANGE);
-    const expected = Math.round(BASE_ATTACK * CANNON_BASE_DAMAGE_MUL);
-    expect(stats.find((s) => s.label === 'DMG')?.value).toBe(expected);
+    expect(stats.find((s) => s.label === 'DMG')?.value).toBe(
+      expectDamage(BASE_ATTACK, CANNON_BASE_DAMAGE_MUL)
+    );
   });
 });
 
@@ -69,8 +77,9 @@ describe('buildThunderStats', () => {
 
   it('Lv 0 で DMG = baseAttack × THUNDER_BASE_DAMAGE_MUL', () => {
     const stats = buildThunderStats(0, BASE_ATTACK, RANGE);
-    const expected = Math.round(BASE_ATTACK * THUNDER_BASE_DAMAGE_MUL);
-    expect(stats.find((s) => s.label === 'DMG')?.value).toBe(expected);
+    expect(stats.find((s) => s.label === 'DMG')?.value).toBe(
+      expectDamage(BASE_ATTACK, THUNDER_BASE_DAMAGE_MUL)
+    );
   });
 });
 
@@ -87,8 +96,9 @@ describe('buildCutterStats', () => {
 
   it('Lv 0 で DMG = baseAttack × CUTTER_BASE_DAMAGE_MUL', () => {
     const stats = buildCutterStats(0, BASE_ATTACK);
-    const expected = Math.round(BASE_ATTACK * CUTTER_BASE_DAMAGE_MUL);
-    expect(stats.find((s) => s.label === 'DMG')?.value).toBe(expected);
+    expect(stats.find((s) => s.label === 'DMG')?.value).toBe(
+      expectDamage(BASE_ATTACK, CUTTER_BASE_DAMAGE_MUL)
+    );
   });
 
   it('Cutter の連射速度ラベルは「回転速度」(他武器の「連射速度」と区別)', () => {

@@ -15,6 +15,15 @@ import { evaluatePatches } from '@/game/patches';
 import type { EquippedPatch } from '@/game/patches.types';
 import type { SpawnedEnemy } from '@/game/types';
 import { buildTierWaves, getSpawnsAtTime } from '@/game/wave';
+import { cannonStats, cannonVolley } from '@/game/weapons/cannon';
+import {
+  cutterStartOverdrive,
+  cutterStats,
+  cutterTickOverdrive,
+  type OverdriveState,
+} from '@/game/weapons/cutter';
+import { laserMegaBeam, laserStats } from '@/game/weapons/laser';
+import { thunderPlasmaDischarge, thunderStats } from '@/game/weapons/thunder';
 import { soundEngine } from '@/lib/audio';
 import type { SoundId } from '@/lib/audio';
 import { BigNum } from '@/lib/bignum';
@@ -40,14 +49,41 @@ export function calcFrameGameSec(elapsedMs: number, isPaused: boolean): number {
 
 export type AdvanceDecision = 'continue' | 'advanceWave' | 'advanceTier';
 
+/**
+ * ボススポーン時刻 (wave 開始から何秒後にボスが出るか)。
+ * src/game/wave.ts の UPPER_ENEMY_LEAD_SEC=1 と同じく「wave 終了 1 秒前」 を前提とする。
+ */
+export const BOSS_SPAWN_LEAD_SEC = 1;
+
+/**
+ * ウェーブ進行判定。
+ *  - 通常 wave (1〜totalWaves-1): waveElapsedMs >= durationSec*1000 で advanceWave
+ *  - 最終 wave (= totalWaves、 boss wave): 時間カウントダウンしない。
+ *    「ボススポーン時刻を過ぎている」 かつ 「残敵 0」 で advanceTier
+ *
+ * @param waveElapsedMs    現 wave の経過 ms
+ * @param durationSec      schedule.durationSec (= WAVE_DURATION_SEC)
+ * @param currentWave      1〜totalWaves
+ * @param totalWaves       1 tier の wave 数
+ * @param enemiesCount     現在の生存敵数
+ */
 export function decideWaveAdvance(
   waveElapsedMs: number,
   durationSec: number,
   currentWave: number,
-  totalWaves: number
+  totalWaves: number,
+  enemiesCount: number
 ): AdvanceDecision {
+  if (currentWave >= totalWaves) {
+    // 最終 wave: ボス撃破 (= スポーン後の残敵 0) で advanceTier。 時間経過は無視
+    const bossSpawnedMs = Math.max(0, (durationSec - BOSS_SPAWN_LEAD_SEC) * 1000);
+    if (waveElapsedMs >= bossSpawnedMs && enemiesCount === 0) {
+      return 'advanceTier';
+    }
+    return 'continue';
+  }
+  // 通常 wave: 時間経過で次へ
   if (waveElapsedMs < durationSec * 1000) return 'continue';
-  if (currentWave >= totalWaves) return 'advanceTier';
   return 'advanceWave';
 }
 
@@ -98,11 +134,47 @@ export function distanceFromMachine(position: { x: number; y: number }): number 
 /** 仕様: 攻撃速度 hard cap = 10 attacks/sec (design-docs/04-run-workshop.md L64) */
 export const ATTACK_PER_SEC_CAP = 10;
 
-/** マシン本体への被ダメ近接判定距離 (%)。 現状は敵移動ロジック未実装のための placeholder */
+/** マシン本体への被ダメ近接判定距離 (%)。 距離 ≤ この値で敵がマシンに「接触」している扱い */
 export const MELEE_CONTACT_RANGE = 5;
 
-/** アクティブスキル CD 最大値 (秒)。 デフォルト 30 秒 */
-export const DEFAULT_ACTIVE_MAX_SEC = 30;
+/**
+ * 敵接触時のノックバック距離 (%)。 マシン中心から離れる方向に enemy.position をこの値だけ押し戻す。
+ * 体感としてスマホ画面(短辺 ~400px)で約 20px 相当。 画面サイズが変わると見た目の px は変動する。
+ * 「新規接触フレーム」のみ 1 回適用 (毎フレーム適用ではない) ので、再接近 → 再接触 → 再ノックバック
+ * というサイクルでダメージ間隔が空く。
+ */
+export const KNOCKBACK_DISTANCE_PCT = 5;
+
+/**
+ * 純粋関数: ノックバック後の position を計算する。
+ *
+ * マシン中心 (center) から離れる方向の単位ベクトル × distancePct を position に加算し、
+ * 結果を 0-100 にクランプして返す。 enemy.position が center と完全一致するケースでは
+ * 単位ベクトルが定まらないため、その場では右方向 (dx=1, dy=0) にフォールバックする。
+ */
+export function applyKnockback(
+  position: { x: number; y: number },
+  center: { x: number; y: number },
+  distancePct: number
+): { x: number; y: number } {
+  let dx = position.x - center.x;
+  let dy = position.y - center.y;
+  const len = Math.sqrt(dx * dx + dy * dy);
+  if (len === 0) {
+    dx = 1;
+    dy = 0;
+  } else {
+    dx /= len;
+    dy /= len;
+  }
+  return {
+    x: Math.max(0, Math.min(100, position.x + dx * distancePct)),
+    y: Math.max(0, Math.min(100, position.y + dy * distancePct)),
+  };
+}
+
+/** アクティブスキル CD 最大値 (秒)。 初期値 = 1 分。 RW 等で短縮していく想定 */
+export const DEFAULT_ACTIVE_MAX_SEC = 60;
 
 /**
  * Cutter (回転刃武器) の当たり判定半径 (%)。
@@ -145,18 +217,41 @@ export interface UseBattleLoopOpts {
   paused?: boolean;
 }
 
+/**
+ * 上位敵 (elite / miniboss / boss) の出現バナー演出イベント。
+ * useBattleLoop が spawn 検知時に発火し、 battle 画面が AppearanceBannerFx をマウントする。
+ */
+export interface AppearanceEvent {
+  id: string;
+  kind: 'elite' | 'miniboss' | 'boss';
+  /** 表示用の敵名 (例 "ELITE T1W5"。 battle 画面で生成しても良い) */
+  name: string;
+}
+
 export interface UseBattleLoopResult {
   enemies: SpawnedEnemy[];
   damageEvents: DamageEvent[];
   deathEvents: DeathEvent[];
   projectileEvents: ProjectileEvent[];
   pickupEvents: PickupEvent[];
+  appearanceEvents: AppearanceEvent[];
   /** 現在 wave 内の経過秒 (0 〜 WAVE_DURATION_SEC) */
   waveElapsedSec: number;
   onDamageDone: (id: string) => void;
   onDeathDone: (id: string) => void;
   onProjectileDone: (id: string) => void;
   onPickupDone: (id: string) => void;
+  onAppearanceDone: (id: string) => void;
+  /**
+   * アクティブスキル発動。 store.triggerActive (CD セット + activeCdSec=max) を呼んだ上で、
+   * 現在装備武器に応じて Mega Beam / Volley / Plasma Discharge / Overdrive を実行する。
+   * 既存の triggerActive() を直接呼ぶ代わりにこの関数を使うと、 SE / 視覚 Fx / 敵 HP 減算
+   * もまとめて配線される。
+   * @returns 発動した場合 true、 CD 中など発動できなかった場合 false
+   */
+  fireActive: () => boolean;
+  /** Cutter Overdrive 中 (battle 画面で OverdriveAuraFx を表示するためのフラグ) */
+  isOverdriveActive: boolean;
 }
 
 /** 通常敵が ボルト をドロップする確率 (02-currencies.md 仕様) */
@@ -179,12 +274,29 @@ export function useBattleLoop({ range, paused = false }: UseBattleLoopOpts): Use
   const deathEventIdRef = useRef<number>(0);
   const projectileEventIdRef = useRef<number>(0);
   const pickupEventIdRef = useRef<number>(0);
+  const appearanceEventIdRef = useRef<number>(0);
   /**
    * ラン開始からのゲーム内累積時間 (ms)。
    * wave 切替で 0 リセットしない (wave 跨ぎの状態異常期限判定に使う)。
    * deltaSec * 1000 で累積する「ゲーム内時間」。
    */
   const runElapsedGameMsRef = useRef<number>(0);
+  /**
+   * 前フレームに「接触中」だった敵 ID の集合。 ノックバックは「新規接触したフレームのみ」
+   * 適用するための状態遷移マーカー。 frame N で接触 → frame N+1 で非接触 (押し戻された) →
+   * frame N+M で再接触 → ノックバック再発火、 というサイクルでダメージ間隔を空ける。
+   */
+  const prevContactSetRef = useRef<Set<string>>(new Set());
+  /**
+   * Cutter Overdrive (8s AS×3 バフ) の現在状態。 active=true の間、 通常攻撃の
+   * effectivePerSec に overdriveStateRef.current.attackSpeedMul を乗算する。
+   */
+  const overdriveStateRef = useRef<OverdriveState>({
+    active: false,
+    remainingSec: 0,
+    attackSpeedMul: 1,
+    damageMul: 1,
+  });
   /**
    * 着弾遅延 hit (Cannon 専用)。 砲弾の飛翔中はダメージを保留し、
    * applyAtMs 到達時に敵 HP 減算 + DamageEvent / 状態異常付与を行う。
@@ -206,7 +318,9 @@ export function useBattleLoop({ range, paused = false }: UseBattleLoopOpts): Use
   const [deathEvents, setDeathEvents] = useState<DeathEvent[]>([]);
   const [projectileEvents, setProjectileEvents] = useState<ProjectileEvent[]>([]);
   const [pickupEvents, setPickupEvents] = useState<PickupEvent[]>([]);
+  const [appearanceEvents, setAppearanceEvents] = useState<AppearanceEvent[]>([]);
   const [waveElapsedSec, setWaveElapsedSec] = useState<number>(0);
+  const [isOverdriveActive, setIsOverdriveActive] = useState<boolean>(false);
 
   const isRunActive = useStore((s) => s.isRunActive);
   const currentTier = useStore((s) => s.currentTier);
@@ -260,6 +374,165 @@ export function useBattleLoop({ range, paused = false }: UseBattleLoopOpts): Use
     setPickupEvents((prev) => prev.filter((e) => e.id !== id));
   }, []);
 
+  const onAppearanceDone = useCallback((id: string) => {
+    setAppearanceEvents((prev) => prev.filter((e) => e.id !== id));
+  }, []);
+
+  // ---------------------------------------------------------------------------
+  // アクティブスキル発動 (manual / auto 共通)
+  // store.triggerActive で CD セット + 武器ごとの active 関数を呼び、 敵 HP 減算 / DamageEvent
+  // / ProjectileEvent を生成して配信する。 Cutter は overdriveStateRef を更新するのみで
+  // 効果 (AS×3 8s) は tick の effectivePerSec 計算側で乗算される。
+  // ---------------------------------------------------------------------------
+  const fireActive = useCallback((): boolean => {
+    const state = useStore.getState();
+    if (state.activeCdSec > 0 || state.machineHp.isZero() || !state.isRunActive) {
+      return false;
+    }
+    const fired = state.triggerActive(DEFAULT_ACTIVE_MAX_SEC);
+    if (!fired) return false;
+
+    soundEngine.play(WEAPON_ACTIVE_SOUND[state.currentWeapon]);
+
+    const machine = buildMachineStats({ machineMaxHp: state.machineMaxHp });
+    const attackMul = calcRunWorkshopMultiplier(state.runWorkshopLevels.attackMul);
+    const newDamageEvents: DamageEvent[] = [];
+    const newProjectileEvents: ProjectileEvent[] = [];
+
+    const applyHits = (hits: Array<{ enemyId: string; damage: BigNum; crit?: boolean }>): void => {
+      const hitMap = new Map(hits.map((h) => [h.enemyId, h]));
+      enemiesRef.current = enemiesRef.current.map((e) => {
+        const hit = hitMap.get(e.id);
+        if (hit == null) return e;
+        damageEventIdRef.current += 1;
+        newDamageEvents.push({
+          id: `de-${damageEventIdRef.current}`,
+          x: e.position.x,
+          y: e.position.y,
+          value: hit.damage,
+          crit: hit.crit ?? false,
+        });
+        return { ...e, hp: e.hp.sub(hit.damage) };
+      });
+    };
+
+    switch (state.currentWeapon) {
+      case 'laser': {
+        const s = laserStats(state.weaponLv);
+        const boosted = { ...s, damageMul: s.damageMul * attackMul };
+        // ビーム発射角度: 最寄り敵の方向 (敵がいなければ右 = 0°)
+        let angleDeg = 0;
+        if (enemiesRef.current.length > 0) {
+          const nearest = enemiesRef.current.reduce((acc, e) =>
+            distanceFromMachine(e.position) < distanceFromMachine(acc.position) ? e : acc
+          );
+          const dx = nearest.position.x - MACHINE_CENTER_X;
+          const dy = nearest.position.y - MACHINE_CENTER_Y;
+          angleDeg = (Math.atan2(dy, dx) * 180) / Math.PI;
+        }
+        // ビーム軸 + 幅で hit 判定 (描画する MegaBeamFx と同じ angle / width)
+        const r = laserMegaBeam(
+          machine,
+          boosted,
+          enemiesRef.current,
+          angleDeg,
+          MACHINE_CENTER_X,
+          MACHINE_CENTER_Y
+        );
+        applyHits(r.hits.map((h) => ({ enemyId: h.enemyId, damage: h.damage })));
+        projectileEventIdRef.current += 1;
+        newProjectileEvents.push({
+          id: `pe-${projectileEventIdRef.current}`,
+          kind: 'megaBeam',
+          x: MACHINE_CENTER_X,
+          y: MACHINE_CENTER_Y,
+          angle: angleDeg,
+        });
+        break;
+      }
+      case 'cannon': {
+        const s = cannonStats(state.weaponLv);
+        const boosted = { ...s, damageMul: s.damageMul * attackMul };
+        const r = cannonVolley(machine, boosted, enemiesRef.current);
+        // 通常攻撃と同じ shellMs (砲弾飛翔時間) を共有。 砲弾飛翔 + 着弾後爆発 +
+        // 着弾と同じタイミングで HP 減算するため pendingCannonHits に積む。
+        const shellMs = 480;
+        const nowGameMs = runElapsedGameMsRef.current;
+        for (const shot of r.shots) {
+          // 砲弾飛翔 (マシン → 着弾点)
+          projectileEventIdRef.current += 1;
+          newProjectileEvents.push({
+            id: `pe-${projectileEventIdRef.current}`,
+            kind: 'cannonShell',
+            x1: MACHINE_CENTER_X,
+            y1: MACHINE_CENTER_Y,
+            x2: shot.blastX,
+            y2: shot.blastY,
+            durationMs: shellMs,
+          });
+          // 着弾後爆発 (delayMs で砲弾着弾と同期)
+          projectileEventIdRef.current += 1;
+          newProjectileEvents.push({
+            id: `pe-${projectileEventIdRef.current}`,
+            kind: 'blast',
+            x: shot.blastX,
+            y: shot.blastY,
+            delayMs: shellMs,
+          });
+          // shot.hits 全員のダメージを着弾遅延 hit として登録 (通常攻撃と同じ経路)
+          for (const hit of shot.hits) {
+            pendingCannonHitsRef.current.push({
+              enemyId: hit.enemyId,
+              damage: hit.damage,
+              crit: false,
+              freeze: false,
+              applyAtMs: nowGameMs + shellMs,
+            });
+          }
+        }
+        break;
+      }
+      case 'thunder': {
+        const s = thunderStats(state.weaponLv);
+        const boosted = { ...s, damageMul: s.damageMul * attackMul };
+        const r = thunderPlasmaDischarge(machine, boosted, enemiesRef.current);
+        // 連鎖の視覚: マシン → hit 順に points を結ぶ
+        const points: { x: number; y: number }[] = [{ x: MACHINE_CENTER_X, y: MACHINE_CENTER_Y }];
+        for (const hit of r.hits) {
+          const enemy = enemiesRef.current.find((e) => e.id === hit.enemyId);
+          if (enemy != null) {
+            points.push({ x: enemy.position.x, y: enemy.position.y });
+          }
+        }
+        if (points.length > 1) {
+          projectileEventIdRef.current += 1;
+          newProjectileEvents.push({
+            id: `pe-${projectileEventIdRef.current}`,
+            kind: 'chain',
+            points,
+          });
+        }
+        applyHits(r.hits);
+        break;
+      }
+      case 'cutter': {
+        const s = cutterStats(state.weaponLv);
+        overdriveStateRef.current = cutterStartOverdrive(s);
+        setIsOverdriveActive(true);
+        // 視覚 (OverdriveAuraFx) は battle 画面が isOverdriveActive を見て制御する
+        break;
+      }
+    }
+
+    if (newDamageEvents.length > 0) {
+      setDamageEvents((prev) => [...prev, ...newDamageEvents]);
+    }
+    if (newProjectileEvents.length > 0) {
+      setProjectileEvents((prev) => [...prev, ...newProjectileEvents]);
+    }
+    return true;
+  }, []);
+
   useEffect(() => {
     if (!isRunActive) return;
 
@@ -289,12 +562,16 @@ export function useBattleLoop({ range, paused = false }: UseBattleLoopOpts): Use
         state.tickCooldowns(deltaSec);
 
         // ---- アクティブスキル自動発動 ----
-        // isAutoActive=true で activeCdSec=0 なら triggerActive を呼ぶ。
-        // 威力 (各武器の Mega Beam / Volley / Plasma / Overdrive) の engine 連携は別 issue。
+        // isAutoActive=true で activeCdSec=0 なら fireActive を呼ぶ (manual / auto 共通経路)。
         if (state.isAutoActive && state.activeCdSec <= 0) {
-          const fired = state.triggerActive(DEFAULT_ACTIVE_MAX_SEC);
-          if (fired) {
-            soundEngine.play(WEAPON_ACTIVE_SOUND[state.currentWeapon]);
+          fireActive();
+        }
+
+        // ---- Cutter Overdrive 状態の tick ----
+        if (overdriveStateRef.current.active) {
+          overdriveStateRef.current = cutterTickOverdrive(overdriveStateRef.current, deltaSec);
+          if (!overdriveStateRef.current.active) {
+            setIsOverdriveActive(false);
           }
         }
 
@@ -317,6 +594,26 @@ export function useBattleLoop({ range, paused = false }: UseBattleLoopOpts): Use
           );
           if (newSpawns.length > 0) {
             enemiesRef.current = [...enemiesRef.current, ...newSpawns];
+            // 上位敵 (elite / miniboss / boss) が混じっていれば AppearanceBannerFx を出す
+            const upperSpawns = newSpawns.filter((s) => s.kind !== 'normal');
+            if (upperSpawns.length > 0) {
+              const newAppearances: AppearanceEvent[] = upperSpawns.map((s) => {
+                appearanceEventIdRef.current += 1;
+                const kind = s.kind as 'elite' | 'miniboss' | 'boss';
+                const label =
+                  kind === 'boss'
+                    ? `TIER ${state.currentTier} BOSS`
+                    : kind === 'miniboss'
+                      ? `MINI BOSS T${state.currentTier}W${state.currentWave}`
+                      : `ELITE T${state.currentTier}W${state.currentWave}`;
+                return {
+                  id: `ap-${appearanceEventIdRef.current}`,
+                  kind,
+                  name: label,
+                };
+              });
+              setAppearanceEvents((prev) => [...prev, ...newAppearances]);
+            }
           }
 
           // ---- 敵移動 (frozen 中はスキップ。 nowGameMs 基準で期限判定) ----
@@ -406,7 +703,14 @@ export function useBattleLoop({ range, paused = false }: UseBattleLoopOpts): Use
           const attackMul = calcRunWorkshopMultiplier(attackMulLv);
           const attackSpeedMul = calcRunWorkshopMultiplier(attackSpeedMulLv);
           const basePerSec = getAttackPerSec(state.currentWeapon, state.weaponLv);
-          const effectivePerSec = Math.min(ATTACK_PER_SEC_CAP, basePerSec * attackSpeedMul);
+          // Cutter Overdrive 中は attackSpeedMul に overdriveStateRef.current.attackSpeedMul も乗算
+          const overdriveAsMul = overdriveStateRef.current.active
+            ? overdriveStateRef.current.attackSpeedMul
+            : 1;
+          const effectivePerSec = Math.min(
+            ATTACK_PER_SEC_CAP,
+            basePerSec * attackSpeedMul * overdriveAsMul
+          );
           const intervalMs = effectivePerSec > 0 ? 1000 / effectivePerSec : Infinity;
 
           fireAccumulatorMsRef.current += deltaSec * 1000;
@@ -452,6 +756,10 @@ export function useBattleLoop({ range, paused = false }: UseBattleLoopOpts): Use
               cutterAngleDeg: cutterAngleDegRef.current,
               attackMul,
             });
+            // Cutter は刃の角度を 1 ヒットあたり前進。 次フレームの fire / 描画に反映
+            if (result.cutterAngle != null) {
+              cutterAngleDegRef.current = result.cutterAngle;
+            }
 
             // 敵 HP 減算 (immutable に置換) + onAttack パッチ適用
             if (result.hits.length > 0) {
@@ -575,27 +883,28 @@ export function useBattleLoop({ range, paused = false }: UseBattleLoopOpts): Use
                   });
                 }
               } else if (state.currentWeapon === 'cannon') {
-                // 砲弾飛翔 + 着弾後爆発の 2 段階。 砲弾の飛翔時間 (480ms) は CannonShellFx と揃える
+                // 1 ショット = 1 砲弾 + 1 爆発。 splash 内の複数敵にダメージが入っても
+                // 物理的に飛翔する砲弾は 1 個 (result.impactX/Y = cannonNormalAttack の blastX/Y)。
                 const shellMs = 480;
-                for (const pos of hitPositions) {
-                  // 砲弾飛翔
+                const impactX = result.impactX;
+                const impactY = result.impactY;
+                if (impactX != null && impactY != null) {
                   projectileEventIdRef.current += 1;
                   newProjectileEvents.push({
                     id: `pj-${projectileEventIdRef.current}`,
                     kind: 'cannonShell',
                     x1: MACHINE_CENTER_X,
                     y1: MACHINE_CENTER_Y,
-                    x2: pos.x,
-                    y2: pos.y,
+                    x2: impactX,
+                    y2: impactY,
                     durationMs: shellMs,
                   });
-                  // 着弾後の爆発 (delayMs で砲弾着弾と同期)
                   projectileEventIdRef.current += 1;
                   newProjectileEvents.push({
                     id: `pj-${projectileEventIdRef.current}`,
                     kind: 'blast',
-                    x: pos.x,
-                    y: pos.y,
+                    x: impactX,
+                    y: impactY,
                     delayMs: shellMs,
                   });
                 }
@@ -746,15 +1055,38 @@ export function useBattleLoop({ range, paused = false }: UseBattleLoopOpts): Use
             state.addAlloy(earnedAlloy);
           }
 
-          // ---- 被ダメ処理 (マシン近接の敵から enemy.atk × deltaSec) + onHit パッチ ----
+          // ---- 被ダメ処理 (マシン近接の敵から enemy.atk × deltaSec) + onHit パッチ
+          //      + 新規接触敵へのノックバック ----
+          // ダメージは「接触してる時間 × DPS」(現状通り)。 ノックバックは「新規接触フレームのみ」
+          // 適用し、 押し戻された敵は MELEE 外に出るため次フレーム以降は DPS が止まる。
+          // 敵が enemy.speed で再接近 → 再接触したらまたノックバック + 短時間 DPS、 を繰り返す。
           const machineStats = buildMachineStats({ machineMaxHp: state.machineMaxHp });
           let totalReceived = BigNum.ZERO;
-          for (const enemy of enemiesRef.current) {
-            if (distanceFromMachine(enemy.position) <= MELEE_CONTACT_RANGE) {
-              const dmgPerSec = calcReceivedDamage(enemy.atk, machineStats);
-              totalReceived = totalReceived.add(dmgPerSec.mulNumber(deltaSec));
+          const newContactSet = new Set<string>();
+          enemiesRef.current = enemiesRef.current.map((enemy) => {
+            const dist = distanceFromMachine(enemy.position);
+            if (dist > MELEE_CONTACT_RANGE) {
+              return enemy;
             }
-          }
+            // 接触中: DPS 加算
+            const dmgPerSec = calcReceivedDamage(enemy.atk, machineStats);
+            totalReceived = totalReceived.add(dmgPerSec.mulNumber(deltaSec));
+            newContactSet.add(enemy.id);
+            // 継続接触はノックバックなし (毎フレーム押し戻すと不自然なため)
+            if (prevContactSetRef.current.has(enemy.id)) {
+              return enemy;
+            }
+            // 新規接触: マシン中心 (50, 50) から離れる方向に KNOCKBACK_DISTANCE_PCT 押し戻す
+            return {
+              ...enemy,
+              position: applyKnockback(
+                enemy.position,
+                { x: MACHINE_CENTER_X, y: MACHINE_CENTER_Y },
+                KNOCKBACK_DISTANCE_PCT
+              ),
+            };
+          });
+          prevContactSetRef.current = newContactSet;
           if (!totalReceived.isZero()) {
             // onHit パッチ評価 (damageImmune で overrideReceivedDamage = 0 になる可能性)
             const hitEffect = evaluatePatches(
@@ -774,12 +1106,13 @@ export function useBattleLoop({ range, paused = false }: UseBattleLoopOpts): Use
             }
           }
 
-          // ---- Wave 終了判定 ----
+          // ---- Wave 終了判定 (最終 wave は時間でなくボス撃破で advance) ----
           const decision = decideWaveAdvance(
             waveElapsedMsRef.current,
             schedule.durationSec,
             state.currentWave,
-            tierWaves.length
+            tierWaves.length,
+            enemiesRef.current.length
           );
           if (decision === 'advanceWave' || decision === 'advanceTier') {
             // onWaveClear パッチ評価 (shieldRegen: HP heal、 boltCast: bolt gain)
@@ -801,6 +1134,12 @@ export function useBattleLoop({ range, paused = false }: UseBattleLoopOpts): Use
               state.advanceTier();
               soundEngine.play('tierClear');
             }
+            // wave / tier 切替直後の同フレームで waveElapsedMsRef も 0 に揃える。
+            // (currentWave 変化に反応する useEffect でも 0 にされるが、 そちらより前に
+            //  setWaveElapsedSec(古い値) が走ってしまうと WaveProgressBar の AnimatedTimerBar
+            //  が「残量 0 近く」で再マウントされ、 バーが満タンに戻らない。)
+            waveElapsedMsRef.current = 0;
+            prevWaveElapsedMsRef.current = 0;
           }
         }
       }
@@ -820,7 +1159,7 @@ export function useBattleLoop({ range, paused = false }: UseBattleLoopOpts): Use
         rafIdRef.current = null;
       }
     };
-  }, [isRunActive, tierWaves, range]);
+  }, [isRunActive, tierWaves, range, fireActive]);
 
   return {
     enemies,
@@ -828,10 +1167,14 @@ export function useBattleLoop({ range, paused = false }: UseBattleLoopOpts): Use
     deathEvents,
     projectileEvents,
     pickupEvents,
+    appearanceEvents,
     waveElapsedSec,
     onDamageDone,
     onDeathDone,
     onProjectileDone,
     onPickupDone,
+    onAppearanceDone,
+    fireActive,
+    isOverdriveActive,
   };
 }

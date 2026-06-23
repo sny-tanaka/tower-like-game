@@ -145,7 +145,7 @@ export function BattleHudTop({
         />
       )}
 
-      {/* ── Wave 進捗 ── */}
+      {/* ── Wave 進捗 (ボス wave は時間カウントダウンせず BOSS WAVE 表示) ── */}
       <WaveProgressBar
         waveNumber={wave}
         secondsLeft={secondsRemaining}
@@ -154,6 +154,7 @@ export function BattleHudTop({
         showSeconds={false}
         size="sm"
         paused={paused}
+        isBossWave={isBossWave}
       />
 
       {/* SR 用に wave/total を hidden で残す（既存テスト互換） */}

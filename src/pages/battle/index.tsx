@@ -13,10 +13,18 @@ import { BattleMenuOverlay } from '@/components/organisms/BattleMenuOverlay';
 import { ResultDialog } from '@/components/organisms/ResultDialog';
 import type { ResultReward, ResultStatus } from '@/components/organisms/ResultDialog';
 import { RunWorkshopBottomSheet } from '@/components/organisms/RunWorkshopBottomSheet';
-import type { RunWorkshopKey } from '@/components/organisms/RunWorkshopBottomSheet/items';
+import {
+  calcRunWorkshopMultiplier,
+  type RunWorkshopKey,
+} from '@/components/organisms/RunWorkshopBottomSheet/items';
 import { ScreenSaverDialog } from '@/components/organisms/ScreenSaverDialog';
 import { WAVE_DURATION_SEC } from '@/game/wave';
-import { useBattleLoop } from '@/hooks/useBattleLoop';
+import {
+  CUTTER_OVERDRIVE_ATTACK_SPEED_MUL,
+  calcCutterRotateMs,
+  cutterStats,
+} from '@/game/weapons/cutter';
+import { ATTACK_PER_SEC_CAP, DEFAULT_ACTIVE_MAX_SEC, useBattleLoop } from '@/hooks/useBattleLoop';
 import { soundEngine } from '@/lib/audio';
 import { BigNum } from '@/lib/bignum/BigNum';
 import { useStore } from '@/store/index';
@@ -26,11 +34,15 @@ import { useNavigation } from '@/store/navigation';
 // デフォルト値
 // ---------------------------------------------------------------------------
 
-/** アクティブ CD 最大値（秒）- バトルロジック配線前の暫定値 */
-const DEFAULT_ACTIVE_MAX_SEC = 30;
-
 /** 索敵半径（パーセント） */
 const DEFAULT_RANGE = 30;
+
+/**
+ * Cutter の刃の枚数 (CutterOrbitFx の blades default と一致)。
+ * 「刃 N 枚 = 1 周あたり N ヒット」なので 1 周時間 = (blades / attackPerSec) × 1000。
+ * (計算は game/weapons/cutter の calcCutterRotateMs に委譲)
+ */
+const CUTTER_BLADES = 2;
 
 /**
  * リザルトダイアログが開いているかの判定。
@@ -70,6 +82,7 @@ export function Page() {
   const currentTier = useStore((s) => s.currentTier);
   const currentWave = useStore((s) => s.currentWave);
   const currentWeapon = useStore((s) => s.currentWeapon);
+  const weaponLv = useStore((s) => s.weaponLv);
   const activeCdSec = useStore((s) => s.activeCdSec);
   const isAutoActive = useStore((s) => s.isAutoActive);
   const isPaused = useStore((s) => s.isPaused);
@@ -84,17 +97,22 @@ export function Page() {
   const switchWeapon = useStore((s) => s.switchWeapon);
   const setPaused = useStore((s) => s.setPaused);
   const upgradeRunWorkshop = useStore((s) => s.upgradeRunWorkshop);
-  const triggerActive = useStore((s) => s.triggerActive);
 
   // ── ローカル UI state (overlay 開閉) ──
   const [isWorkshopOpen, setIsWorkshopOpen] = useState(false);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isScreenSaverOpen, setIsScreenSaverOpen] = useState(false);
 
-  // ── BATTLE START バナー: マウント時 + isRunActive=true で 1.6 秒表示 ──
+  // ── BATTLE START バナー: 「isRunActive が false→true に切り替わった瞬間」 のみ表示 ──
+  // 単に isRunActive=true で発火すると、 同一ラン中の画面再マウントや内部 state 変動で
+  // 戦闘途中に再発火することがあるため、 prev/current 比較で「ラン開始の瞬間」 だけ拾う。
   const [isBattleStartShown, setIsBattleStartShown] = useState(false);
+  const prevIsRunActiveRef = useRef(isRunActive);
   useEffect(() => {
-    if (isRunActive) setIsBattleStartShown(true);
+    if (isRunActive && !prevIsRunActiveRef.current) {
+      setIsBattleStartShown(true);
+    }
+    prevIsRunActiveRef.current = isRunActive;
   }, [isRunActive]);
 
   // ── BGM: wave に応じて切替 (App.tsx の画面別 BGM を wave 30 のみ上書き) ──
@@ -136,6 +154,10 @@ export function Page() {
     onDeathDone,
     onProjectileDone,
     onPickupDone,
+    appearanceEvents,
+    onAppearanceDone,
+    fireActive,
+    isOverdriveActive,
   } = useBattleLoop({
     range: DEFAULT_RANGE,
     paused: isResultOpen,
@@ -196,20 +218,12 @@ export function Page() {
   };
 
   const handleManualActivate = () => {
-    const ok = triggerActive(DEFAULT_ACTIVE_MAX_SEC);
+    // useBattleLoop の fireActive は内部で triggerActive (CD セット) + active 関数の実行
+    // (Mega Beam / Volley / Plasma / Overdrive) + SE / Fx 配信をまとめて行う。
+    const ok = fireActive();
     if (!ok) {
       soundEngine.play('reject');
-      return;
     }
-    const sid =
-      currentWeapon === 'laser'
-        ? 'activeLaser'
-        : currentWeapon === 'cannon'
-          ? 'activeCannon'
-          : currentWeapon === 'thunder'
-            ? 'activeThunder'
-            : 'activeCutter';
-    soundEngine.play(sid);
   };
 
   // リザルトリワード: ラン開始時残高からの差分で算出 (負にならないようクランプ)
@@ -290,6 +304,17 @@ export function Page() {
           onProjectileDone={onProjectileDone}
           onPickupDone={onPickupDone}
           showCutterOrbit={currentWeapon === 'cutter' && isRunActive && !isPaused && !isResultOpen}
+          showOverdriveAura={isOverdriveActive && isRunActive && !isResultOpen}
+          cutterRotateMs={calcCutterRotateMs(
+            // useBattleLoop の effectivePerSec と同じ式 (cutterStats × RW × Overdrive、 ATTACK_PER_SEC_CAP で頭打ち)
+            Math.min(
+              ATTACK_PER_SEC_CAP,
+              cutterStats(weaponLv).attackPerSec *
+                calcRunWorkshopMultiplier(runWorkshopLevels.attackSpeedMul) *
+                (isOverdriveActive ? CUTTER_OVERDRIVE_ATTACK_SPEED_MUL : 1)
+            ),
+            CUTTER_BLADES
+          )}
           range={DEFAULT_RANGE}
         />
       </AppShell>
@@ -343,6 +368,17 @@ export function Page() {
             }}
           />
         )}
+
+        {/* 上位敵 (elite / miniboss / boss) 出現バナー */}
+        {appearanceEvents.map((evt) => (
+          <AppearanceBannerFx
+            key={evt.id}
+            // 'miniboss' は AppearanceBannerFx に専用 kind が無いので 'boss' で代用 (赤・大きい)
+            kind={evt.kind === 'miniboss' ? 'boss' : evt.kind}
+            name={evt.name}
+            onDone={() => onAppearanceDone(evt.id)}
+          />
+        ))}
 
         {/* Wave 進行バナー (wave 切替時の 1.1 秒) */}
         {waveStartKey != null && (

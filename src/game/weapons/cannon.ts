@@ -240,7 +240,8 @@ export function cannonVolley(
   enemies: SpawnedEnemy[],
   spreadDeg?: number
 ): VolleyResult {
-  const machineX = 0;
+  // useBattleLoop の MACHINE_CENTER と一致 (フィールド中央固定)
+  const machineX = 50;
   const machineY = 50;
 
   // 発射角度の基準を決める
