@@ -30,13 +30,13 @@ define(['./workbox-8c29f6e4'], function (e) {
     e.clientsClaim(),
     e.precacheAndRoute(
       [
-        { url: 'index.html', revision: '37a4a53db681278fb31dc5605f0c95d6' },
+        { url: 'index.html', revision: 'ca0efc4a50638a4a6d1f06a52c880235' },
         { url: 'icon-512.png', revision: '318032293ba71f818b57decedb9afadf' },
         { url: 'icon-192.png', revision: '755ecad9c3cf1a68cdc525ce5d7eb299' },
         { url: 'favicon.ico', revision: 'fd32cce62c8da11c49d9a6f0c9ada784' },
         { url: 'assets/workbox-window.prod.es5-BIl4cyR9.js', revision: null },
         { url: 'assets/index-DOnCI5Q5.css', revision: null },
-        { url: 'assets/index-CKAGaFx0.js', revision: null },
+        { url: 'assets/index-8dv0zwTN.js', revision: null },
         { url: 'favicon.ico', revision: 'fd32cce62c8da11c49d9a6f0c9ada784' },
         { url: 'icon-192.png', revision: '755ecad9c3cf1a68cdc525ce5d7eb299' },
         { url: 'icon-512.png', revision: '318032293ba71f818b57decedb9afadf' },

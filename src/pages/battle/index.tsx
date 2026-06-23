@@ -128,6 +128,23 @@ export function Page() {
     }
   }, [currentWave]);
 
+  // ── バックグラウンド時に自動 pause (アプリ非表示 / タブ切替で即停止) ──
+  // 復帰時の自動再開はしない (= メニューが開いた状態でユーザーが手動で「再開」 する)。
+  // ラン外 / リザルト表示中は対象外。
+  const isRunActiveRef = useRef(isRunActive);
+  isRunActiveRef.current = isRunActive;
+  useEffect(() => {
+    const onVis = () => {
+      if (document.hidden && isRunActiveRef.current) {
+        setPaused(true);
+      }
+    };
+    document.addEventListener('visibilitychange', onVis);
+    return () => {
+      document.removeEventListener('visibilitychange', onVis);
+    };
+  }, [setPaused]);
+
   // ── WaveStartFx: 「次の wave へ進んだ瞬間」のみ表示 (出撃直後は出さない) ──
   const prevWaveRef = useRef(currentWave);
   const [waveStartKey, setWaveStartKey] = useState<number | null>(null);
