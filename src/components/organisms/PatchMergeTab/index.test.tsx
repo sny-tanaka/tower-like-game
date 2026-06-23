@@ -29,6 +29,26 @@ describe('calcMergeable', () => {
     expect(result.length).toBe(1);
     expect(result[0].tier).toBe(2);
   });
+
+  it('T5 パッチを 2 個所持しているとき T6 への合成が calcMergeable に含まれる', () => {
+    const patches = new Map<string, PatchEntry>([
+      ['burnHit#5', { name: 'burnHit', tier: 5, count: 2 }],
+    ]);
+    // maxAllowedTier = maxExistingTier(5) + 1 = 6
+    const result = calcMergeable(patches, 6);
+    expect(result).toHaveLength(1);
+    expect(result[0].tier).toBe(5);
+  });
+
+  it('T6 パッチを 2 個所持しているとき T7 への合成が calcMergeable に含まれる', () => {
+    const patches = new Map<string, PatchEntry>([
+      ['burnHit#6', { name: 'burnHit', tier: 6, count: 2 }],
+    ]);
+    // maxAllowedTier = maxExistingTier(6) + 1 = 7
+    const result = calcMergeable(patches, 7);
+    expect(result).toHaveLength(1);
+    expect(result[0].tier).toBe(6);
+  });
 });
 
 describe('executeMergeAll', () => {
@@ -70,6 +90,26 @@ describe('executeMergeAll', () => {
     // T3 は生成されない
     expect(result.get('damageImmune#3')).toBeUndefined();
   });
+
+  it('T5 パッチ 2 個 → T6 に合成できる (MAX_TIER 制限なし)', () => {
+    const patches = new Map<string, PatchEntry>([
+      ['freezeHit#5', { name: 'freezeHit', tier: 5, count: 2 }],
+    ]);
+    // maxTierLimit = maxExistingTier(5) + 1 = 6
+    const result = executeMergeAll(patches, 6);
+    expect(result.get('freezeHit#5')).toBeUndefined();
+    expect(result.get('freezeHit#6')?.count).toBe(1);
+  });
+
+  it('T6 パッチ 2 個 → T7 に合成できる (無限 Tier 対応)', () => {
+    const patches = new Map<string, PatchEntry>([
+      ['freezeHit#6', { name: 'freezeHit', tier: 6, count: 2 }],
+    ]);
+    // maxTierLimit = maxExistingTier(6) + 1 = 7
+    const result = executeMergeAll(patches, 7);
+    expect(result.get('freezeHit#6')).toBeUndefined();
+    expect(result.get('freezeHit#7')?.count).toBe(1);
+  });
 });
 
 // ---------------------------------------------------------------------------
@@ -87,6 +127,28 @@ describe('PatchMergeTab', () => {
       ['damageImmune#1', { name: 'damageImmune', tier: 1, count: 4 }],
     ]);
     render(<PatchMergeTab overridePatches={patches} />);
+    const btn = screen.getByRole('button', { name: /一括合成/ });
+    expect(btn).toBeDefined();
+  });
+
+  it('maxExistingTier が 7 のとき、ステッパーの + ボタンが Tier8 まで押せる（max = 8）', () => {
+    // T7 パッチを所持 → stepperMax = 7 + 1 = 8, 初期 maxTierLimit = 7
+    // maxTierLimit(7) + 1(8) <= stepperMax(8) なので + ボタンは有効
+    const patches = new Map<string, PatchEntry>([
+      ['burnHit#7', { name: 'burnHit', tier: 7, count: 1 }],
+    ]);
+    render(<PatchMergeTab overridePatches={patches} />);
+    const incrementBtn = screen.getByRole('button', { name: '増加' });
+    // 初期値 maxTierLimit = 7, max = 8 → まだ上げられる
+    expect(incrementBtn).not.toBeDisabled();
+  });
+
+  it('T5 パッチ 2 個所持時は合成ボタンが表示される (MAX_TIER 制限なし)', () => {
+    const patches = new Map<string, PatchEntry>([
+      ['instantKill#5', { name: 'instantKill', tier: 5, count: 2 }],
+    ]);
+    render(<PatchMergeTab overridePatches={patches} />);
+    // 初期 maxTierLimit = 5, calcMergeable(patches, 5+1=6) → tier=5, count=2 は含まれる
     const btn = screen.getByRole('button', { name: /一括合成/ });
     expect(btn).toBeDefined();
   });
