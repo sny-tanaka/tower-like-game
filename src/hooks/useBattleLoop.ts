@@ -12,6 +12,7 @@ import {
 } from '@/components/organisms/MachineUpgradeList/items';
 import { calcRunWorkshopMultiplier } from '@/components/organisms/RunWorkshopBottomSheet/items';
 import { calcReceivedDamage } from '@/game/damage';
+import { scaledReward } from '@/game/enemies';
 import { updateEnemyPosition } from '@/game/loop/enemyMovement';
 import { buildMachineStats } from '@/game/loop/machineStats';
 import { fireWeapon, getAttackPerSec } from '@/game/loop/weaponDispatch';
@@ -1042,7 +1043,10 @@ export function useBattleLoop({ range, paused = false }: UseBattleLoopOpts): Use
                 const boltDropRoll =
                   enemy.kind === 'normal' ? Math.random() < NORMAL_BOLT_DROP_CHANCE : true;
                 if (boltDropRoll) {
-                  earnedBolt = earnedBolt.add(BigNum.fromNumber(baseBolt * boltGainMul * dropMul));
+                  const scaledBolt = scaledReward(baseBolt, state.currentTier);
+                  earnedBolt = earnedBolt.add(
+                    BigNum.fromNumber(scaledBolt * boltGainMul * dropMul)
+                  );
                   pickupEventIdRef.current += 1;
                   newPickupEvents.push({
                     id: `pk-${pickupEventIdRef.current}`,
@@ -1060,8 +1064,12 @@ export function useBattleLoop({ range, paused = false }: UseBattleLoopOpts): Use
               );
               if (enemy.reward.alloyChance > 0 && enemy.reward.alloyAmount > 0) {
                 if (Math.random() < enemy.reward.alloyChance) {
+                  const scaledAlloyAmount = scaledReward(
+                    enemy.reward.alloyAmount,
+                    state.currentTier
+                  );
                   earnedAlloy = earnedAlloy.add(
-                    BigNum.fromNumber(enemy.reward.alloyAmount * alloyGainMul * dropMul)
+                    BigNum.fromNumber(scaledAlloyAmount * alloyGainMul * dropMul)
                   );
                   pickupEventIdRef.current += 1;
                   newPickupEvents.push({
