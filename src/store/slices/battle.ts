@@ -65,6 +65,12 @@ export interface BattleActions {
   setMachineHp: (hp: BigNum) => void;
   damageHp: (amount: BigNum) => void;
   /**
+   * machineHp に delta を加算する (atomic)。 0 未満 / maxHp 超過はクランプ。
+   * `setMachineHp(state.machineHp.add(...))` を tick 内で呼ぶと最新値を
+   * 読み損ねて他の更新 (damageHp 等) を上書きするので、 加算系はこの action 経由で行う。
+   */
+  addMachineHp: (delta: BigNum) => void;
+  /**
    * RunWorkshop hpMul 変化時に、 baseMachineMaxHp と新しい hpMul Lv から
    * machineMaxHp を再計算する。 現在 HP は「減量を維持」で更新:
    *   damage_taken = old_max - old_current
@@ -190,6 +196,9 @@ export const createBattleSlice: StateCreator<RootStore, [], [], BattleSlice> = (
       const next = s.machineHp.sub(amount);
       return { machineHp: next.lt(BigNum.ZERO) ? BigNum.ZERO : next };
     }),
+
+  addMachineHp: (delta) =>
+    set((s) => ({ machineHp: clampBig(s.machineHp.add(delta), BigNum.ZERO, s.machineMaxHp) })),
 
   recalcMachineMaxHpFromHpMul: (newHpMulLv) => {
     const s = get();

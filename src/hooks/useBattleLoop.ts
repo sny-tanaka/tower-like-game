@@ -183,24 +183,6 @@ export function applyKnockback(
 }
 
 /**
- * 純粋関数: HP リジェネ加算後の machineHp を計算する。
- *
- * - currentHp が 0 (ゲームオーバー) のときは 0 を返す
- * - hpRegen × deltaSec を加算し、 maxHp を超えないようにクランプして返す
- * - setMachineHp も maxHp クランプを行うが、 この関数でも明示的にクランプして純粋性を保つ
- */
-export function calcHpRegen(
-  currentHp: BigNum,
-  maxHp: BigNum,
-  hpRegen: BigNum,
-  deltaSec: number
-): BigNum {
-  if (currentHp.isZero()) return BigNum.ZERO;
-  const healed = currentHp.add(hpRegen.mulNumber(deltaSec));
-  return healed.gte(maxHp) ? maxHp : healed;
-}
-
-/**
  * アクティブスキル CD 最大値 (秒)。 battle slice から再 export (互換のため残置)。
  * 値の真の定義は @/store/slices/battle に集約。
  */
@@ -675,9 +657,9 @@ export function useBattleLoop({ range, paused = false }: UseBattleLoopOpts): Use
               { type: 'interval', deltaMs: 1000 },
               Math.random
             );
-            // heal: machineHp に加算
+            // heal: machineHp に加算 (atomic、 同 tick 内の他の更新と競合しない)
             if (intervalEffect.heal != null && !intervalEffect.heal.isZero()) {
-              state.setMachineHp(state.machineHp.add(intervalEffect.heal));
+              state.addMachineHp(intervalEffect.heal);
             }
             // boltGain: addBolt
             if (intervalEffect.boltGain != null && !intervalEffect.boltGain.isZero()) {
@@ -1212,9 +1194,9 @@ export function useBattleLoop({ range, paused = false }: UseBattleLoopOpts): Use
               survivors.push(enemy);
             }
           }
-          // onKill heal を機体 HP に加算 (現在 HP + heal、 setMachineHp が max クランプ)
+          // onKill heal を機体 HP に加算 (atomic、 同 tick 内の他の更新と競合しない)
           if (!totalKillHeal.isZero()) {
-            state.setMachineHp(state.machineHp.add(totalKillHeal));
+            state.addMachineHp(totalKillHeal);
           }
           if (newDeathEvents.length > 0) {
             enemiesRef.current = survivors;
@@ -1292,12 +1274,12 @@ export function useBattleLoop({ range, paused = false }: UseBattleLoopOpts): Use
           }
 
           // ---- HP リジェネ ----
-          // machineHp.isZero() = ゲームオーバー済みはスキップ
-          // setMachineHp が maxHp クランプ済みなので上限超え処理は不要
-          if (!state.machineHp.isZero()) {
-            state.setMachineHp(
-              calcHpRegen(state.machineHp, state.machineMaxHp, machineStats.hpRegen, deltaSec)
-            );
+          // machineHp.isZero() (ゲームオーバー) は最新値で再判定する。
+          // delta だけを atomic に加算 (addMachineHp が max クランプ)。
+          // setMachineHp に state.machineHp.add(...) を渡すと tick 序盤のスナップショットで
+          // 上書きしてしまい、 同 tick 内の damageHp が消える。
+          if (!useStore.getState().machineHp.isZero()) {
+            state.addMachineHp(machineStats.hpRegen.mulNumber(deltaSec));
           }
 
           // ---- Wave 終了判定 (最終 wave は時間でなくボス撃破で advance) ----
@@ -1316,7 +1298,7 @@ export function useBattleLoop({ range, paused = false }: UseBattleLoopOpts): Use
               Math.random
             );
             if (clearEffect.heal != null && !clearEffect.heal.isZero()) {
-              state.setMachineHp(state.machineHp.add(clearEffect.heal));
+              state.addMachineHp(clearEffect.heal);
             }
             if (clearEffect.boltGain != null && !clearEffect.boltGain.isZero()) {
               state.addBolt(clearEffect.boltGain);

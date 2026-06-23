@@ -5,14 +5,11 @@ import {
   MAX_FRAME_GAME_SEC,
   applyKnockback,
   calcFrameGameSec,
-  calcHpRegen,
   calcIntervalTicks,
   decideTransitionReset,
   decideWaveAdvance,
   distanceFromMachine,
 } from './useBattleLoop';
-
-import { BigNum } from '@/lib/bignum';
 
 describe('calcFrameGameSec', () => {
   test('isPaused=true なら常に 0', () => {
@@ -160,46 +157,6 @@ describe('applyKnockback', () => {
 
   test('KNOCKBACK_DISTANCE_PCT のデフォルト = 5 で 20px 相当 (短辺 ~400px 想定)', () => {
     expect(KNOCKBACK_DISTANCE_PCT).toBe(5);
-  });
-});
-
-describe('calcHpRegen', () => {
-  test('deltaSec ぶん HP リジェネを加算する', () => {
-    const result = calcHpRegen(
-      BigNum.fromNumber(50), // currentHp
-      BigNum.fromNumber(100), // maxHp
-      BigNum.fromNumber(10), // hpRegen (10 HP/s)
-      0.5 // deltaSec
-    );
-    // 50 + 10 * 0.5 = 55
-    expect(result.eq(BigNum.fromNumber(55))).toBe(true);
-  });
-
-  test('maxHp を超えない', () => {
-    const result = calcHpRegen(
-      BigNum.fromNumber(98),
-      BigNum.fromNumber(100),
-      BigNum.fromNumber(10),
-      1.0
-    );
-    // 98 + 10 = 108 → クランプ → 100
-    expect(result.eq(BigNum.fromNumber(100))).toBe(true);
-  });
-
-  test('machineHp=0 (ゲームオーバー) のときは 0 を返す', () => {
-    const result = calcHpRegen(BigNum.ZERO, BigNum.fromNumber(100), BigNum.fromNumber(10), 1.0);
-    expect(result.isZero()).toBe(true);
-  });
-
-  test('ちょうど maxHp のときは maxHp をそのまま返す', () => {
-    const result = calcHpRegen(
-      BigNum.fromNumber(100),
-      BigNum.fromNumber(100),
-      BigNum.fromNumber(5),
-      1.0
-    );
-    // 100 + 5 = 105 → クランプ → 100
-    expect(result.eq(BigNum.fromNumber(100))).toBe(true);
   });
 });
 

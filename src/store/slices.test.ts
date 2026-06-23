@@ -511,6 +511,53 @@ describe('battle slice', () => {
     expect(store.getState().machineHp.isZero()).toBe(true);
   });
 
+  describe('addMachineHp', () => {
+    it('delta を加算する', () => {
+      const store = makeStore();
+      store
+        .getState()
+        .startRun({ initialWeapon: 'laser', baseMachineMaxHp: BigNum.fromNumber(100) });
+      store.getState().damageHp(BigNum.fromNumber(40)); // HP=60
+      store.getState().addMachineHp(BigNum.fromNumber(20));
+      expect(store.getState().machineHp.eq(BigNum.fromNumber(80))).toBe(true);
+    });
+
+    it('maxHp 超過はクランプされる', () => {
+      const store = makeStore();
+      store
+        .getState()
+        .startRun({ initialWeapon: 'laser', baseMachineMaxHp: BigNum.fromNumber(100) });
+      store.getState().damageHp(BigNum.fromNumber(10)); // HP=90
+      store.getState().addMachineHp(BigNum.fromNumber(50));
+      expect(store.getState().machineHp.eq(BigNum.fromNumber(100))).toBe(true);
+    });
+
+    it('damageHp と addMachineHp が連続して呼ばれても両方反映される (atomicity)', () => {
+      // 旧バグ: useBattleLoop で setMachineHp(stale.machineHp.add(regen)) を使うと
+      // 同 tick 内の damageHp が上書きされて消えていた。 addMachineHp は delta だけを
+      // store の最新値に対して atomic に加算するので、 順番に呼んでも両方反映される
+      const store = makeStore();
+      store
+        .getState()
+        .startRun({ initialWeapon: 'laser', baseMachineMaxHp: BigNum.fromNumber(100) });
+      // HP=100 から: damage 30 → 70、 regen +5 → 75
+      store.getState().damageHp(BigNum.fromNumber(30));
+      store.getState().addMachineHp(BigNum.fromNumber(5));
+      expect(store.getState().machineHp.eq(BigNum.fromNumber(75))).toBe(true);
+    });
+
+    it('regen が damage より大きくても damage 分は消えない (累積)', () => {
+      const store = makeStore();
+      store
+        .getState()
+        .startRun({ initialWeapon: 'laser', baseMachineMaxHp: BigNum.fromNumber(100) });
+      // damage 20 → 80、 regen +5 → 85 (= 80 + 5、 加算 regen が damage を打ち消さない)
+      store.getState().damageHp(BigNum.fromNumber(20));
+      store.getState().addMachineHp(BigNum.fromNumber(5));
+      expect(store.getState().machineHp.eq(BigNum.fromNumber(85))).toBe(true);
+    });
+  });
+
   it('advanceWave / advanceTier: Wave と Tier が増加する', () => {
     const store = makeStore();
     store.getState().startRun({ initialWeapon: 'laser', baseMachineMaxHp: BigNum.fromNumber(100) });
