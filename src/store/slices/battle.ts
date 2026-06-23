@@ -84,7 +84,7 @@ export const defaultBattleState: BattleState = {
 export const createBattleSlice: StateCreator<RootStore, [], [], BattleSlice> = (set, get) => ({
   ...defaultBattleState,
 
-  startRun: ({ initialWeapon, machineMaxHp, gameSpeed }) =>
+  startRun: ({ initialWeapon, machineMaxHp, gameSpeed }) => {
     set({
       isRunActive: true,
       screw: BigNum.ZERO,
@@ -97,9 +97,15 @@ export const createBattleSlice: StateCreator<RootStore, [], [], BattleSlice> = (
       activeCdSec: 0,
       isAutoActive: false,
       gameSpeed,
-    }),
+    });
+    // ラン跨ぎで RunWorkshop の Lv をリセット
+    get().resetRunWorkshop();
+  },
 
-  endRun: () => set(defaultBattleState),
+  endRun: () => {
+    set(defaultBattleState);
+    get().resetRunWorkshop();
+  },
 
   addScrew: (amount) => set((s) => ({ screw: s.screw.add(amount) })),
 

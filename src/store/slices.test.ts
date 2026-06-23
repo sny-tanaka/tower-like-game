@@ -14,6 +14,8 @@ import { createPatchesSlice } from '@/store/slices/patches';
 import type { PatchesSlice } from '@/store/slices/patches';
 import { createProfileSlice } from '@/store/slices/profile';
 import type { ProfileSlice } from '@/store/slices/profile';
+import { createRunWorkshopSlice } from '@/store/slices/runWorkshop';
+import type { RunWorkshopSlice } from '@/store/slices/runWorkshop';
 import { createSettingsSlice } from '@/store/slices/settings';
 import type { SettingsSlice } from '@/store/slices/settings';
 import { createWeaponsSlice } from '@/store/slices/weapons';
@@ -30,7 +32,8 @@ type TestStore = ProfileSlice &
   PatchesSlice &
   EquippedPatchesSlice &
   SettingsSlice &
-  BattleSlice;
+  BattleSlice &
+  RunWorkshopSlice;
 
 function makeStore() {
   return create<TestStore>()((...a) => ({
@@ -42,6 +45,7 @@ function makeStore() {
     ...createEquippedPatchesSlice(...a),
     ...createSettingsSlice(...a),
     ...createBattleSlice(...a),
+    ...createRunWorkshopSlice(...a),
   }));
 }
 
