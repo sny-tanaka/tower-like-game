@@ -99,5 +99,18 @@ describe('PreparationScreen Page', () => {
       expect(s.machineHp.eq(BigNum.fromNumber(100))).toBe(true);
       expect(s.currentWeapon).toBe(s.initialWeapon);
     });
+
+    test('initialSelectedTier=3 で出撃すると store の currentTier が 3 になる', async () => {
+      const user = userEvent.setup();
+      render(
+        <NavigationProvider initialScreen="preparation">
+          <Page initialSelectedTier={3} />
+        </NavigationProvider>
+      );
+
+      await user.click(screen.getByRole('button', { name: '出撃' }));
+
+      expect(useStore.getState().currentTier).toBe(3);
+    });
   });
 });

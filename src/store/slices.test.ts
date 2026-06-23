@@ -441,6 +441,25 @@ describe('battle slice', () => {
     expect(s.activeCdSec).toBe(60); // DEFAULT_ACTIVE_MAX_SEC
   });
 
+  it('startRun: initialTier=3 を渡すと currentTier が 3 になる', () => {
+    const store = makeStore();
+    store.getState().startRun({
+      initialWeapon: 'laser',
+      baseMachineMaxHp: BigNum.fromNumber(100),
+      initialTier: 3,
+    });
+    expect(store.getState().currentTier).toBe(3);
+  });
+
+  it('startRun: initialTier 省略 (undefined) のとき currentTier が 1 になる', () => {
+    const store = makeStore();
+    store.getState().startRun({
+      initialWeapon: 'laser',
+      baseMachineMaxHp: BigNum.fromNumber(100),
+    });
+    expect(store.getState().currentTier).toBe(1);
+  });
+
   it('endRun: デフォルト状態に戻る', () => {
     const store = makeStore();
     store.getState().startRun({ initialWeapon: 'laser', baseMachineMaxHp: BigNum.fromNumber(500) });

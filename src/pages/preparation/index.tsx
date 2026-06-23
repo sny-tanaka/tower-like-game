@@ -78,6 +78,7 @@ export function Page(props: PreparationPageProps) {
     startRun({
       initialWeapon,
       baseMachineMaxHp: BigNum.fromNumber(baseMaxHpNum),
+      initialTier: selectedTier,
     });
     navigate('battle');
   }
