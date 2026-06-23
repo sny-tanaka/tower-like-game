@@ -55,6 +55,30 @@ describe('calcMergeable', () => {
     expect(result).toHaveLength(1);
     expect(result[0].tier).toBe(6);
   });
+
+  it('パッチ 0 個のとき空配列を返す', () => {
+    const result = calcMergeable(new Map(), 2);
+    expect(result).toHaveLength(0);
+  });
+
+  it('T100 の高 Tier パッチが 2 個あるとき合成対象に含まれる', () => {
+    const patches = new Map<string, PatchEntry>([
+      ['boltCast#100', { name: 'boltCast', tier: 100, count: 2 }],
+    ]);
+    const result = calcMergeable(patches, 101);
+    expect(result).toHaveLength(1);
+    expect(result[0].tier).toBe(100);
+  });
+
+  it('結果は Tier 昇順でソートされる', () => {
+    const patches = new Map<string, PatchEntry>([
+      ['freezeHit#3', { name: 'freezeHit', tier: 3, count: 2 }],
+      ['burnHit#1', { name: 'burnHit', tier: 1, count: 2 }],
+      ['damageImmune#2', { name: 'damageImmune', tier: 2, count: 2 }],
+    ]);
+    const result = calcMergeable(patches, 4);
+    expect(result.map((e) => e.tier)).toEqual([1, 2, 3]);
+  });
 });
 
 describe('executeMergeAll', () => {
@@ -116,6 +140,45 @@ describe('executeMergeAll', () => {
     expect(result.get('freezeHit#6')).toBeUndefined();
     expect(result.get('freezeHit#7')?.count).toBe(1);
   });
+
+  it('T5 × 8 個 → 連続合成で T8 まで到達する', () => {
+    // T5×8 → T6×4 → T7×2 → T8×1
+    const patches = new Map<string, PatchEntry>([
+      ['freezeHit#5', { name: 'freezeHit', tier: 5, count: 8 }],
+    ]);
+    // maxTierLimit = T8 まで許可
+    const result = executeMergeAll(patches, 8);
+    expect(result.get('freezeHit#5')).toBeUndefined();
+    expect(result.get('freezeHit#6')).toBeUndefined();
+    expect(result.get('freezeHit#7')).toBeUndefined();
+    expect(result.get('freezeHit#8')?.count).toBe(1);
+  });
+
+  it('複数種類パッチが混在するとき各種が独立して合成される', () => {
+    const patches = new Map<string, PatchEntry>([
+      ['burnHit#1', { name: 'burnHit', tier: 1, count: 2 }],
+      ['freezeHit#1', { name: 'freezeHit', tier: 1, count: 2 }],
+    ]);
+    const result = executeMergeAll(patches, 2);
+    expect(result.get('burnHit#1')).toBeUndefined();
+    expect(result.get('burnHit#2')?.count).toBe(1);
+    expect(result.get('freezeHit#1')).toBeUndefined();
+    expect(result.get('freezeHit#2')?.count).toBe(1);
+  });
+
+  it('パッチ 0 個のとき空 Map を返す', () => {
+    const result = executeMergeAll(new Map(), 5);
+    expect(result.size).toBe(0);
+  });
+
+  it('T100 × 2 個 → T101 に合成できる (高 Tier 境界値)', () => {
+    const patches = new Map<string, PatchEntry>([
+      ['burnHit#100', { name: 'burnHit', tier: 100, count: 2 }],
+    ]);
+    const result = executeMergeAll(patches, 101);
+    expect(result.get('burnHit#100')).toBeUndefined();
+    expect(result.get('burnHit#101')?.count).toBe(1);
+  });
 });
 
 // ---------------------------------------------------------------------------
@@ -157,6 +220,32 @@ describe('PatchMergeTab', () => {
     // 初期 maxTierLimit = 5, calcMergeable(patches, 5+1=6) → tier=5, count=2 は含まれる
     const btn = screen.getByRole('button', { name: /一括合成/ });
     expect(btn).toBeDefined();
+  });
+
+  it('パッチ 0 個のとき合成不可メッセージが表示され、ステッパーの値は 1 になる', () => {
+    render(<PatchMergeTab overridePatches={new Map()} />);
+    expect(screen.getByText('合成可能なパッチがありません')).toBeDefined();
+    // stepperMax = Math.max(1) + 1 = 2, 初期 maxTierLimit = Math.max(1) = 1
+    // ステッパー表示値が 1 であることを確認
+    const stepperValue = screen.getByText('1');
+    expect(stepperValue).toBeDefined();
+  });
+
+  it('各パッチを 1 個ずつ所持のとき合成対象なしと表示される', () => {
+    const patches = new Map<string, PatchEntry>([
+      ['burnHit#1', { name: 'burnHit', tier: 1, count: 1 }],
+      ['freezeHit#2', { name: 'freezeHit', tier: 2, count: 1 }],
+      ['damageImmune#3', { name: 'damageImmune', tier: 3, count: 1 }],
+    ]);
+    render(<PatchMergeTab overridePatches={patches} />);
+    expect(screen.getByText('合成可能なパッチがありません')).toBeDefined();
+  });
+
+  it('ステッパーの減少ボタンは min=1 のとき初期値が 1 なら無効化される (パッチ 0 個)', () => {
+    render(<PatchMergeTab overridePatches={new Map()} />);
+    const decrementBtn = screen.getByRole('button', { name: '減少' });
+    // 初期値 = maxExistingTier = 1, min = 1 → 減少不可
+    expect(decrementBtn).toBeDisabled();
   });
 
   describe('SE 配線', () => {
