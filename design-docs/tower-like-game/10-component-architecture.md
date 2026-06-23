@@ -112,7 +112,7 @@
 
 | Organism | 役割 |
 |---|---|
-| `PatchEquipTab` | PatchSlot × N（マシン強化「パッチスロット数」依存） |
+| `PatchEquipTab` | PatchSlot × N（マシン強化「パッチスロット数」依存）。**空きスロットタップで内蔵の「装着候補ダイアログ」 (`Overlay` + `Card` + `PatchCard` リスト) を開き、 在庫から重複装着不可ルールでフィルタした候補を選んで `equipPatch`**。装着済みスロットタップは従来通り `unequipPatch`。候補 0 件時は空状態メッセージを表示。汎用ピッカー Organism は切り出さず本タブ内に閉じる |
 | `PatchInventoryTab` | PatchCard リスト（同名同 Tier 集約） |
 | `PatchMergeTab` | Stepper + Button（一括合成） |
 
@@ -130,7 +130,7 @@
 |---|---|
 | `BattleField` | マシン + 敵 + 攻撃エフェクト + 索敵円の描画レイヤ |
 | `BattleHudTop` | HP バー + Tier + Wave + WaveProgressBar |
-| `BattleHudBottom` | ネジ + WeaponSlotIcon×4 + ActiveSkillButton（**直下に「アクティブ手動/自動」トグル**、ゲージは「発動 = 0 → 時計回りで満タンに溜まる」、ラン開始時は CD 満タンスタート） + 一時停止ボタン（**押下で pause + `BattleMenuOverlay` 開閉を同時に行う**） + スクリーンセーバー（アイコンは `ice`）。v0.2.0 で「メニュー専用ボタン」 と速度切替ボタンは廃止。これに伴い `onOpenMenu` prop は廃止し、pause トグル 1 本に統合 |
+| `BattleHudBottom` | **通貨エリア (ネジ `size=lg` + ラン獲得ボルト累計 `size=md` を並列表示。 `earnedBolt` prop で受け取り、 値はリザルトの `earnedBolt` と完全一致)** + WeaponSlotIcon×4 + ActiveSkillButton（**直下に「アクティブ手動/自動」トグル**、ゲージは「発動 = 0 → 時計回りで満タンに溜まる」、ラン開始時は CD 満タンスタート） + 一時停止ボタン（**押下で pause + `BattleMenuOverlay` 開閉を同時に行う**） + スクリーンセーバー（アイコンは `ice`）。v0.2.0 で「メニュー専用ボタン」 と速度切替ボタンは廃止。これに伴い `onOpenMenu` prop は廃止し、pause トグル 1 本に統合 |
 | `RunWorkshopBottomSheet` | 4 つの UpgradeCard |
 | `BattleMenuOverlay` | 撤退 / 簡易音量（**手動/自動 切替はここから移動、BattleHudBottom 内に常駐**）。**表示状態は pause と完全同期**: 親（BattleScreen）が `paused` を真にした時だけマウントされ、本オーバーレイの close ハンドラは `setPaused(false)` を呼ぶ。バックグラウンド遷移時（`document.hidden`）にもラン中であれば自動で開く |
 | `ResultDialog` | ヘッダ + 統計 + 獲得 + **「出撃準備へ」ボタン 1 つ**（タイトル戻りは BottomNav 経由） |
