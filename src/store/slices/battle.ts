@@ -98,6 +98,12 @@ export type BattleSlice = BattleState & BattleActions;
  */
 export const WEAPON_SWITCH_CD_SEC = 3;
 
+/**
+ * アクティブスキル CD 最大値 (秒)。 ラン開始時のゲージは「0 (= CD 満タン)」 からスタートし、
+ * この秒数経過で発動可能になる。 RW 等で短縮していく想定。
+ */
+export const DEFAULT_ACTIVE_MAX_SEC = 60;
+
 export const defaultBattleState: BattleState = {
   isRunActive: false,
   screw: BigNum.ZERO,
@@ -151,7 +157,8 @@ export const createBattleSlice: StateCreator<RootStore, [], [], BattleSlice> = (
       currentWave: 1,
       currentWeapon: initialWeapon,
       weaponSwitchCdSec: 0,
-      activeCdSec: 0,
+      // ラン開始時はゲージ 0 = CD 満タン (= DEFAULT_ACTIVE_MAX_SEC 待つ)
+      activeCdSec: DEFAULT_ACTIVE_MAX_SEC,
       isAutoActive: false,
       isPaused: false,
       // ラン開始時の bolt/alloy 残高をスナップショット (リザルト獲得量算出用)

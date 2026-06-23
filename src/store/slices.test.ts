@@ -424,7 +424,7 @@ describe('battle slice', () => {
     expect(s.machineHp.isZero()).toBe(true);
   });
 
-  it('startRun: ラン中状態に遷移する', () => {
+  it('startRun: ラン中状態に遷移する + activeCdSec が満タン (= ゲージ 0 開始)', () => {
     const store = makeStore();
     store.getState().startRun({
       initialWeapon: 'cannon',
@@ -437,6 +437,8 @@ describe('battle slice', () => {
     expect(s.currentWeapon).toBe('cannon');
     expect(s.currentTier).toBe(1);
     expect(s.currentWave).toBe(1);
+    // 仕様: ラン開始時はアクティブゲージ 0 (= CD 満タン) でスタート
+    expect(s.activeCdSec).toBe(60); // DEFAULT_ACTIVE_MAX_SEC
   });
 
   it('endRun: デフォルト状態に戻る', () => {

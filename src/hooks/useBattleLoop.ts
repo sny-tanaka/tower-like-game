@@ -33,6 +33,7 @@ import { soundEngine } from '@/lib/audio';
 import type { SoundId } from '@/lib/audio';
 import { BigNum } from '@/lib/bignum';
 import { useStore } from '@/store/index';
+import { DEFAULT_ACTIVE_MAX_SEC } from '@/store/slices/battle';
 import type { WeaponType } from '@/store/slices/weapons';
 
 // ---------------------------------------------------------------------------
@@ -178,8 +179,11 @@ export function applyKnockback(
   };
 }
 
-/** アクティブスキル CD 最大値 (秒)。 初期値 = 1 分。 RW 等で短縮していく想定 */
-export const DEFAULT_ACTIVE_MAX_SEC = 60;
+/**
+ * アクティブスキル CD 最大値 (秒)。 battle slice から再 export (互換のため残置)。
+ * 値の真の定義は @/store/slices/battle に集約。
+ */
+export { DEFAULT_ACTIVE_MAX_SEC };
 
 /**
  * Cutter (回転刃武器) の当たり判定半径 (%)。
