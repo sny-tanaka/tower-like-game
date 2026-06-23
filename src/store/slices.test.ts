@@ -556,6 +556,70 @@ describe('battle slice', () => {
       store.getState().addMachineHp(BigNum.fromNumber(5));
       expect(store.getState().machineHp.eq(BigNum.fromNumber(85))).toBe(true);
     });
+
+    it('delta=0 のときは HP が変わらない', () => {
+      const store = makeStore();
+      store
+        .getState()
+        .startRun({ initialWeapon: 'laser', baseMachineMaxHp: BigNum.fromNumber(100) });
+      store.getState().damageHp(BigNum.fromNumber(30)); // HP=70
+      store.getState().addMachineHp(BigNum.ZERO);
+      expect(store.getState().machineHp.eq(BigNum.fromNumber(70))).toBe(true);
+    });
+
+    it('ちょうど maxHp のときは maxHp を超えない (境界クランプ)', () => {
+      const store = makeStore();
+      store
+        .getState()
+        .startRun({ initialWeapon: 'laser', baseMachineMaxHp: BigNum.fromNumber(100) });
+      // HP=100 (満タン) に +10 → maxHp=100 にクランプ
+      store.getState().addMachineHp(BigNum.fromNumber(10));
+      expect(store.getState().machineHp.eq(BigNum.fromNumber(100))).toBe(true);
+    });
+
+    it('machineHp=0 に addMachineHp を呼ぶと加算される (呼び出し側ガード責務)', () => {
+      // addMachineHp 自体はゲームオーバーガードを持たない。
+      // ガードは useBattleLoop 側 (useStore.getState().machineHp.isZero() チェック) で行う。
+      // このテストはその仕様を明文化する。
+      const store = makeStore();
+      store
+        .getState()
+        .startRun({ initialWeapon: 'laser', baseMachineMaxHp: BigNum.fromNumber(100) });
+      store.getState().damageHp(BigNum.fromNumber(999)); // HP=0 (ゲームオーバー)
+      store.getState().addMachineHp(BigNum.fromNumber(10));
+      // addMachineHp は delta を足す → HP=10 になる (呼び側がガードしなければ蘇生してしまう)
+      expect(store.getState().machineHp.eq(BigNum.fromNumber(10))).toBe(true);
+    });
+
+    it('複数 damageHp と addMachineHp が交互に呼ばれても全部正しく積み重なる (integration)', () => {
+      const store = makeStore();
+      store
+        .getState()
+        .startRun({ initialWeapon: 'laser', baseMachineMaxHp: BigNum.fromNumber(200) });
+      // 初期 HP=200
+      // damage 50 → 150
+      store.getState().damageHp(BigNum.fromNumber(50));
+      // regen +10 → 160
+      store.getState().addMachineHp(BigNum.fromNumber(10));
+      // damage 30 → 130
+      store.getState().damageHp(BigNum.fromNumber(30));
+      // regen +5 → 135
+      store.getState().addMachineHp(BigNum.fromNumber(5));
+      expect(store.getState().machineHp.eq(BigNum.fromNumber(135))).toBe(true);
+    });
+
+    it('addMachineHp のみ複数回呼ぶと maxHp で上限クランプされる', () => {
+      const store = makeStore();
+      store
+        .getState()
+        .startRun({ initialWeapon: 'laser', baseMachineMaxHp: BigNum.fromNumber(100) });
+      store.getState().damageHp(BigNum.fromNumber(50)); // HP=50
+      // 3 回 regen を積む: +20 → 70、 +20 → 90、 +20 → 100 (クランプ)
+      store.getState().addMachineHp(BigNum.fromNumber(20));
+      store.getState().addMachineHp(BigNum.fromNumber(20));
+      store.getState().addMachineHp(BigNum.fromNumber(20));
+      expect(store.getState().machineHp.eq(BigNum.fromNumber(100))).toBe(true);
+    });
   });
 
   it('advanceWave / advanceTier: Wave と Tier が増加する', () => {
