@@ -49,7 +49,7 @@ describe('getAttackPerSec', () => {
 
 describe('fireWeapon: RunWorkshop attackMul の反映', () => {
   const enemy = makeEnemy('e1');
-  const machine = buildMachineStats({ maxHpNumber: 100 });
+  const machine = buildMachineStats({ machineMaxHp: BigNum.fromNumber(100) });
 
   test('attackMul=1.0 と attackMul=2.0 でダメージが 2 倍になる (laser)', () => {
     const baseResult = fireWeapon({

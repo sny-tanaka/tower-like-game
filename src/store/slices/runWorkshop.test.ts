@@ -91,7 +91,9 @@ describe('RunWorkshop slice', () => {
     useStore.setState({
       runWorkshopLevels: { attackMul: 5, attackSpeedMul: 0, hpMul: 0, screwGainMul: 0 },
     });
-    useStore.getState().startRun({ initialWeapon: 'laser', baseMachineMaxHp: 100, gameSpeed: 1 });
+    useStore
+      .getState()
+      .startRun({ initialWeapon: 'laser', baseMachineMaxHp: BigNum.fromNumber(100), gameSpeed: 1 });
     expect(useStore.getState().runWorkshopLevels.attackMul).toBe(0);
   });
 

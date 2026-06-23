@@ -430,16 +430,22 @@ describe('battle slice', () => {
     const s = makeStore().getState();
     expect(s.isRunActive).toBe(false);
     expect(s.screw.isZero()).toBe(true);
-    expect(s.machineHp).toBe(0);
+    expect(s.machineHp.isZero()).toBe(true);
   });
 
   it('startRun: ラン中状態に遷移する', () => {
     const store = makeStore();
-    store.getState().startRun({ initialWeapon: 'cannon', baseMachineMaxHp: 1000, gameSpeed: 2 });
+    store
+      .getState()
+      .startRun({
+        initialWeapon: 'cannon',
+        baseMachineMaxHp: BigNum.fromNumber(1000),
+        gameSpeed: 2,
+      });
     const s = store.getState();
     expect(s.isRunActive).toBe(true);
-    expect(s.machineHp).toBe(1000);
-    expect(s.machineMaxHp).toBe(1000);
+    expect(s.machineHp.eq(BigNum.fromNumber(1000))).toBe(true);
+    expect(s.machineMaxHp.eq(BigNum.fromNumber(1000))).toBe(true);
     expect(s.currentWeapon).toBe('cannon');
     expect(s.gameSpeed).toBe(2);
     expect(s.currentTier).toBe(1);
@@ -448,7 +454,9 @@ describe('battle slice', () => {
 
   it('endRun: デフォルト状態に戻る', () => {
     const store = makeStore();
-    store.getState().startRun({ initialWeapon: 'laser', baseMachineMaxHp: 500, gameSpeed: 1 });
+    store
+      .getState()
+      .startRun({ initialWeapon: 'laser', baseMachineMaxHp: BigNum.fromNumber(500), gameSpeed: 1 });
     store.getState().addScrew(BigNum.fromNumber(100));
     store.getState().endRun();
     expect(store.getState().isRunActive).toBe(false);
@@ -457,7 +465,9 @@ describe('battle slice', () => {
 
   it('addScrew / spendScrew: ネジの増減', () => {
     const store = makeStore();
-    store.getState().startRun({ initialWeapon: 'laser', baseMachineMaxHp: 100, gameSpeed: 1 });
+    store
+      .getState()
+      .startRun({ initialWeapon: 'laser', baseMachineMaxHp: BigNum.fromNumber(100), gameSpeed: 1 });
     store.getState().addScrew(BigNum.fromNumber(500));
     const ok = store.getState().spendScrew(BigNum.fromNumber(200));
     expect(ok).toBe(true);
@@ -466,23 +476,29 @@ describe('battle slice', () => {
 
   it('spendScrew: 不足で false', () => {
     const store = makeStore();
-    store.getState().startRun({ initialWeapon: 'laser', baseMachineMaxHp: 100, gameSpeed: 1 });
+    store
+      .getState()
+      .startRun({ initialWeapon: 'laser', baseMachineMaxHp: BigNum.fromNumber(100), gameSpeed: 1 });
     const ok = store.getState().spendScrew(BigNum.fromNumber(1));
     expect(ok).toBe(false);
   });
 
   it('damageHp: HP が減り、0 未満にはならない', () => {
     const store = makeStore();
-    store.getState().startRun({ initialWeapon: 'laser', baseMachineMaxHp: 100, gameSpeed: 1 });
-    store.getState().damageHp(30);
-    expect(store.getState().machineHp).toBe(70);
-    store.getState().damageHp(200);
-    expect(store.getState().machineHp).toBe(0);
+    store
+      .getState()
+      .startRun({ initialWeapon: 'laser', baseMachineMaxHp: BigNum.fromNumber(100), gameSpeed: 1 });
+    store.getState().damageHp(BigNum.fromNumber(30));
+    expect(store.getState().machineHp.eq(BigNum.fromNumber(70))).toBe(true);
+    store.getState().damageHp(BigNum.fromNumber(200));
+    expect(store.getState().machineHp.isZero()).toBe(true);
   });
 
   it('advanceWave / advanceTier: Wave と Tier が増加する', () => {
     const store = makeStore();
-    store.getState().startRun({ initialWeapon: 'laser', baseMachineMaxHp: 100, gameSpeed: 1 });
+    store
+      .getState()
+      .startRun({ initialWeapon: 'laser', baseMachineMaxHp: BigNum.fromNumber(100), gameSpeed: 1 });
     store.getState().advanceWave();
     store.getState().advanceWave();
     expect(store.getState().currentWave).toBe(3);
@@ -493,7 +509,9 @@ describe('battle slice', () => {
 
   it('switchWeapon: 武器が変わる', () => {
     const store = makeStore();
-    store.getState().startRun({ initialWeapon: 'laser', baseMachineMaxHp: 100, gameSpeed: 1 });
+    store
+      .getState()
+      .startRun({ initialWeapon: 'laser', baseMachineMaxHp: BigNum.fromNumber(100), gameSpeed: 1 });
     store.getState().switchWeapon('thunder');
     expect(store.getState().currentWeapon).toBe('thunder');
   });
@@ -521,23 +539,27 @@ describe('battle slice', () => {
 
   it('startRun: baseMachineMaxHp が保存され、 hpMul Lv 0 では machineMaxHp = base', () => {
     const store = makeStore();
-    store.getState().startRun({ initialWeapon: 'laser', baseMachineMaxHp: 800, gameSpeed: 1 });
-    expect(store.getState().baseMachineMaxHp).toBe(800);
-    expect(store.getState().machineMaxHp).toBe(800);
-    expect(store.getState().machineHp).toBe(800);
+    store
+      .getState()
+      .startRun({ initialWeapon: 'laser', baseMachineMaxHp: BigNum.fromNumber(800), gameSpeed: 1 });
+    expect(store.getState().baseMachineMaxHp.eq(BigNum.fromNumber(800))).toBe(true);
+    expect(store.getState().machineMaxHp.eq(BigNum.fromNumber(800))).toBe(true);
+    expect(store.getState().machineHp.eq(BigNum.fromNumber(800))).toBe(true);
   });
 
   it('recalcMachineMaxHpFromHpMul: 減量を維持 (new_current = new_max - damage_taken)', () => {
     const store = makeStore();
-    store.getState().startRun({ initialWeapon: 'laser', baseMachineMaxHp: 100, gameSpeed: 1 });
+    store
+      .getState()
+      .startRun({ initialWeapon: 'laser', baseMachineMaxHp: BigNum.fromNumber(100), gameSpeed: 1 });
     // 50 damage を受けた状態: 50/100
-    store.getState().damageHp(50);
-    expect(store.getState().machineHp).toBe(50);
-    expect(store.getState().machineMaxHp).toBe(100);
+    store.getState().damageHp(BigNum.fromNumber(50));
+    expect(store.getState().machineHp.eq(BigNum.fromNumber(50))).toBe(true);
+    expect(store.getState().machineMaxHp.eq(BigNum.fromNumber(100))).toBe(true);
     // hpMul Lv 5 (×1.5) に上げる → new_max=150, damage_taken=50, new_current=100
     store.getState().recalcMachineMaxHpFromHpMul(5);
-    expect(store.getState().machineMaxHp).toBe(150);
-    expect(store.getState().machineHp).toBe(100);
+    expect(store.getState().machineMaxHp.eq(BigNum.fromNumber(150))).toBe(true);
+    expect(store.getState().machineHp.eq(BigNum.fromNumber(100))).toBe(true);
   });
 
   it('triggerActive: CD 0 で発動成功 + activeCdSec が maxSec にセット', () => {
@@ -558,14 +580,16 @@ describe('battle slice', () => {
 
   it('upgradeRunWorkshop("hpMul", 1): ネジ消費 + machineMaxHp 動的更新', () => {
     const store = makeStore();
-    store.getState().startRun({ initialWeapon: 'laser', baseMachineMaxHp: 100, gameSpeed: 1 });
+    store
+      .getState()
+      .startRun({ initialWeapon: 'laser', baseMachineMaxHp: BigNum.fromNumber(100), gameSpeed: 1 });
     store.getState().addScrew(BigNum.fromNumber(10));
     const ok = store.getState().upgradeRunWorkshop('hpMul', 1);
     expect(ok).toBe(true);
     expect(store.getState().runWorkshopLevels.hpMul).toBe(1);
-    // hpMul Lv 1 (×1.1) → machineMaxHp = 100 × 1.1 = 110 (浮動小数誤差を許容)
-    expect(store.getState().machineMaxHp).toBeCloseTo(110);
+    // hpMul Lv 1 (×1.1) → machineMaxHp = 100 × 1.1 = 110 (BigNum 整数化)
+    expect(store.getState().machineMaxHp.eq(BigNum.fromNumber(110))).toBe(true);
     // 開戦直後はダメージ受けてない → machineHp = 110 (満タンも 110 に追従)
-    expect(store.getState().machineHp).toBeCloseTo(110);
+    expect(store.getState().machineHp.eq(BigNum.fromNumber(110))).toBe(true);
   });
 });

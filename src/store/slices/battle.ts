@@ -14,16 +14,16 @@ export interface BattleState {
   isRunActive: boolean;
   /** ラン中通貨: ネジ */
   screw: BigNum;
-  /** マシン現在 HP */
-  machineHp: number;
+  /** マシン現在 HP (BigNum でオーバーフロー耐性) */
+  machineHp: BigNum;
   /** マシン最大 HP (base × RunWorkshop hpMul) — RunWorkshop hpMul の変化で動的に再計算される */
-  machineMaxHp: number;
+  machineMaxHp: BigNum;
   /**
    * マシン最大 HP の base 値 (永続強化 / 装着パッチ込み)。
    * ラン中ワークショップの hpMul を適用する前の値で、 startRun 時に固定される。
    * hpMul が上がっても base は変わらず、 machineMaxHp = baseMachineMaxHp × multiplier で再計算する。
    */
-  baseMachineMaxHp: number;
+  baseMachineMaxHp: BigNum;
   /** 現在 Tier */
   currentTier: number;
   /** 現在 Wave (Tier 内) */
@@ -50,14 +50,14 @@ export interface BattleActions {
   startRun: (opts: {
     initialWeapon: WeaponType;
     /** マシン本体最大 HP の base 値 (永続強化込み / RunWorkshop hpMul は含まない) */
-    baseMachineMaxHp: number;
+    baseMachineMaxHp: BigNum;
     gameSpeed: 1 | 2 | 3;
   }) => void;
   endRun: () => void;
   addScrew: (amount: BigNum) => void;
   spendScrew: (amount: BigNum) => boolean;
-  setMachineHp: (hp: number) => void;
-  damageHp: (amount: number) => void;
+  setMachineHp: (hp: BigNum) => void;
+  damageHp: (amount: BigNum) => void;
   /**
    * RunWorkshop hpMul 変化時に、 baseMachineMaxHp と新しい hpMul Lv から
    * machineMaxHp を再計算する。 現在 HP は「減量を維持」で更新:
@@ -93,9 +93,9 @@ export type BattleSlice = BattleState & BattleActions;
 export const defaultBattleState: BattleState = {
   isRunActive: false,
   screw: BigNum.ZERO,
-  machineHp: 0,
-  machineMaxHp: 0,
-  baseMachineMaxHp: 0,
+  machineHp: BigNum.ZERO,
+  machineMaxHp: BigNum.ZERO,
+  baseMachineMaxHp: BigNum.ZERO,
   currentTier: 1,
   currentWave: 1,
   currentWeapon: 'laser',
@@ -105,6 +105,16 @@ export const defaultBattleState: BattleState = {
   gameSpeed: 1,
   isPaused: false,
 };
+
+// ---------------------------------------------------------------------------
+// HP 値を BigNum 同士で「下限 0 / 上限 max」にクランプ
+// ---------------------------------------------------------------------------
+
+function clampBig(value: BigNum, min: BigNum, max: BigNum): BigNum {
+  if (value.lt(min)) return min;
+  if (value.gt(max)) return max;
+  return value;
+}
 
 // ---------------------------------------------------------------------------
 // Factory
@@ -118,7 +128,7 @@ export const createBattleSlice: StateCreator<RootStore, [], [], BattleSlice> = (
     // 明示的に倍率を計算しておく。
     const hpMulLv = get().runWorkshopLevels.hpMul;
     const multiplier = calcRunWorkshopMultiplier(hpMulLv);
-    const machineMaxHp = baseMachineMaxHp * multiplier;
+    const machineMaxHp = baseMachineMaxHp.mulNumber(multiplier);
     set({
       isRunActive: true,
       screw: BigNum.ZERO,
@@ -152,17 +162,24 @@ export const createBattleSlice: StateCreator<RootStore, [], [], BattleSlice> = (
     return true;
   },
 
-  setMachineHp: (hp) => set((s) => ({ machineHp: Math.max(0, Math.min(hp, s.machineMaxHp)) })),
+  setMachineHp: (hp) => set((s) => ({ machineHp: clampBig(hp, BigNum.ZERO, s.machineMaxHp) })),
 
-  damageHp: (amount) => set((s) => ({ machineHp: Math.max(0, s.machineHp - amount) })),
+  damageHp: (amount) =>
+    set((s) => {
+      const next = s.machineHp.sub(amount);
+      return { machineHp: next.lt(BigNum.ZERO) ? BigNum.ZERO : next };
+    }),
 
   recalcMachineMaxHpFromHpMul: (newHpMulLv) => {
     const s = get();
     const oldMax = s.machineMaxHp;
     const oldCurrent = s.machineHp;
-    const damageTaken = Math.max(0, oldMax - oldCurrent);
-    const newMax = s.baseMachineMaxHp * calcRunWorkshopMultiplier(newHpMulLv);
-    const newCurrent = Math.max(0, newMax - damageTaken);
+    // damage_taken = max(0, old_max - old_current)
+    const rawDamageTaken = oldMax.sub(oldCurrent);
+    const damageTaken = rawDamageTaken.lt(BigNum.ZERO) ? BigNum.ZERO : rawDamageTaken;
+    const newMax = s.baseMachineMaxHp.mulNumber(calcRunWorkshopMultiplier(newHpMulLv));
+    const newCurrentRaw = newMax.sub(damageTaken);
+    const newCurrent = newCurrentRaw.lt(BigNum.ZERO) ? BigNum.ZERO : newCurrentRaw;
     set({ machineMaxHp: newMax, machineHp: newCurrent });
   },
 

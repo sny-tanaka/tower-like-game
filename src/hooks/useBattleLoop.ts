@@ -198,7 +198,7 @@ export function useBattleLoop({ range }: UseBattleLoopOpts): UseBattleLoopResult
             fireAccumulatorMsRef.current -= intervalMs;
             firedThisFrame += 1;
 
-            const machine = buildMachineStats({ maxHpNumber: state.machineMaxHp });
+            const machine = buildMachineStats({ machineMaxHp: state.machineMaxHp });
             const result = fireWeapon({
               weapon: state.currentWeapon,
               weaponLv: state.weaponLv,
@@ -269,7 +269,7 @@ export function useBattleLoop({ range }: UseBattleLoopOpts): UseBattleLoopResult
           // ---- 被ダメ処理 (マシン近接の敵から enemy.atk × deltaSec) ----
           // 敵移動ロジック未実装のため、 spawn 時点で近接位置にいる場合のみ被ダメ発生する placeholder。
           // 敵移動 + 経路は別 issue で実装する。
-          const machineStats = buildMachineStats({ maxHpNumber: state.machineMaxHp });
+          const machineStats = buildMachineStats({ machineMaxHp: state.machineMaxHp });
           let totalReceived = BigNum.ZERO;
           for (const enemy of enemiesRef.current) {
             if (distanceFromMachine(enemy.position) <= MELEE_CONTACT_RANGE) {
@@ -278,8 +278,7 @@ export function useBattleLoop({ range }: UseBattleLoopOpts): UseBattleLoopResult
             }
           }
           if (!totalReceived.isZero()) {
-            const dmgNum = parseFloat(totalReceived.toString());
-            state.damageHp(dmgNum);
+            state.damageHp(totalReceived);
           }
 
           // ---- Wave 終了判定 ----

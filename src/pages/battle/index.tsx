@@ -33,9 +33,9 @@ const DEFAULT_RANGE = 30;
  * リザルトダイアログが開いているかの判定。
  * isRunActive: true のときだけ HP チェックを行う（ラン開始前の初期 HP=0 でリザルトを出さない）。
  */
-function resolveResultStatus(isRunActive: boolean, machineHp: number): ResultStatus | null {
+function resolveResultStatus(isRunActive: boolean, machineHp: BigNum): ResultStatus | null {
   if (!isRunActive) return null;
-  if (machineHp <= 0) return 'gameover';
+  if (machineHp.lte(BigNum.ZERO)) return 'gameover';
   return null;
 }
 
@@ -109,9 +109,9 @@ export function Page() {
   const effectiveResultStatus = resultStatus ?? autoResultStatus;
   const isResultOpen = effectiveResultStatus !== null;
 
-  // ── HP を BigNum に変換（BattleHudTop は BigNum を受け取る）──
-  const hpCurrentBn = BigNum.fromNumber(machineHp);
-  const hpMaxBn = BigNum.fromNumber(machineMaxHp > 0 ? machineMaxHp : 1);
+  // BattleHudTop は BigNum を受け取る — machineMaxHp が 0 (ラン外) のときは 1 にクランプ
+  const hpCurrentBn = machineHp;
+  const hpMaxBn = machineMaxHp.isZero() ? BigNum.fromNumber(1) : machineMaxHp;
 
   // ── ハンドラ ──
   const handleSpeedChange = (speed: GameSpeed) => {
