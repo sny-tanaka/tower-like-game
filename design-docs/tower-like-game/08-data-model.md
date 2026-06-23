@@ -167,12 +167,13 @@ type EquippedPatchRecord = {
 ```ts
 type SettingsRecord = {
   id: 'singleton';
-  defaultGameSpeed: 1 | 2 | 3;            // ラン開始時の速度倍率
   bgmVolume: number;                      // 0.0 〜 1.0
   seVolume: number;                       // 0.0 〜 1.0
   vibrationEnabled: boolean;              // スマホのバイブレーション
 };
 ```
+
+> v0.2.0 でゲームスピード切替機能を廃止したため、`defaultGameSpeed` フィールドは削除。
 
 > アクティブスキルの手動/自動切替は **ラン中のバトル画面でのみ切替** （ラン開始時は手動固定）なので、永続設定には含めない（[05-weapons.md](./05-weapons.md) と整合）。
 > パッチ自動合成は合成画面のみで操作するので永続設定には含めない（[06-patches.md](./06-patches.md) と整合）。

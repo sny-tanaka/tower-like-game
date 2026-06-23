@@ -47,7 +47,7 @@
 | `Stepper` | value, min, max, step, onChange | パッチ合成 Tier 上限指定 |
 | `Slider` | value, min, max, onChange | 音量 |
 | `Toggle` | checked, onChange | ON/OFF (バイブ、アクティブ手動/自動) |
-| `SegmentedControl` | options, value, onChange | 速度倍率切替、初期速度設定 |
+| `SegmentedControl` | options, value, onChange | 一般的な複数選択肢の切替（v0.2.0 でゲームスピード切替の用途は廃止） |
 | `FileInput` | accept, onChange | インポート JSON |
 
 ### コンテナ系
@@ -130,7 +130,7 @@
 |---|---|
 | `BattleField` | マシン + 敵 + 攻撃エフェクト + 索敵円の描画レイヤ |
 | `BattleHudTop` | HP バー + Tier + Wave + WaveProgressBar |
-| `BattleHudBottom` | ネジ + WeaponSlotIcon×4 + ActiveSkillButton（**直下に「アクティブ手動/自動」トグル**） + 速度 + 一時停止 + メニュー + スクリーンセーバー（アイコンは `ice`） |
+| `BattleHudBottom` | ネジ + WeaponSlotIcon×4 + ActiveSkillButton（**直下に「アクティブ手動/自動」トグル**） + 一時停止 + メニュー + スクリーンセーバー（アイコンは `ice`）。v0.2.0 で速度切替ボタンは廃止 |
 | `RunWorkshopBottomSheet` | 4 つの UpgradeCard |
 | `BattleMenuOverlay` | 撤退 / 簡易音量（**手動/自動 切替はここから移動、BattleHudBottom 内に常駐**） |
 | `ResultDialog` | ヘッダ + 統計 + 獲得 + **「出撃準備へ」ボタン 1 つ**（タイトル戻りは BottomNav 経由） |
@@ -209,7 +209,7 @@
 | `DamageVignetteFx` | マシン被ダメ | 画面端に赤ビネット |
 | `HealFlashFx` | HP リジェネ・回復パッチ発動 | HP バーが緑にフェード |
 | `WaveStartFx` | ウェーブ開始 | 上 HUD にウェーブ番号がスライドイン |
-| `AppearanceBannerFx` | エリート / ボス出現 | フラッシュ + 名前バナー。**`kind: 'elite' \| 'boss'` で表現分岐**（旧 `EliteAppearanceFx` / `BossAppearanceFx` は統合） |
+| `AppearanceBannerFx` | エリート / ミニボス / Tier ボス出現、ラン開始 | フラッシュ + 名前バナー。**`kind: 'elite' \| 'mini-boss' \| 'boss' \| 'battle-start'` で表現分岐**（旧 `EliteAppearanceFx` / `BossAppearanceFx` は統合）。`battle-start` は `isRunActive` が false → true に遷移したフレームのみ発火（再マウントでは出さない） |
 | `TierClearFx` | Tier クリア | 画面全体のフィナーレ演出 |
 | `ScreenSaverFx` | スクリーンセーバー起動 | フルスクリーンの軽量アニメ |
 
