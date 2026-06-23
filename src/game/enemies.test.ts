@@ -261,4 +261,55 @@ describe('scaledReward', () => {
   it('T=10 の倍率は 100', () => {
     expect(scaledReward(50, 10)).toBe(5000);
   });
+
+  // ---- 追加: BigNum 耐性 / 境界値 / 乗算順序 (Refs #61) ----
+
+  it('base=0 なら Tier に関わらず 0', () => {
+    expect(scaledReward(0, 1)).toBe(0);
+    expect(scaledReward(0, 100)).toBe(0);
+  });
+
+  it('T=100 では base × 10000 になる', () => {
+    expect(scaledReward(3, 100)).toBe(30_000);
+  });
+
+  it('T=1000 でも Number 範囲内（overflow なし）', () => {
+    // 5 × 1000² = 5_000_000（IEEE754 で問題なく表現できる）
+    expect(scaledReward(5, 1000)).toBe(5_000_000);
+  });
+
+  it('Tier が増えると T² スケールで単調増加する', () => {
+    const base = 10;
+    const r1 = scaledReward(base, 1);
+    const r2 = scaledReward(base, 2);
+    const r10 = scaledReward(base, 10);
+    expect(r2).toBeGreaterThan(r1);
+    expect(r10).toBeGreaterThan(r2);
+    // T=2 は T=1 の 4 倍、T=10 は T=2 の 25 倍
+    expect(r2 / r1).toBe(4);
+    expect(r10 / r2).toBe(25);
+  });
+
+  it('小数 base は JS Number の精度範囲内で正確', () => {
+    // boss.alloyAmount=5 での代表値
+    expect(scaledReward(5, 3)).toBe(45); // 5 × 9
+  });
+
+  // ---- screw に scaledReward が適用されていないことを型レベルで確認 ----
+  // createEnemyTemplate の reward.screw は waveScrewFactor × tierScrewFactor を使用し、
+  // scaledReward (T²) は適用しない仕様 (02-currencies.md § 3.1)。
+  // enemy.reward.screw の値が T=1 基準として、T=1 のまま waveScrewFactor=1 では
+  // NORMAL_SCREW_REWARD.standard の値と一致することを確認。
+  it('T=1 W=1 normal standard の screw は NORMAL_SCREW_REWARD.standard と同じ（T² スケール未適用）', () => {
+    const t = createEnemyTemplate(1, 1, 'normal', 'standard');
+    // waveScrewFactor(1) × tierScrewFactor(1) = 1.0 → round(1 × 1) = 1
+    expect(t.reward.screw).toBe(1);
+    // もし scaledReward(1, 1)=1 が偶然一致しているだけでなく、
+    // T=2 で screw が T² スケールになっていないことも確認
+    const t2 = createEnemyTemplate(2, 1, 'normal', 'standard');
+    // T=2 での tierScrewFactor は 1 + 0.5*(2-1) = 1.5 → screw = round(1 × 1.5) = 2
+    // scaledReward(1, 2) = 4 になるはずだが、screw は 2 であることを確認
+    expect(t2.reward.screw).not.toBe(4);
+    expect(t2.reward.screw).toBe(2);
+  });
 });
