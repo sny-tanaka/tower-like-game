@@ -1,6 +1,11 @@
 import { describe, expect, test } from 'vitest';
 
-import { MAX_FRAME_GAME_SEC, calcFrameGameSec, decideWaveAdvance } from './useBattleLoop';
+import {
+  MAX_FRAME_GAME_SEC,
+  calcFrameGameSec,
+  decideWaveAdvance,
+  distanceFromMachine,
+} from './useBattleLoop';
 
 describe('calcFrameGameSec', () => {
   test('isPaused=true なら常に 0', () => {
@@ -47,5 +52,20 @@ describe('decideWaveAdvance', () => {
 
   test('境界: 最終 Wave 進行中は continue', () => {
     expect(decideWaveAdvance(25_999, 26, 30, 30)).toBe('continue');
+  });
+});
+
+describe('distanceFromMachine', () => {
+  test('マシン中心 (50, 50) からの距離が 0', () => {
+    expect(distanceFromMachine({ x: 50, y: 50 })).toBe(0);
+  });
+
+  test('水平 40 ずれで距離 40', () => {
+    expect(distanceFromMachine({ x: 90, y: 50 })).toBeCloseTo(40);
+    expect(distanceFromMachine({ x: 10, y: 50 })).toBeCloseTo(40);
+  });
+
+  test('斜め (3-4-5 三角形)', () => {
+    expect(distanceFromMachine({ x: 53, y: 54 })).toBeCloseTo(5);
   });
 });

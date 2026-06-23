@@ -1,14 +1,15 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
+import type { DamageEvent } from '@/components/organisms/BattleField';
+import { calcRunWorkshopMultiplier } from '@/components/organisms/RunWorkshopBottomSheet/items';
+import { buildMachineStats } from '@/game/loop/machineStats';
+import { fireWeapon, getAttackPerSec } from '@/game/loop/weaponDispatch';
 import type { SpawnedEnemy } from '@/game/types';
 import { buildTierWaves, getSpawnsAtTime } from '@/game/wave';
 import { useStore } from '@/store/index';
 
 // ---------------------------------------------------------------------------
 // 純粋関数: 1 フレームの「ゲーム時間 (秒)」を計算する
-//   - 一時停止中は 0 (副作用なし)
-//   - gameSpeed (1x/2x/3x) で実時間を倍化
-//   - 過大な elapsedMs (タブ復帰直後など) を 1 秒上限でクランプ
 // ---------------------------------------------------------------------------
 
 /** Tick 1 回で進めるゲーム時間 (秒) の上限。 タブ非アクティブ復帰時の暴走を防ぐ */
@@ -26,8 +27,6 @@ export function calcFrameGameSec(
 
 // ---------------------------------------------------------------------------
 // 純粋関数: Wave 終了判定
-//   - waveElapsedMs >= durationSec * 1000 で Wave 終了
-//   - Tier 最終 Wave 終了 → advanceTier、 それ以外 → advanceWave
 // ---------------------------------------------------------------------------
 
 export type AdvanceDecision = 'continue' | 'advanceWave' | 'advanceTier';
@@ -44,33 +43,49 @@ export function decideWaveAdvance(
 }
 
 // ---------------------------------------------------------------------------
-// useBattleLoop
-//
-// Battle 画面で呼ぶカスタムフック。
-// - isRunActive=true の間 requestAnimationFrame で連続 Tick
-// - 毎フレーム: 実時間差 × gameSpeed をゲーム時間に変換し、 store の
-//   tickCooldowns(deltaSec) を呼ぶ
-// - 毎フレーム: 現 Wave スケジュールから getSpawnsAtTime で新規 spawn 取得 →
-//   enemies state に積む
-// - Wave 終了で advanceWave / 全 Wave 終了で advanceTier、 waveElapsedMs リセット
-// - isPaused=true 中は CD 減算 / spawn / advance すべてスキップ (ループ継続)
-//
-// 武器発射 / 被ダメ等は #91 / #92 で追加する。
+// 純粋関数: 敵 position (0-100%) からマシン中心 (50, 50) までの距離
 // ---------------------------------------------------------------------------
+
+export const MACHINE_CENTER_X = 50;
+export const MACHINE_CENTER_Y = 50;
+
+export function distanceFromMachine(position: { x: number; y: number }): number {
+  const dx = position.x - MACHINE_CENTER_X;
+  const dy = position.y - MACHINE_CENTER_Y;
+  return Math.sqrt(dx * dx + dy * dy);
+}
+
+/** 仕様: 攻撃速度 hard cap = 10 attacks/sec (design-docs/04-run-workshop.md L64) */
+export const ATTACK_PER_SEC_CAP = 10;
+
+// ---------------------------------------------------------------------------
+// useBattleLoop
+// ---------------------------------------------------------------------------
+
+export interface UseBattleLoopOpts {
+  /** 射程 (0-100%)。 マシン中心 (50,50) からこの距離以下の敵が射程内 */
+  range: number;
+}
 
 export interface UseBattleLoopResult {
   enemies: SpawnedEnemy[];
+  damageEvents: DamageEvent[];
+  onDamageDone: (id: string) => void;
 }
 
-export function useBattleLoop(): UseBattleLoopResult {
+export function useBattleLoop({ range }: UseBattleLoopOpts): UseBattleLoopResult {
   const rafIdRef = useRef<number | null>(null);
   const lastFrameMsRef = useRef<number>(0);
   const waveElapsedMsRef = useRef<number>(0);
   const prevWaveElapsedMsRef = useRef<number>(0);
   const enemiesRef = useRef<SpawnedEnemy[]>([]);
-  const idCounterRef = useRef<number>(0);
+  const enemyIdCounterRef = useRef<number>(0);
+  const fireAccumulatorMsRef = useRef<number>(0);
+  const cutterAngleDegRef = useRef<number>(0);
+  const damageEventIdRef = useRef<number>(0);
 
   const [enemies, setEnemies] = useState<SpawnedEnemy[]>([]);
+  const [damageEvents, setDamageEvents] = useState<DamageEvent[]>([]);
 
   const isRunActive = useStore((s) => s.isRunActive);
   const currentTier = useStore((s) => s.currentTier);
@@ -87,6 +102,10 @@ export function useBattleLoop(): UseBattleLoopResult {
     setEnemies([]);
   }, [currentTier, currentWave]);
 
+  const onDamageDone = useCallback((id: string) => {
+    setDamageEvents((prev) => prev.filter((e) => e.id !== id));
+  }, []);
+
   useEffect(() => {
     if (!isRunActive) return;
 
@@ -98,32 +117,104 @@ export function useBattleLoop(): UseBattleLoopResult {
       const deltaSec = calcFrameGameSec(elapsedMs, state.gameSpeed, state.isPaused);
 
       if (deltaSec > 0) {
-        // CD 減算
+        // ---- CD 減算 ----
         state.tickCooldowns(deltaSec);
 
-        // Wave 経過時間を進める
+        // ---- Wave 経過時間を進める ----
         prevWaveElapsedMsRef.current = waveElapsedMsRef.current;
         waveElapsedMsRef.current += deltaSec * 1000;
 
         const schedule = tierWaves[state.currentWave - 1];
         if (schedule != null) {
-          // 敵 spawn (差分のみ取得)
+          // 敵 spawn
           const newSpawns = getSpawnsAtTime(
             schedule,
             waveElapsedMsRef.current,
             prevWaveElapsedMsRef.current,
             Math.random,
             () => {
-              idCounterRef.current += 1;
-              return `e-${state.currentTier}-${state.currentWave}-${idCounterRef.current}`;
+              enemyIdCounterRef.current += 1;
+              return `e-${state.currentTier}-${state.currentWave}-${enemyIdCounterRef.current}`;
             }
           );
           if (newSpawns.length > 0) {
             enemiesRef.current = [...enemiesRef.current, ...newSpawns];
-            setEnemies(enemiesRef.current);
           }
 
-          // Wave 終了判定
+          // ---- 武器発射 ----
+          const attackMulLv = state.runWorkshopLevels.attackMul;
+          const attackSpeedMulLv = state.runWorkshopLevels.attackSpeedMul;
+          const attackMul = calcRunWorkshopMultiplier(attackMulLv);
+          const attackSpeedMul = calcRunWorkshopMultiplier(attackSpeedMulLv);
+          const basePerSec = getAttackPerSec(state.currentWeapon, state.weaponLv);
+          const effectivePerSec = Math.min(ATTACK_PER_SEC_CAP, basePerSec * attackSpeedMul);
+          const intervalMs = effectivePerSec > 0 ? 1000 / effectivePerSec : Infinity;
+
+          fireAccumulatorMsRef.current += deltaSec * 1000;
+          let firedThisFrame = 0;
+          const FIRE_PER_FRAME_CAP = 10;
+          const newDamageEvents: DamageEvent[] = [];
+
+          while (
+            fireAccumulatorMsRef.current >= intervalMs &&
+            firedThisFrame < FIRE_PER_FRAME_CAP
+          ) {
+            // 射程内の敵を距離昇順で取得
+            const sortedInRange = enemiesRef.current
+              .map((enemy) => ({ enemy, dist: distanceFromMachine(enemy.position) }))
+              .filter(({ dist }) => dist <= range)
+              .sort((a, b) => a.dist - b.dist)
+              .map(({ enemy }) => enemy);
+
+            if (sortedInRange.length === 0) {
+              // 射程内に敵がいなければ、 累積はそのまま温存 (敵が来たら即発射)
+              fireAccumulatorMsRef.current = Math.min(fireAccumulatorMsRef.current, intervalMs);
+              break;
+            }
+
+            fireAccumulatorMsRef.current -= intervalMs;
+            firedThisFrame += 1;
+
+            const machine = buildMachineStats({ maxHpNumber: state.machineMaxHp });
+            const result = fireWeapon({
+              weapon: state.currentWeapon,
+              weaponLv: state.weaponLv,
+              machine,
+              enemiesInRange: sortedInRange,
+              rng: Math.random,
+              cutterAngleDeg: cutterAngleDegRef.current,
+              attackMul,
+            });
+
+            // 敵 HP 減算 (immutable に置換)
+            if (result.hits.length > 0) {
+              const hitMap = new Map(result.hits.map((h) => [h.enemyId, h]));
+              enemiesRef.current = enemiesRef.current.map((e) => {
+                const hit = hitMap.get(e.id);
+                if (hit == null) return e;
+                return { ...e, hp: e.hp.sub(hit.damage) };
+              });
+
+              // DamageEvent 発火 — enemy 位置から
+              for (const hit of result.hits) {
+                const enemy = enemiesRef.current.find((e) => e.id === hit.enemyId);
+                damageEventIdRef.current += 1;
+                newDamageEvents.push({
+                  id: `de-${damageEventIdRef.current}`,
+                  x: enemy?.position.x ?? 50,
+                  y: enemy?.position.y ?? 50,
+                  value: hit.damage,
+                  crit: hit.crit,
+                });
+              }
+            }
+          }
+
+          if (newDamageEvents.length > 0) {
+            setDamageEvents((prev) => [...prev, ...newDamageEvents]);
+          }
+
+          // ---- Wave 終了判定 ----
           const decision = decideWaveAdvance(
             waveElapsedMsRef.current,
             schedule.durationSec,
@@ -138,6 +229,8 @@ export function useBattleLoop(): UseBattleLoopResult {
         }
       }
 
+      setEnemies(enemiesRef.current);
+
       rafIdRef.current = requestAnimationFrame(tick);
     };
 
@@ -150,7 +243,7 @@ export function useBattleLoop(): UseBattleLoopResult {
         rafIdRef.current = null;
       }
     };
-  }, [isRunActive, tierWaves]);
+  }, [isRunActive, tierWaves, range]);
 
-  return { enemies };
+  return { enemies, damageEvents, onDamageDone };
 }
