@@ -38,8 +38,10 @@
   display: flex;
   flex-direction: column;
   overflow: auto;
-  padding-left: max(env(safe-area-inset-left), 0px);
-  padding-right: max(env(safe-area-inset-right), 0px);
+  padding-top: var(--sp-s);
+  padding-bottom: var(--sp-s);
+  padding-left: max(env(safe-area-inset-left), var(--sp-s));
+  padding-right: max(env(safe-area-inset-right), var(--sp-s));
 }
 
 .main.noScroll {
