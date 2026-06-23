@@ -8,8 +8,11 @@ import { buildMachineStats } from '@/game/loop/machineStats';
 import { fireWeapon, getAttackPerSec } from '@/game/loop/weaponDispatch';
 import type { SpawnedEnemy } from '@/game/types';
 import { buildTierWaves, getSpawnsAtTime } from '@/game/wave';
+import { soundEngine } from '@/lib/audio';
+import type { SoundId } from '@/lib/audio';
 import { BigNum } from '@/lib/bignum';
 import { useStore } from '@/store/index';
+import type { WeaponType } from '@/store/slices/weapons';
 
 // ---------------------------------------------------------------------------
 // 純粋関数: 1 フレームの「ゲーム時間 (秒)」を計算する
@@ -66,6 +69,24 @@ export const MELEE_CONTACT_RANGE = 5;
 
 /** アクティブスキル CD 最大値 (秒)。 デフォルト 30 秒 */
 export const DEFAULT_ACTIVE_MAX_SEC = 30;
+
+// ---------------------------------------------------------------------------
+// 武器 SoundId マッピング
+// ---------------------------------------------------------------------------
+
+const WEAPON_SHOOT_SOUND: Record<WeaponType, SoundId> = {
+  laser: 'laserShoot',
+  cannon: 'cannonShoot',
+  thunder: 'thunderShoot',
+  cutter: 'cutterShoot',
+};
+
+const WEAPON_ACTIVE_SOUND: Record<WeaponType, SoundId> = {
+  laser: 'activeLaser',
+  cannon: 'activeCannon',
+  thunder: 'activeThunder',
+  cutter: 'activeCutter',
+};
 
 // ---------------------------------------------------------------------------
 // useBattleLoop
@@ -141,7 +162,10 @@ export function useBattleLoop({ range }: UseBattleLoopOpts): UseBattleLoopResult
         // isAutoActive=true で activeCdSec=0 なら triggerActive を呼ぶ。
         // 威力 (各武器の Mega Beam / Volley / Plasma / Overdrive) の engine 連携は別 issue。
         if (state.isAutoActive && state.activeCdSec <= 0) {
-          state.triggerActive(DEFAULT_ACTIVE_MAX_SEC);
+          const fired = state.triggerActive(DEFAULT_ACTIVE_MAX_SEC);
+          if (fired) {
+            soundEngine.play(WEAPON_ACTIVE_SOUND[state.currentWeapon]);
+          }
         }
 
         // ---- Wave 経過時間を進める ----
@@ -202,6 +226,9 @@ export function useBattleLoop({ range }: UseBattleLoopOpts): UseBattleLoopResult
             fireAccumulatorMsRef.current -= intervalMs;
             firedThisFrame += 1;
 
+            // 武器発射 SE
+            soundEngine.play(WEAPON_SHOOT_SOUND[state.currentWeapon]);
+
             const machine = buildMachineStats({ machineMaxHp: state.machineMaxHp });
             const result = fireWeapon({
               weapon: state.currentWeapon,
@@ -258,6 +285,10 @@ export function useBattleLoop({ range }: UseBattleLoopOpts): UseBattleLoopResult
               if (baseScrew > 0) {
                 earnedScrew = earnedScrew.add(BigNum.fromNumber(baseScrew * screwGainMul));
               }
+              // 撃破 SE: boss/miniboss は bossKill、 それ以外は enemyKill
+              soundEngine.play(
+                enemy.kind === 'boss' || enemy.kind === 'miniboss' ? 'bossKill' : 'enemyKill'
+              );
             } else {
               survivors.push(enemy);
             }
@@ -282,7 +313,11 @@ export function useBattleLoop({ range }: UseBattleLoopOpts): UseBattleLoopResult
             }
           }
           if (!totalReceived.isZero()) {
+            const hpBefore = state.machineHp;
             state.damageHp(totalReceived);
+            // 被ダメ SE: マシンが落ちたら machineDown / それ以外は machineHit
+            const hpAfter = useStore.getState().machineHp;
+            soundEngine.play(hpAfter.isZero() && !hpBefore.isZero() ? 'machineDown' : 'machineHit');
           }
 
           // ---- Wave 終了判定 ----
@@ -294,8 +329,10 @@ export function useBattleLoop({ range }: UseBattleLoopOpts): UseBattleLoopResult
           );
           if (decision === 'advanceWave') {
             state.advanceWave();
+            soundEngine.play('waveClear');
           } else if (decision === 'advanceTier') {
             state.advanceTier();
+            soundEngine.play('tierClear');
           }
         }
       }

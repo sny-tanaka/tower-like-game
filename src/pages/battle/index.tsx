@@ -15,6 +15,7 @@ import { RunWorkshopBottomSheet } from '@/components/organisms/RunWorkshopBottom
 import type { RunWorkshopKey } from '@/components/organisms/RunWorkshopBottomSheet/items';
 import { ScreenSaverDialog } from '@/components/organisms/ScreenSaverDialog';
 import { useBattleLoop } from '@/hooks/useBattleLoop';
+import { soundEngine } from '@/lib/audio';
 import { BigNum } from '@/lib/bignum/BigNum';
 import { useStore } from '@/store/index';
 import { useNavigation } from '@/store/navigation';
@@ -116,23 +117,28 @@ export function Page() {
   // ── ハンドラ ──
   const handleSpeedChange = (speed: GameSpeed) => {
     setGameSpeed(speed);
+    soundEngine.play('tap');
   };
 
   const handleTogglePause = () => {
     setPaused(!isPaused);
+    soundEngine.play('tap');
   };
 
   const handleOpenMenu = () => {
     setIsMenuOpen(true);
+    soundEngine.play('dialogOpen');
   };
 
   const handleOpenScreenSaver = () => {
     setIsScreenSaverOpen(true);
+    soundEngine.play('dialogOpen');
   };
 
   const handleRetreat = () => {
     setIsMenuOpen(false);
     setResultStatus('retreat');
+    soundEngine.play('resultRetreat');
   };
 
   const handleResultClose = () => {
@@ -140,7 +146,30 @@ export function Page() {
   };
 
   const handleWorkshopUpgrade = (key: RunWorkshopKey, delta: 1 | 5 | 'max') => {
-    upgradeRunWorkshop(key, delta);
+    const ok = upgradeRunWorkshop(key, delta);
+    soundEngine.play(ok ? 'purchaseOk' : 'reject');
+  };
+
+  const handleSwitchWeapon = (weapon: typeof currentWeapon) => {
+    switchWeapon(weapon);
+    soundEngine.play('weaponSwitch');
+  };
+
+  const handleManualActivate = () => {
+    const ok = triggerActive(DEFAULT_ACTIVE_MAX_SEC);
+    if (!ok) {
+      soundEngine.play('reject');
+      return;
+    }
+    const sid =
+      currentWeapon === 'laser'
+        ? 'activeLaser'
+        : currentWeapon === 'cannon'
+          ? 'activeCannon'
+          : currentWeapon === 'thunder'
+            ? 'activeThunder'
+            : 'activeCutter';
+    soundEngine.play(sid);
   };
 
   // リザルトダイアログ用ダミーリワード（バトルロジック配線前）
@@ -192,10 +221,8 @@ export function Page() {
               activeCd={activeCdSec}
               activeMax={DEFAULT_ACTIVE_MAX_SEC}
               isAutoActive={isAutoActive}
-              onSwitchWeapon={switchWeapon}
-              onActivate={() => {
-                triggerActive(DEFAULT_ACTIVE_MAX_SEC);
-              }}
+              onSwitchWeapon={handleSwitchWeapon}
+              onActivate={handleManualActivate}
               onToggleAuto={setAutoActive}
               gameSpeed={gameSpeed}
               onSpeedChange={handleSpeedChange}
