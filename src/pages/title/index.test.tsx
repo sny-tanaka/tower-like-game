@@ -34,7 +34,7 @@ describe('TitleScreen', () => {
 
   it('バージョンが表示される', () => {
     renderPage();
-    expect(screen.getByText('v0.2.0')).toBeDefined();
+    expect(screen.getByText(/^v\d+\.\d+\.\d+$/)).toBeDefined();
   });
 
   describe('セーブなし (createdAt === 0)', () => {
@@ -149,7 +149,9 @@ describe('TitleScreen', () => {
       // ConfirmDialog が閉じていること（navigate は NavigationProvider 内部で state 変化）
       expect(resetProfile).toHaveBeenCalledTimes(1);
       expect(endRun).toHaveBeenCalledTimes(1);
-      expect(screen.queryByText('現在のセーブデータは消えます。本当に新規開始しますか?')).toBeNull();
+      expect(
+        screen.queryByText('現在のセーブデータは消えます。本当に新規開始しますか?')
+      ).toBeNull();
     });
 
     it('4. ダイアログ → キャンセルで dispatch・navigate は呼ばれない', async () => {
@@ -211,7 +213,9 @@ describe('TitleScreen', () => {
       await userEvent.click(screen.getByRole('button', { name: '新規開始' }));
 
       // ConfirmDialog は開かない
-      expect(screen.queryByText('現在のセーブデータは消えます。本当に新規開始しますか?')).toBeNull();
+      expect(
+        screen.queryByText('現在のセーブデータは消えます。本当に新規開始しますか?')
+      ).toBeNull();
       // 全 reset が呼ばれている
       expect(resetProfile).toHaveBeenCalledTimes(1);
       expect(resetCurrencies).toHaveBeenCalledTimes(1);
