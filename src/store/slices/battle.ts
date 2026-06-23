@@ -74,6 +74,13 @@ export interface BattleActions {
   setAutoActive: (auto: boolean) => void;
   setPaused: (paused: boolean) => void;
   setGameSpeed: (speed: 1 | 2 | 3) => void;
+  /**
+   * アクティブスキル発動。 CD 中 (activeCdSec > 0) なら何もせず false を返す。
+   * 発動成功なら activeCdSec を maxSec にセットして true を返す。
+   * (アクティブスキルの威力反映 = 各武器の Mega Beam / Volley / Plasma / Overdrive 呼び出しは
+   *  useBattleLoop 側で行う想定。 ここでは CD 管理だけを担当する)
+   */
+  triggerActive: (maxSec: number) => boolean;
   tickCooldowns: (deltaSecGameTime: number) => void;
 }
 
@@ -174,6 +181,12 @@ export const createBattleSlice: StateCreator<RootStore, [], [], BattleSlice> = (
   setPaused: (paused) => set({ isPaused: paused }),
 
   setGameSpeed: (speed) => set({ gameSpeed: speed }),
+
+  triggerActive: (maxSec) => {
+    if (get().activeCdSec > 0) return false;
+    set({ activeCdSec: Math.max(0, maxSec) });
+    return true;
+  },
 
   tickCooldowns: (deltaSecGameTime) =>
     set((s) => ({

@@ -63,6 +63,9 @@ export const ATTACK_PER_SEC_CAP = 10;
 /** マシン本体への被ダメ近接判定距離 (%)。 現状は敵移動ロジック未実装のための placeholder */
 export const MELEE_CONTACT_RANGE = 5;
 
+/** アクティブスキル CD 最大値 (秒)。 デフォルト 30 秒 */
+export const DEFAULT_ACTIVE_MAX_SEC = 30;
+
 // ---------------------------------------------------------------------------
 // useBattleLoop
 // ---------------------------------------------------------------------------
@@ -132,6 +135,13 @@ export function useBattleLoop({ range }: UseBattleLoopOpts): UseBattleLoopResult
       if (deltaSec > 0) {
         // ---- CD 減算 ----
         state.tickCooldowns(deltaSec);
+
+        // ---- アクティブスキル自動発動 ----
+        // isAutoActive=true で activeCdSec=0 なら triggerActive を呼ぶ。
+        // 威力 (各武器の Mega Beam / Volley / Plasma / Overdrive) の engine 連携は別 issue。
+        if (state.isAutoActive && state.activeCdSec <= 0) {
+          state.triggerActive(DEFAULT_ACTIVE_MAX_SEC);
+        }
 
         // ---- Wave 経過時間を進める ----
         prevWaveElapsedMsRef.current = waveElapsedMsRef.current;

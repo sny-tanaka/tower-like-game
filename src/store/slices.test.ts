@@ -540,6 +540,22 @@ describe('battle slice', () => {
     expect(store.getState().machineHp).toBe(100);
   });
 
+  it('triggerActive: CD 0 で発動成功 + activeCdSec が maxSec にセット', () => {
+    const store = makeStore();
+    expect(store.getState().activeCdSec).toBe(0);
+    const ok = store.getState().triggerActive(30);
+    expect(ok).toBe(true);
+    expect(store.getState().activeCdSec).toBe(30);
+  });
+
+  it('triggerActive: CD 中なら false / activeCdSec 据え置き', () => {
+    const store = makeStore();
+    store.getState().setActiveCd(15);
+    const ok = store.getState().triggerActive(30);
+    expect(ok).toBe(false);
+    expect(store.getState().activeCdSec).toBe(15);
+  });
+
   it('upgradeRunWorkshop("hpMul", 1): ネジ消費 + machineMaxHp 動的更新', () => {
     const store = makeStore();
     store.getState().startRun({ initialWeapon: 'laser', baseMachineMaxHp: 100, gameSpeed: 1 });

@@ -79,6 +79,7 @@ export function Page() {
   const setPaused = useStore((s) => s.setPaused);
   const setGameSpeed = useStore((s) => s.setGameSpeed);
   const upgradeRunWorkshop = useStore((s) => s.upgradeRunWorkshop);
+  const triggerActive = useStore((s) => s.triggerActive);
 
   // ── ローカル UI state (overlay 開閉) ──
   const [isWorkshopOpen, setIsWorkshopOpen] = useState(false);
@@ -193,7 +194,7 @@ export function Page() {
               isAutoActive={isAutoActive}
               onSwitchWeapon={switchWeapon}
               onActivate={() => {
-                // TODO: #53 で実装
+                triggerActive(DEFAULT_ACTIVE_MAX_SEC);
               }}
               onToggleAuto={setAutoActive}
               gameSpeed={gameSpeed}
