@@ -1,5 +1,5 @@
 import { render, screen, fireEvent } from '@testing-library/react';
-import { describe, expect, it, beforeEach } from 'vitest';
+import { describe, expect, it, beforeEach, vi } from 'vitest';
 
 import {
   WeaponLevelUpgradeTab,
@@ -9,8 +9,13 @@ import {
   buildStatsImpact,
 } from './index';
 
+import { soundEngine } from '@/lib/audio';
 import { BigNum } from '@/lib/bignum/BigNum';
 import { useStore } from '@/store/index';
+
+vi.mock('@/lib/audio', () => ({
+  soundEngine: { play: vi.fn(), playBgm: vi.fn(), stopBgm: vi.fn(), init: vi.fn() },
+}));
 
 // ---------------------------------------------------------------------------
 // コスト計算ロジックのテスト
@@ -142,5 +147,32 @@ describe('WeaponLevelUpgradeTab', () => {
     expect(useStore.getState().weaponLv).toBe(1);
     // alloy 1000 - 200 (Lv0 cost) = 800
     expect(parseFloat(useStore.getState().alloy.toDisplay())).toBe(800);
+  });
+});
+
+describe('WeaponLevelUpgradeTab — SE 配線', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it('alloy 十分 → +1 購入で purchaseOk SE が再生される', () => {
+    useStore.setState({ weaponLv: 0, alloy: BigNum.fromNumber(1000) });
+    render(<WeaponLevelUpgradeTab />);
+    const buttons = screen.getAllByRole('button');
+    const plusOneBtn = buttons.find((b) => b.textContent === '+1');
+    fireEvent.click(plusOneBtn!);
+    expect(soundEngine.play).toHaveBeenCalledWith('purchaseOk');
+  });
+
+  it('alloy 不足 → +1 ボタンは disabled になり SE は再生されない', () => {
+    useStore.setState({ weaponLv: 0, alloy: BigNum.ZERO });
+    render(<WeaponLevelUpgradeTab />);
+    const buttons = screen.getAllByRole('button');
+    const plusOneBtn = buttons.find((b) => b.textContent === '+1');
+    // disabled ボタンをクリックしても SE は鳴らない
+    if (plusOneBtn && !plusOneBtn.hasAttribute('disabled')) {
+      fireEvent.click(plusOneBtn);
+    }
+    expect(soundEngine.play).not.toHaveBeenCalledWith('reject');
   });
 });

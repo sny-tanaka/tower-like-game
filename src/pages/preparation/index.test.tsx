@@ -1,11 +1,16 @@
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { afterEach, describe, expect, test } from 'vitest';
+import { afterEach, describe, expect, test, vi, beforeEach } from 'vitest';
 
+import { soundEngine } from '@/lib/audio';
 import { BigNum } from '@/lib/bignum';
 import { Page } from '@/pages/preparation';
 import { useStore } from '@/store';
 import { NavigationProvider } from '@/store/navigation';
+
+vi.mock('@/lib/audio', () => ({
+  soundEngine: { play: vi.fn(), playBgm: vi.fn(), stopBgm: vi.fn(), init: vi.fn() },
+}));
 
 // ---------------------------------------------------------------------------
 // ヘルパー
@@ -75,6 +80,31 @@ describe('PreparationScreen Page', () => {
     await user.click(screen.getByRole('tab', { name: 'TIER' }));
 
     expect(screen.getByRole('tabpanel', { name: 'Tier 選択' })).toBeInTheDocument();
+  });
+
+  describe('SE 配線', () => {
+    beforeEach(() => {
+      vi.clearAllMocks();
+    });
+
+    afterEach(() => {
+      useStore.getState().endRun();
+      vi.clearAllMocks();
+    });
+
+    test('タブ切替時に tabSwitch SE が再生される', async () => {
+      const user = userEvent.setup();
+      renderPage();
+      await user.click(screen.getByRole('tab', { name: '武器' }));
+      expect(soundEngine.play).toHaveBeenCalledWith('tabSwitch');
+    });
+
+    test('出撃ボタン押下時に launch SE が再生される', async () => {
+      const user = userEvent.setup();
+      renderPage();
+      await user.click(screen.getByRole('button', { name: '出撃' }));
+      expect(soundEngine.play).toHaveBeenCalledWith('launch');
+    });
   });
 
   describe('出撃ボタン → startRun', () => {

@@ -13,6 +13,7 @@ import {
   calcMachineBaseAttack,
   calcMachineRange,
 } from '@/components/organisms/WeaponDetailsTab';
+import { soundEngine } from '@/lib/audio';
 import { BigNum } from '@/lib/bignum/BigNum';
 import { useStore } from '@/store';
 
@@ -77,29 +78,29 @@ export interface StatsImpactItem {
 export function buildStatsImpact(
   lv: number,
   baseAttackLv: number,
-  rangeLv: number,
+  rangeLv: number
 ): StatsImpactItem[] {
   const baseAttack = calcMachineBaseAttack(baseAttackLv);
   const machineRange = calcMachineRange(rangeLv);
   const nextLv = lv + 1;
 
-  const laserBefore   = buildLaserStats(lv,     baseAttack, machineRange);
-  const laserAfter    = buildLaserStats(nextLv,  baseAttack, machineRange);
-  const cannonBefore  = buildCannonStats(lv,     baseAttack, machineRange);
-  const cannonAfter   = buildCannonStats(nextLv,  baseAttack, machineRange);
-  const thunderBefore = buildThunderStats(lv,    baseAttack, machineRange);
-  const thunderAfter  = buildThunderStats(nextLv, baseAttack, machineRange);
-  const cutterBefore  = buildCutterStats(lv,     baseAttack);
-  const cutterAfter   = buildCutterStats(nextLv,  baseAttack);
+  const laserBefore = buildLaserStats(lv, baseAttack, machineRange);
+  const laserAfter = buildLaserStats(nextLv, baseAttack, machineRange);
+  const cannonBefore = buildCannonStats(lv, baseAttack, machineRange);
+  const cannonAfter = buildCannonStats(nextLv, baseAttack, machineRange);
+  const thunderBefore = buildThunderStats(lv, baseAttack, machineRange);
+  const thunderAfter = buildThunderStats(nextLv, baseAttack, machineRange);
+  const cutterBefore = buildCutterStats(lv, baseAttack);
+  const cutterAfter = buildCutterStats(nextLv, baseAttack);
 
   /** buildXStats が返す配列の DMG 値（index 0、label='DMG'）を文字列で取り出す */
   const dmg = (stats: WeaponStat[]) => String(stats[0]!.value);
 
   return [
-    { label: 'LASER DMG',   before: dmg(laserBefore),   after: dmg(laserAfter) },
-    { label: 'CANNON DMG',  before: dmg(cannonBefore),  after: dmg(cannonAfter) },
+    { label: 'LASER DMG', before: dmg(laserBefore), after: dmg(laserAfter) },
+    { label: 'CANNON DMG', before: dmg(cannonBefore), after: dmg(cannonAfter) },
     { label: 'THUNDER DMG', before: dmg(thunderBefore), after: dmg(thunderAfter) },
-    { label: 'CUTTER DMG',  before: dmg(cutterBefore),  after: dmg(cutterAfter) },
+    { label: 'CUTTER DMG', before: dmg(cutterBefore), after: dmg(cutterAfter) },
   ];
 }
 
@@ -132,14 +133,23 @@ export function WeaponLevelUpgradeTab() {
     if (amount === '+1') {
       if (spendAlloy(cost1)) {
         incrementWeaponLv();
+        soundEngine.play('purchaseOk');
+      } else {
+        soundEngine.play('reject');
       }
     } else if (amount === '+5') {
       if (spendAlloy(cost5)) {
         setWeaponLv(weaponLv + 5);
+        soundEngine.play('purchaseOk');
+      } else {
+        soundEngine.play('reject');
       }
     } else if (amount === 'MAX') {
       if (maxLevels > 0 && spendAlloy(costMax)) {
         setWeaponLv(weaponLv + maxLevels);
+        soundEngine.play('purchaseOk');
+      } else {
+        soundEngine.play('reject');
       }
     }
   }
@@ -218,7 +228,8 @@ export function WeaponLevelUpgradeTab() {
                   color="dim"
                   className={styles.impactValue}
                 >
-                  {item.before}{item.suffix != null ? item.suffix : ''}
+                  {item.before}
+                  {item.suffix != null ? item.suffix : ''}
                 </Text>
                 <span className={styles.arrow}>→</span>
                 <Text
@@ -226,7 +237,8 @@ export function WeaponLevelUpgradeTab() {
                   color="secondary"
                   className={styles.impactValue}
                 >
-                  {item.after}{item.suffix != null ? item.suffix : ''}
+                  {item.after}
+                  {item.suffix != null ? item.suffix : ''}
                 </Text>
               </span>
             </div>

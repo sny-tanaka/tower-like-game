@@ -9,6 +9,7 @@ import styles from './style.module.scss';
 
 import { UpgradeCard } from '@/components/molecules/UpgradeCard';
 import type { UpgradeCardOption } from '@/components/molecules/UpgradeCard';
+import { soundEngine } from '@/lib/audio';
 import { BigNum } from '@/lib/bignum/BigNum';
 import { useStore } from '@/store';
 
@@ -99,6 +100,9 @@ export function MachineUpgradeList() {
             for (let i = 0; i < buyCount; i++) {
               incrementMachineLv(item.key);
             }
+            soundEngine.play('purchaseOk');
+          } else {
+            soundEngine.play('reject');
           }
         };
 

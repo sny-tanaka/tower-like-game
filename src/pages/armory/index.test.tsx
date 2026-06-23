@@ -1,9 +1,14 @@
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { describe, expect, test } from 'vitest';
+import { describe, expect, test, vi, beforeEach } from 'vitest';
 
+import { soundEngine } from '@/lib/audio';
 import { ArmoryScreen } from '@/pages/armory';
 import { NavigationProvider } from '@/store/navigation';
+
+vi.mock('@/lib/audio', () => ({
+  soundEngine: { play: vi.fn(), playBgm: vi.fn(), stopBgm: vi.fn(), init: vi.fn() },
+}));
 
 function renderWithNav() {
   return render(
@@ -48,5 +53,17 @@ describe('ArmoryScreen', () => {
   test('BottomNav が表示される', () => {
     renderWithNav();
     expect(screen.getByRole('navigation', { name: 'メインナビゲーション' })).toBeInTheDocument();
+  });
+
+  describe('SE 配線', () => {
+    beforeEach(() => {
+      vi.clearAllMocks();
+    });
+
+    test('タブ切替時に tabSwitch SE が再生される', async () => {
+      renderWithNav();
+      await userEvent.click(screen.getByRole('tab', { name: '強化' }));
+      expect(soundEngine.play).toHaveBeenCalledWith('tabSwitch');
+    });
   });
 });

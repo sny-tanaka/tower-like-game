@@ -11,6 +11,7 @@ import { PatchEquipTab } from '@/components/organisms/PatchEquipTab';
 import { PatchInventoryTab } from '@/components/organisms/PatchInventoryTab';
 import { PatchMergeTab } from '@/components/organisms/PatchMergeTab';
 import { calcMergeable } from '@/components/organisms/PatchMergeTab';
+import { soundEngine } from '@/lib/audio';
 import { useStore } from '@/store';
 import { useNavigation } from '@/store/navigation';
 import type { Screen } from '@/store/navigation';
@@ -62,6 +63,11 @@ export function PatchScreen() {
     navigate('preparation');
   };
 
+  const handleTabChange = (k: PatchTab) => {
+    setActiveTab(k);
+    soundEngine.play('tabSwitch');
+  };
+
   const PATCH_TABS: ReadonlyArray<TabBarItem<PatchTab>> = [
     { key: 'equip', label: '装着', badge: `${equippedCount}/${unlockedCount}` },
     { key: 'inventory', label: '所持', badge: inventoryCount > 0 ? inventoryCount : undefined },
@@ -80,7 +86,7 @@ export function PatchScreen() {
             <TabBar<PatchTab>
               tabs={PATCH_TABS}
               value={activeTab}
-              onChange={setActiveTab}
+              onChange={handleTabChange}
               variant="underline"
               fullWidth
             />

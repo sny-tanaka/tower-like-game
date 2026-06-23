@@ -726,6 +726,10 @@ export function useBattleLoop({ range, paused = false }: UseBattleLoopOpts): Use
             // 上位敵 (elite / miniboss / boss) が混じっていれば AppearanceBannerFx を出す
             const upperSpawns = newSpawns.filter((s) => s.kind !== 'normal');
             if (upperSpawns.length > 0) {
+              // ボス登場時に警告 SE を再生
+              if (upperSpawns.some((s) => s.kind === 'boss')) {
+                soundEngine.play('bossWarn');
+              }
               const newAppearances: AppearanceEvent[] = upperSpawns.map((s) => {
                 appearanceEventIdRef.current += 1;
                 const kind = s.kind as 'elite' | 'miniboss' | 'boss';

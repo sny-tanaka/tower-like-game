@@ -9,6 +9,7 @@ import { Text } from '@/components/atoms/Text';
 import { PatchCard } from '@/components/molecules/PatchCard';
 import { PatchSlot } from '@/components/molecules/PatchSlot';
 import type { PatchInfo } from '@/components/molecules/PatchSlot';
+import { soundEngine } from '@/lib/audio';
 import { useStore } from '@/store';
 import { MAX_PATCH_SLOTS } from '@/store/slices/equippedPatches';
 import type { PatchEntry } from '@/store/slices/patches';
@@ -131,7 +132,12 @@ export function PatchEquipTab({
   const handlePickPatch = (name: PatchEntry['name'], tier: number) => {
     if (pickerSlotIndex == null) return;
     const ok = equipPatch(pickerSlotIndex, name, tier);
-    if (ok) setPickerSlotIndex(null);
+    if (ok) {
+      setPickerSlotIndex(null);
+      soundEngine.play('purchaseOk');
+    } else {
+      soundEngine.play('reject');
+    }
   };
 
   const lockedCount = MAX_PATCH_SLOTS - unlockedCount;

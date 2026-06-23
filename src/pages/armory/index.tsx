@@ -8,6 +8,7 @@ import { BottomNav } from '@/components/organisms/BottomNav';
 import { PageHeader } from '@/components/organisms/PageHeader';
 import { WeaponDetailsTab } from '@/components/organisms/WeaponDetailsTab';
 import { WeaponLevelUpgradeTab } from '@/components/organisms/WeaponLevelUpgradeTab';
+import { soundEngine } from '@/lib/audio';
 import { useNavigation } from '@/store/navigation';
 
 // ---------------------------------------------------------------------------
@@ -39,6 +40,11 @@ export function ArmoryScreen(props: ArmoryScreenProps = {}) {
   const [activeTab, setActiveTab] = useState<ArmoryTab>(initialTab);
   const { screen, navigate } = useNavigation();
 
+  const handleTabChange = (k: ArmoryTab) => {
+    setActiveTab(k);
+    soundEngine.play('tabSwitch');
+  };
+
   return (
     <AppShell
       header={
@@ -50,7 +56,7 @@ export function ArmoryScreen(props: ArmoryScreenProps = {}) {
             <TabBar
               tabs={TABS}
               value={activeTab}
-              onChange={setActiveTab}
+              onChange={handleTabChange}
               variant="underline"
               fullWidth
             />

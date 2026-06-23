@@ -1,8 +1,9 @@
-import { render, screen, act } from '@testing-library/react';
+import { render, screen, act, fireEvent } from '@testing-library/react';
 import { describe, expect, test, vi, beforeEach, afterEach } from 'vitest';
 
 import { Page } from './index';
 
+import { soundEngine } from '@/lib/audio';
 import { BigNum } from '@/lib/bignum/BigNum';
 import { useStore } from '@/store/index';
 import { NavigationProvider } from '@/store/navigation';
@@ -11,6 +12,11 @@ import { flushAfterRun } from '@/store/sync';
 // flushAfterRun は IndexedDB を叩くのでモック
 vi.mock('@/store/sync', () => ({
   flushAfterRun: vi.fn().mockResolvedValue(undefined),
+}));
+
+// soundEngine をモック
+vi.mock('@/lib/audio', () => ({
+  soundEngine: { play: vi.fn(), playBgm: vi.fn(), stopBgm: vi.fn(), init: vi.fn() },
 }));
 
 /** NavigationProvider でラップするヘルパー */
@@ -171,5 +177,56 @@ describe('finalizeRun — gameover 時のラン終了処理', () => {
 
     // endRun は 1 度だけ呼ばれるはず
     expect(endRunSpy).toHaveBeenCalledTimes(1);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// SE 配線テスト
+// ---------------------------------------------------------------------------
+
+describe('SE 配線', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  afterEach(() => {
+    useStore.getState().endRun();
+    vi.clearAllMocks();
+  });
+
+  test('gameover 時に resultGameOver SE が再生される', async () => {
+    useStore.getState().startRun({
+      initialWeapon: 'laser',
+      baseMachineMaxHp: BigNum.fromNumber(100),
+      initialTier: 1,
+    });
+
+    renderPage();
+
+    await act(async () => {
+      useStore.setState({ machineHp: BigNum.ZERO });
+    });
+
+    expect(soundEngine.play).toHaveBeenCalledWith('resultGameOver');
+  });
+
+  test('メニューを開くと dialogOpen SE が再生される', () => {
+    renderPage();
+    // aria-label は「一時停止 (メニューを開く)」
+    const pauseBtn = screen.getByRole('button', { name: '一時停止 (メニューを開く)' });
+    fireEvent.click(pauseBtn);
+    expect(soundEngine.play).toHaveBeenCalledWith('dialogOpen');
+  });
+
+  test('メニューを閉じると dialogClose SE が再生される', () => {
+    renderPage();
+    // 開く
+    const pauseBtn = screen.getByRole('button', { name: '一時停止 (メニューを開く)' });
+    fireEvent.click(pauseBtn);
+    vi.clearAllMocks();
+    // 閉じる: aria-label は「再開 (メニューを閉じる)」
+    const closeBtn = screen.getByRole('button', { name: '再開 (メニューを閉じる)' });
+    fireEvent.click(closeBtn);
+    expect(soundEngine.play).toHaveBeenCalledWith('dialogClose');
   });
 });

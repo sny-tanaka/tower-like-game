@@ -1,9 +1,14 @@
-import { render, screen } from '@testing-library/react';
-import { describe, it, expect } from 'vitest';
+import { render, screen, fireEvent } from '@testing-library/react';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 import { PatchMergeTab, calcMergeable, executeMergeAll } from './index';
 
+import { soundEngine } from '@/lib/audio';
 import type { PatchEntry } from '@/store/slices/patches';
+
+vi.mock('@/lib/audio', () => ({
+  soundEngine: { play: vi.fn(), playBgm: vi.fn(), stopBgm: vi.fn(), init: vi.fn() },
+}));
 
 // ---------------------------------------------------------------------------
 // Pure logic tests
@@ -151,5 +156,22 @@ describe('PatchMergeTab', () => {
     // 初期 maxTierLimit = 5, calcMergeable(patches, 5+1=6) → tier=5, count=2 は含まれる
     const btn = screen.getByRole('button', { name: /一括合成/ });
     expect(btn).toBeDefined();
+  });
+
+  describe('SE 配線', () => {
+    beforeEach(() => {
+      vi.clearAllMocks();
+    });
+
+    it('overridePatches モードでは一括合成ボタンを押しても SE は鳴らない', () => {
+      const patches = new Map<string, PatchEntry>([
+        ['damageImmune#1', { name: 'damageImmune', tier: 1, count: 2 }],
+      ]);
+      // overridePatches はストア操作しないため SE は再生されない
+      render(<PatchMergeTab overridePatches={patches} />);
+      const mergeBtn = screen.getByRole('button', { name: /一括合成/ });
+      fireEvent.click(mergeBtn);
+      expect(soundEngine.play).not.toHaveBeenCalled();
+    });
   });
 });

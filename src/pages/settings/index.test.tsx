@@ -4,7 +4,12 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 import { Page } from './index';
 
+import { soundEngine } from '@/lib/audio';
 import { NavigationProvider } from '@/store/navigation';
+
+vi.mock('@/lib/audio', () => ({
+  soundEngine: { play: vi.fn(), playBgm: vi.fn(), stopBgm: vi.fn(), init: vi.fn() },
+}));
 
 // openDatabase と export 関数をモック（IndexedDB 不使用）
 vi.mock('@/data/db', () => ({
@@ -90,5 +95,12 @@ describe('SettingsScreen', () => {
     // BottomNav の「設定」ボタンが aria-current="page"
     const settingsNavBtn = screen.getByRole('button', { name: '設定' });
     expect(settingsNavBtn.getAttribute('aria-current')).toBe('page');
+  });
+
+  it('タブ切替時に tabSwitch SE が再生される', async () => {
+    const user = userEvent.setup();
+    renderPage();
+    await user.click(screen.getByRole('tab', { name: 'ゲーム' }));
+    expect(soundEngine.play).toHaveBeenCalledWith('tabSwitch');
   });
 });

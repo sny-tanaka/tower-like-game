@@ -9,6 +9,7 @@ import { TitleActions } from '@/components/organisms/TitleActions';
 import { TitleHeader } from '@/components/organisms/TitleHeader';
 import { TitleHero } from '@/components/organisms/TitleHero';
 import { useAppUpdate } from '@/hooks/useAppUpdate';
+import { soundEngine } from '@/lib/audio';
 import { useStore } from '@/store';
 import { useNavigation } from '@/store/navigation';
 
@@ -85,8 +86,14 @@ export function Page() {
         </div>
         <TitleActions
           lastSavedAt={lastSavedAt}
-          onResume={() => navigate('preparation')}
-          onNewGame={handleNewGameRequest}
+          onResume={() => {
+            soundEngine.play('tap');
+            navigate('preparation');
+          }}
+          onNewGame={() => {
+            soundEngine.play('tap');
+            handleNewGameRequest();
+          }}
           onCheckUpdate={() => void checkForUpdate()}
           isCheckingUpdate={isChecking}
         />

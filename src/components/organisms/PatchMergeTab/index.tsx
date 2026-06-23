@@ -6,6 +6,7 @@ import { Button } from '@/components/atoms/Button';
 import { Stepper } from '@/components/atoms/Stepper';
 import { Text } from '@/components/atoms/Text';
 import { PatchCard } from '@/components/molecules/PatchCard';
+import { soundEngine } from '@/lib/audio';
 import { useStore } from '@/store';
 import type { PatchEntry } from '@/store/slices/patches';
 
@@ -131,6 +132,12 @@ export function PatchMergeTab({ overridePatches }: PatchMergeTabProps) {
     if (overridePatches) return; // オーバーライド時はストア操作しない
     const nextPatches = executeMergeAll(patches, maxTierLimit + 1);
 
+    // 変化があるかチェック
+    const hasChanges = [...nextPatches].some(([key, entry]) => {
+      const current = patches.get(key);
+      return (current?.count ?? 0) !== entry.count;
+    });
+
     // 差分をストアに反映
     // 消費: 現在 - 次
     for (const [key, entry] of patches) {
@@ -149,6 +156,7 @@ export function PatchMergeTab({ overridePatches }: PatchMergeTabProps) {
       }
     }
     pruneEmptyPatches();
+    soundEngine.play(hasChanges ? 'purchaseOk' : 'reject');
   };
 
   return (

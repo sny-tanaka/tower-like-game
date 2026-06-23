@@ -15,6 +15,7 @@ import {
 } from '@/components/organisms/MachineUpgradeList/items';
 import { PageHeader } from '@/components/organisms/PageHeader';
 import { TierSelectTab } from '@/components/organisms/TierSelectTab';
+import { soundEngine } from '@/lib/audio';
 import { BigNum } from '@/lib/bignum';
 import { useStore } from '@/store';
 import { useNavigation } from '@/store/navigation';
@@ -80,8 +81,14 @@ export function Page(props: PreparationPageProps) {
       baseMachineMaxHp: BigNum.fromNumber(baseMaxHpNum),
       initialTier: selectedTier,
     });
+    soundEngine.play('launch');
     navigate('battle');
   }
+
+  const handleTabChange = (k: PreparationTab) => {
+    setActiveTab(k);
+    soundEngine.play('tabSwitch');
+  };
 
   const header = (
     <PageHeader
@@ -91,7 +98,7 @@ export function Page(props: PreparationPageProps) {
         <TabBar
           tabs={TABS}
           value={activeTab}
-          onChange={setActiveTab}
+          onChange={handleTabChange}
           variant="underline"
           fullWidth
         />

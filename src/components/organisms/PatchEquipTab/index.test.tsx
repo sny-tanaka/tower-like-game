@@ -1,11 +1,16 @@
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 import { PatchEquipTab } from './index';
 
+import { soundEngine } from '@/lib/audio';
 import { useStore } from '@/store';
 import type { PatchEntry } from '@/store/slices/patches';
+
+vi.mock('@/lib/audio', () => ({
+  soundEngine: { play: vi.fn(), playBgm: vi.fn(), stopBgm: vi.fn(), init: vi.fn() },
+}));
 
 // ---------------------------------------------------------------------------
 // ヘルパー
@@ -135,5 +140,31 @@ describe('PatchEquipTab', () => {
     );
     // "2 / 6 装着中" が表示される
     expect(screen.getByText(/2 \/ 6 装着中/)).toBeDefined();
+  });
+
+  describe('SE 配線', () => {
+    beforeEach(() => {
+      vi.clearAllMocks();
+    });
+
+    it('空きスロットタップ → パッチ選択で purchaseOk SE が再生される', async () => {
+      const user = userEvent.setup();
+      useStore.setState({
+        patches: makePatches(),
+        equippedPatches: new Map(),
+        machineLevels: {
+          ...useStore.getState().machineLevels,
+          patchSlots: 2,
+        },
+      });
+
+      render(<PatchEquipTab />);
+
+      await user.click(screen.getByLabelText('Slot 1 (empty)'));
+      const freezeCard = screen.getByRole('button', { name: /freezeHit/i });
+      await user.click(freezeCard);
+
+      expect(soundEngine.play).toHaveBeenCalledWith('purchaseOk');
+    });
   });
 });

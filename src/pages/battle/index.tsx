@@ -188,6 +188,12 @@ export function Page() {
   const effectiveResultStatus = resultStatus ?? autoResultStatus;
   const isResultOpen = effectiveResultStatus !== null;
 
+  // ── リザルト SE (clear / gameover) ──
+  useEffect(() => {
+    if (effectiveResultStatus === 'clear') soundEngine.play('resultClear');
+    if (effectiveResultStatus === 'gameover') soundEngine.play('resultGameOver');
+  }, [effectiveResultStatus]);
+
   // ── ゲームループ (敵 spawn / 武器発射 / ダメージ / 撃破 / 被ダメ / 弾道 / ドロップ) ──
   // ResultDialog 表示中 (撤退 / gameover) は paused で完全停止させる
   const {
@@ -276,7 +282,7 @@ export function Page() {
   const handleTogglePause = () => {
     const next = !isPaused;
     setPaused(next);
-    soundEngine.play(next ? 'dialogOpen' : 'tap');
+    soundEngine.play(next ? 'dialogOpen' : 'dialogClose');
   };
 
   const handleOpenScreenSaver = () => {

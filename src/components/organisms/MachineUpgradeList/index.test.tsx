@@ -1,13 +1,18 @@
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { beforeEach, describe, expect, test } from 'vitest';
+import { beforeEach, describe, expect, test, vi } from 'vitest';
 
 import { MACHINE_UPGRADE_ITEMS, calcCost, calcEffectValue } from './items';
 
 import { MachineUpgradeList } from './index';
 
+import { soundEngine } from '@/lib/audio';
 import { BigNum } from '@/lib/bignum/BigNum';
 import { useStore } from '@/store';
+
+vi.mock('@/lib/audio', () => ({
+  soundEngine: { play: vi.fn(), playBgm: vi.fn(), stopBgm: vi.fn(), init: vi.fn() },
+}));
 
 // ---------------------------------------------------------------------------
 // テスト前に store をリセット
@@ -208,5 +213,36 @@ describe('MachineUpgradeList', () => {
     );
     expect(patchSlotsCard).toBeDefined();
     expect(patchSlotsCard!.textContent).toContain('MAX');
+  });
+});
+
+describe('MachineUpgradeList — SE 配線', () => {
+  beforeEach(() => {
+    useStore.getState().resetMachine();
+    useStore.getState().resetCurrencies();
+    vi.clearAllMocks();
+  });
+
+  test('bolt 十分 → +1 購入で purchaseOk SE が再生される', async () => {
+    // bolt を十分セット
+    useStore.setState({ bolt: BigNum.fromNumber(10_000) });
+    render(<MachineUpgradeList />);
+
+    const plusOneButtons = screen.getAllByRole('button', { name: '+1' });
+    await userEvent.click(plusOneButtons[0]);
+
+    expect(soundEngine.play).toHaveBeenCalledWith('purchaseOk');
+  });
+
+  test('bolt 不足 → +1 ボタンは disabled になり SE は再生されない', async () => {
+    // bolt を 0 にして購入不可に
+    useStore.setState({ bolt: BigNum.ZERO });
+    render(<MachineUpgradeList />);
+
+    // disabled 時はボタンを押しても SE は鳴らない
+    const plusOneButtons = screen.getAllByRole('button', { name: '+1' });
+    await userEvent.click(plusOneButtons[0]);
+
+    expect(soundEngine.play).not.toHaveBeenCalled();
   });
 });
