@@ -3,6 +3,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { DamageEvent, DeathEvent } from '@/components/organisms/BattleField';
 import { calcRunWorkshopMultiplier } from '@/components/organisms/RunWorkshopBottomSheet/items';
 import { calcReceivedDamage } from '@/game/damage';
+import { updateEnemyPosition } from '@/game/loop/enemyMovement';
 import { buildMachineStats } from '@/game/loop/machineStats';
 import { fireWeapon, getAttackPerSec } from '@/game/loop/weaponDispatch';
 import type { SpawnedEnemy } from '@/game/types';
@@ -163,6 +164,9 @@ export function useBattleLoop({ range }: UseBattleLoopOpts): UseBattleLoopResult
           if (newSpawns.length > 0) {
             enemiesRef.current = [...enemiesRef.current, ...newSpawns];
           }
+
+          // ---- 敵移動 (マシン中心へ直線移動) ----
+          enemiesRef.current = enemiesRef.current.map((e) => updateEnemyPosition(e, deltaSec));
 
           // ---- 武器発射 ----
           const attackMulLv = state.runWorkshopLevels.attackMul;
