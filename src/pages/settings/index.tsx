@@ -38,6 +38,7 @@ export function Page() {
   const [activeTab, setActiveTab] = useState<SettingsTab>('sound');
 
   const handleTabChange = (k: SettingsTab) => {
+    if (k === activeTab) return; // 同一タブ連打で SE を鳴らさない
     setActiveTab(k);
     soundEngine.play('tabSwitch');
   };

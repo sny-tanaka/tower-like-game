@@ -103,4 +103,15 @@ describe('SettingsScreen', () => {
     await user.click(screen.getByRole('tab', { name: 'ゲーム' }));
     expect(soundEngine.play).toHaveBeenCalledWith('tabSwitch');
   });
+
+  it('同一タブを連打しても tabSwitch SE は 1 回しか鳴らない', async () => {
+    const user = userEvent.setup();
+    renderPage();
+    const gameTab = screen.getByRole('tab', { name: 'ゲーム' });
+    await user.click(gameTab);
+    vi.clearAllMocks();
+    // 同じタブを再クリック → SE は鳴らない
+    await user.click(gameTab);
+    expect(soundEngine.play).not.toHaveBeenCalledWith('tabSwitch');
+  });
 });

@@ -64,6 +64,7 @@ export function PatchScreen() {
   };
 
   const handleTabChange = (k: PatchTab) => {
+    if (k === activeTab) return; // 同一タブ連打で SE を鳴らさない
     setActiveTab(k);
     soundEngine.play('tabSwitch');
   };

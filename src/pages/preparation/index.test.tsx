@@ -105,6 +105,17 @@ describe('PreparationScreen Page', () => {
       await user.click(screen.getByRole('button', { name: '出撃' }));
       expect(soundEngine.play).toHaveBeenCalledWith('launch');
     });
+
+    test('同一タブを連打しても tabSwitch SE は 1 回しか鳴らない', async () => {
+      const user = userEvent.setup();
+      renderPage();
+      const weaponTab = screen.getByRole('tab', { name: '武器' });
+      await user.click(weaponTab);
+      vi.clearAllMocks();
+      // 同じタブを再クリック → SE は鳴らない
+      await user.click(weaponTab);
+      expect(soundEngine.play).not.toHaveBeenCalledWith('tabSwitch');
+    });
   });
 
   describe('出撃ボタン → startRun', () => {

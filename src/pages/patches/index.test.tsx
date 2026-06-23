@@ -103,5 +103,15 @@ describe('PatchScreen', () => {
       await userEvent.click(screen.getByRole('tab', { name: /^所持/ }));
       expect(soundEngine.play).toHaveBeenCalledWith('tabSwitch');
     });
+
+    it('同一タブを連打しても tabSwitch SE は 1 回しか鳴らない', async () => {
+      renderPatchScreen();
+      const inventoryTab = screen.getByRole('tab', { name: /^所持/ });
+      await userEvent.click(inventoryTab);
+      vi.clearAllMocks();
+      // 同じタブを再クリック → SE は鳴らない
+      await userEvent.click(inventoryTab);
+      expect(soundEngine.play).not.toHaveBeenCalledWith('tabSwitch');
+    });
   });
 });

@@ -438,4 +438,22 @@ describe('SE 配線', () => {
     fireEvent.click(closeBtn);
     expect(soundEngine.play).toHaveBeenCalledWith('dialogClose');
   });
+
+  test('gameover 時に resultClear SE は再生されない', async () => {
+    useStore.getState().startRun({
+      initialWeapon: 'laser',
+      baseMachineMaxHp: BigNum.fromNumber(100),
+      initialTier: 1,
+    });
+
+    renderPage();
+
+    await act(async () => {
+      useStore.setState({ machineHp: BigNum.ZERO });
+    });
+
+    // gameover → resultGameOver が鳴り、resultClear は鳴らない
+    expect(soundEngine.play).toHaveBeenCalledWith('resultGameOver');
+    expect(soundEngine.play).not.toHaveBeenCalledWith('resultClear');
+  });
 });

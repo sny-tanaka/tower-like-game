@@ -164,15 +164,15 @@ describe('WeaponLevelUpgradeTab — SE 配線', () => {
     expect(soundEngine.play).toHaveBeenCalledWith('purchaseOk');
   });
 
-  it('alloy 不足 → +1 ボタンは disabled になり SE は再生されない', () => {
+  it('alloy 不足 → +1 ボタンは disabled になり SE は一切再生されない', () => {
     useStore.setState({ weaponLv: 0, alloy: BigNum.ZERO });
     render(<WeaponLevelUpgradeTab />);
     const buttons = screen.getAllByRole('button');
     const plusOneBtn = buttons.find((b) => b.textContent === '+1');
-    // disabled ボタンをクリックしても SE は鳴らない
-    if (plusOneBtn && !plusOneBtn.hasAttribute('disabled')) {
-      fireEvent.click(plusOneBtn);
-    }
-    expect(soundEngine.play).not.toHaveBeenCalledWith('reject');
+    // alloy 不足の場合 +1 ボタンは disabled になる
+    expect(plusOneBtn).toHaveAttribute('disabled');
+    // disabled ボタンは onClick が undefined になるため SE は鳴らない
+    fireEvent.click(plusOneBtn!);
+    expect(soundEngine.play).not.toHaveBeenCalled();
   });
 });

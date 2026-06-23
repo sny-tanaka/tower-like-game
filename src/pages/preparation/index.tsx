@@ -86,6 +86,7 @@ export function Page(props: PreparationPageProps) {
   }
 
   const handleTabChange = (k: PreparationTab) => {
+    if (k === activeTab) return; // 同一タブ連打で SE を鳴らさない
     setActiveTab(k);
     soundEngine.play('tabSwitch');
   };

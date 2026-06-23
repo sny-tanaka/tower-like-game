@@ -65,5 +65,15 @@ describe('ArmoryScreen', () => {
       await userEvent.click(screen.getByRole('tab', { name: '強化' }));
       expect(soundEngine.play).toHaveBeenCalledWith('tabSwitch');
     });
+
+    test('同一タブを連打しても tabSwitch SE は 1 回しか鳴らない', async () => {
+      renderWithNav();
+      const upgradeTab = screen.getByRole('tab', { name: '強化' });
+      await userEvent.click(upgradeTab);
+      vi.clearAllMocks();
+      // 同じタブを再クリック → SE は鳴らない
+      await userEvent.click(upgradeTab);
+      expect(soundEngine.play).not.toHaveBeenCalledWith('tabSwitch');
+    });
   });
 });

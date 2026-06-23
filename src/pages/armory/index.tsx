@@ -41,6 +41,7 @@ export function ArmoryScreen(props: ArmoryScreenProps = {}) {
   const { screen, navigate } = useNavigation();
 
   const handleTabChange = (k: ArmoryTab) => {
+    if (k === activeTab) return; // 同一タブ連打で SE を鳴らさない
     setActiveTab(k);
     soundEngine.play('tabSwitch');
   };

@@ -4,6 +4,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { PatchMergeTab, calcMergeable, executeMergeAll } from './index';
 
 import { soundEngine } from '@/lib/audio';
+import { useStore } from '@/store';
 import type { PatchEntry } from '@/store/slices/patches';
 
 vi.mock('@/lib/audio', () => ({
@@ -172,6 +173,30 @@ describe('PatchMergeTab', () => {
       const mergeBtn = screen.getByRole('button', { name: /一括合成/ });
       fireEvent.click(mergeBtn);
       expect(soundEngine.play).not.toHaveBeenCalled();
+    });
+
+    it('ストアモードでマージ対象あり → 一括合成で purchaseOk SE が鳴る', () => {
+      // ストアに合成可能パッチ (tier=1, count=2) をセット
+      useStore.setState({
+        patches: new Map([['damageImmune#1', { name: 'damageImmune', tier: 1, count: 2 }]]),
+        machineLevels: { ...useStore.getState().machineLevels, patchSlots: 0 },
+      });
+      render(<PatchMergeTab />);
+      const mergeBtn = screen.getByRole('button', { name: /一括合成/ });
+      fireEvent.click(mergeBtn);
+      expect(soundEngine.play).toHaveBeenCalledWith('purchaseOk');
+    });
+
+    it('ストアモードでマージ対象なし (count=1) → 一括合成で reject SE が鳴る', () => {
+      // count=1 は合成できないのでマージ対象なし
+      useStore.setState({
+        patches: new Map([['damageImmune#1', { name: 'damageImmune', tier: 1, count: 1 }]]),
+        machineLevels: { ...useStore.getState().machineLevels, patchSlots: 0 },
+      });
+      render(<PatchMergeTab />);
+      const mergeBtn = screen.getByRole('button', { name: /一括合成/ });
+      fireEvent.click(mergeBtn);
+      expect(soundEngine.play).toHaveBeenCalledWith('reject');
     });
   });
 });
