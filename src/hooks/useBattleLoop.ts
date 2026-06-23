@@ -33,6 +33,7 @@ import { thunderPlasmaDischarge, thunderStats } from '@/game/weapons/thunder';
 import { soundEngine } from '@/lib/audio';
 import type { SoundId } from '@/lib/audio';
 import { BigNum } from '@/lib/bignum';
+import { vibrate } from '@/lib/haptics/vibrate';
 import { useStore } from '@/store/index';
 import { DEFAULT_ACTIVE_MAX_SEC } from '@/store/slices/battle';
 import type { WeaponType } from '@/store/slices/weapons';
@@ -461,6 +462,7 @@ export function useBattleLoop({ range, paused = false }: UseBattleLoopOpts): Use
     if (!fired) return false;
 
     soundEngine.play(WEAPON_ACTIVE_SOUND[state.currentWeapon]);
+    vibrate(15);
 
     const attackMul = calcRunWorkshopMultiplier(state.runWorkshopLevels.attackMul);
     const newDamageEvents: DamageEvent[] = [];
@@ -1159,9 +1161,13 @@ export function useBattleLoop({ range, paused = false }: UseBattleLoopOpts): Use
               }
 
               // 撃破 SE: boss/miniboss は bossKill、 それ以外は enemyKill
-              soundEngine.play(
-                enemy.kind === 'boss' || enemy.kind === 'miniboss' ? 'bossKill' : 'enemyKill'
-              );
+              if (enemy.kind === 'boss' || enemy.kind === 'miniboss') {
+                soundEngine.play('bossKill');
+                vibrate([40, 30, 40]);
+              } else {
+                soundEngine.play('enemyKill');
+                vibrate(8);
+              }
             } else {
               survivors.push(enemy);
             }
@@ -1235,9 +1241,13 @@ export function useBattleLoop({ range, paused = false }: UseBattleLoopOpts): Use
               state.damageHp(actualReceived);
               // 被ダメ SE: マシンが落ちたら machineDown / それ以外は machineHit
               const hpAfter = useStore.getState().machineHp;
-              soundEngine.play(
-                hpAfter.isZero() && !hpBefore.isZero() ? 'machineDown' : 'machineHit'
-              );
+              if (hpAfter.isZero() && !hpBefore.isZero()) {
+                soundEngine.play('machineDown');
+                vibrate([100, 50, 100, 50, 100]);
+              } else {
+                soundEngine.play('machineHit');
+                vibrate(20);
+              }
             }
           }
 
@@ -1274,9 +1284,11 @@ export function useBattleLoop({ range, paused = false }: UseBattleLoopOpts): Use
             if (decision === 'advanceWave') {
               state.advanceWave();
               soundEngine.play('waveClear');
+              vibrate(15);
             } else {
               state.advanceTier();
               soundEngine.play('tierClear');
+              vibrate([40, 30, 40]);
             }
             // wave / tier 切替直後の同フレームで waveElapsedMsRef も 0 に揃える。
             // (currentWave 変化に反応する useEffect でも 0 にされるが、 そちらより前に
