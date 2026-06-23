@@ -4,7 +4,7 @@ import styles from './style.module.scss';
 
 import { AppShell } from '@/components/organisms/AppShell';
 import { BattleField } from '@/components/organisms/BattleField';
-import type { DamageEvent, DeathEvent, HitEvent } from '@/components/organisms/BattleField';
+import type { HitEvent } from '@/components/organisms/BattleField';
 import { BattleHudBottom } from '@/components/organisms/BattleHudBottom';
 import type { GameSpeed } from '@/components/organisms/BattleHudBottom';
 import { BattleHudTop } from '@/components/organisms/BattleHudTop';
@@ -12,8 +12,9 @@ import { BattleMenuOverlay } from '@/components/organisms/BattleMenuOverlay';
 import { ResultDialog } from '@/components/organisms/ResultDialog';
 import type { ResultReward, ResultStatus } from '@/components/organisms/ResultDialog';
 import { RunWorkshopBottomSheet } from '@/components/organisms/RunWorkshopBottomSheet';
-import type { RunWorkshopLevels } from '@/components/organisms/RunWorkshopBottomSheet/items';
+import type { RunWorkshopKey } from '@/components/organisms/RunWorkshopBottomSheet/items';
 import { ScreenSaverDialog } from '@/components/organisms/ScreenSaverDialog';
+import { useBattleLoop } from '@/hooks/useBattleLoop';
 import { BigNum } from '@/lib/bignum/BigNum';
 import { useStore } from '@/store/index';
 import { useNavigation } from '@/store/navigation';
@@ -27,14 +28,6 @@ const DEFAULT_ACTIVE_MAX_SEC = 30;
 
 /** 索敵半径（パーセント） */
 const DEFAULT_RANGE = 30;
-
-/** RunWorkshop 初期 Lv */
-const defaultRunWorkshopLevels: RunWorkshopLevels = {
-  attackMul: 0,
-  attackSpeedMul: 0,
-  hpMul: 0,
-  screwGainMul: 0,
-};
 
 /**
  * リザルトダイアログが開いているかの判定。
@@ -62,7 +55,7 @@ function resolveResultStatus(isRunActive: boolean, machineHp: number): ResultSta
 export function Page() {
   const { navigate } = useNavigation();
 
-  // ── store から battle slice の状態取得 ──
+  // ── store から状態取得 ──
   const isRunActive = useStore((s) => s.isRunActive);
   const screw = useStore((s) => s.screw);
   const machineHp = useStore((s) => s.machineHp);
@@ -73,6 +66,8 @@ export function Page() {
   const activeCdSec = useStore((s) => s.activeCdSec);
   const isAutoActive = useStore((s) => s.isAutoActive);
   const gameSpeed = useStore((s) => s.gameSpeed);
+  const isPaused = useStore((s) => s.isPaused);
+  const runWorkshopLevels = useStore((s) => s.runWorkshopLevels);
 
   // settings slice
   const bgmVolume = useStore((s) => s.bgmVolume);
@@ -81,20 +76,22 @@ export function Page() {
   const setSeVolume = useStore((s) => s.setSeVolume);
   const setAutoActive = useStore((s) => s.setAutoActive);
   const switchWeapon = useStore((s) => s.switchWeapon);
+  const setPaused = useStore((s) => s.setPaused);
+  const setGameSpeed = useStore((s) => s.setGameSpeed);
+  const upgradeRunWorkshop = useStore((s) => s.upgradeRunWorkshop);
 
-  // ── ローカル UI state ──
+  // ── ローカル UI state (overlay 開閉) ──
   const [isWorkshopOpen, setIsWorkshopOpen] = useState(false);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isScreenSaverOpen, setIsScreenSaverOpen] = useState(false);
-  const [isPaused, setIsPaused] = useState(false);
-  const [localGameSpeed, setLocalGameSpeed] = useState<GameSpeed>(gameSpeed);
-  const [runWorkshopLevels, setRunWorkshopLevels] =
-    useState<RunWorkshopLevels>(defaultRunWorkshopLevels);
 
-  // Fx イベント（バトルロジック配線前は空リスト）
-  const [damageEvents] = useState<DamageEvent[]>([]);
-  const [hitEvents] = useState<HitEvent[]>([]);
-  const [deathEvents] = useState<DeathEvent[]>([]);
+  // ── ゲームループ (敵 spawn / 武器発射 / ダメージ / 撃破 / 被ダメ) ──
+  const { enemies, damageEvents, deathEvents, onDamageDone, onDeathDone } = useBattleLoop({
+    range: DEFAULT_RANGE,
+  });
+
+  // HitEvent は #92 時点では未配線 (各武器の hit に enemy 位置を取り出す形で別途追加予定)
+  const hitEvents: HitEvent[] = [];
 
   // 武器切替 CD（暫定: すべて 100 = CD なし）
   const weaponCds = {
@@ -117,13 +114,11 @@ export function Page() {
 
   // ── ハンドラ ──
   const handleSpeedChange = (speed: GameSpeed) => {
-    setLocalGameSpeed(speed);
-    // TODO: ゲームループへの反映は #53 で実装
+    setGameSpeed(speed);
   };
 
   const handleTogglePause = () => {
-    setIsPaused((prev) => !prev);
-    // TODO: ゲームループへの反映は #53 で実装
+    setPaused(!isPaused);
   };
 
   const handleOpenMenu = () => {
@@ -143,12 +138,8 @@ export function Page() {
     navigate('preparation');
   };
 
-  const handleWorkshopUpgrade = (key: keyof RunWorkshopLevels, delta: 1 | 5 | 'max') => {
-    setRunWorkshopLevels((prev) => ({
-      ...prev,
-      [key]: prev[key] + (delta === 'max' ? 1 : delta),
-    }));
-    // TODO: スクリーン購入処理は #53 で実装
+  const handleWorkshopUpgrade = (key: RunWorkshopKey, delta: 1 | 5 | 'max') => {
+    upgradeRunWorkshop(key, delta);
   };
 
   // リザルトダイアログ用ダミーリワード（バトルロジック配線前）
@@ -205,7 +196,7 @@ export function Page() {
                 // TODO: #53 で実装
               }}
               onToggleAuto={setAutoActive}
-              gameSpeed={localGameSpeed}
+              gameSpeed={gameSpeed}
               onSpeedChange={handleSpeedChange}
               isPaused={isPaused}
               onTogglePause={handleTogglePause}
@@ -221,10 +212,12 @@ export function Page() {
       >
         {/* メインコンテンツ: BattleField */}
         <BattleField
-          enemies={[]}
+          enemies={enemies}
           damageEvents={damageEvents}
           hitEvents={hitEvents}
           deathEvents={deathEvents}
+          onDamageDone={onDamageDone}
+          onDeathDone={onDeathDone}
           range={DEFAULT_RANGE}
         />
       </AppShell>

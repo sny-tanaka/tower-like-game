@@ -73,6 +73,7 @@ export interface BattleActions {
   setActiveCd: (sec: number) => void;
   setAutoActive: (auto: boolean) => void;
   setPaused: (paused: boolean) => void;
+  setGameSpeed: (speed: 1 | 2 | 3) => void;
   tickCooldowns: (deltaSecGameTime: number) => void;
 }
 
@@ -171,6 +172,8 @@ export const createBattleSlice: StateCreator<RootStore, [], [], BattleSlice> = (
   setAutoActive: (auto) => set({ isAutoActive: auto }),
 
   setPaused: (paused) => set({ isPaused: paused }),
+
+  setGameSpeed: (speed) => set({ gameSpeed: speed }),
 
   tickCooldowns: (deltaSecGameTime) =>
     set((s) => ({
