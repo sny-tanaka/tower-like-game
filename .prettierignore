@@ -1,0 +1,13 @@
+# ビルド成果物 (vite + workbox の出力) は prettier 整形対象外。
+# 整形すると minified ↔ 整形版で常に差分が出てしまうのを防ぐ。
+docs/
+storybook-static/
+dist/
+
+# 依存関係 / カバレッジ
+node_modules/
+coverage/
+
+# 生成物
+*.tsbuildinfo
+.vite/
