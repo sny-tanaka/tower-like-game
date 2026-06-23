@@ -665,7 +665,6 @@ export function useBattleLoop({ range, paused = false }: UseBattleLoopOpts): Use
             if (intervalEffect.boltGain != null && !intervalEffect.boltGain.isZero()) {
               state.addBolt(intervalEffect.boltGain);
             }
-            // shieldRecover: 将来実装のためスキップ（現状 store に shieldHp がないため）
           }
         }
 
