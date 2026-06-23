@@ -18,6 +18,7 @@ import { buildMachineStats } from '@/game/loop/machineStats';
 import { fireWeapon, getAttackPerSec } from '@/game/loop/weaponDispatch';
 import { evaluatePatches } from '@/game/patches';
 import { dropPatch } from '@/game/patches/drops';
+import type { PatchDrop } from '@/game/patches/drops';
 import type { EquippedPatch } from '@/game/patches.types';
 import type { SpawnedEnemy } from '@/game/types';
 import { buildTierWaves, getSpawnsAtTime } from '@/game/wave';
@@ -310,6 +311,12 @@ export interface UseBattleLoopResult {
   fireActive: () => boolean;
   /** Cutter Overdrive 中 (battle 画面で OverdriveAuraFx を表示するためのフラグ) */
   isOverdriveActive: boolean;
+  /** このランで撃破した敵の総数 */
+  killCount: number;
+  /** このランの経過秒 (整数秒単位) */
+  runElapsedSec: number;
+  /** このランでドロップしたパッチ一覧 */
+  droppedPatches: PatchDrop[];
 }
 
 /** 通常敵が ボルト をドロップする確率 (02-currencies.md 仕様) */
@@ -386,6 +393,13 @@ export function useBattleLoop({ range, paused = false }: UseBattleLoopOpts): Use
   const [waveElapsedSec, setWaveElapsedSec] = useState<number>(0);
   const [isOverdriveActive, setIsOverdriveActive] = useState<boolean>(false);
 
+  // ---- ラン統計 3 state ----
+  const [killCount, setKillCount] = useState<number>(0);
+  /** 整数秒トラッキング用の float 累積 ref (setState は整数秒が変わったときのみ) */
+  const runElapsedSecRef = useRef<number>(0);
+  const [runElapsedSec, setRunElapsedSec] = useState<number>(0);
+  const [droppedPatches, setDroppedPatches] = useState<PatchDrop[]>([]);
+
   const isRunActive = useStore((s) => s.isRunActive);
   const currentTier = useStore((s) => s.currentTier);
   const currentWave = useStore((s) => s.currentWave);
@@ -421,6 +435,17 @@ export function useBattleLoop({ range, paused = false }: UseBattleLoopOpts): Use
       pendingCannonHitsRef.current = [];
     }
   }, [currentTier, currentWave]);
+
+  // ---- ラン開始時に統計 3 state をリセット ----
+  // isRunActive が false → true になる瞬間のみリセット (wave/tier 切替では isRunActive は変わらない)
+  useEffect(() => {
+    if (isRunActive) {
+      setKillCount(0);
+      setRunElapsedSec(0);
+      runElapsedSecRef.current = 0;
+      setDroppedPatches([]);
+    }
+  }, [isRunActive]);
 
   const onDamageDone = useCallback((id: string) => {
     setDamageEvents((prev) => prev.filter((e) => e.id !== id));
@@ -623,6 +648,16 @@ export function useBattleLoop({ range, paused = false }: UseBattleLoopOpts): Use
         // ---- ラン累積ゲーム内時間を進める (状態異常期限判定の基準) ----
         runElapsedGameMsRef.current += deltaSec * 1000;
         const nowGameMs = runElapsedGameMsRef.current;
+
+        // ---- ラン経過秒の更新 (整数秒が変わったときのみ setState) ----
+        {
+          const prevIntSec = Math.floor(runElapsedSecRef.current);
+          runElapsedSecRef.current += deltaSec;
+          const nextIntSec = Math.floor(runElapsedSecRef.current);
+          if (nextIntSec !== prevIntSec) {
+            setRunElapsedSec(nextIntSec);
+          }
+        }
 
         // ---- 装着パッチ配列 (Map → Array) ----
         const equippedPatchesArr: EquippedPatch[] = Array.from(state.equippedPatches.values());
@@ -1043,6 +1078,7 @@ export function useBattleLoop({ range, paused = false }: UseBattleLoopOpts): Use
           let totalKillHeal = BigNum.ZERO;
           for (const enemy of enemiesRef.current) {
             if (enemy.hp.lte(BigNum.ZERO)) {
+              setKillCount((c) => c + 1);
               deathEventIdRef.current += 1;
               newDeathEvents.push({
                 id: `dh-${deathEventIdRef.current}`,
@@ -1157,6 +1193,7 @@ export function useBattleLoop({ range, paused = false }: UseBattleLoopOpts): Use
               );
               if (dropped != null) {
                 state.addPatch(dropped.name, dropped.tier, 1);
+                setDroppedPatches((prev) => [...prev, dropped]);
               }
 
               // 撃破 SE: boss/miniboss は bossKill、 それ以外は enemyKill
@@ -1331,5 +1368,8 @@ export function useBattleLoop({ range, paused = false }: UseBattleLoopOpts): Use
     onAppearanceDone,
     fireActive,
     isOverdriveActive,
+    killCount,
+    runElapsedSec,
+    droppedPatches,
   };
 }
