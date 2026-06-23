@@ -1,0 +1,194 @@
+/* PatchCard — Tier別パッチカード (claude-design 準拠の縦長レイアウト) */
+
+.root {
+  display: inline-block;
+  position: relative;
+  border-radius: var(--r-m);
+  transition: box-shadow var(--mo-fast) var(--ease-default);
+
+  &:focus-visible {
+    outline: 2px solid var(--c-primary);
+    outline-offset: 2px;
+  }
+}
+
+/* 状態 */
+.selected {
+  box-shadow: var(--glow-cyan-md);
+}
+
+.merging {
+  box-shadow: var(--glow-purple-md);
+}
+
+.locked {
+  opacity: 0.55;
+  cursor: default;
+}
+
+.disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+/* カード共通: 縦並びの中央寄せレイアウト */
+.card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--sp-xs);
+  text-align: center;
+  position: relative;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+/* Tier バッジ (左上) */
+.tierBadge {
+  position: absolute;
+  top: 8px;
+  left: 8px;
+  z-index: 1;
+}
+
+/* 所持数 (右上) */
+.count {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  z-index: 1;
+  display: inline-flex;
+  align-items: center;
+  padding: 1px var(--sp-xs);
+  background: var(--c-bg-base);
+  border: 1px solid var(--c-border-faint);
+  border-radius: var(--r-pill);
+  font-family: var(--ff-numeric);
+  font-size: 10px;
+  font-weight: var(--fw-semibold);
+  letter-spacing: var(--ls-num);
+  line-height: 1;
+  color: var(--c-text-mid);
+  white-space: nowrap;
+}
+
+.countZero {
+  opacity: 0.5;
+}
+
+/* アイコン枠 (中央上) */
+.iconWrap {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--r-s);
+  background: var(--c-surface);
+  flex-shrink: 0;
+  margin: var(--sp-m) auto var(--sp-xxs);
+}
+
+/* 名前 */
+.name {
+  display: block;
+  font-family: var(--ff-display);
+  font-weight: var(--fw-semibold);
+  line-height: var(--lh-snug);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 100%;
+}
+
+/* trigger / effect — 縦並びで中央寄せ */
+.detail {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0;
+  width: 100%;
+}
+
+.trigger {
+  font-family: var(--ff-body);
+  font-size: var(--fs-label);
+  color: var(--c-text-dim);
+  line-height: var(--lh-snug);
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.effect {
+  font-family: var(--ff-body);
+  font-size: var(--fs-label);
+  color: var(--c-text-mid);
+  line-height: var(--lh-snug);
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* 合成中バッジ */
+.mergingBadge {
+  position: absolute;
+  top: -4px;
+  right: -4px;
+  font-family: var(--ff-display);
+  font-size: 9px;
+  font-weight: var(--fw-bold);
+  letter-spacing: var(--ls-loose);
+  color: var(--c-bg-deep);
+  background: var(--c-secondary);
+  border-radius: var(--r-pill);
+  padding: 1px var(--sp-xs);
+  white-space: nowrap;
+  box-shadow: var(--glow-purple-sm);
+}
+
+/* ============================
+   size バリアント
+   ============================ */
+.size-sm {
+  width: 130px;
+
+  .card {
+    min-height: 150px;
+  }
+
+  .name {
+    font-size: 12px;
+  }
+}
+
+.size-md {
+  width: 100%;
+  min-width: 0;
+
+  .card {
+    min-height: 180px;
+  }
+
+  .name {
+    font-size: 13px;
+  }
+}
+
+.size-lg {
+  width: 190px;
+
+  .card {
+    min-height: 200px;
+  }
+
+  .name {
+    font-size: 14px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .root {
+    transition: none;
+  }
+}

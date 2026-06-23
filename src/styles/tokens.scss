@@ -1,0 +1,181 @@
+/* =====================================================================
+ * Tower Like Game — Design Tokens
+ *
+ * すべての値は SCSS 変数 / CSS カスタムプロパティとして公開し、
+ * Atom 以上のコンポーネントは値ではなく **トークン名** だけを参照する。
+ * 値の変更はここで一元的に行う。
+ *
+ * 抽出元: assets/icon-512.png
+ *   - ダーク基調（黒〜濃紺）/ ネオンシアン × ネオン紫 / ジオメトリック
+ *   - グロー・グリッド・ホログラム調
+ * ===================================================================== */
+
+@import url('https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@400;500;600;700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap');
+
+:root {
+  /* ========== Color: background layers ========== */
+  --c-bg-deep:      #04060d;   /* 最外周 / ページ最下層 */
+  --c-bg-base:      #0a0f1c;   /* デフォルトページ背景 */
+  --c-bg-elev:      #111829;   /* カード・パネルの面 */
+  --c-surface:      #1a2238;   /* インタラクティブ面 */
+  --c-surface-hi:   #25304d;   /* hover / pressed */
+  --c-border-faint: #1f2a44;
+  --c-border:       #2a3a5e;
+  --c-border-hi:    #3d5180;
+
+  /* ========== Color: text ========== */
+  --c-text:          #e8efff;
+  --c-text-mid:      #a7b8d8;
+  --c-text-dim:      #6b7d9e;
+  --c-text-disabled: #3d4a66;
+
+  /* ========== Color: primary (cyan / 主役) ========== */
+  --c-primary:      #4ee4f6;
+  --c-primary-hi:   #8af3ff;
+  --c-primary-deep: #1a9eb0;
+  --c-primary-bg:   #0d3942;   /* tinted fill */
+
+  /* ========== Color: secondary (purple / 副役) ========== */
+  --c-secondary:      #a96bff;
+  --c-secondary-hi:   #c39bff;
+  --c-secondary-deep: #6938c2;
+  --c-secondary-bg:   #261144;
+
+  /* ========== Color: semantic ========== */
+  --c-danger:      #ff4d6d;
+  --c-danger-raw:  255, 77, 109;  /* rgba() で alpha 付きに使う用 */
+  --c-danger-deep: #c4253d;
+  --c-success:     #46e2a0;
+  --c-warning:     #f6b94a;
+
+  /* ========== Color: bar (HP / CD / Wave) ========== */
+  --c-hp:       #46e2a0;
+  --c-hp-low:   #ff4d6d;
+  --c-cd:       var(--c-primary);
+  --c-wave:     var(--c-secondary);
+  --c-shield:   var(--c-primary-hi);
+
+  /* ========== Color: tier badge (T1→T10+, cyan→magenta) ========== */
+  --c-tier-1:  #4ee4f6;
+  --c-tier-2:  #6cd4f8;
+  --c-tier-3:  #8ac4f9;
+  --c-tier-4:  #a6b4fb;
+  --c-tier-5:  #c2a4fc;
+  --c-tier-6:  #d893fd;
+  --c-tier-7:  #e07cf4;
+  --c-tier-8:  #ea66e0;
+  --c-tier-9:  #f04fb8;
+  --c-tier-10: #f53a8c;
+
+  /* ========== Color: patch tier (T1→T5) ========== */
+  --c-patch-t1: #6e8aab;
+  --c-patch-t2: #4ee4f6;
+  --c-patch-t3: #a96bff;
+  --c-patch-t4: #ffb84d;
+  --c-patch-t5: #ff5050;
+
+  /* ========== Currency accents (Screw / Bolt / Alloy) ========== */
+  --c-screw: #c8d4e8;   /* ネジ - 銀白 */
+  --c-bolt:  #4ee4f6;   /* ボルト - シアン（永続=主役色） */
+  --c-alloy: #a96bff;   /* 超合金 - 紫（武器強化=副色） */
+
+  /* ========== Typography: family ========== */
+  --ff-display: 'Chakra Petch', 'Rajdhani', system-ui, sans-serif; /* @kind font */
+  --ff-body:    'Inter', system-ui, sans-serif;                    /* @kind font */
+  --ff-numeric: 'JetBrains Mono', ui-monospace, monospace;         /* @kind font */
+
+  /* ========== Typography: size ========== */
+  --fs-h1:      28px;
+  --fs-h2:      22px;
+  --fs-h3:      18px;
+  --fs-body:    14px;
+  --fs-caption: 12px;
+  --fs-label:   11px;
+  --fs-num-l:   28px;   /* HUD HP, large counters */
+  --fs-num-m:   18px;   /* card values */
+  --fs-num-s:   13px;   /* inline numerics */
+
+  /* ========== Typography: weight ========== */
+  --fw-regular:  400; /* @kind font */
+  --fw-medium:   500; /* @kind font */
+  --fw-semibold: 600; /* @kind font */
+  --fw-bold:     700; /* @kind font */
+
+  /* ========== Typography: line-height / letter-spacing ========== */
+  --lh-tight:  1.1;     /* @kind font */
+  --lh-snug:   1.25;    /* @kind font */
+  --lh-normal: 1.5;     /* @kind font */
+  --ls-loose:  0.08em;  /* @kind font */
+  --ls-num:    0.02em;  /* @kind font */
+  --ls-tight: -0.01em;  /* @kind font */
+
+  /* ========== Spacing (4px base) ========== */
+  --sp-xxs: 2px;
+  --sp-xs:  4px;
+  --sp-s:   8px;
+  --sp-m:   12px;
+  --sp-l:   16px;
+  --sp-xl:  24px;
+  --sp-xxl: 32px;
+
+  /* ========== Radius ========== */
+  --r-xs:   2px;   /* インラインタグ */
+  --r-s:    4px;   /* small button, chip */
+  --r-m:    8px;   /* card, bar */
+  --r-l:    12px;  /* sheet, dialog */
+  --r-pill: 999px;
+
+  /* ========== Shadow (depth) ========== */
+  --sh-low:  0 1px 2px rgba(0,0,0,0.4);
+  --sh-mid:  0 4px 12px rgba(0,0,0,0.5), 0 1px 2px rgba(0,0,0,0.4);
+  --sh-high: 0 12px 32px rgba(0,0,0,0.6), 0 4px 8px rgba(0,0,0,0.4);
+
+  /* ========== Shadow: glow (ネオン専用) ========== */
+  --glow-cyan-sm:   0 0 6px rgba(78,228,246,0.45);
+  --glow-cyan-md:   0 0 12px rgba(78,228,246,0.55), 0 0 24px rgba(78,228,246,0.25);
+  --glow-cyan-lg:   0 0 16px rgba(78,228,246,0.65), 0 0 36px rgba(78,228,246,0.35);
+
+  --glow-purple-sm: 0 0 6px rgba(169,107,255,0.45);
+  --glow-purple-md: 0 0 12px rgba(169,107,255,0.55), 0 0 24px rgba(169,107,255,0.25);
+  --glow-purple-lg: 0 0 16px rgba(169,107,255,0.65), 0 0 36px rgba(169,107,255,0.35);
+
+  --glow-danger-md: 0 0 12px rgba(255,77,109,0.55), 0 0 24px rgba(255,77,109,0.25);
+  --glow-success-md: 0 0 12px rgba(70,226,160,0.55), 0 0 24px rgba(70,226,160,0.25);
+
+  /* Inset glow (border 用) */
+  --glow-cyan-inset:   inset 0 0 0 1px rgba(78,228,246,0.6), inset 0 0 10px rgba(78,228,246,0.18);
+  --glow-purple-inset: inset 0 0 0 1px rgba(169,107,255,0.6), inset 0 0 10px rgba(169,107,255,0.18);
+
+  /* ========== Motion ========== */
+  --mo-fast:  120ms;   /* @kind other */ /* hover/press feedback */
+  --mo-mid:   220ms;   /* @kind other */ /* tab / dialog enter */
+  --mo-slow:  360ms;   /* @kind other */ /* bottom sheet, page transition */
+  --mo-pulse: 1400ms;  /* @kind other */ /* idle pulse (Fx 専用) */
+
+  --ease-default: cubic-bezier(0.22, 1, 0.36, 1); /* @kind other */
+  --ease-in:      cubic-bezier(0.4, 0, 1, 1);     /* @kind other */
+  --ease-out:     cubic-bezier(0, 0, 0.2, 1);     /* @kind other */
+  --ease-back:    cubic-bezier(0.34, 1.56, 0.64, 1); /* @kind other */
+
+  /* ========== Z-index ========== */
+  --z-base:         0;   /* @kind other */
+  --z-fx-field:    50;   /* @kind other */ /* DamagePopFx 等のフィールド演出 */
+  --z-hud:         80;   /* @kind other */
+  --z-sheet:      100;   /* @kind other */ /* RunWorkshopBottomSheet */
+  --z-dialog:     200;   /* @kind other */ /* ConfirmDialog / ResultDialog */
+  --z-overlay:    300;   /* @kind other */ /* BattleMenuOverlay */
+  --z-toast:      400;   /* @kind other */
+  --z-screen-saver: 500; /* @kind other */
+}
+
+/* ---------- card preview baseline ---------- */
+html, body {
+  margin: 0;
+  background: var(--c-bg-deep);
+  color: var(--c-text);
+  font-family: var(--ff-body);
+  font-size: var(--fs-body);
+  line-height: var(--lh-normal);
+  -webkit-font-smoothing: antialiased;
+}
+* { box-sizing: border-box; }

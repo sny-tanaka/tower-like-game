@@ -1,0 +1,18 @@
+.layout {
+  display: flex;
+  flex-direction: column;
+  min-height: 100%;
+  width: 100%;
+  max-width: 412px;
+  margin: 0 auto;
+  padding: var(--sp-xxl) var(--sp-l) var(--sp-xxl);
+  gap: var(--sp-l);
+}
+
+.heroWrap {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--sp-m) var(--sp-l);
+}

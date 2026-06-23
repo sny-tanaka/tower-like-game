@@ -1,0 +1,66 @@
+.nav {
+  display: flex;
+  align-items: stretch;
+  justify-content: space-around;
+  width: 100%;
+}
+
+/* タブボタン */
+.tab {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--sp-xxs);
+  padding: var(--sp-s) var(--sp-xs);
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--c-text-dim);
+  transition: color var(--mo-fast) var(--ease-default);
+  min-width: 0;
+  /* タップ領域確保 */
+  min-height: 52px;
+}
+
+.tab:active {
+  opacity: 0.7;
+}
+
+/* アクティブタブ */
+.tab.active {
+  color: var(--c-primary);
+}
+
+/* アイコン + バッジのラッパー */
+.iconWrap {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* アクティブアイコンのグロー */
+.tab.active .iconWrap {
+  filter: drop-shadow(0 0 6px rgba(78, 228, 246, 0.6));
+}
+
+/* バッジ */
+.badge {
+  position: absolute;
+  top: -4px;
+  right: -6px;
+  min-width: 14px;
+  height: 14px;
+  padding: 0 3px;
+  border-radius: var(--r-pill);
+  background: var(--c-danger);
+  color: var(--c-text);
+  font-family: var(--ff-numeric);
+  font-size: 9px;
+  font-weight: var(--fw-bold);
+  line-height: 14px;
+  text-align: center;
+  pointer-events: none;
+}

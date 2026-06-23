@@ -1,0 +1,55 @@
+.wrapper {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-s);
+
+  &.disabled {
+    opacity: 0.4;
+    pointer-events: none;
+  }
+}
+
+.hiddenInput {
+  display: none;
+}
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-xs);
+  padding: var(--sp-s) var(--sp-m);
+  background: var(--c-surface);
+  color: var(--c-text);
+  border: 1px solid var(--c-border);
+  border-radius: var(--r-m);
+  cursor: pointer;
+  font-family: var(--ff-body);
+  font-size: 13px;
+  transition: background var(--mo-fast) var(--ease-default),
+    border-color var(--mo-fast) var(--ease-default),
+    box-shadow var(--mo-fast) var(--ease-default);
+
+  &:hover:not(:disabled) {
+    background: var(--c-primary-bg);
+    border-color: var(--c-primary);
+    box-shadow: var(--glow-cyan-sm);
+  }
+
+  &:active:not(:disabled) {
+    border-color: var(--c-primary-hi);
+  }
+
+  &:disabled {
+    cursor: not-allowed;
+  }
+}
+
+.fileName {
+  max-width: 160px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-family: var(--ff-numeric);
+  font-size: 11px;
+  color: var(--c-text-mid);
+}

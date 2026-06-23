@@ -1,5 +1,7 @@
+import { createBgmTrack } from './bgm';
+import type { BgmTrack } from './bgm';
 import { soundLibrary } from './sounds';
-import type { SoundId } from './types';
+import type { BgmId, SoundId } from './types';
 
 const MIN_INTERVAL_MS: Partial<Record<SoundId, number>> = {
   laserShoot: 50,
@@ -22,6 +24,7 @@ export class SoundEngine {
   private lastPlayAt = new Map<SoundId, number>();
   private seVolume = 0.7;
   private bgmVolume = 0.5;
+  private currentBgm: { id: BgmId; track: BgmTrack } | null = null;
 
   init(): void {
     if (this.ctx) return;
@@ -77,12 +80,39 @@ export class SoundEngine {
     return this.bgmVolume;
   }
 
+  playBgm(id: BgmId): void {
+    if (!this.ctx || !this.bgmGain) return;
+    if (this.ctx.state === 'suspended') void this.ctx.resume();
+    // 同じ id なら継続再生
+    if (this.currentBgm?.id === id) return;
+    // 違う id: 先に古い track を完全停止してから新規開始
+    // (currentBgm を null にしてから新規 createBgmTrack することで、
+    //  万一 createBgmTrack 内で例外が出ても古い参照が残らない)
+    if (this.currentBgm != null) {
+      this.currentBgm.track.stop();
+      this.currentBgm = null;
+    }
+    const track = createBgmTrack(id, this.ctx, this.bgmGain);
+    track.start();
+    this.currentBgm = { id, track };
+  }
+
+  stopBgm(): void {
+    this.currentBgm?.track.stop();
+    this.currentBgm = null;
+  }
+
+  getCurrentBgm(): BgmId | null {
+    return this.currentBgm?.id ?? null;
+  }
+
   isInitialized(): boolean {
     return this.ctx !== null;
   }
 
   /** for tests: dispose internal state */
   destroy(): void {
+    this.stopBgm();
     if (this.ctx) {
       void this.ctx.close();
       this.ctx = null;

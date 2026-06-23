@@ -1,0 +1,8 @@
+// PatchScreen ページのスタイル
+
+.content {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-m);
+  min-height: 0;
+}

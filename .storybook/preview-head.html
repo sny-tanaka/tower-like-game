@@ -1,0 +1,19 @@
+<!--
+  本番の index.scss は html/body/#root に
+    overflow: hidden / height: 100% / overscroll-behavior: none
+  を強制し、 Mobile Safari のバウンスを防いでいる。
+  これらは Storybook プレビュー (iframe) では Story が長いとき見切れる原因になる。
+  - overflow: hidden → スクロールバーのドラッグも効かなくなる
+  - overscroll-behavior: none → スクロール連鎖を切るので、 高さ固定された要素上では
+    マウスホイールが消費されてスクロールしない (連鎖伝播しないため)
+  これらをまとめて Storybook 内で解除する。
+-->
+<style>
+  html,
+  body,
+  #storybook-root {
+    height: auto !important;
+    overflow: auto !important;
+    overscroll-behavior: auto !important;
+  }
+</style>

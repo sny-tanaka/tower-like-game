@@ -1,0 +1,13 @@
+.root {
+  position: fixed;
+  inset: 0;
+  background: #000;
+  z-index: var(--z-screen-saver);
+  cursor: pointer;
+  outline: none;
+  /* タップ領域全体でクリック可。アクセス時のフォーカス線だけ最小限残す */
+  &:focus-visible {
+    outline: 2px solid var(--c-primary);
+    outline-offset: -2px;
+  }
+}

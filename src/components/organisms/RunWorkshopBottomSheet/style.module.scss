@@ -1,0 +1,50 @@
+/* RunWorkshopBottomSheet — design ref 準拠の overlay シート */
+
+.root {
+  /* 親 (.battleFooter) を relative にして、HudBottom の真上に
+     被さる overlay として配置する。BattleField の高さは変えない。 */
+  position: absolute;
+  bottom: 100%;
+  left: 0;
+  right: 0;
+  max-height: 50dvh;
+  overflow-y: auto;
+  background: var(--c-bg-elev);
+  border-top: 1px solid var(--c-primary);
+  border-top-left-radius: var(--r-m);
+  border-top-right-radius: var(--r-m);
+  box-shadow:
+    0 -12px 32px rgba(0, 0, 0, 0.6),
+    0 -2px 16px rgba(78, 228, 246, 0.18);
+  z-index: 1;
+}
+
+.inner {
+  padding: var(--sp-s) var(--sp-m) var(--sp-m);
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-s);
+}
+
+/* ── ヘッダー: title + subtitle + 通貨 + close ── */
+.header {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: var(--sp-s);
+}
+
+.headerText {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-xxs);
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+/* 2×2 グリッド */
+.grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: var(--sp-s);
+}

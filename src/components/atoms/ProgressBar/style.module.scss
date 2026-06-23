@@ -1,0 +1,66 @@
+.root {
+  position: relative;
+  width: 100%;
+  background-color: var(--c-bg-base);
+  border: 1px solid var(--c-border-faint);
+  border-radius: var(--r-pill);
+  overflow: hidden;
+}
+
+.sizeSm {
+  height: 4px;
+}
+
+.sizeMd {
+  height: 6px;
+}
+
+.sizeLg {
+  height: 8px;
+}
+
+.fill {
+  height: 100%;
+  border-radius: var(--r-pill);
+  transition: width var(--mo-mid) var(--ease-out);
+}
+
+.label {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--ff-numeric);
+  font-size: var(--fs-caption);
+  font-weight: var(--fw-semibold);
+  color: var(--c-text);
+  letter-spacing: var(--ls-num);
+  line-height: 1;
+  pointer-events: none;
+  /* ラベルはサイズが lg 以上のときのみ読みやすい */
+  text-shadow: 0 0 4px rgba(0, 0, 0, 0.8);
+}
+
+// --- trailingLabel (バー外側 右端) ---
+.withTrailing {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-s);
+  width: 100%;
+
+  .root {
+    flex: 1 1 auto;
+  }
+}
+
+.trailingLabel {
+  flex: 0 0 auto;
+  font-family: var(--ff-numeric);
+  font-size: var(--fs-caption);
+  font-weight: var(--fw-semibold);
+  color: var(--c-text-mid);
+  letter-spacing: var(--ls-num);
+  line-height: 1;
+  white-space: nowrap;
+}

@@ -1,0 +1,77 @@
+// Slider のカスタムスタイル
+// track の塗りは JS で --slider-fill-pct を渡し linear-gradient で表現
+$thumb-size: 16px;
+$track-height: 4px;
+
+.wrapper {
+  display: block;
+  width: 100%;
+
+  &.disabled {
+    opacity: 0.4;
+    pointer-events: none;
+  }
+
+  // color variant: primary (cyan)
+  &.color-primary {
+    --slider-accent: var(--c-primary);
+    --slider-accent-glow: var(--glow-cyan-md);
+  }
+
+  // color variant: secondary (purple)
+  &.color-secondary {
+    --slider-accent: var(--c-secondary);
+    --slider-accent-glow: var(--glow-purple-md);
+  }
+}
+
+.input {
+  appearance: none;
+  width: 100%;
+  height: $track-height;
+  border-radius: var(--r-pill);
+  background: linear-gradient(
+    to right,
+    var(--slider-accent) 0%,
+    var(--slider-accent) var(--slider-fill-pct),
+    var(--c-surface) var(--slider-fill-pct),
+    var(--c-surface) 100%
+  );
+  outline: none;
+  cursor: pointer;
+  border: 1px solid var(--c-border);
+  transition: background var(--mo-fast) var(--ease-default);
+
+  // WebKit thumb
+  &::-webkit-slider-thumb {
+    appearance: none;
+    width: $thumb-size;
+    height: $thumb-size;
+    border-radius: var(--r-pill);
+    background: var(--slider-accent);
+    box-shadow: var(--slider-accent-glow);
+    cursor: pointer;
+    transition: transform var(--mo-fast) var(--ease-back),
+      box-shadow var(--mo-fast) var(--ease-default);
+  }
+
+  &::-webkit-slider-thumb:hover {
+    transform: scale(1.2);
+    box-shadow: var(--glow-cyan-lg);
+  }
+
+  // Firefox thumb
+  &::-moz-range-thumb {
+    width: $thumb-size;
+    height: $thumb-size;
+    border-radius: var(--r-pill);
+    background: var(--slider-accent);
+    box-shadow: var(--slider-accent-glow);
+    border: none;
+    cursor: pointer;
+  }
+
+  &:disabled {
+    cursor: not-allowed;
+  }
+}

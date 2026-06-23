@@ -1,0 +1,156 @@
+.root {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-s);
+  padding: var(--sp-s) var(--sp-m);
+  padding-bottom: calc(var(--sp-m) + env(safe-area-inset-bottom, 0px));
+  background: linear-gradient(
+    0deg,
+    rgba(4, 6, 13, 0.96) 0%,
+    rgba(4, 6, 13, 0.78) 100%
+  );
+  border-top: 1px solid var(--c-border-faint);
+}
+
+/* ──── 上段: 武器 + アクティブ ──── */
+.topRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-s);
+}
+
+/* 武器スロット × 4 */
+.weaponSlots {
+  display: flex;
+  gap: var(--sp-xs);
+  flex: 1;
+  justify-content: flex-start;
+}
+
+/* アクティブボタン + モードラベル + トグル */
+.activeArea {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--sp-xs);
+  flex-shrink: 0;
+}
+
+.activeButton {
+  all: unset;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--r-pill);
+  position: relative;
+  width: 72px;
+  height: 72px;
+  /* 紫グロー */
+  background: radial-gradient(
+    circle,
+    rgba(169, 107, 255, 0.32) 0%,
+    rgba(169, 107, 255, 0.08) 60%,
+    transparent 80%
+  );
+  border: 1px solid var(--c-secondary);
+  box-shadow: var(--glow-purple-md);
+  transition: opacity var(--mo-fast) var(--ease-default),
+    transform var(--mo-fast) var(--ease-default);
+
+  &:not(:disabled):active {
+    transform: scale(0.93);
+  }
+}
+
+.activeDisabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+  box-shadow: none;
+  border-color: var(--c-border);
+  background: var(--c-surface);
+}
+
+/* MANUAL / AUTO 切替トグル (pill 形・click で onToggleAuto) */
+.modeToggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 18px;
+  padding: 0 8px;
+  font-family: var(--ff-display);
+  font-size: 9.5px;
+  font-weight: var(--fw-semibold);
+  letter-spacing: var(--ls-loose);
+  text-transform: uppercase;
+  background: var(--c-bg-base);
+  border: 1px solid var(--c-border-faint);
+  border-radius: var(--r-pill);
+  color: var(--c-text-dim);
+  white-space: nowrap;
+  cursor: pointer;
+  transition: background var(--mo-fast) var(--ease-default),
+    border-color var(--mo-fast) var(--ease-default),
+    color var(--mo-fast) var(--ease-default);
+
+  &:hover {
+    border-color: var(--c-border);
+  }
+}
+
+.modeToggleOn {
+  background: var(--c-secondary-bg);
+  border-color: var(--c-secondary);
+  color: var(--c-secondary);
+}
+
+/* 「アップグレード」Badge ボタン: 武器ボタン行の上端中央に常時表示 */
+.sheetToggleButton {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  background: transparent;
+  border: none;
+  padding: 4px 0 6px;
+  cursor: pointer;
+}
+
+
+/* ──── 下段: 通貨 + 速度 + システム ──── */
+.bottomRow {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: var(--sp-s);
+}
+
+.currencyArea {
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+  min-width: 0;
+  gap: var(--sp-s);
+}
+
+/* screw 表示枠: 桁が増えてもボルト位置がズレないよう「999.9AB」 が収まる min-width を確保
+   (ff-numeric = JetBrains Mono の等幅前提。 数値 6 文字 = 6ch + アイコン分 + 内余白) */
+.screwSlot {
+  display: inline-flex;
+  align-items: center;
+  min-width: 9.5ch;
+}
+
+.speedArea {
+  flex: 1;
+  display: flex;
+  justify-content: center;
+}
+
+/* システムボタン群 */
+.sysButtons {
+  display: flex;
+  gap: var(--sp-xs);
+  flex-shrink: 0;
+}

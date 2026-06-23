@@ -1,0 +1,137 @@
+.badge {
+  display: inline-flex;
+  align-items: center;
+  border-radius: var(--r-pill);
+  font-family: var(--ff-display);
+  font-weight: var(--fw-semibold);
+  line-height: 1;
+  letter-spacing: var(--ls-loose);
+  text-transform: uppercase;
+  border: 1px solid currentcolor;
+  white-space: nowrap;
+  box-sizing: border-box;
+}
+
+// --- Size (height fixed, padding 横のみ) ---
+.size-sm {
+  height: 16px;
+  padding: 0 6px;
+  gap: 3px;
+  font-size: 9.5px;
+}
+
+.size-md {
+  height: 20px;
+  padding: 0 8px;
+  gap: 4px;
+  font-size: 11px;
+}
+
+.size-lg {
+  height: 24px;
+  padding: 0 10px;
+  gap: 5px;
+  font-size: 12px;
+}
+
+// --- Variants ---
+.variant-neutral {
+  color: var(--c-text-mid);
+  border-color: var(--c-border);
+  background: var(--c-surface);
+}
+
+.variant-tier {
+  // --badge-color は index.tsx から tier に応じてインライン変数で渡される
+  color: var(--badge-color, var(--c-primary));
+  border-color: var(--badge-color, var(--c-primary));
+  background: color-mix(in srgb, var(--badge-color, var(--c-primary)) 10%, transparent);
+}
+
+.variant-elite {
+  color: var(--c-warning);
+  border-color: var(--c-warning);
+  background: rgba(246, 185, 74, 0.12);
+}
+
+.variant-boss {
+  color: var(--c-danger);
+  border-color: var(--c-danger);
+  background: rgba(255, 77, 109, 0.14);
+}
+
+.variant-patch-tier {
+  color: var(--badge-color, var(--c-patch-t1));
+  border-color: var(--badge-color, var(--c-patch-t1));
+  background: color-mix(in srgb, var(--badge-color, var(--c-patch-t1)) 10%, transparent);
+}
+
+.variant-info {
+  color: var(--c-primary);
+  border-color: var(--c-primary);
+  background: rgba(78, 228, 246, 0.08);
+}
+
+.variant-success {
+  color: var(--c-success);
+  border-color: var(--c-success);
+  background: rgba(70, 226, 160, 0.10);
+}
+
+.variant-warning {
+  color: var(--c-warning);
+  border-color: var(--c-warning);
+  background: rgba(246, 185, 74, 0.10);
+}
+
+.variant-danger {
+  color: var(--c-danger);
+  border-color: var(--c-danger);
+  background: rgba(255, 77, 109, 0.10);
+}
+
+// --- Glow (drop-shadow ベース) ---
+.glow {
+  &.variant-neutral {
+    box-shadow: var(--glow-cyan-sm);
+  }
+
+  &.variant-tier {
+    filter: drop-shadow(0 0 4px var(--badge-color, var(--c-primary)));
+  }
+
+  &.variant-elite {
+    box-shadow: 0 0 6px rgba(246, 185, 74, 0.55);
+  }
+
+  &.variant-boss {
+    box-shadow: 0 0 8px rgba(255, 77, 109, 0.55);
+  }
+
+  &.variant-patch-tier {
+    filter: drop-shadow(0 0 4px var(--badge-color, var(--c-patch-t1)));
+  }
+
+  &.variant-info {
+    box-shadow: var(--glow-cyan-sm);
+  }
+
+  &.variant-success {
+    box-shadow: 0 0 6px rgba(70, 226, 160, 0.55);
+  }
+
+  &.variant-warning {
+    box-shadow: 0 0 6px rgba(246, 185, 74, 0.55);
+  }
+
+  &.variant-danger {
+    box-shadow: 0 0 6px rgba(255, 77, 109, 0.55);
+  }
+}
+
+// --- Icon slot ---
+.iconLeft {
+  display: inline-flex;
+  align-items: center;
+  flex-shrink: 0;
+}

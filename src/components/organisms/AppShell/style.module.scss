@@ -1,0 +1,72 @@
+/* claude design ref と同じ全画面背景パターン:
+   - 上端から cyan radial / 下端から purple radial の vignette
+   - 40px 間隔の薄い cyan grid (default) / 24px (battle)
+   - ベースは --c-bg-deep (#04060d) */
+.shell {
+  display: flex;
+  flex-direction: column;
+  height: 100dvh;
+  height: 100vh; /* フォールバック */
+  max-height: 100dvh;
+  max-height: 100vh; /* フォールバック */
+  overflow: hidden;
+  color: var(--c-text);
+  background:
+    radial-gradient(ellipse at 50% 0%, rgba(78, 228, 246, 0.06), transparent 60%),
+    radial-gradient(ellipse at 50% 100%, rgba(169, 107, 255, 0.05), transparent 60%),
+    linear-gradient(rgba(78, 228, 246, 0.025) 1px, transparent 1px) 0 0 / 40px 40px,
+    linear-gradient(90deg, rgba(78, 228, 246, 0.025) 1px, transparent 1px) 0 0 / 40px 40px,
+    var(--c-bg-deep);
+}
+
+/* header */
+.header {
+  flex-shrink: 0;
+  z-index: var(--z-hud);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  background: var(--c-bg-deep);
+  border-bottom: 1px solid var(--c-border-faint);
+  padding-top: max(env(safe-area-inset-top), 12px);
+  padding-left: max(env(safe-area-inset-left), 0px);
+  padding-right: max(env(safe-area-inset-right), 0px);
+}
+
+/* main */
+.main {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: auto;
+  padding-top: var(--sp-s);
+  padding-bottom: var(--sp-s);
+  padding-left: max(env(safe-area-inset-left), var(--sp-s));
+  padding-right: max(env(safe-area-inset-right), var(--sp-s));
+}
+
+.main.noScroll {
+  overflow: hidden;
+}
+
+/* footer */
+.footer {
+  flex-shrink: 0;
+  z-index: var(--z-hud);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  background: var(--c-bg-deep);
+  border-top: 1px solid var(--c-border-faint);
+  padding-bottom: max(env(safe-area-inset-bottom), 12px);
+  padding-left: max(env(safe-area-inset-left), 0px);
+  padding-right: max(env(safe-area-inset-right), 0px);
+}
+
+/* battle variant: グリッドを密 (24px) + cyan 線をやや濃く */
+.shell.battle {
+  background:
+    radial-gradient(ellipse at 50% 0%, rgba(78, 228, 246, 0.06), transparent 60%),
+    radial-gradient(ellipse at 50% 100%, rgba(169, 107, 255, 0.05), transparent 60%),
+    linear-gradient(rgba(78, 228, 246, 0.05) 1px, transparent 1px) 0 0 / 24px 24px,
+    linear-gradient(90deg, rgba(78, 228, 246, 0.05) 1px, transparent 1px) 0 0 / 24px 24px,
+    var(--c-bg-deep);
+}

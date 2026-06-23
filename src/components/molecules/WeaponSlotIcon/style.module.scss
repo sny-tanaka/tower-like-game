@@ -1,0 +1,86 @@
+.root {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--r-m);
+  background: var(--c-surface);
+  border: 1px solid var(--c-border);
+  cursor: pointer;
+  padding: 0;
+  transition:
+    background-color var(--mo-fast),
+    box-shadow var(--mo-fast),
+    border-color var(--mo-fast);
+
+  &:hover:not(:disabled):not(.swapDisabled) {
+    background: var(--c-surface-hi);
+    border-color: var(--c-border-hi);
+  }
+}
+
+/* active (使用中 / 選択中) */
+.active {
+  border-color: var(--c-primary);
+  box-shadow: var(--glow-cyan-md);
+  background: var(--c-primary-bg);
+}
+
+/* CD 中 */
+.onCd {
+  .iconWrap {
+    opacity: 0.4;
+  }
+}
+
+/* swapDisabled (切替 CD 中) */
+.swapDisabled {
+  cursor: not-allowed;
+}
+
+/* アイコン */
+.iconWrap {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+  position: relative;
+  z-index: 1;
+}
+
+/* CD 暗転 */
+.cdOverlay {
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: rgba(0, 0, 0, 0.45);
+  pointer-events: none;
+  z-index: 2;
+}
+
+/* CD 円形プログレス */
+.cdProgress {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+  z-index: 3;
+}
+
+/* swapDisabled 暗転 */
+.swapOverlay {
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: rgba(0, 0, 0, 0.35);
+  pointer-events: none;
+  z-index: 4;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .root {
+    transition: none;
+  }
+}

@@ -1,0 +1,127 @@
+.card {
+  border-radius: var(--r-m);
+  color: var(--c-text);
+  box-sizing: border-box;
+}
+
+/* ---------- variant ---------- */
+
+// default: 標準カード面
+.variant-default {
+  background: var(--c-bg-elev);
+  border: 1px solid var(--c-border-faint);
+  box-shadow: none;
+}
+
+// elevated: 浮き上がり・影付き
+.variant-elevated {
+  background: var(--c-bg-elev);
+  border: 1px solid var(--c-border-faint);
+  box-shadow: var(--sh-mid);
+}
+
+// sunken: くぼみ（リスト項目背景等）
+.variant-sunken {
+  background: var(--c-bg-base);
+  border: 1px solid var(--c-border-faint);
+  box-shadow: none;
+}
+
+// ghost: 背景なし
+.variant-ghost {
+  background: transparent;
+  border: 1px solid var(--c-border-faint);
+  box-shadow: none;
+}
+
+// accent: primary色のインセットグロー
+.variant-accent {
+  background: var(--c-bg-elev);
+  border: 1px solid var(--c-primary);
+  box-shadow: var(--glow-cyan-inset);
+}
+
+// secondary: purple色のインセットグロー
+.variant-secondary {
+  background: var(--c-bg-elev);
+  border: 1px solid var(--c-secondary);
+  box-shadow: var(--glow-purple-inset);
+}
+
+// danger: 赤枠 + インセットグロー
+.variant-danger {
+  background: var(--c-bg-elev);
+  border: 1px solid var(--c-danger);
+  box-shadow: 0 0 12px rgba(255, 77, 109, 0.18) inset;
+}
+
+// 後方互換エイリアス
+.variant-flat {
+  background: var(--c-bg-elev);
+  box-shadow: none;
+  border: 1px solid var(--c-border-faint);
+}
+
+.variant-outline {
+  background: var(--c-bg-elev);
+  border: 1px solid var(--c-border);
+  box-shadow: none;
+}
+
+/* ---------- padding ---------- */
+.padding-none {
+  padding: 0;
+}
+
+.padding-sm {
+  padding: 8px;
+}
+
+.padding-md {
+  padding: 12px;
+}
+
+.padding-lg {
+  padding: 16px;
+}
+
+.padding-xl {
+  padding: 20px;
+}
+
+/* ---------- radius override ---------- */
+.radius-sm {
+  border-radius: var(--r-s);
+}
+
+.radius-md {
+  border-radius: var(--r-m);
+}
+
+.radius-l {
+  border-radius: var(--r-l);
+}
+
+/* ---------- interactive ---------- */
+.interactive {
+  cursor: pointer;
+  transition:
+    border-color var(--mo-fast) var(--ease-out),
+    box-shadow var(--mo-fast) var(--ease-out),
+    transform var(--mo-fast) var(--ease-out);
+
+  &:hover {
+    border-color: var(--c-primary);
+    transform: translateY(-1px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .interactive {
+    transition: none;
+  }
+
+  .interactive:hover {
+    transform: none;
+  }
+}

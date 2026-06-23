@@ -1,0 +1,80 @@
+.root {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-xxs);
+  white-space: nowrap;
+}
+
+/* アイコン */
+.icon {
+  flex-shrink: 0;
+}
+
+.iconSm {
+  width: 10px;
+  height: 10px;
+}
+
+.iconMd {
+  width: 13px;
+  height: 13px;
+}
+
+.iconLg {
+  width: 18px;
+  height: 18px;
+}
+
+/* delta prefix (+/-) */
+.delta {
+  font-family: var(--ff-numeric);
+  font-weight: var(--fw-semibold);
+  letter-spacing: var(--ls-num);
+  line-height: var(--lh-tight);
+}
+
+.deltaSm {
+  font-size: var(--fs-num-s);
+}
+
+.deltaMd {
+  font-size: var(--fs-num-m);
+}
+
+.deltaLg {
+  font-size: var(--fs-num-l);
+}
+
+/* subtle: 購入不可・条件未達 */
+.subtle {
+  opacity: 0.5;
+}
+
+/* showLabel: 通貨名ラベル */
+.currencyLabel {
+  font-family: var(--ff-numeric);
+  font-size: var(--fs-label);
+  color: var(--c-text-dim);
+  letter-spacing: var(--ls-num);
+  margin-left: var(--sp-xxs);
+}
+
+/* ranked: 兵装ランクのスタンプ */
+.rankStamp {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 4px;
+  margin-left: var(--sp-xxs);
+  border: 1px solid var(--c-border-hi, var(--c-border));
+  border-radius: 4px;
+  font-family: var(--ff-numeric);
+  font-size: var(--fs-label);
+  font-weight: var(--fw-semibold);
+  letter-spacing: var(--ls-num);
+  color: var(--c-text);
+  background: var(--c-surface);
+  line-height: 1;
+}

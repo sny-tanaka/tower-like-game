@@ -1,0 +1,44 @@
+.root {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  flex-shrink: 0;
+}
+
+.svg {
+  display: block;
+  position: absolute;
+  inset: 0;
+}
+
+// 背景トラック（design ref に合わせて常時表示の薄いグレー）
+.track {
+  stroke: rgba(127, 142, 169, 0.18);
+}
+
+.arc {
+  transition: stroke-dashoffset var(--mo-fast) var(--ease-out);
+
+  @media (prefers-reduced-motion: reduce) {
+    transition: none !important;
+  }
+}
+
+// 中央コンテンツ（label/children）
+.center {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+  z-index: 1;
+}
+
+.labelText {
+  font-family: var(--ff-numeric);
+  font-size: 10px;
+  font-weight: var(--fw-semibold);
+  letter-spacing: var(--ls-num);
+  line-height: 1;
+}

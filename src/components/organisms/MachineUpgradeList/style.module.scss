@@ -1,0 +1,7 @@
+/* MachineUpgradeList — 全 16 項目を 2 列で並べる（カテゴリ見出しなし、混在 OK） */
+
+.root {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: var(--sp-m);
+}

@@ -1,6 +1,10 @@
-# Tower Like Game
+# NEON SPIRE
 
-タワーを育てるゲーム。GitHub Pages で公開する SPA / PWA。
+サイバーフューチャー調のタワーディフェンス PWA。マシン本体 + 武器 + パッチの 3 層装備カスタマイズで Tier 無限を攻略するアイドル系。
+
+> ※ リポジトリ名は `tower-like-game` のまま（仮称由来）。表示名 / package 名は NEON SPIRE。
+
+GitHub Pages で公開する SPA / PWA。
 
 - **Vite 6** + **React 19** + **TypeScript 5**
 - **screen state による擬似ルーティング**（NavigationProvider）— URL を増やさずアプリ内 state で画面遷移

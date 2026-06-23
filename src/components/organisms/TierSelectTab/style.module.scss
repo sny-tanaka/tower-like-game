@@ -1,0 +1,73 @@
+.wrapper {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-m);
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-s);
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: var(--sp-s);
+}
+
+.tierBtn {
+  position: relative;
+  aspect-ratio: 1;
+  padding: var(--sp-xs);
+  background: var(--c-bg-elev);
+  border: 1px solid var(--c-border);
+  border-radius: var(--r-s);
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  transition:
+    box-shadow var(--mo-fast) var(--ease-out),
+    border var(--mo-fast) var(--ease-out);
+
+  &:hover:not(.active) {
+    border-color: var(--tier-color);
+    opacity: 0.85;
+  }
+
+  &:focus-visible {
+    outline: 2px solid var(--tier-color);
+    outline-offset: 2px;
+  }
+}
+
+.active {
+  background: linear-gradient(135deg, color-mix(in srgb, var(--tier-color) 20%, transparent), color-mix(in srgb, var(--tier-color) 7%, transparent));
+  border: 2px solid var(--tier-color);
+  box-shadow: 0 0 8px color-mix(in srgb, var(--tier-color) 40%, transparent);
+}
+
+.tierLabel {
+  font-family: var(--ff-display);
+  font-weight: 600;
+  font-size: 16px;
+  line-height: 1;
+  color: var(--tier-color);
+
+  .tierBtn:not(.active) & {
+    color: var(--c-text);
+  }
+}
+
+.frontierLabel {
+  font-family: var(--ff-numeric);
+  font-size: 7px;
+  color: var(--tier-color);
+  letter-spacing: var(--ls-num);
+  text-transform: uppercase;
+  margin-top: 2px;
+}

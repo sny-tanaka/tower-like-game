@@ -1,0 +1,147 @@
+.button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--sp-xs);
+  border: 1px solid transparent;
+  border-radius: var(--r-s);
+  cursor: pointer;
+  font-family: var(--ff-display);
+  font-weight: var(--fw-semibold);
+  letter-spacing: var(--ls-loose);
+  text-transform: uppercase;
+  user-select: none;
+  white-space: nowrap;
+  transition:
+    transform var(--mo-fast) var(--ease-out),
+    filter var(--mo-fast) var(--ease-out),
+    box-shadow var(--mo-fast) var(--ease-out);
+
+  &:focus-visible {
+    outline: 2px solid var(--c-primary);
+    outline-offset: 2px;
+  }
+
+  &:disabled,
+  &[aria-disabled='true'] {
+    cursor: not-allowed;
+    filter: grayscale(0.6) brightness(0.55);
+    box-shadow: none !important;
+    pointer-events: none;
+  }
+}
+
+// --- Variants (塗り型 + glow) ---
+.variant-primary {
+  background: linear-gradient(180deg, var(--c-primary) 0%, var(--c-primary-deep) 100%);
+  border: 1px solid var(--c-primary-hi);
+  color: var(--c-bg-deep);
+  box-shadow: var(--glow-cyan-md);
+
+  &:hover:not(:disabled) {
+    filter: brightness(1.08);
+  }
+
+  &:active:not(:disabled) {
+    transform: translateY(1px);
+    filter: brightness(0.95);
+  }
+}
+
+.variant-secondary {
+  background: linear-gradient(180deg, var(--c-secondary) 0%, var(--c-secondary-deep) 100%);
+  border: 1px solid var(--c-secondary-hi);
+  color: var(--c-text);
+  box-shadow: var(--glow-purple-md);
+
+  &:hover:not(:disabled) {
+    filter: brightness(1.08);
+  }
+
+  &:active:not(:disabled) {
+    transform: translateY(1px);
+    filter: brightness(0.95);
+  }
+}
+
+.variant-danger {
+  background: linear-gradient(180deg, var(--c-danger) 0%, var(--c-danger-deep) 100%);
+  border: 1px solid var(--c-danger);
+  color: var(--c-text);
+  box-shadow: var(--glow-danger-md);
+
+  &:hover:not(:disabled) {
+    filter: brightness(1.08);
+  }
+
+  &:active:not(:disabled) {
+    transform: translateY(1px);
+    filter: brightness(0.95);
+  }
+}
+
+.variant-ghost {
+  background-color: rgba(255, 255, 255, 0.04);
+  border: 1px solid var(--c-border);
+  color: var(--c-text-mid);
+  box-shadow: none;
+
+  &:hover:not(:disabled) {
+    background-color: rgba(255, 255, 255, 0.08);
+    color: var(--c-text);
+  }
+
+  &:active:not(:disabled) {
+    transform: translateY(1px);
+    background-color: rgba(255, 255, 255, 0.1);
+  }
+}
+
+// --- Sizes ---
+.size-sm {
+  padding: 0 var(--sp-s);
+  font-size: 12px;
+  line-height: 1.4;
+  min-height: 32px;
+  gap: 6px;
+}
+
+.size-md {
+  padding: 0 var(--sp-m);
+  font-size: 13px;
+  line-height: 1.4;
+  min-height: 40px;
+  gap: 8px;
+}
+
+.size-lg {
+  padding: 0 var(--sp-l);
+  font-size: 14px;
+  line-height: 1.4;
+  min-height: 48px;
+  gap: 10px;
+}
+
+// --- Full width ---
+.fullWidth {
+  width: 100%;
+}
+
+// --- Icon slots ---
+.iconLeft,
+.iconRight {
+  display: inline-flex;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+// iconLeft しか指定されていないとき、対称位置に同じ要素を visibility:hidden で配置して
+// label をボタン全体に対して真の中央に揃えるためのマーカー
+.iconSpacer {
+  visibility: hidden;
+}
+
+.label {
+  flex: 1 1 auto;
+  text-align: center;
+}

@@ -1,0 +1,142 @@
+.text {
+  margin: 0;
+  padding: 0;
+}
+
+// --- Variant styles ---
+.variant_heading_1 {
+  font-family: var(--ff-display);
+  font-size: 28px;
+  font-weight: 700;
+  line-height: 1.2;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.variant_heading_2 {
+  font-family: var(--ff-display);
+  font-size: 22px;
+  font-weight: 700;
+  line-height: 1.25;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+}
+
+.variant_heading_3 {
+  font-family: var(--ff-display);
+  font-size: 17px;
+  font-weight: 600;
+  line-height: 1.3;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+}
+
+.variant_body {
+  font-family: var(--ff-body);
+  font-size: 14px;
+  font-weight: 400;
+  line-height: 1.6;
+  letter-spacing: 0.01em;
+}
+
+.variant_caption {
+  font-family: var(--ff-body);
+  font-size: 11px;
+  font-weight: 400;
+  line-height: 1.4;
+  letter-spacing: 0.02em;
+}
+
+.variant_label {
+  font-family: var(--ff-display);
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1.4;
+  letter-spacing: var(--ls-loose);
+  text-transform: uppercase;
+}
+
+.variant_numeric_l {
+  font-family: var(--ff-numeric);
+  font-size: 22px;
+  font-weight: 700;
+  line-height: 1.1;
+  letter-spacing: var(--ls-num);
+  font-variant-numeric: tabular-nums;
+}
+
+.variant_numeric_m {
+  font-family: var(--ff-numeric);
+  font-size: 16px;
+  font-weight: 600;
+  line-height: 1.2;
+  letter-spacing: var(--ls-num);
+  font-variant-numeric: tabular-nums;
+}
+
+.variant_numeric_s {
+  font-family: var(--ff-numeric);
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 1.3;
+  letter-spacing: var(--ls-num);
+  font-variant-numeric: tabular-nums;
+}
+
+// --- Color styles ---
+.color_default {
+  color: var(--c-text);
+}
+
+.color_mid {
+  color: var(--c-text-mid);
+}
+
+.color_dim {
+  color: var(--c-text-dim);
+}
+
+.color_disabled {
+  color: var(--c-text-disabled);
+}
+
+.color_primary {
+  color: var(--c-primary);
+}
+
+.color_secondary {
+  color: var(--c-secondary);
+}
+
+.color_danger {
+  color: var(--c-danger);
+}
+
+.color_success {
+  color: var(--c-success);
+}
+
+.color_warning {
+  color: var(--c-warning);
+}
+
+// --- Truncate ---
+.truncate {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  display: block;
+}
+
+// --- Align ---
+.align_left {
+  text-align: left;
+}
+
+.align_center {
+  text-align: center;
+}
+
+.align_right {
+  text-align: right;
+}

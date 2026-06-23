@@ -1,0 +1,118 @@
+/* PatchSlot — 装着スロット (claude-design 準拠の縦長レイアウト) */
+
+.wrapper {
+  display: block;
+  width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+
+  &:focus-visible {
+    outline: 2px solid var(--c-primary);
+    outline-offset: 2px;
+    border-radius: var(--r-m);
+  }
+}
+
+/* filled: PatchCard を内包するだけ。スタイルは PatchCard 側 */
+.filled {
+  border-radius: var(--r-m);
+  cursor: inherit;
+
+  &[role='button'] {
+    cursor: pointer;
+  }
+}
+
+/* 空きスロット / ロック: wrapper 自体に点線太めカード */
+.empty,
+.locked {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--sp-s);
+  border-radius: var(--r-m);
+  user-select: none;
+  transition:
+    border-color var(--mo-fast) var(--ease-out),
+    opacity var(--mo-fast) var(--ease-out);
+}
+
+.empty {
+  background: var(--c-bg-elev);
+  border: 2px dashed var(--c-border);
+  color: var(--c-text-dim);
+  opacity: 0.85;
+
+  &[role='button'] {
+    cursor: pointer;
+  }
+
+  &[role='button']:hover {
+    border-color: var(--c-primary);
+    opacity: 1;
+  }
+}
+
+.locked {
+  background: var(--c-bg-base);
+  border: 2px dashed var(--c-border-faint);
+  color: var(--c-text-disabled);
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.slotInner {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--sp-s);
+}
+
+.emptyIcon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0;
+}
+
+.emptyLabel {
+  font-family: var(--ff-display);
+  font-size: var(--fs-label);
+  letter-spacing: var(--ls-loose);
+  text-transform: uppercase;
+  line-height: 1;
+  color: inherit;
+}
+
+/* ============================
+   size バリアント
+   ============================ */
+.size-sm {
+  &.empty,
+  &.locked {
+    min-height: 150px;
+  }
+}
+
+.size-md {
+  &.empty,
+  &.locked {
+    min-height: 180px;
+  }
+}
+
+.size-lg {
+  &.empty,
+  &.locked {
+    min-height: 200px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .empty,
+  .locked {
+    transition: none;
+  }
+}

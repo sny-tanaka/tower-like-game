@@ -1,0 +1,42 @@
+.wrapper {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-m);
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-s);
+}
+
+.headerLabel {
+  flex: 1;
+  font-size: 12px;
+}
+
+.empty {
+  padding: var(--sp-xl);
+  background: var(--c-bg-elev);
+  border: 1px dashed var(--c-border);
+  border-radius: var(--r-m);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--sp-s);
+}
+
+.emptyIcon {
+  color: var(--c-text-dim);
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: var(--sp-s);
+}
+
+.note {
+  font-size: 11px;
+  margin-top: var(--sp-xs);
+}

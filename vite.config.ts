@@ -17,11 +17,11 @@ export default defineConfig({
       injectRegister: 'auto',
       includeAssets: ['favicon.ico', 'robots.txt', 'icon-192.png', 'icon-512.png'],
       manifest: {
-        name: 'Tower Like Game',
-        short_name: 'Tower',
-        description: 'タワーを育てるゲーム',
-        theme_color: '#000000',
-        background_color: '#ffffff',
+        name: 'NEON SPIRE',
+        short_name: 'NEON SPIRE',
+        description: 'NEON SPIRE — サイバーフューチャー調のタワーディフェンス PWA',
+        theme_color: '#04060d',
+        background_color: '#04060d',
         display: 'standalone',
         start_url: BASE,
         scope: BASE,
@@ -58,6 +58,7 @@ export default defineConfig({
     alias: {
       '@': path.resolve(__dirname, './src'),
     },
+    dedupe: ['react', 'react-dom'],
   },
   css: {
     preprocessorOptions: {
@@ -79,5 +80,14 @@ export default defineConfig({
     environment: 'jsdom',
     setupFiles: './src/setupTests.ts',
     css: true,
+    // 並列実装中の他 agent 用 worktree を走査対象から除外（自分のリポでの test/lint 二重スキャンを防止）
+    exclude: ['node_modules', 'dist', 'docs', '.claude/worktrees/**'],
+    server: {
+      deps: {
+        // worktree に部分的な node_modules が存在する場合に React 重複を防止するため
+        // react / react-dom / zustand を vite のモジュールグラフでバンドルする
+        inline: ['react', 'react-dom', 'zustand'],
+      },
+    },
   },
 });

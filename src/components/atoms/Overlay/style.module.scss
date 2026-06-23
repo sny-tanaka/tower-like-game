@@ -1,0 +1,62 @@
+/* Overlay 固有 @keyframes — Fx 化しない */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+/* 共通ベース */
+.overlay {
+  z-index: var(--z-overlay);
+  display: flex;
+  padding: 16px;
+  box-sizing: border-box;
+  animation: fadeIn var(--mo-mid) var(--ease-default) both;
+}
+
+/* position: fixed 全画面（デフォルト） */
+.fullscreen {
+  position: fixed;
+  inset: 0;
+}
+
+/* position: absolute — 親要素に対して全面 */
+.absolute {
+  position: absolute;
+  inset: 0;
+}
+
+/* 縦方向整列 */
+.alignCenter {
+  align-items: center;
+  justify-content: center;
+}
+
+.alignTop {
+  align-items: flex-start;
+  justify-content: center;
+  padding-top: 80px;
+}
+
+.alignBottom {
+  align-items: flex-end;
+  justify-content: center;
+  padding-bottom: 40px;
+}
+
+.content {
+  /* 内側の Dialog 等を整列 */
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .overlay {
+    animation: none;
+  }
+}

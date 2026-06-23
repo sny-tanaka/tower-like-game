@@ -1,0 +1,119 @@
+.root {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-xs);
+  padding: var(--sp-xs) var(--sp-s);
+}
+
+/* boss Wave: 枠を secondary グローに */
+.boss {
+  border-color: var(--c-secondary);
+  box-shadow: var(--glow-purple-sm);
+}
+
+/* ヘッダー行 */
+.header {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-s);
+}
+
+/* マイルストーン */
+.milestone {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-xxs);
+  flex: 1;
+}
+
+.milestoneText {
+  font-family: var(--ff-display);
+  font-size: var(--fs-label);
+  font-weight: var(--fw-semibold);
+  letter-spacing: var(--ls-loose);
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+/* 残り秒数 */
+.seconds {
+  margin-left: auto;
+  white-space: nowrap;
+}
+
+/* タイマーバー (CSS animation で連続的に減少) */
+.timerTrack {
+  position: relative;
+  width: 100%;
+  height: 4px;
+  background-color: var(--c-bg-base);
+  border: 1px solid var(--c-border-faint);
+  border-radius: var(--r-pill);
+  overflow: hidden;
+}
+
+.timerFill {
+  /* 高さだけ track 全幅で確保し、 実際の残量は transform: scaleX で表現する。
+     width をアニメーションすると `from` を inline で渡せずブラウザ依存になるため、
+     CSS custom property --start-scale を起点とした scaleX アニメに統一する。 */
+  width: 100%;
+  height: 100%;
+  background-color: var(--c-wave);
+  border-radius: var(--r-pill);
+  transform-origin: left center;
+  /* JSX 側で inline style として `--start-scale: 0〜1` を渡す */
+  transform: scaleX(var(--start-scale, 1));
+  animation-name: drainBar;
+  animation-timing-function: linear;
+  animation-fill-mode: forwards;
+  animation-iteration-count: 1;
+  /* animation-duration は inline style で個別指定 */
+}
+
+.timerFillBoss {
+  background-color: var(--c-secondary);
+  box-shadow: var(--glow-purple-md);
+}
+
+.timerFillPaused {
+  animation-play-state: paused;
+}
+
+@keyframes drainBar {
+  from {
+    transform: scaleX(var(--start-scale, 1));
+  }
+  to {
+    transform: scaleX(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .timerFill {
+    /* モーション削減モード: アニメせず満タン表示のまま */
+    animation: none;
+  }
+}
+
+/* size バリアント */
+.size-sm {
+  padding: var(--sp-xxs) var(--sp-xs);
+  gap: var(--sp-xs);
+
+  .waveLabel {
+    font-size: var(--fs-label);
+  }
+}
+
+.size-md {
+  /* デフォルト */
+}
+
+.size-lg {
+  padding: var(--sp-s) var(--sp-m);
+  gap: var(--sp-s);
+
+  .waveLabel {
+    font-size: var(--fs-caption);
+  }
+}

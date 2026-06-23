@@ -1,0 +1,43 @@
+.wrapper {
+  padding: var(--sp-m) var(--sp-l);
+  background: linear-gradient(0deg, var(--c-bg-deep) 0%, rgba(10, 15, 28, 0.85) 100%);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  border-top: 1px solid var(--c-border-faint);
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-s);
+  position: relative;
+  bottom: 0;
+  z-index: var(--z-hud);
+}
+
+.sticky {
+  position: sticky;
+}
+
+.summary {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-s);
+  font-family: var(--ff-display);
+  font-size: 11px;
+  letter-spacing: var(--ls-loose);
+  text-transform: uppercase;
+}
+
+.weaponInfo {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--c-primary);
+  filter: drop-shadow(var(--glow-cyan-sm));
+}
+
+.patchInfo {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-family: var(--ff-numeric);
+  font-size: 11px;
+}

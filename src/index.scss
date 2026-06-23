@@ -1,3 +1,33 @@
 // グローバルスタイルのエントリポイント。
-// 変数・mixin は _variables.scss で定義している。
+// デザイントークン（CSS カスタムプロパティ）は styles/tokens.scss で定義している。
+// SCSS 変数・mixin は _variables.scss で定義している。
 // 各コンポーネントは style.module.scss で @use 'variables' as var; して使う。
+
+// デザイントークンをグローバルに読み込む（:root に CSS カスタムプロパティを注入）
+@use './styles/tokens';
+
+// ============================================================
+// グローバルスクロール制御
+// AppShell が高さ 100vh + overflow: hidden で画面を固定し、内側の
+// <main> だけが overflow: auto でスクロール対象になる。html/body 側を
+// 100% 高さ + overflow: hidden に縛らないと、Mobile Safari 等で
+// バウンス / 画面全体スクロールが起きる。
+// ============================================================
+:root,
+html,
+body {
+  height: 100%;
+  overflow: hidden;
+  overscroll-behavior: none;
+  // iOS Safari の safe area 領域 (status bar 直下 / home indicator 直上) も
+  // AppShell の背景 (--c-bg-deep) と完全に同色になるよう html/body を塗る。
+  // これを忘れると safe area が theme-color の #000000 と AppShell の
+  // #04060d とで微妙に色味が違って帯のように見える。
+  background: var(--c-bg-deep);
+}
+
+#root {
+  height: 100%;
+  overflow: hidden;
+  background: var(--c-bg-deep);
+}
