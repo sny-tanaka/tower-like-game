@@ -19,9 +19,15 @@ body {
   height: 100%;
   overflow: hidden;
   overscroll-behavior: none;
+  // iOS Safari の safe area 領域 (status bar 直下 / home indicator 直上) も
+  // AppShell の背景 (--c-bg-deep) と完全に同色になるよう html/body を塗る。
+  // これを忘れると safe area が theme-color の #000000 と AppShell の
+  // #04060d とで微妙に色味が違って帯のように見える。
+  background: var(--c-bg-deep);
 }
 
 #root {
   height: 100%;
   overflow: hidden;
+  background: var(--c-bg-deep);
 }
