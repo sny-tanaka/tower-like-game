@@ -127,8 +127,11 @@
 }
 
 .currencyArea {
+  display: flex;
+  align-items: center;
   flex-shrink: 0;
   min-width: 0;
+  gap: var(--sp-s);
 }
 
 .speedArea {

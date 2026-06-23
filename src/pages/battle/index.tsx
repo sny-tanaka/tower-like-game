@@ -251,11 +251,13 @@ export function Page() {
   };
 
   // リザルトリワード: ラン開始時残高からの差分で算出 (負にならないようクランプ)
-  const earnedBolt = bolt.sub(runStartBolt);
-  const earnedAlloy = alloy.sub(runStartAlloy);
+  const earnedBoltRaw = bolt.sub(runStartBolt);
+  const earnedAlloyRaw = alloy.sub(runStartAlloy);
+  const earnedBolt = earnedBoltRaw.lt(BigNum.ZERO) ? BigNum.ZERO : earnedBoltRaw;
+  const earnedAlloy = earnedAlloyRaw.lt(BigNum.ZERO) ? BigNum.ZERO : earnedAlloyRaw;
   const resultReward: ResultReward = {
-    bolt: earnedBolt.lt(BigNum.ZERO) ? BigNum.ZERO : earnedBolt,
-    alloy: earnedAlloy.lt(BigNum.ZERO) ? BigNum.ZERO : earnedAlloy,
+    bolt: earnedBolt,
+    alloy: earnedAlloy,
     patches: [],
   };
 
@@ -295,6 +297,7 @@ export function Page() {
             />
             <BattleHudBottom
               screw={screw}
+              earnedBolt={earnedBolt}
               equippedWeapon={currentWeapon}
               weaponCds={weaponCds}
               activeCd={activeCdSec}

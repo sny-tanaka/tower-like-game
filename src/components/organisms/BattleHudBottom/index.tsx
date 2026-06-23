@@ -16,8 +16,10 @@ import type { BigNum } from '@/lib/bignum/BigNum';
 const WEAPON_ORDER: readonly WeaponType[] = ['laser', 'cannon', 'thunder', 'cutter'];
 
 export interface BattleHudBottomProps {
-  /** ネジ残高 */
+  /** ネジ残高 (= ラン中の獲得累計。 ラン開始時 0 リセット) */
   screw: BigNum;
+  /** ラン中に獲得したボルト累計 (= bolt - runStartBolt、 リザルトの earnedBolt と同値) */
+  earnedBolt: BigNum;
   /** 現在装備中の武器 */
   equippedWeapon: WeaponType;
   /** 各武器の切替 CD 進捗 (0-100) */
@@ -51,6 +53,7 @@ export interface BattleHudBottomProps {
 
 export function BattleHudBottom({
   screw,
+  earnedBolt,
   equippedWeapon,
   weaponCds,
   activeCd,
@@ -169,12 +172,7 @@ export function BattleHudBottom({
           />
           <CurrencyAmount
             currency="bolt"
-            value={screw}
-            size="md"
-          />
-          <CurrencyAmount
-            currency="alloy"
-            value={screw}
+            value={earnedBolt}
             size="md"
           />
         </div>

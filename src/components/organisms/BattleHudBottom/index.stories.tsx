@@ -30,6 +30,7 @@ const meta: Meta<typeof BattleHudBottom> = {
   ],
   args: {
     screw: BigNum.fromNumber(12345),
+    earnedBolt: BigNum.fromNumber(0),
     equippedWeapon: 'laser',
     weaponCds: { laser: 100, cannon: 100, thunder: 100, cutter: 100 },
     activeCd: 0,

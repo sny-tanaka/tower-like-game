@@ -19,7 +19,7 @@ function WithBattleSeed({ children }: { children: React.ReactNode }) {
       currentWave: 12,
       machineHp: BigNum.fromNumber(785),
       machineMaxHp: BigNum.fromNumber(1085),
-      screw: BigNum.fromNumber(4.28e21),
+      screw: BigNum.fromNumber(123.45e21),
       currentWeapon: 'laser',
       activeCdSec: 0,
       isAutoActive: false,
