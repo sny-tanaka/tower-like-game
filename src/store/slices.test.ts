@@ -375,11 +375,12 @@ describe('equippedPatches slice', () => {
 // ---------------------------------------------------------------------------
 
 describe('settings slice', () => {
-  it('初期値: bgmVolume=0.8, seVolume=0.8, vibration=true', () => {
+  it('初期値: bgmVolume=0.8, seVolume=0.8, vibration=true, muted=false', () => {
     const s = makeStore().getState();
     expect(s.bgmVolume).toBe(0.8);
     expect(s.seVolume).toBe(0.8);
     expect(s.vibrationEnabled).toBe(true);
+    expect(s.muted).toBe(false);
   });
 
   it('setBgmVolume: 0〜1 にクランプされる', () => {
@@ -400,6 +401,22 @@ describe('settings slice', () => {
     const store = makeStore();
     store.getState().setVibrationEnabled(false);
     expect(store.getState().vibrationEnabled).toBe(false);
+  });
+
+  it('setMuted: true/false で切り替えられる', () => {
+    const store = makeStore();
+    expect(store.getState().muted).toBe(false);
+    store.getState().setMuted(true);
+    expect(store.getState().muted).toBe(true);
+    store.getState().setMuted(false);
+    expect(store.getState().muted).toBe(false);
+  });
+
+  it('resetSettings: muted も false にリセットされる', () => {
+    const store = makeStore();
+    store.getState().setMuted(true);
+    store.getState().resetSettings();
+    expect(store.getState().muted).toBe(false);
   });
 
   it('resetSettings: デフォルト値に戻る', () => {

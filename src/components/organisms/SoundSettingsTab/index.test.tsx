@@ -72,4 +72,28 @@ describe('SoundSettingsTab', () => {
     fireEvent.change(sliders[0], { target: { value: '0.6' } });
     expect(onBgmChange).toHaveBeenCalledWith(0.6);
   });
+
+  it('ミュート ON 時に Toggle の aria-checked が true になる', () => {
+    render(
+      <SoundSettingsTab
+        overrideBgmVolume={0.8}
+        overrideSeVolume={0.7}
+        overrideMute={true}
+      />
+    );
+    const toggle = screen.getByRole('switch');
+    expect(toggle.getAttribute('aria-checked')).toBe('true');
+  });
+
+  it('ミュート OFF 時に Toggle の aria-checked が false になる', () => {
+    render(
+      <SoundSettingsTab
+        overrideBgmVolume={0.8}
+        overrideSeVolume={0.7}
+        overrideMute={false}
+      />
+    );
+    const toggle = screen.getByRole('switch');
+    expect(toggle.getAttribute('aria-checked')).toBe('false');
+  });
 });

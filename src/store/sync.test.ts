@@ -61,6 +61,7 @@ beforeEach(async () => {
     bgmVolume: 0.8,
     seVolume: 0.8,
     vibrationEnabled: true,
+    muted: false,
   });
 
   // DB を開いてシードデータを投入
@@ -167,6 +168,17 @@ describe('sync: settings round-trip', () => {
 
     expect(useStore.getState().bgmVolume).toBe(0.5);
     expect(useStore.getState().vibrationEnabled).toBe(false);
+  });
+
+  it('settings の muted を書いて読み直すと同じ値になる', async () => {
+    useStore.getState().setMuted(true);
+
+    await syncSettings();
+
+    useStore.setState({ muted: false });
+    await hydrateStore();
+
+    expect(useStore.getState().muted).toBe(true);
   });
 });
 

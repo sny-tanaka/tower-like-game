@@ -24,6 +24,7 @@ export class SoundEngine {
   private lastPlayAt = new Map<SoundId, number>();
   private seVolume = 0.7;
   private bgmVolume = 0.5;
+  private muted = false;
   private currentBgm: { id: BgmId; track: BgmTrack } | null = null;
 
   init(): void {
@@ -80,6 +81,17 @@ export class SoundEngine {
     return this.bgmVolume;
   }
 
+  setMuted(muted: boolean): void {
+    this.muted = muted;
+    if (this.masterGain) {
+      this.masterGain.gain.value = muted ? 0 : 1.0;
+    }
+  }
+
+  isMuted(): boolean {
+    return this.muted;
+  }
+
   playBgm(id: BgmId): void {
     if (!this.ctx || !this.bgmGain) return;
     if (this.ctx.state === 'suspended') void this.ctx.resume();
@@ -120,6 +132,7 @@ export class SoundEngine {
     this.masterGain = null;
     this.seGain = null;
     this.bgmGain = null;
+    this.muted = false;
     this.lastPlayAt.clear();
   }
 }

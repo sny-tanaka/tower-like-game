@@ -18,20 +18,31 @@ afterEach(() => {
 });
 
 describe('runMigrations', () => {
-  it('未登録バージョン（v2）が範囲に含まれるときエラーを投げる', () => {
-    // v1 → v2 を要求: v2 は未登録
+  it('未登録バージョン（v3）が範囲に含まれるときエラーを投げる', () => {
+    // v2 → v3 を要求: v3 は未登録
     const fakeDb = {} as IDBDatabase;
     const fakeTx = {} as IDBTransaction;
-    expect(() => runMigrations(fakeDb, fakeTx, 1, 2)).toThrow(
-      'No migration registered for version 2'
+    expect(() => runMigrations(fakeDb, fakeTx, 2, 3)).toThrow(
+      'No migration registered for version 3'
     );
   });
 
   it('oldVersion === newVersion のとき何もしない（範囲空）', () => {
     const fakeDb = {} as IDBDatabase;
     const fakeTx = {} as IDBTransaction;
-    // v1 → v1 はループが回らないためエラーにならない
-    expect(() => runMigrations(fakeDb, fakeTx, 1, 1)).not.toThrow();
+    // v2 → v2 はループが回らないためエラーにならない
+    expect(() => runMigrations(fakeDb, fakeTx, 2, 2)).not.toThrow();
+  });
+});
+
+describe('v2 マイグレーション (settings.muted フィールド追加)', () => {
+  it('openDatabase() で settings レコードに muted=false が入る', async () => {
+    const db = await openDatabase();
+    const tx = db.transaction(STORES.settings, 'readonly');
+    const record = await tx.store.get('singleton');
+    expect(record).toBeDefined();
+    expect(record.muted).toBe(false);
+    db.close();
   });
 });
 

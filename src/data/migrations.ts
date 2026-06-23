@@ -15,8 +15,24 @@ export const migrations: Record<number, Migration> = {
     db.createObjectStore(STORES.equippedPatches, { keyPath: 'slotIndex' });
     db.createObjectStore(STORES.settings, { keyPath: 'id' });
   },
-  // 将来のマイグレーション例:
-  // 2: (db, tx) => { ... },
+  2: async (_db, tx) => {
+    const store = tx.objectStore(STORES.settings);
+    await new Promise<void>((resolve, reject) => {
+      const req = store.get('singleton');
+      req.onsuccess = () => {
+        const record = req.result;
+        if (record && record.muted === undefined) {
+          record.muted = false;
+          const putReq = store.put(record);
+          putReq.onsuccess = () => resolve();
+          putReq.onerror = () => reject(putReq.error);
+        } else {
+          resolve();
+        }
+      };
+      req.onerror = () => reject(req.error);
+    });
+  },
 };
 
 export function runMigrations(

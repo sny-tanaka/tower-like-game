@@ -184,6 +184,31 @@ describe('SoundEngine', () => {
     expect(engine.isInitialized()).toBe(false);
   });
 
+  it('setMuted(true) で isMuted() が true になる', () => {
+    const engine = new SoundEngine();
+    engine.init();
+    engine.setMuted(true);
+    expect(engine.isMuted()).toBe(true);
+  });
+
+  it('setMuted(false) で isMuted() が false になる', () => {
+    const engine = new SoundEngine();
+    engine.init();
+    engine.setMuted(true);
+    engine.setMuted(false);
+    expect(engine.isMuted()).toBe(false);
+  });
+
+  it('setMuted(true) 後も seVolume / bgmVolume の内部値は変わらない', () => {
+    const engine = new SoundEngine();
+    engine.init();
+    engine.setSeVolume(0.6);
+    engine.setBgmVolume(0.4);
+    engine.setMuted(true);
+    expect(engine.getSeVolume()).toBe(0.6);
+    expect(engine.getBgmVolume()).toBe(0.4);
+  });
+
   it('init() resumes if context is suspended', () => {
     const engine = new SoundEngine();
     engine.init();

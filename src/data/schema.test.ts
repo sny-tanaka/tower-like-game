@@ -15,8 +15,8 @@ describe('schema 定数', () => {
     expect(DB_NAME).toBe('tower-like-game');
   });
 
-  it('DB_VERSION が 1', () => {
-    expect(DB_VERSION).toBe(1);
+  it('DB_VERSION が 2', () => {
+    expect(DB_VERSION).toBe(2);
   });
 
   it('STORES に 7 件のストア名が定義されている', () => {

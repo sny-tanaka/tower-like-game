@@ -5,7 +5,7 @@ export type BigNumJSON = number[];
 // --- DB メタ情報 ---
 
 export const DB_NAME = 'tower-like-game';
-export const DB_VERSION = 1;
+export const DB_VERSION = 2;
 
 export const STORES = {
   profile: 'profile',
@@ -121,6 +121,7 @@ export type SettingsRecord = {
   bgmVolume: number; // 0.0 〜 1.0
   seVolume: number; // 0.0 〜 1.0
   vibrationEnabled: boolean;
+  muted: boolean;
 };
 
 // --- SaveState: 全ストアをまとめた型 ---
@@ -166,4 +167,5 @@ export const DEFAULT_SETTINGS: SettingsRecord = {
   bgmVolume: 0.8,
   seVolume: 0.8,
   vibrationEnabled: true,
+  muted: false,
 };

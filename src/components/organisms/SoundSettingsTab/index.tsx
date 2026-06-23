@@ -91,22 +91,21 @@ export function SoundSettingsTab({
 }: SoundSettingsTabProps) {
   const storeBgm = useStore((s) => s.bgmVolume);
   const storeSe = useStore((s) => s.seVolume);
+  const storeMuted = useStore((s) => s.muted);
   const setBgmVolume = useStore((s) => s.setBgmVolume);
   const setSeVolume = useStore((s) => s.setSeVolume);
+  const setMuted = useStore((s) => s.setMuted);
 
   const bgmVolume = overrideBgmVolume ?? storeBgm;
   const seVolume = overrideSeVolume ?? storeSe;
-
-  // ミュートは store にないため内部 state で管理（overrideMute は Storybook 用）
-  // ミュート時はスライダー無効 + 実際の音量を 0 にする
-  const muted = overrideMute ?? false;
+  const muted = overrideMute ?? storeMuted;
 
   const handleBgmChange = (v: number) => {
     if (onBgmChange) {
       onBgmChange(v);
     } else {
       setBgmVolume(v);
-      soundEngine.setBgmVolume(muted ? 0 : v);
+      soundEngine.setBgmVolume(v);
     }
   };
 
@@ -115,7 +114,7 @@ export function SoundSettingsTab({
       onSeChange(v);
     } else {
       setSeVolume(v);
-      soundEngine.setSeVolume(muted ? 0 : v);
+      soundEngine.setSeVolume(v);
     }
   };
 
@@ -123,8 +122,8 @@ export function SoundSettingsTab({
     if (onMuteChange) {
       onMuteChange(checked);
     } else {
-      soundEngine.setBgmVolume(checked ? 0 : bgmVolume);
-      soundEngine.setSeVolume(checked ? 0 : seVolume);
+      setMuted(checked);
+      soundEngine.setMuted(checked);
     }
   };
 
