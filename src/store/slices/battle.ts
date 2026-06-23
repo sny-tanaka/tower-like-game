@@ -128,8 +128,10 @@ export const createBattleSlice: StateCreator<RootStore, [], [], BattleSlice> = (
   ...defaultBattleState,
 
   startRun: ({ initialWeapon, baseMachineMaxHp }) => {
-    // ラン開始時の hpMul は Lv 0 (×1.0) になる前提 (RunWorkshop もリセットされる) だが、
-    // 明示的に倍率を計算しておく。
+    // ラン跨ぎで RunWorkshop の Lv をリセット (maxHp 計算の前に必須)。
+    // ここで先にリセットしないと、 前ランの hpMul Lv が残ったまま読まれて、
+    // 新ランの machineMaxHp に前回の HP 倍率が乗ってしまうバグになる。
+    get().resetRunWorkshop();
     const hpMulLv = get().runWorkshopLevels.hpMul;
     const multiplier = calcRunWorkshopMultiplier(hpMulLv);
     const machineMaxHp = baseMachineMaxHp.mulNumber(multiplier);
@@ -151,8 +153,6 @@ export const createBattleSlice: StateCreator<RootStore, [], [], BattleSlice> = (
       runStartBolt: currentState.bolt,
       runStartAlloy: currentState.alloy,
     });
-    // ラン跨ぎで RunWorkshop の Lv をリセット
-    get().resetRunWorkshop();
   },
 
   endRun: () => {

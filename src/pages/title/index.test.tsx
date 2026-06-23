@@ -33,7 +33,7 @@ describe('TitleScreen', () => {
 
   it('バージョンが表示される', () => {
     renderPage();
-    expect(screen.getByText('v0.1.0')).toBeDefined();
+    expect(screen.getByText('v0.2.0')).toBeDefined();
   });
 
   describe('セーブなし (createdAt === 0)', () => {

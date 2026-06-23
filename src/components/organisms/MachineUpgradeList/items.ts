@@ -264,8 +264,24 @@ export const MACHINE_UPGRADE_ITEMS: readonly MachineUpgradeItem[] = [
 // ---------------------------------------------------------------------------
 
 /**
+ * Lv k での「multiply 差分」を計算する。
+ * Lv (k-1) → Lv k での増分: ceil(base × factor^k) - ceil(base × factor^(k-1))。
+ * 最低でも +1 を保証 (= base 値が 1 のときでも Lv up で必ず +1 上がる)。
+ *
+ * NOTE: 浮動小数誤差で 100 × 1.02 = 102.0000...18 のように ceil で +1 ずれることがあるため、
+ *       EPSILON を引いてから ceil する。
+ */
+const MULTIPLY_EPSILON = 1e-9;
+function multiplyDelta(baseValue: number, growthFactor: number, k: number): number {
+  const cur = Math.ceil(baseValue * Math.pow(growthFactor, k) - MULTIPLY_EPSILON);
+  const prev = Math.ceil(baseValue * Math.pow(growthFactor, k - 1) - MULTIPLY_EPSILON);
+  return Math.max(1, cur - prev);
+}
+
+/**
  * 指定 Lv での効果値を返す。
- * - multiply: baseValue × growthFactor^Lv （切り上げ整数）
+ * - multiply: value(0) = ceil(baseValue)、 value(Lv) = value(Lv-1) + multiplyDelta(base, factor, Lv)
+ *             「base 保証 + 緩やかな指数差分」 で、 Lv up で必ず value が増える。
  * - linear / fixed_step: baseValue + growthFactor × Lv
  * - asymptotic: r = growthFactor × Lv, 値 = 1 - 1/(1+r)（割合、0〜1）
  * - asymptotic_half: r = growthFactor × Lv, 値 = 0.5 × (1 - 1/(1+r))（割合、0〜0.5）
@@ -273,8 +289,13 @@ export const MACHINE_UPGRADE_ITEMS: readonly MachineUpgradeItem[] = [
  */
 export function calcEffectValue(item: MachineUpgradeItem, lv: number): number {
   switch (item.growthType) {
-    case 'multiply':
-      return Math.ceil(item.baseValue * Math.pow(item.growthFactor, lv));
+    case 'multiply': {
+      let value = Math.ceil(item.baseValue);
+      for (let k = 1; k <= lv; k++) {
+        value += multiplyDelta(item.baseValue, item.growthFactor, k);
+      }
+      return value;
+    }
     case 'linear':
     case 'fixed_step':
       return item.baseValue + item.growthFactor * lv;

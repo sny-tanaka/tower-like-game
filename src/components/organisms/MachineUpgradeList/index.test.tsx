@@ -33,6 +33,24 @@ describe('calcEffectValue', () => {
     expect(calcEffectValue(item, 1)).toBe(102); // 100 × 1.02 = 102
   });
 
+  test('multiply: 累積差分で base=1 でも Lv up で必ず +1 上がる', () => {
+    const item = MACHINE_UPGRADE_ITEMS.find((i) => i.key === 'baseAttack')!;
+    // base=1, factor=1.02 では従来 ceil(1 × 1.02^Lv) で Lv 1〜35 まで 2 のまま停滞していたが、
+    // 新仕様は「累積差分 + 最低 +1」 で必ず Lv up で増える
+    expect(calcEffectValue(item, 0)).toBe(1);
+    expect(calcEffectValue(item, 1)).toBe(2);
+    expect(calcEffectValue(item, 5)).toBe(6); // 1 + 5
+    expect(calcEffectValue(item, 50)).toBe(51); // 1 + 50
+  });
+
+  test('multiply: 高 Lv では差分が指数増加 (base=100, factor=1.02)', () => {
+    const item = MACHINE_UPGRADE_ITEMS.find((i) => i.key === 'maxHp')!;
+    // base=100, factor=1.02 → 高 Lv では差分も指数的に増える
+    const v100 = calcEffectValue(item, 100);
+    const v101 = calcEffectValue(item, 101);
+    expect(v101 - v100).toBeGreaterThan(1); // 最低 +1 を超えて指数加速
+  });
+
   test('linear: Lv 0 は baseValue', () => {
     const item = MACHINE_UPGRADE_ITEMS.find((i) => i.key === 'critMultiplier')!;
     expect(calcEffectValue(item, 0)).toBe(1.5);
