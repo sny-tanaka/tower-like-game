@@ -146,6 +146,14 @@ WAVE_SPAWN_FACTOR(W) = 同形式（係数 0.019 / 0.033 / 0.050）
 | ミニボス | 50 | 5 | 1.8 | あり | 高確率 | W10 / W20 |
 | Tier ボス | 250 | 8 | 2.5 | あり（多段） | 確定 1 個 + Tier クリア報酬 1 個 = 2 個 | W30 |
 
+> **HP × / ATK × の基準について**
+> 上位敵の倍率は **currentTier の Standard 基礎値**（= `tierBaseHp(T)` / `tierBaseAtk(T)`）に対する係数として扱う。すなわち実装は次式で計算される:
+> ```
+> HP(T, W, kind)  = tierBaseHp(T)  × UPPER_HP_MULT(kind)  × WAVE_HP_FACTOR(W)
+> ATK(T, W, kind) = tierBaseAtk(T) × UPPER_ATK_MULT(kind) × WAVE_ATK_FACTOR(W)
+> ```
+> たとえば「エリート ATK ×2.5」は **T1 固定値の ×2.5 ではなく**、当該 Tier の Standard 基礎 ATK に対する ×2.5 を表す。Tier 進行成長 (`HP_growth_per_tier^(T-1)` / `ATK_growth_per_tier^(T-1)`) は `tierBaseHp(T)` / `tierBaseAtk(T)` の内部に既に織り込まれているため、上位敵倍率と二重に掛からない。実装参照: `src/game/enemies.ts` の `createEnemyTemplate`。
+
 ### Tier ボスの追加仕様
 
 - **AI は全 Tier 共通の 1 パターン**（Tier 差はステータスのみで表現）
