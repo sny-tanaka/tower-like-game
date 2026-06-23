@@ -118,12 +118,12 @@ export function Page() {
   // ── ハンドラ ──
   const handleSpeedChange = (speed: GameSpeed) => {
     setLocalGameSpeed(speed);
-    // TODO: ゲームループへの反映は 8-8 で実装
+    // TODO: ゲームループへの反映は #53 で実装
   };
 
   const handleTogglePause = () => {
     setIsPaused((prev) => !prev);
-    // TODO: ゲームループへの反映は 8-8 で実装
+    // TODO: ゲームループへの反映は #53 で実装
   };
 
   const handleOpenMenu = () => {
@@ -148,7 +148,7 @@ export function Page() {
       ...prev,
       [key]: prev[key] + (delta === 'max' ? 1 : delta),
     }));
-    // TODO: スクリーン購入処理は 8-8 で実装
+    // TODO: スクリーン購入処理は #53 で実装
   };
 
   // リザルトダイアログ用ダミーリワード（バトルロジック配線前）
@@ -202,7 +202,7 @@ export function Page() {
               isAutoActive={isAutoActive}
               onSwitchWeapon={switchWeapon}
               onActivate={() => {
-                // TODO: 8-8 で実装
+                // TODO: #53 で実装
               }}
               onToggleAuto={setAutoActive}
               gameSpeed={localGameSpeed}
