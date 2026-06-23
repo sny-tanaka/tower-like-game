@@ -82,19 +82,6 @@ export interface BattleFieldProps {
 }
 
 // ---------------------------------------------------------------------------
-// 定数: design.png 用ダミーピン (固定座標)
-// ---------------------------------------------------------------------------
-
-const DEFAULT_DUMMY_PINS: DummyPin[] = [
-  { id: 'p1', x: 30, y: 22, kind: 'normal' },
-  { id: 'p2', x: 65, y: 18, kind: 'normal' },
-  { id: 'p3', x: 50, y: 30, kind: 'elite' },
-  { id: 'p4', x: 78, y: 38, kind: 'normal' },
-  { id: 'p5', x: 22, y: 50, kind: 'normal' },
-  { id: 'p6', x: 60, y: 72, kind: 'boss' },
-];
-
-// ---------------------------------------------------------------------------
 // ヘルパー: EnemyKind → IconName マッピング
 // ---------------------------------------------------------------------------
 
@@ -172,7 +159,7 @@ export function BattleField({
   onHitDone,
   onDeathDone,
   range,
-  dummyPins = DEFAULT_DUMMY_PINS,
+  dummyPins = [],
 }: BattleFieldProps) {
   const machineX = machinePosition.x;
   const machineY = machinePosition.y;

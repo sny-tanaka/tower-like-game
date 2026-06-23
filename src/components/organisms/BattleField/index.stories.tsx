@@ -1,11 +1,23 @@
 import type { Meta, StoryObj } from '@storybook/react';
 import { useState } from 'react';
 
-import type { DamageEvent, DeathEvent, HitEvent } from './index';
+import type { DamageEvent, DeathEvent, DummyPin, HitEvent } from './index';
 import { BattleField } from './index';
 
 import { createEnemyTemplate, spawnEnemy } from '@/game/enemies';
 import { BigNum } from '@/lib/bignum/BigNum';
+
+// ---------------------------------------------------------------------------
+// design.png 用ダミーピン (Storybook 専用の装飾サンプル)
+// ---------------------------------------------------------------------------
+const SAMPLE_DUMMY_PINS: DummyPin[] = [
+  { id: 'p1', x: 30, y: 22, kind: 'normal' },
+  { id: 'p2', x: 65, y: 18, kind: 'normal' },
+  { id: 'p3', x: 50, y: 30, kind: 'elite' },
+  { id: 'p4', x: 78, y: 38, kind: 'normal' },
+  { id: 'p5', x: 22, y: 50, kind: 'normal' },
+  { id: 'p6', x: 60, y: 72, kind: 'boss' },
+];
 
 // ---------------------------------------------------------------------------
 // ヘルパー: 再現可能な疑似乱数（seed 付き）
@@ -318,5 +330,20 @@ export const FxPlayground: Story = {
       makeEnemy('e3', 'boss', 50, 15),
     ],
     range: 28,
+  },
+};
+
+// ---------------------------------------------------------------------------
+// 8. ダミーピン装飾 (design.png 準拠)
+// ---------------------------------------------------------------------------
+export const WithDummyPins: Story = {
+  name: 'ダミーピン装飾あり',
+  args: {
+    enemies: [],
+    damageEvents: [],
+    hitEvents: [],
+    deathEvents: [],
+    range: 30,
+    dummyPins: SAMPLE_DUMMY_PINS,
   },
 };
