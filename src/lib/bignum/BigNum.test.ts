@@ -601,6 +601,15 @@ describe('BigNum.one', () => {
   it('BigNum.one().toString() === "1"', () => {
     expect(BigNum.one().toString()).toBe('1');
   });
+
+  it('BigNum.one() を 3 回 add すると 3 になる', () => {
+    const result = BigNum.one().add(BigNum.one()).add(BigNum.one());
+    expect(result.toString()).toBe('3');
+  });
+
+  it('BigNum.one() は isZero() === false', () => {
+    expect(BigNum.one().isZero()).toBe(false);
+  });
 });
 
 describe('BigNum.fromDigits', () => {
@@ -617,5 +626,18 @@ describe('BigNum.fromDigits', () => {
   it('fromDigits([0, 0, 1]) が 1000000 になる', () => {
     // digits[2]=1 → 1×1000^2 = 1000000
     expect(BigNum.fromDigits([0, 0, 1]).toString()).toBe('1000000');
+  });
+
+  it('fromDigits([]) が ZERO になる', () => {
+    expect(BigNum.fromDigits([]).isZero()).toBe(true);
+  });
+
+  it('fromDigits([999]) が 999 になる', () => {
+    expect(BigNum.fromDigits([999]).toString()).toBe('999');
+  });
+
+  it('fromDigits([500, 1]) が fromNumber(1500) と等値になる', () => {
+    // LSB-first: 500 + 1×1000 = 1500
+    expect(BigNum.fromDigits([500, 1]).eq(BigNum.fromNumber(1500))).toBe(true);
   });
 });

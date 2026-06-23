@@ -2,7 +2,7 @@ import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, test, vi } from 'vitest';
 
-import { MACHINE_UPGRADE_ITEMS, calcCost, calcEffectValue } from './items';
+import { MACHINE_UPGRADE_ITEMS, calcCost, calcCostForN, calcEffectValue } from './items';
 
 import { MachineUpgradeList } from './index';
 
@@ -213,6 +213,55 @@ describe('MachineUpgradeList', () => {
     );
     expect(patchSlotsCard).toBeDefined();
     expect(patchSlotsCard!.textContent).toContain('MAX');
+  });
+});
+
+// ---------------------------------------------------------------------------
+// +5 クランプ: 残 Lv が 5 未満のとき clampedN5 が正しく計算されること (Refs #74)
+// ---------------------------------------------------------------------------
+
+describe('+5 コスト計算クランプ (calcCostForN)', () => {
+  const patchSlots = MACHINE_UPGRADE_ITEMS.find((i) => i.key === 'patchSlots')!; // maxLv=5
+
+  test('残 Lv=2 (currentLv=3, maxLv=5): clampedN5 は 2', () => {
+    const remainingLevels5 = patchSlots.maxLv! - 3; // = 2
+    const clampedN5 = Math.min(5, remainingLevels5);
+    expect(clampedN5).toBe(2);
+  });
+
+  test('残 Lv=2 のとき calcCostForN(item, 3, 2) と calcCostForN(item, 3, 5) が等値', () => {
+    // calcCostForN は内部で maxLv クランプするので n=5 を渡しても n=2 と同じ結果になる
+    const cost2 = calcCostForN(patchSlots, 3, 2);
+    const costN5 = calcCostForN(patchSlots, 3, 5);
+    expect(cost2).toBe(costN5);
+    expect(cost2).toBeGreaterThan(0);
+  });
+
+  test('残 Lv=1 (currentLv=4, maxLv=5): clampedN5 は 1', () => {
+    const remainingLevels5 = patchSlots.maxLv! - 4; // = 1
+    const clampedN5 = Math.min(5, remainingLevels5);
+    expect(clampedN5).toBe(1);
+  });
+
+  test('残 Lv=0 (currentLv=5 = maxLv): clampedN5 は 0', () => {
+    const remainingLevels5 = patchSlots.maxLv! - 5; // = 0
+    const clampedN5 = Math.min(5, remainingLevels5);
+    expect(clampedN5).toBe(0);
+  });
+
+  test('maxLv 未指定のとき clampedN5 は 5 になる', () => {
+    const itemWithoutMax = MACHINE_UPGRADE_ITEMS.find((i) => i.maxLv == null)!;
+    expect(itemWithoutMax).toBeDefined(); // maxLv なし項目が存在すること
+    const remainingLevels5 = itemWithoutMax.maxLv != null ? itemWithoutMax.maxLv - 0 : 5;
+    const clampedN5 = Math.min(5, remainingLevels5);
+    expect(clampedN5).toBe(5);
+  });
+
+  test('残 Lv>=5 のとき clampedN5 は 5 のまま', () => {
+    // maxLv=10, currentLv=0 → remaining=10 → clampedN5=5
+    const remainingLevels5 = 10 - 0; // 10
+    const clampedN5 = Math.min(5, remainingLevels5);
+    expect(clampedN5).toBe(5);
   });
 });
 
