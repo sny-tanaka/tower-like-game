@@ -12,6 +12,13 @@ export interface TitleActionsProps {
   onNewGame?: () => void;
   /** 最終セーブの相対時刻ラベル (例 "12 分前") */
   lastSavedAt?: string;
+  /**
+   * 「更新を確認」押下コールバック。未指定なら更新ボタンを描画しない (Storybook 等向け)。
+   * production では Title page が useAppUpdate().checkForUpdate を渡す。
+   */
+  onCheckUpdate?: () => void;
+  /** 更新チェック中フラグ。 true のときラベル「確認中…」 + disabled に。 */
+  isCheckingUpdate?: boolean;
 }
 
 /**
@@ -24,7 +31,13 @@ export interface TitleActionsProps {
  * 設定への導線はタイトル画面では持たず、BottomNav 経由で各画面の右下から
  * 開く動線に統一する。
  */
-export function TitleActions({ onResume, onNewGame, lastSavedAt }: TitleActionsProps) {
+export function TitleActions({
+  onResume,
+  onNewGame,
+  lastSavedAt,
+  onCheckUpdate,
+  isCheckingUpdate = false,
+}: TitleActionsProps) {
   const createdAt = useStore((s) => s.createdAt);
 
   const hasSave = createdAt > 0;
@@ -73,6 +86,18 @@ export function TitleActions({ onResume, onNewGame, lastSavedAt }: TitleActionsP
         }
         onClick={onNewGame}
       />
+
+      {/* 更新を確認 (PWA SW の手動アップデート確認)。 Storybook 等で未配線なら描画しない */}
+      {onCheckUpdate != null && (
+        <Button
+          label={isCheckingUpdate ? '確認中…' : '更新を確認'}
+          variant="ghost"
+          size="md"
+          fullWidth
+          disabled={isCheckingUpdate}
+          onClick={onCheckUpdate}
+        />
+      )}
     </div>
   );
 }

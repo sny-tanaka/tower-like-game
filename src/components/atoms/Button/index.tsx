@@ -49,14 +49,22 @@ export function Button({
         </span>
       )}
       <span className={styles.label}>{label}</span>
-      {iconRight != null && (
+      {iconRight != null ? (
         <span
           className={styles.iconRight}
           aria-hidden="true"
         >
           {iconRight}
         </span>
-      )}
+      ) : iconLeft != null ? (
+        // iconLeft の対称スペーサー: label をボタン全体に対して真の中央に揃える
+        <span
+          className={`${styles.iconRight} ${styles.iconSpacer}`}
+          aria-hidden="true"
+        >
+          {iconLeft}
+        </span>
+      ) : null}
     </button>
   );
 }

@@ -196,19 +196,20 @@ describe('BattleField — Fx イベント', () => {
 // ---------------------------------------------------------------------------
 
 describe('BattleField — 索敵円', () => {
-  test('range=25 のとき width は 50% (range*2)、高さは aspect-ratio で導出', () => {
+  test('range=25 のとき width / height とも 50% (range*2、 .field 正方形基準で真円)', () => {
     const { container } = render(
       <BattleField
         {...defaultProps}
         range={25}
       />
     );
-    // .rangeCircle の style を確認（aspect-ratio: 1/1 で正円を維持するため width のみ % 指定）
+    // .rangeCircle は .field（長辺基準の正方形）内で width / height ともに % 指定して真円化。
+    // 敵 position (0-100%) のユークリッド距離判定と完全に一致する。
     const circle = container.querySelector('[aria-hidden]');
-    expect(circle).toHaveStyle({ width: '50%' });
+    expect(circle).toHaveStyle({ width: '50%', height: '50%' });
   });
 
-  test('range=40 のとき width は 80%', () => {
+  test('range=40 のとき width / height とも 80%', () => {
     const { container } = render(
       <BattleField
         {...defaultProps}
@@ -216,6 +217,6 @@ describe('BattleField — 索敵円', () => {
       />
     );
     const circle = container.querySelector('[aria-hidden]');
-    expect(circle).toHaveStyle({ width: '80%' });
+    expect(circle).toHaveStyle({ width: '80%', height: '80%' });
   });
 });

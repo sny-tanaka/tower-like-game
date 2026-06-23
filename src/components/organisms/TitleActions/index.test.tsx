@@ -85,4 +85,37 @@ describe('TitleActions', () => {
       expect(onNewGame).toHaveBeenCalledOnce();
     });
   });
+
+  describe('更新を確認ボタン', () => {
+    it('onCheckUpdate 未指定なら描画しない', () => {
+      renderWithNav(<TitleActions />);
+      expect(screen.queryByRole('button', { name: /更新を確認/ })).toBeNull();
+      expect(screen.queryByRole('button', { name: /確認中/ })).toBeNull();
+    });
+
+    it('onCheckUpdate 指定で「更新を確認」ボタンが描画される', () => {
+      renderWithNav(<TitleActions onCheckUpdate={() => {}} />);
+      const btn = screen.getByRole('button', { name: '更新を確認' });
+      expect(btn).toBeDefined();
+      expect((btn as HTMLButtonElement).disabled).toBe(false);
+    });
+
+    it('isCheckingUpdate=true でラベルが「確認中…」+ disabled', () => {
+      renderWithNav(
+        <TitleActions
+          onCheckUpdate={() => {}}
+          isCheckingUpdate
+        />
+      );
+      const btn = screen.getByRole('button', { name: '確認中…' });
+      expect((btn as HTMLButtonElement).disabled).toBe(true);
+    });
+
+    it('クリックで onCheckUpdate が呼ばれる', async () => {
+      const onCheckUpdate = vi.fn();
+      renderWithNav(<TitleActions onCheckUpdate={onCheckUpdate} />);
+      await userEvent.click(screen.getByRole('button', { name: '更新を確認' }));
+      expect(onCheckUpdate).toHaveBeenCalledOnce();
+    });
+  });
 });

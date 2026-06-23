@@ -6,9 +6,12 @@ export interface CutterOrbitFxProps {
   cx?: number;
   /** タワー中心 Y % (default 50) */
   cy?: number;
-  /** 中心からの長さ (vmin) (default 14) */
+  /**
+   * 中心からの長さ（親要素の % — 親は正方形領域を前提）。
+   * デフォルト 14 は CUTTER_ORBIT_RANGE_PCT=14 と揃えてあり、当たり判定と完全一致。
+   */
   length?: number;
-  /** 刃の太さ (vmin) (default 2.2) */
+  /** 刃の太さ（親要素の % — 正方形領域前提） (default 2.2) */
   thickness?: number;
   /** 刃の本数 (default 2) */
   blades?: number;
@@ -58,6 +61,10 @@ export function CutterOrbitFx({
     return undefined;
   }, [duration, onDone]);
 
+  // 親 .field（正方形）に対する % で配置。 .hub は length*2 角の正方形となり、
+  // その中で blade/sweep は hub に対する相対比 (= length / (length*2) = 50%) を使う。
+  const bladeHeightPct = (thickness / (length * 2)) * 100;
+  const bladeMarginPct = (thickness / (length * 4)) * 100; // = bladeHeightPct / 2
   const css = `
     @keyframes ${id}-spin { to { transform: translate(-50%, -50%) rotate(${360 * dir}deg); } }
     @keyframes ${id}-trail-pulse {
@@ -67,7 +74,7 @@ export function CutterOrbitFx({
     .${id}-hub {
       position: absolute;
       left: ${cx}%; top: ${cy}%;
-      width: ${length * 2}vmin; height: ${length * 2}vmin;
+      width: ${length * 2}%; height: ${length * 2}%;
       transform: translate(-50%, -50%);
       animation: ${id}-spin ${rotateMs}ms linear infinite;
       pointer-events: none;
@@ -82,9 +89,9 @@ export function CutterOrbitFx({
     .${id}-blade {
       position: absolute;
       left: 50%; top: 50%;
-      width: ${length}vmin;
-      height: ${thickness}vmin;
-      margin-top: -${thickness / 2}vmin;
+      width: 50%;
+      height: ${bladeHeightPct}%;
+      margin-top: -${bladeMarginPct}%;
       transform-origin: 0 50%;
       filter: drop-shadow(0 0 4px ${color}) drop-shadow(0 0 10px ${color}66);
       color: ${color};
@@ -92,7 +99,7 @@ export function CutterOrbitFx({
     .${id}-sweep {
       position: absolute;
       left: 50%; top: 50%;
-      width: ${length}vmin; height: ${length}vmin;
+      width: 50%; height: 50%;
       transform-origin: 0 0;
       pointer-events: none;
       opacity: 0.35;

@@ -200,210 +200,214 @@ export function BattleField({
       role="img"
       aria-label="バトルフィールド"
     >
-      {/* 索敵円（aspect-ratio: 1/1 で常に正円） */}
-      <div
-        className={styles.rangeCircle}
-        style={{
-          left: `${machineX}%`,
-          top: `${machineY}%`,
-          width: `${rangeDiameterPct}%`,
-        }}
-        aria-hidden
-      />
-
-      {/* 視覚装飾ダミーピン (enemies と独立) */}
-      {dummyPins.map((pin) => (
+      {/* 内部座標系（長辺基準の正方形）。 全ての描画はこの .field 内 % で配置する。 */}
+      <div className={styles.field}>
+        {/* 索敵円（width/height とも .field の % で真円） */}
         <div
-          key={pin.id}
-          className={styles.pin}
+          className={styles.rangeCircle}
           style={{
-            left: `${pin.x}%`,
-            top: `${pin.y}%`,
-            color: pinKindToColor(pin.kind),
+            left: `${machineX}%`,
+            top: `${machineY}%`,
+            width: `${rangeDiameterPct}%`,
+            height: `${rangeDiameterPct}%`,
           }}
           aria-hidden
-        >
-          <Icon
-            name="target"
-            size={pin.kind === 'boss' ? 18 : pin.kind === 'elite' ? 16 : 14}
-            color={pinKindToColor(pin.kind)}
-          />
-        </div>
-      ))}
+        />
 
-      {/* 敵: Enemy molecule に委譲。 SpawnedEnemy → EnemyVisualType マッピング、
+        {/* 視覚装飾ダミーピン (enemies と独立) */}
+        {dummyPins.map((pin) => (
+          <div
+            key={pin.id}
+            className={styles.pin}
+            style={{
+              left: `${pin.x}%`,
+              top: `${pin.y}%`,
+              color: pinKindToColor(pin.kind),
+            }}
+            aria-hidden
+          >
+            <Icon
+              name="target"
+              size={pin.kind === 'boss' ? 18 : pin.kind === 'elite' ? 16 : 14}
+              color={pinKindToColor(pin.kind)}
+            />
+          </div>
+        ))}
+
+        {/* 敵: Enemy molecule に委譲。 SpawnedEnemy → EnemyVisualType マッピング、
           状態異常は frozenUntilMs / burnUntilMs から導出。 HP バーは元 HP との比 (max は
           template.hp) で算出するが、 spawn 後に最大値が変わらないので template.hp == 初期 HP
           相当を維持する想定。 */}
-      {enemies.map((enemy) => {
-        const visualType = spawnedEnemyToVisualType(enemy.kind, enemy.subtype);
-        // 状態異常: frozen 優先 (動作停止のほうがプレイヤーに見えやすい)
-        const isFrozen = enemy.frozenUntilMs != null;
-        const isBurning = enemy.burnUntilMs != null;
-        const status = isFrozen ? 'frozen' : isBurning ? 'burning' : 'normal';
-        // HP 残量比: 0-1 のフロート。 BigNum を文字列経由で float 化
-        const hpCurrent = parseFloat(enemy.hp.toString());
-        const hpMaxNum = Math.max(0.0001, parseFloat(enemy.maxHp.toString()));
-        const hpRatio = Math.max(0, Math.min(1, hpCurrent / hpMaxNum));
-        // facing: 敵 → マシン中央へのベクトル角度 (rad)。
-        // SVG 自体は +x (右) 向き → 完全に左 (敵 x < machineX, y == machineY) のとき angle=0。
-        // 画面座標系は Y が下向きなので atan2(dy, dx) でそのまま CSS rotate に渡せる
-        // (CSS rotate は時計回り正、 +Y 下向きで +90° で下向きになる)。
-        const facing = Math.atan2(machineY - enemy.position.y, machineX - enemy.position.x);
+        {enemies.map((enemy) => {
+          const visualType = spawnedEnemyToVisualType(enemy.kind, enemy.subtype);
+          // 状態異常: frozen 優先 (動作停止のほうがプレイヤーに見えやすい)
+          const isFrozen = enemy.frozenUntilMs != null;
+          const isBurning = enemy.burnUntilMs != null;
+          const status = isFrozen ? 'frozen' : isBurning ? 'burning' : 'normal';
+          // HP 残量比: 0-1 のフロート。 BigNum を文字列経由で float 化
+          const hpCurrent = parseFloat(enemy.hp.toString());
+          const hpMaxNum = Math.max(0.0001, parseFloat(enemy.maxHp.toString()));
+          const hpRatio = Math.max(0, Math.min(1, hpCurrent / hpMaxNum));
+          // facing: 敵 → マシン中央へのベクトル角度 (rad)。
+          // SVG 自体は +x (右) 向き → 完全に左 (敵 x < machineX, y == machineY) のとき angle=0。
+          // 画面座標系は Y が下向きなので atan2(dy, dx) でそのまま CSS rotate に渡せる
+          // (CSS rotate は時計回り正、 +Y 下向きで +90° で下向きになる)。
+          const facing = Math.atan2(machineY - enemy.position.y, machineX - enemy.position.x);
 
-        return (
-          <div
-            key={enemy.id}
-            className={styles.enemy}
-            style={{
-              left: `${enemy.position.x}%`,
-              top: `${enemy.position.y}%`,
-              position: 'absolute',
-              transform: 'translate(-50%, -50%)',
-            }}
-          >
-            <Enemy
-              type={visualType}
-              hp={hpRatio}
-              status={status}
-              facing={facing}
-            />
-          </div>
-        );
-      })}
+          return (
+            <div
+              key={enemy.id}
+              className={styles.enemy}
+              style={{
+                left: `${enemy.position.x}%`,
+                top: `${enemy.position.y}%`,
+                position: 'absolute',
+                transform: 'translate(-50%, -50%)',
+              }}
+            >
+              <Enemy
+                type={visualType}
+                hp={hpRatio}
+                status={status}
+                facing={facing}
+              />
+            </div>
+          );
+        })}
 
-      {/* マシン (三角 + 単一リング) */}
-      <div
-        className={styles.machine}
-        style={{
-          left: `${machineX}%`,
-          top: `${machineY}%`,
-        }}
-        aria-label="マシン"
-      >
-        <span
-          className={styles.machineRingOuter}
-          aria-hidden
-        />
-        <Icon
-          name="tower"
-          size={22}
-          color="var(--c-primary)"
-        />
+        {/* マシン (三角 + 単一リング) */}
+        <div
+          className={styles.machine}
+          style={{
+            left: `${machineX}%`,
+            top: `${machineY}%`,
+          }}
+          aria-label="マシン"
+        >
+          <span
+            className={styles.machineRingOuter}
+            aria-hidden
+          />
+          <Icon
+            name="tower"
+            size={22}
+            color="var(--c-primary)"
+          />
+        </div>
+
+        {/* Fx レイヤ */}
+
+        {/* Cutter 武器選択中の常時回転刃 (タワー周囲を旋回) */}
+        {showCutterOrbit && (
+          <CutterOrbitFx
+            cx={machineX}
+            cy={machineY}
+          />
+        )}
+
+        {/* DamagePopFx */}
+        {damageEvents.map((evt) => (
+          <DamagePopFx
+            key={evt.id}
+            value={Number(evt.value.toString())}
+            x={evt.x}
+            y={evt.y}
+            crit={evt.crit}
+            onDone={() => onDamageDone?.(evt.id)}
+          />
+        ))}
+
+        {/* EnemyHitFx */}
+        {hitEvents.map((evt) => (
+          <EnemyHitFx
+            key={evt.id}
+            x={evt.x}
+            y={evt.y}
+            onDone={() => onHitDone?.(evt.id)}
+          />
+        ))}
+
+        {/* EnemyDeathFx */}
+        {deathEvents.map((evt) => (
+          <EnemyDeathFx
+            key={evt.id}
+            x={evt.x}
+            y={evt.y}
+            onDone={() => onDeathDone?.(evt.id)}
+          />
+        ))}
+
+        {/* 通貨ドロップ演出 (撃破位置 → 画面上部 HUD 付近へ吸い込まれる) */}
+        {pickupEvents.map((evt) => (
+          <PickupFx
+            key={evt.id}
+            x={evt.x}
+            y={evt.y}
+            targetX={50}
+            targetY={4}
+            iconName={evt.iconName}
+            onDone={() => onPickupDone?.(evt.id)}
+          />
+        ))}
+
+        {/* 弾道 / 着弾エフェクト */}
+        {projectileEvents.map((evt) => {
+          switch (evt.kind) {
+            case 'laser':
+              return (
+                <LaserBeamFx
+                  key={evt.id}
+                  x1={evt.x1}
+                  y1={evt.y1}
+                  x2={evt.x2}
+                  y2={evt.y2}
+                  onDone={() => onProjectileDone?.(evt.id)}
+                />
+              );
+            case 'cannonShell':
+              return (
+                <CannonShellFx
+                  key={evt.id}
+                  x1={evt.x1}
+                  y1={evt.y1}
+                  x2={evt.x2}
+                  y2={evt.y2}
+                  duration={evt.durationMs}
+                  onDone={() => onProjectileDone?.(evt.id)}
+                />
+              );
+            case 'blast':
+              return (
+                <BlastFx
+                  key={evt.id}
+                  x={evt.x}
+                  y={evt.y}
+                  delayMs={evt.delayMs}
+                  onDone={() => onProjectileDone?.(evt.id)}
+                />
+              );
+            case 'thunderStrike':
+              return (
+                <ThunderStrikeFx
+                  key={evt.id}
+                  x={evt.x}
+                  y={evt.y}
+                  duration={evt.durationMs}
+                  onDone={() => onProjectileDone?.(evt.id)}
+                />
+              );
+            case 'chain':
+              return (
+                <ChainBoltFx
+                  key={evt.id}
+                  points={evt.points}
+                  delayMs={evt.delayMs}
+                  onDone={() => onProjectileDone?.(evt.id)}
+                />
+              );
+          }
+        })}
       </div>
-
-      {/* Fx レイヤ */}
-
-      {/* Cutter 武器選択中の常時回転刃 (タワー周囲を旋回) */}
-      {showCutterOrbit && (
-        <CutterOrbitFx
-          cx={machineX}
-          cy={machineY}
-        />
-      )}
-
-      {/* DamagePopFx */}
-      {damageEvents.map((evt) => (
-        <DamagePopFx
-          key={evt.id}
-          value={Number(evt.value.toString())}
-          x={evt.x}
-          y={evt.y}
-          crit={evt.crit}
-          onDone={() => onDamageDone?.(evt.id)}
-        />
-      ))}
-
-      {/* EnemyHitFx */}
-      {hitEvents.map((evt) => (
-        <EnemyHitFx
-          key={evt.id}
-          x={evt.x}
-          y={evt.y}
-          onDone={() => onHitDone?.(evt.id)}
-        />
-      ))}
-
-      {/* EnemyDeathFx */}
-      {deathEvents.map((evt) => (
-        <EnemyDeathFx
-          key={evt.id}
-          x={evt.x}
-          y={evt.y}
-          onDone={() => onDeathDone?.(evt.id)}
-        />
-      ))}
-
-      {/* 通貨ドロップ演出 (撃破位置 → 画面上部 HUD 付近へ吸い込まれる) */}
-      {pickupEvents.map((evt) => (
-        <PickupFx
-          key={evt.id}
-          x={evt.x}
-          y={evt.y}
-          targetX={50}
-          targetY={4}
-          iconName={evt.iconName}
-          onDone={() => onPickupDone?.(evt.id)}
-        />
-      ))}
-
-      {/* 弾道 / 着弾エフェクト */}
-      {projectileEvents.map((evt) => {
-        switch (evt.kind) {
-          case 'laser':
-            return (
-              <LaserBeamFx
-                key={evt.id}
-                x1={evt.x1}
-                y1={evt.y1}
-                x2={evt.x2}
-                y2={evt.y2}
-                onDone={() => onProjectileDone?.(evt.id)}
-              />
-            );
-          case 'cannonShell':
-            return (
-              <CannonShellFx
-                key={evt.id}
-                x1={evt.x1}
-                y1={evt.y1}
-                x2={evt.x2}
-                y2={evt.y2}
-                duration={evt.durationMs}
-                onDone={() => onProjectileDone?.(evt.id)}
-              />
-            );
-          case 'blast':
-            return (
-              <BlastFx
-                key={evt.id}
-                x={evt.x}
-                y={evt.y}
-                delayMs={evt.delayMs}
-                onDone={() => onProjectileDone?.(evt.id)}
-              />
-            );
-          case 'thunderStrike':
-            return (
-              <ThunderStrikeFx
-                key={evt.id}
-                x={evt.x}
-                y={evt.y}
-                duration={evt.durationMs}
-                onDone={() => onProjectileDone?.(evt.id)}
-              />
-            );
-          case 'chain':
-            return (
-              <ChainBoltFx
-                key={evt.id}
-                points={evt.points}
-                delayMs={evt.delayMs}
-                onDone={() => onProjectileDone?.(evt.id)}
-              />
-            );
-        }
-      })}
     </div>
   );
 }

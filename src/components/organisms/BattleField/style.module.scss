@@ -11,14 +11,33 @@
     linear-gradient(rgba(78, 228, 246, 0.04) 1px, transparent 1px),
     linear-gradient(90deg, rgba(78, 228, 246, 0.04) 1px, transparent 1px);
   background-size: 40px 40px;
+  /* container query units (cqw / cqh / cqmax) のため */
+  container-type: size;
 }
 
-/* ===== 索敵円（外側） ===== */
+/* ===== 内部座標系（長辺基準の正方形） =====
+ * 敵 position (0-100%) や攻撃範囲円、ヒット判定はすべて「正方形空間の %」で扱う。
+ * .root より大きい場合は overflow: hidden で画面外にはみ出し、その分は描画されない
+ * （画面外にも敵は存在する、という設計）。
+ */
+.field {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  /* 100cqmax = 親 .root の長辺の 100%。短辺方向は画面外にはみ出す */
+  width: 100cqmax;
+  height: 100cqmax;
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+}
+
+/* ===== 索敵円（.field 基準の真円） =====
+ * width/height ともに .field の % を使うことで、敵 position の距離判定と完全に一致する真円。
+ */
 .rangeCircle {
   position: absolute;
   transform: translate(-50%, -50%);
   border-radius: 50%;
-  aspect-ratio: 1 / 1;
   border: 1px solid rgba(78, 228, 246, 0.25);
   background: radial-gradient(
     circle,

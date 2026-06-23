@@ -1,0 +1,27 @@
+/* 画面下部に重ねて出す Toast。 周囲のコンテンツにレイアウトシフトを起こさない */
+.banner {
+  position: fixed;
+  bottom: var(--sp-l);
+  left: var(--sp-m);
+  right: var(--sp-m);
+  margin: 0 auto;
+  max-width: 360px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--sp-m);
+  padding: var(--sp-s) var(--sp-l);
+  background: var(--c-bg-elev);
+  border: 1px solid var(--c-primary);
+  border-radius: var(--r-m);
+  box-shadow: var(--sh-mid);
+  box-sizing: border-box;
+  z-index: var(--z-toast);
+  pointer-events: auto;
+}
+
+.bannerInfo {
+  border-color: var(--c-border-faint);
+  box-shadow: none;
+  background: var(--c-bg-base);
+}

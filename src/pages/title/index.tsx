@@ -2,10 +2,12 @@ import { useMemo } from 'react';
 
 import styles from './style.module.scss';
 
+import { AppUpdater } from '@/components/molecules/AppUpdater';
 import { AppShell } from '@/components/organisms/AppShell';
 import { TitleActions } from '@/components/organisms/TitleActions';
 import { TitleHeader } from '@/components/organisms/TitleHeader';
 import { TitleHero } from '@/components/organisms/TitleHero';
+import { useAppUpdate } from '@/hooks/useAppUpdate';
 import { useStore } from '@/store';
 import { useNavigation } from '@/store/navigation';
 
@@ -30,6 +32,7 @@ function formatRelativeTime(ms: number): string {
 export function Page() {
   const { navigate } = useNavigation();
   const createdAt = useStore((s) => s.createdAt);
+  const { banner, checkForUpdate, isChecking, applyUpdate } = useAppUpdate();
 
   const lastSavedAt = useMemo(
     () => (createdAt > 0 ? formatRelativeTime(Date.now() - createdAt) : undefined),
@@ -51,6 +54,12 @@ export function Page() {
           lastSavedAt={lastSavedAt}
           onResume={() => navigate('preparation')}
           onNewGame={() => navigate('preparation')}
+          onCheckUpdate={() => void checkForUpdate()}
+          isCheckingUpdate={isChecking}
+        />
+        <AppUpdater
+          banner={banner}
+          onApply={applyUpdate}
         />
       </div>
     </AppShell>

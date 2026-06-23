@@ -33,7 +33,7 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: var(--sp-xxs);
+  gap: var(--sp-xs);
   flex-shrink: 0;
 }
 
@@ -121,6 +121,7 @@
 /* ──── 下段: 通貨 + 速度 + システム ──── */
 .bottomRow {
   display: flex;
+  justify-content: space-between;
   align-items: center;
   gap: var(--sp-s);
 }
@@ -139,6 +140,6 @@
 /* システムボタン群 */
 .sysButtons {
   display: flex;
-  gap: var(--sp-xxs);
+  gap: var(--sp-xs);
   flex-shrink: 0;
 }
