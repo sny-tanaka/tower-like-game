@@ -253,7 +253,7 @@ export const MACHINE_UPGRADE_ITEMS: readonly MachineUpgradeItem[] = [
     growthFactor: 1, // +1 / Lv (fixed_step)
     growthType: 'fixed_step',
     baseCost: 2000, // Lv 0→1: 2,000
-    costGrowth: 10, // 暫定: Lv ごとに ×10 ジャンプ
+    costGrowth: 10, // Lv ごとに ×10 (Lv 0→1: 2k / 1→2: 20k / 2→3: 200k / 3→4: 2M / 4→5: 20M)
     maxLv: 5, // Lv 5 でハードキャップ（= 6 スロット）
     iconName: 'shield',
   },

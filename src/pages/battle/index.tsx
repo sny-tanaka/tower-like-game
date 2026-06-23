@@ -29,6 +29,7 @@ import { soundEngine } from '@/lib/audio';
 import { BigNum } from '@/lib/bignum/BigNum';
 import { useStore } from '@/store/index';
 import { useNavigation } from '@/store/navigation';
+import { WEAPON_SWITCH_CD_SEC } from '@/store/slices/battle';
 
 // ---------------------------------------------------------------------------
 // デフォルト値
@@ -65,7 +66,8 @@ function resolveResultStatus(isRunActive: boolean, machineHp: BigNum): ResultSta
  * overlay 層に RunWorkshopBottomSheet / BattleMenuOverlay / ResultDialog / ScreenSaverDialog を絶対配置。
  * BottomNav なし（バトル中は他画面遷移しない）。
  *
- * バトルロジック（Tick / 武器発射）は別 issue で配線するため、ここでは UI の状態→表示マッピングのみ。
+ * ゲームループ (敵 spawn / 武器発射 / ダメージ / 撃破 / 被ダメ / 弾道 / ドロップ) は
+ * useBattleLoop に集約。 ここでは store 値の取得・配線・UI 状態 (ダイアログ開閉等) を扱う。
  */
 export function Page() {
   const { navigate } = useNavigation();
@@ -97,6 +99,7 @@ export function Page() {
   const switchWeapon = useStore((s) => s.switchWeapon);
   const setPaused = useStore((s) => s.setPaused);
   const upgradeRunWorkshop = useStore((s) => s.upgradeRunWorkshop);
+  const weaponSwitchCdSec = useStore((s) => s.weaponSwitchCdSec);
 
   // ── ローカル UI state (overlay 開閉) ──
   const [isWorkshopOpen, setIsWorkshopOpen] = useState(false);
@@ -169,13 +172,18 @@ export function Page() {
   // HitEvent (EnemyHitFx) は別途配線予定。 当面 [] のまま (弾道は projectileEvents が担う)
   const hitEvents: HitEvent[] = [];
 
-  // 武器切替 CD（暫定: すべて 100 = CD なし）
-  const weaponCds = {
-    laser: 100,
-    cannon: 100,
-    thunder: 100,
-    cutter: 100,
-  } as const;
+  // 武器切替 CD (仕様 05-weapons.md §武器切替: 3 秒)
+  // 装備中の武器は常に 100 (= CD なし表示)、 他の武器は経過率 % を出す
+  const weaponCdPct = Math.max(
+    0,
+    Math.min(100, ((WEAPON_SWITCH_CD_SEC - weaponSwitchCdSec) / WEAPON_SWITCH_CD_SEC) * 100)
+  );
+  const weaponCds: Record<typeof currentWeapon, number> = {
+    laser: currentWeapon === 'laser' ? 100 : weaponCdPct,
+    cannon: currentWeapon === 'cannon' ? 100 : weaponCdPct,
+    thunder: currentWeapon === 'thunder' ? 100 : weaponCdPct,
+    cutter: currentWeapon === 'cutter' ? 100 : weaponCdPct,
+  };
 
   // BattleHudTop は BigNum を受け取る — machineMaxHp が 0 (ラン外) のときは 1 にクランプ
   const hpCurrentBn = machineHp;

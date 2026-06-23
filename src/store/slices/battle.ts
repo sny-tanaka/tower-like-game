@@ -93,6 +93,11 @@ export type BattleSlice = BattleState & BattleActions;
 // Default state
 // ---------------------------------------------------------------------------
 
+/**
+ * 武器切替後のクールダウン秒数 (仕様: 05-weapons.md §武器切替「最後の切替から 3 秒間は他の武器に切替えられない」)
+ */
+export const WEAPON_SWITCH_CD_SEC = 3;
+
 export const defaultBattleState: BattleState = {
   isRunActive: false,
   screw: BigNum.ZERO,
@@ -194,7 +199,13 @@ export const createBattleSlice: StateCreator<RootStore, [], [], BattleSlice> = (
 
   advanceTier: () => set((s) => ({ currentTier: s.currentTier + 1, currentWave: 1 })),
 
-  switchWeapon: (weapon) => set({ currentWeapon: weapon }),
+  switchWeapon: (weapon) => {
+    const s = get();
+    // CD 中 or 同じ武器なら無視 (連打防止 / 仕様 05-weapons.md §武器切替)
+    if (s.weaponSwitchCdSec > 0) return;
+    if (s.currentWeapon === weapon) return;
+    set({ currentWeapon: weapon, weaponSwitchCdSec: WEAPON_SWITCH_CD_SEC });
+  },
 
   setWeaponSwitchCd: (sec) => set({ weaponSwitchCdSec: Math.max(0, sec) }),
 

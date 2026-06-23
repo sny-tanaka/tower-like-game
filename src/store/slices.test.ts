@@ -484,11 +484,27 @@ describe('battle slice', () => {
     expect(store.getState().currentWave).toBe(1);
   });
 
-  it('switchWeapon: 武器が変わる', () => {
+  it('switchWeapon: 武器が変わる + CD 3 秒がセットされる', () => {
     const store = makeStore();
     store.getState().startRun({ initialWeapon: 'laser', baseMachineMaxHp: BigNum.fromNumber(100) });
     store.getState().switchWeapon('thunder');
     expect(store.getState().currentWeapon).toBe('thunder');
+    expect(store.getState().weaponSwitchCdSec).toBe(3);
+  });
+
+  it('switchWeapon: CD 中は無視される', () => {
+    const store = makeStore();
+    store.getState().startRun({ initialWeapon: 'laser', baseMachineMaxHp: BigNum.fromNumber(100) });
+    store.getState().switchWeapon('thunder'); // CD=3
+    store.getState().switchWeapon('cannon'); // CD 中なので無視
+    expect(store.getState().currentWeapon).toBe('thunder');
+  });
+
+  it('switchWeapon: 同じ武器への切替は CD をセットしない', () => {
+    const store = makeStore();
+    store.getState().startRun({ initialWeapon: 'laser', baseMachineMaxHp: BigNum.fromNumber(100) });
+    store.getState().switchWeapon('laser'); // 同武器
+    expect(store.getState().weaponSwitchCdSec).toBe(0);
   });
 
   it('tickCooldowns: CD が deltaSecGameTime 分減少し 0 未満にならない', () => {
