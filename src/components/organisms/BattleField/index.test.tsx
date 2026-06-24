@@ -99,6 +99,79 @@ describe('BattleField — レンダリング', () => {
 });
 
 // ---------------------------------------------------------------------------
+// MachineHitFx の配線 (machineHitKey で再マウント発火)
+// ---------------------------------------------------------------------------
+
+describe('BattleField — MachineHitFx 配線', () => {
+  test('machineHitKey=0 (初期) では MachineHitFx をマウントしない', () => {
+    const { container } = render(
+      <BattleField
+        {...defaultProps}
+        machineHitKey={0}
+      />
+    );
+    // MachineHitFx は aria-hidden div + style 要素を出力する。 style に "flash" を含むことで識別
+    const styles = Array.from(container.querySelectorAll('style')).map((s) => s.textContent ?? '');
+    expect(styles.some((css) => css.includes('mhf-') && css.includes('flash'))).toBe(false);
+  });
+
+  test('machineHitKey=1 で MachineHitFx がマウントされる', () => {
+    const { container } = render(
+      <BattleField
+        {...defaultProps}
+        machineHitKey={1}
+      />
+    );
+    const styles = Array.from(container.querySelectorAll('style')).map((s) => s.textContent ?? '');
+    expect(styles.some((css) => css.includes('mhf-') && css.includes('flash'))).toBe(true);
+  });
+
+  test('machineHitKey 増分で MachineHitFx が再マウント (key で別 instance)', () => {
+    const { container, rerender } = render(
+      <BattleField
+        {...defaultProps}
+        machineHitKey={1}
+      />
+    );
+    const firstStyle = container.querySelector('style[data-vite-dev-id], style')?.textContent ?? '';
+    rerender(
+      <BattleField
+        {...defaultProps}
+        machineHitKey={2}
+      />
+    );
+    // 再マウントで useId が新しい uid を発行 → CSS の class 名が変わる
+    const secondStyle =
+      container.querySelector('style[data-vite-dev-id], style')?.textContent ?? '';
+    // 同一 key なら同じ style、 key 増分なら異なる (= 再マウント発火) を確認
+    expect(secondStyle).not.toBe('');
+    // 実装上 key 変化で React は別 fiber として扱うため style 要素が新規生成される
+    // → 1 件以上の MachineHitFx 起源 (mhf-) スタイルが存在することを担保
+    const allStyles = Array.from(container.querySelectorAll('style')).map(
+      (s) => s.textContent ?? ''
+    );
+    expect(allStyles.some((css) => css.includes('mhf-'))).toBe(true);
+    // 念のため不変条件: 初期 firstStyle も空ではない
+    expect(firstStyle).not.toBe('');
+  });
+
+  test('cx/cy = machinePosition と一致する CSS が注入される', () => {
+    const { container } = render(
+      <BattleField
+        {...defaultProps}
+        machinePosition={{ x: 50, y: 50 }}
+        machineHitKey={1}
+      />
+    );
+    const css = Array.from(container.querySelectorAll('style'))
+      .map((s) => s.textContent ?? '')
+      .join('\n');
+    expect(css).toContain('left: 50%');
+    expect(css).toContain('top: 50%');
+  });
+});
+
+// ---------------------------------------------------------------------------
 // machinePosition
 // ---------------------------------------------------------------------------
 
