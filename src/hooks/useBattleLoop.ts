@@ -369,6 +369,18 @@ export function useBattleLoop({ range, paused = false }: UseBattleLoopOpts): Use
     }>
   >([]);
 
+  /**
+   * Fx 完了通知のバッファ (H2-3)。 onDamageDone / onDeathDone / onProjectileDone /
+   * onAppearanceDone は Fx 演出完了時に複数同時に呼ばれることがあり、 各々で setState
+   * (filter で配列再生成) を呼ぶと BattleField 全体が連鎖 re-render する。
+   * 完了 ID をここに溜めて、 tick 冒頭で 1 回だけ filter + setState する。
+   * (Fx unmount は 1 tick = ~16ms 遅れるが視覚への影響なし)
+   */
+  const pendingDamageRemovalsRef = useRef<Set<string>>(new Set());
+  const pendingDeathRemovalsRef = useRef<Set<string>>(new Set());
+  const pendingProjectileRemovalsRef = useRef<Set<string>>(new Set());
+  const pendingAppearanceRemovalsRef = useRef<Set<string>>(new Set());
+
   const [enemies, setEnemies] = useState<SpawnedEnemy[]>([]);
   const [damageEvents, setDamageEvents] = useState<DamageEvent[]>([]);
   const [deathEvents, setDeathEvents] = useState<DeathEvent[]>([]);
@@ -446,20 +458,23 @@ export function useBattleLoop({ range, paused = false }: UseBattleLoopOpts): Use
     }
   }, [isRunActive]);
 
+  // H2-3: Fx 完了通知は ref Set にバッファするだけ (setState を起こさない)。
+  // 実際の配列フィルタ + setState は tick 冒頭で 1 回だけ flush する。
+  // 同フレーム内に大量の Fx (DamagePopFx 等) が完了しても setState 連鎖が消える。
   const onDamageDone = useCallback((id: string) => {
-    setDamageEvents((prev) => prev.filter((e) => e.id !== id));
+    pendingDamageRemovalsRef.current.add(id);
   }, []);
 
   const onDeathDone = useCallback((id: string) => {
-    setDeathEvents((prev) => prev.filter((e) => e.id !== id));
+    pendingDeathRemovalsRef.current.add(id);
   }, []);
 
   const onProjectileDone = useCallback((id: string) => {
-    setProjectileEvents((prev) => prev.filter((e) => e.id !== id));
+    pendingProjectileRemovalsRef.current.add(id);
   }, []);
 
   const onAppearanceDone = useCallback((id: string) => {
-    setAppearanceEvents((prev) => prev.filter((e) => e.id !== id));
+    pendingAppearanceRemovalsRef.current.add(id);
   }, []);
 
   // ---------------------------------------------------------------------------
@@ -628,6 +643,30 @@ export function useBattleLoop({ range, paused = false }: UseBattleLoopOpts): Use
     const tick = (nowMs: number) => {
       const elapsedMs = nowMs - lastFrameMsRef.current;
       lastFrameMsRef.current = nowMs;
+
+      // H2-3: Fx 完了通知をバッチフラッシュ。 同フレーム内に複数 Fx (DamagePopFx 等)
+      // が完了しても setState 呼び出しを 1 回にまとめ、 BattleField の連鎖 re-render を回避。
+      // pause/gameover 中もペンディングがあれば flush (= 残った Fx を確実にクリーンアップ)。
+      if (pendingDamageRemovalsRef.current.size > 0) {
+        const removed = pendingDamageRemovalsRef.current;
+        pendingDamageRemovalsRef.current = new Set();
+        setDamageEvents((prev) => prev.filter((e) => !removed.has(e.id)));
+      }
+      if (pendingDeathRemovalsRef.current.size > 0) {
+        const removed = pendingDeathRemovalsRef.current;
+        pendingDeathRemovalsRef.current = new Set();
+        setDeathEvents((prev) => prev.filter((e) => !removed.has(e.id)));
+      }
+      if (pendingProjectileRemovalsRef.current.size > 0) {
+        const removed = pendingProjectileRemovalsRef.current;
+        pendingProjectileRemovalsRef.current = new Set();
+        setProjectileEvents((prev) => prev.filter((e) => !removed.has(e.id)));
+      }
+      if (pendingAppearanceRemovalsRef.current.size > 0) {
+        const removed = pendingAppearanceRemovalsRef.current;
+        pendingAppearanceRemovalsRef.current = new Set();
+        setAppearanceEvents((prev) => prev.filter((e) => !removed.has(e.id)));
+      }
 
       const state = useStore.getState();
       // 全滅 (machineHp = 0) のときは ResultDialog 表示中なのでバトルを停止する。
@@ -801,6 +840,12 @@ export function useBattleLoop({ range, paused = false }: UseBattleLoopOpts): Use
           });
           const delayedDamageEvents: DamageEvent[] = [];
           if (expiredHits.length > 0) {
+            // H2-2: 着弾後の DamageEvent 用に「敵 ID → 敵」 Map を作る (O(N) 1 回)。
+            // update 後の position も update 前と同じなので、 ここでの Map は update 前のもの
+            // を使い回しても OK (HP は新規だが position は不変)。
+            const enemiesById = new Map<string, SpawnedEnemy>(
+              enemiesRef.current.map((e) => [e.id, e])
+            );
             const hitMap = new Map(expiredHits.map((h) => [h.enemyId, h]));
             enemiesRef.current = enemiesRef.current.map((e) => {
               const hit = hitMap.get(e.id);
@@ -829,7 +874,8 @@ export function useBattleLoop({ range, paused = false }: UseBattleLoopOpts): Use
               return updated;
             });
             for (const hit of expiredHits) {
-              const enemy = enemiesRef.current.find((e) => e.id === hit.enemyId);
+              // H2-2: O(N) find() → O(1) Map.get() に置換
+              const enemy = enemiesById.get(hit.enemyId);
               damageEventIdRef.current += 1;
               delayedDamageEvents.push({
                 id: `de-${damageEventIdRef.current}`,
@@ -914,9 +960,16 @@ export function useBattleLoop({ range, paused = false }: UseBattleLoopOpts): Use
 
                 // 敵 HP 減算 (immutable に置換) + onAttack パッチ適用
                 if (result.hits.length > 0) {
+                  // H2-2: hit ごとの enemiesRef.current.find() (O(N)) を避けるため、
+                  // 「敵 ID → 敵」 Map を 1 度だけ構築 (O(N))。 同 hit 処理ブロック内の
+                  // 3 箇所 (onAttack 評価 / DamageEvent 位置取得 / hitPositions) で使い回す。
+                  // HP 減算後の Map 再構築は不要 (position は不変、 HP は read しない)。
+                  const enemiesById = new Map<string, SpawnedEnemy>(
+                    enemiesRef.current.map((e) => [e.id, e])
+                  );
                   // 各 hit について onAttack パッチを評価し、 damage / 状態異常を補正
                   const augmentedHits = result.hits.map((hit) => {
-                    const targetEnemy = enemiesRef.current.find((e) => e.id === hit.enemyId);
+                    const targetEnemy = enemiesById.get(hit.enemyId);
                     if (targetEnemy == null) {
                       return {
                         ...hit,
@@ -1001,7 +1054,8 @@ export function useBattleLoop({ range, paused = false }: UseBattleLoopOpts): Use
 
                     // DamageEvent 発火 — augmented damage を表示に使う
                     for (const hit of augmentedHits) {
-                      const enemy = enemiesRef.current.find((e) => e.id === hit.enemyId);
+                      // H2-2: O(N) find() → O(1) Map.get()
+                      const enemy = enemiesById.get(hit.enemyId);
                       damageEventIdRef.current += 1;
                       newDamageEvents.push({
                         id: `de-${damageEventIdRef.current}`,
@@ -1018,8 +1072,9 @@ export function useBattleLoop({ range, paused = false }: UseBattleLoopOpts): Use
                   // cannon: マシン → 着弾点に砲弾 (CannonShellFx) → duration 後に Blast (BlastFx)
                   // thunder: 着弾点の真上から落雷 (ThunderStrikeFx) → duration 後に連鎖 (ChainBoltFx)
                   // cutter:  常時表示の CutterOrbitFx に任せるため発火ごとの projectile は生成しない
+                  // H2-2: O(N) find() × hits 数 → O(1) Map.get() × hits 数
                   const hitPositions = augmentedHits
-                    .map((h) => enemiesRef.current.find((e) => e.id === h.enemyId))
+                    .map((h) => enemiesById.get(h.enemyId))
                     .filter((e): e is SpawnedEnemy => e != null)
                     .map((e) => ({ x: e.position.x, y: e.position.y }));
 

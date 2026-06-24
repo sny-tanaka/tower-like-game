@@ -10,7 +10,11 @@
 
 .shape {
   transform-origin: center;
-  transition: transform 120ms linear;
+  /* H2-6: transition: transform 120ms linear を廃止。
+     Swift/MiniBoss/Boss は移動中 facing が毎フレーム微変するため、 全敵 30-40 体に
+     transition 監視が走り、 ブラウザの transition machinery が常時動いて発熱寄与。
+     facing 回転は移動と一体なので補間しなくても体感はほぼ変わらず、 むしろ補間が
+     ない方が方向感が鮮明になる。 */
   line-height: 0;
   /* filter は CSS 側に閉じ込めて type/status による値ぶれを防ぐ (Issue #79 M-1)。
      glow の太さ・色は JS から CSS variable で渡す (静的)。 status による色変化は
@@ -31,11 +35,8 @@
   filter: drop-shadow(0 0 calc(var(--enemy-glow-px, 4px) * 1.5) rgba(255, 167, 38, 0.9));
 }
 
-@media (prefers-reduced-motion: reduce) {
-  .shape {
-    transition: none;
-  }
-}
+/* H2-6: 旧 prefers-reduced-motion ブロックは .shape の transition: transform を
+   none にしていたが、 H2-6 で常時 transition を廃止したため不要に。 */
 
 .hpBar {
   position: absolute;

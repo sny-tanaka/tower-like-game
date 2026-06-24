@@ -74,7 +74,8 @@ export function CutterOrbitFx({
     ['--ct-cy' as string]: `${cy}%`,
     ['--ct-size' as string]: `${length * 2}%`,
     ['--ct-rotate-ms' as string]: `${rotateMs}ms`,
-    ['--ct-trail-ms' as string]: `${Math.round(rotateMs * 0.7)}ms`,
+    // H2-5: trail-pulse 周期を rotateMs*0.7 → *1.4 に倍化 (GPU の opacity 更新頻度半減)
+    ['--ct-trail-ms' as string]: `${Math.round(rotateMs * 1.4)}ms`,
     ['--ct-blade-height' as string]: `${bladeHeightPct}%`,
     ['--ct-blade-margin' as string]: `-${bladeMarginPct}%`,
     ['--ct-color' as string]: color,

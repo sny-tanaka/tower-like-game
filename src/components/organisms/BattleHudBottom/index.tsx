@@ -1,3 +1,5 @@
+import { memo } from 'react';
+
 import styles from './style.module.scss';
 
 import { Badge } from '@/components/atoms/Badge';
@@ -51,7 +53,7 @@ export interface BattleHudBottomProps {
 // コンポーネント
 // ---------------------------------------------------------------------------
 
-export function BattleHudBottom({
+function BattleHudBottomImpl({
   screw,
   earnedBolt,
   equippedWeapon,
@@ -203,3 +205,11 @@ export function BattleHudBottom({
     </div>
   );
 }
+
+/**
+ * H2-4: BattleHudBottom を React.memo で wrap。 親 (pages/battle/index.tsx) が
+ * 60fps で再 render しても、 props (BigNum や object) の参照が安定していれば
+ * BattleHudBottom + その配下 (CurrencyAmount / WeaponSlotIcon / CircularProgress 等)
+ * の re-render をスキップできる。 props 安定化は親側 (H2-4) で別途実施済み。
+ */
+export const BattleHudBottom = memo(BattleHudBottomImpl);

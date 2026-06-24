@@ -42,7 +42,7 @@ export const NORMAL_SPD_MULT: Record<NormalSubtype, number> = {
 export const UPPER_HP_MULT: Record<Exclude<EnemyKind, 'normal'>, number> = {
   elite: 10,
   miniboss: 50,
-  boss: 250,
+  boss: 100,
 };
 
 /** 上位敵の ATK 倍率 */
@@ -50,6 +50,13 @@ export const UPPER_ATK_MULT: Record<Exclude<EnemyKind, 'normal'>, number> = {
   elite: 2.5,
   miniboss: 5,
   boss: 8,
+};
+
+/** 上位敵の SPD 倍率 */
+export const UPPER_SPD_MULT: Record<Exclude<EnemyKind, 'normal'>, number> = {
+  elite: 0.3,
+  miniboss: 0.1,
+  boss: 0.05,
 };
 
 /** 上位敵の基礎ドロップ報酬 */
@@ -129,7 +136,7 @@ export function createEnemyTemplate(
   const upperKind = kind as Exclude<EnemyKind, 'normal'>;
   const hp = baseHp.mulNumber(UPPER_HP_MULT[upperKind]).mulNumber(hpFactor);
   const atk = baseAtk.mulNumber(UPPER_ATK_MULT[upperKind]).mulNumber(atkFactor);
-  const speed = TIER_BASE.SPD; // 上位敵は standard 速度（仕様に特記なし）
+  const speed = TIER_BASE.SPD * UPPER_SPD_MULT[upperKind];
 
   const baseReward = UPPER_REWARD[upperKind];
 
