@@ -7,6 +7,7 @@ import {
 } from '@/components/organisms/MachineUpgradeList/items';
 import { calcRunWorkshopMultiplier } from '@/components/organisms/RunWorkshopBottomSheet/items';
 import { calcReceivedDamage } from '@/game/damage';
+import type { MachineStats } from '@/game/damage.types';
 import { scaledReward } from '@/game/enemies';
 import { updateEnemyPosition } from '@/game/loop/enemyMovement';
 import { buildMachineStats } from '@/game/loop/machineStats';
@@ -383,6 +384,21 @@ export function useBattleLoop({ range, paused = false }: UseBattleLoopOpts): Use
   const isRunActive = useStore((s) => s.isRunActive);
   const currentTier = useStore((s) => s.currentTier);
   const currentWave = useStore((s) => s.currentWave);
+
+  // ---- machine stats を「入力が変わった時のみ」 再計算してキャッシュ (Issue #84) ----
+  // buildMachineStats の入力 (machineMaxHp / machineLevels) が変わる経路:
+  //   - machineLevels: 武器庫の upgradeMachine (ラン外) / hydrate のみ → **ラン中は変わらない**
+  //   - machineMaxHp:  startRun と RunWorkshop の hpMul 強化 (recalcMachineMaxHpFromHpMul)
+  // つまり戦闘ループ中の頻度は「強化したフレーム」 のみ。 useMemo で deps が変わったときだけ
+  // 再計算し、 ref 経由で tick から参照する。 ラン中強化なしなら 0 回 / 強化 N 回なら N 回。
+  const machineLevels = useStore((s) => s.machineLevels);
+  const machineMaxHpStore = useStore((s) => s.machineMaxHp);
+  const machineStats: MachineStats = useMemo(
+    () => buildMachineStats({ machineMaxHp: machineMaxHpStore, machineLevels }),
+    [machineMaxHpStore, machineLevels]
+  );
+  const machineStatsRef = useRef(machineStats);
+  machineStatsRef.current = machineStats;
 
   // Tier 切替時のみ build。 30 wave の Schedule[] を生成。
   const tierWaves = useMemo(() => buildTierWaves(currentTier), [currentTier]);
@@ -832,11 +848,8 @@ export function useBattleLoop({ range, paused = false }: UseBattleLoopOpts): Use
           const overdriveAsMul = overdriveStateRef.current.active
             ? overdriveStateRef.current.attackSpeedMul
             : 1;
-          // tick ループ内の machine stats (attackSpeed 反映のため先行取得)
-          const machineTick = buildMachineStats({
-            machineMaxHp: state.machineMaxHp,
-            machineLevels: state.machineLevels,
-          });
+          // machine stats は useMemo + ref でキャッシュ済み (Issue #84)
+          const machineTick = machineStatsRef.current;
           const effectivePerSec = Math.min(
             ATTACK_PER_SEC_CAP,
             basePerSec * machineTick.attackSpeed * attackSpeedMul * overdriveAsMul
@@ -1215,10 +1228,8 @@ export function useBattleLoop({ range, paused = false }: UseBattleLoopOpts): Use
           // ダメージは「接触してる時間 × DPS」(現状通り)。 ノックバックは「新規接触フレームのみ」
           // 適用し、 押し戻された敵は MELEE 外に出るため次フレーム以降は DPS が止まる。
           // 敵が enemy.speed で再接近 → 再接触したらまたノックバック + 短時間 DPS、 を繰り返す。
-          const machineStats = buildMachineStats({
-            machineMaxHp: state.machineMaxHp,
-            machineLevels: state.machineLevels,
-          });
+          // machine stats は useMemo + ref でキャッシュ済み (Issue #84)
+          const machineStats = machineStatsRef.current;
           let totalReceived = BigNum.ZERO;
           const newContactSet = new Set<string>();
           enemiesRef.current = enemiesRef.current.map((enemy) => {
