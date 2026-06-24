@@ -636,11 +636,13 @@ describe('MachineHitFx 配線 — machineHp 変化検知 (Refs #81)', () => {
     vi.clearAllMocks();
   });
 
-  /** BattleField 内の MachineHitFx 由来 style 要素数 (mhf- prefix を含むもの) を返す */
+  /**
+   * BattleField 内の MachineHitFx インスタンス数を返す。
+   * Issue #87 で <style> 動的注入を廃止したため、 --mhf-x CSS 変数を持つ
+   * aria-hidden な div の数で判定する。
+   */
   function countMachineHitFxStyles(container: HTMLElement): number {
-    return Array.from(container.querySelectorAll('style')).filter((s) =>
-      (s.textContent ?? '').includes('mhf-')
-    ).length;
+    return container.querySelectorAll('[aria-hidden="true"][style*="--mhf-x"]').length;
   }
 
   test('machineHp 減少 (100 → 90) で MachineHitFx がマウントされる', async () => {

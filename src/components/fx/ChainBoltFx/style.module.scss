@@ -1,3 +1,22 @@
+/* ChainBoltFx — 静的 @keyframes (Issue #87 ext)
+ * CSS 変数: --chn-duration / --chn-delay
+ */
+
+@keyframes draw {
+  0% {
+    stroke-dashoffset: 300;
+    opacity: 1;
+  }
+  80% {
+    stroke-dashoffset: 0;
+    opacity: 1;
+  }
+  100% {
+    stroke-dashoffset: 0;
+    opacity: 0;
+  }
+}
+
 .svg {
   position: absolute;
   inset: 0;
@@ -5,4 +24,15 @@
   height: 100%;
   pointer-events: none;
   z-index: var(--z-fx-field);
+}
+
+.path {
+  animation: draw var(--chn-duration, 380ms) var(--chn-delay, 0ms) var(--ease-out) both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .path {
+    animation-duration: 1ms;
+    opacity: 0;
+  }
 }

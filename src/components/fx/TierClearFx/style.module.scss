@@ -1,2 +1,102 @@
-// TierClearFx のスタイルは index.tsx 内のインライン <style> で管理。
-// @keyframes は useId() スコープで一意化しているため CSS Modules 外に置く。
+/* TierClearFx — 静的 @keyframes (Issue #87 ext)
+ * CSS 変数:
+ *   --tc-duration     : 演出時間 (ms、 JSX inline)
+ *   --tc-ray-duration : ray アニメ時間 (= duration*0.85、 JSX inline)
+ *   --tc-a            : 各 ray の角度 (deg、 JSX inline、 個別 div)
+ */
+
+@keyframes flash {
+  0% {
+    opacity: 0;
+    background: radial-gradient(ellipse at center, rgba(70, 226, 160, 0.5), transparent 65%);
+  }
+  8% {
+    opacity: 1;
+    background: radial-gradient(ellipse at center, rgba(70, 226, 160, 0.5), transparent 65%);
+  }
+  30% {
+    opacity: 0;
+  }
+  40% {
+    opacity: 1;
+    background: radial-gradient(ellipse at center, rgba(78, 228, 246, 0.5), transparent 65%);
+  }
+  100% {
+    opacity: 0;
+  }
+}
+
+@keyframes ray {
+  0% {
+    transform: translate(-50%, -50%) rotate(var(--tc-a)) scaleY(0);
+    opacity: 0;
+  }
+  20% {
+    transform: translate(-50%, -50%) rotate(var(--tc-a)) scaleY(1);
+    opacity: 1;
+  }
+  100% {
+    transform: translate(-50%, -50%) rotate(var(--tc-a)) scaleY(1);
+    opacity: 0;
+  }
+}
+
+@keyframes band {
+  0% {
+    transform: scaleX(0);
+    opacity: 1;
+  }
+  30% {
+    transform: scaleX(1);
+    opacity: 1;
+  }
+  100% {
+    transform: scaleX(1);
+    opacity: 0;
+  }
+}
+
+.wrap {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  overflow: hidden;
+  z-index: var(--z-fx-field);
+}
+
+.flash {
+  position: absolute;
+  inset: 0;
+  animation: flash var(--tc-duration, 1400ms) var(--ease-out) both;
+}
+
+.ray {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 4px;
+  height: 70%;
+  background: linear-gradient(180deg, transparent, var(--c-primary-hi), transparent);
+  transform-origin: 50% 50%;
+  animation: ray var(--tc-ray-duration, 1190ms) var(--ease-out) both;
+}
+
+.band {
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: linear-gradient(90deg, transparent, var(--c-primary-hi), transparent);
+  box-shadow: 0 0 12px var(--c-primary-hi);
+  transform-origin: 0 50%;
+  animation: band var(--tc-duration, 1400ms) var(--ease-out) both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .flash,
+  .ray,
+  .band {
+    animation-duration: 1ms;
+    opacity: 0;
+  }
+}

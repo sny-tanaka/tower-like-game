@@ -51,13 +51,24 @@ describe('CutterOrbitFx', () => {
     expect(onDone).not.toHaveBeenCalled();
   });
 
-  test('rotateMs が CSS に反映される', () => {
+  test('rotateMs が CSS 変数 (--ct-rotate-ms) に反映される', () => {
     const { container } = render(<CutterOrbitFx rotateMs={2000} />);
-    expect(container.querySelector('style')?.innerHTML).toContain('2000ms');
+    const hub = container.firstChild as HTMLElement;
+    expect(hub.style.getPropertyValue('--ct-rotate-ms')).toBe('2000ms');
   });
 
-  test('direction=ccw で逆回転が CSS に反映される', () => {
-    const { container } = render(<CutterOrbitFx direction="ccw" />);
-    expect(container.querySelector('style')?.innerHTML).toContain('rotate(-360deg)');
+  test('direction=ccw で .hubCcw クラスが付与される (cw=hubCw)', () => {
+    const { container: ccwCont } = render(<CutterOrbitFx direction="ccw" />);
+    const ccwHub = ccwCont.firstChild as HTMLElement;
+    expect(ccwHub.className).toMatch(/hubCcw/);
+
+    const { container: cwCont } = render(<CutterOrbitFx direction="cw" />);
+    const cwHub = cwCont.firstChild as HTMLElement;
+    expect(cwHub.className).toMatch(/hubCw/);
+  });
+
+  test('Issue #87 回帰: <style> タグを動的注入しない', () => {
+    const { container } = render(<CutterOrbitFx />);
+    expect(container.querySelector('style')).toBeNull();
   });
 });

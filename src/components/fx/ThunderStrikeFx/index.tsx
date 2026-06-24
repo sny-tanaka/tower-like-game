@@ -1,4 +1,7 @@
-import { useId, useMemo } from 'react';
+import type { CSSProperties } from 'react';
+import { useMemo } from 'react';
+
+import styles from './style.module.scss';
 
 export interface ThunderStrikeFxProps {
   /** 着弾点 X % (default 50) */
@@ -24,6 +27,10 @@ export interface ThunderStrikeFxProps {
  *
  * (x, y) を着弾点として、 その真上 (fromY) からジグザグの稲妻が一瞬で走り、
  * 着弾点で円形フラッシュ。 着弾後の連鎖は別途 ChainBoltFx で表現する。
+ *
+ * Issue #87: @keyframes は SCSS module に静的定義、 インスタンス固有値は
+ * CSS 変数で渡す。 SVG path (ジグザグ d 属性) はマウント時に乱数生成する性質上
+ * 動的のままだが、 これは attribute なので CSS パーサ負荷とは無関係。
  */
 export function ThunderStrikeFx({
   x = 50,
@@ -35,9 +42,6 @@ export function ThunderStrikeFx({
   jaggedness = 3.5,
   onDone,
 }: ThunderStrikeFxProps) {
-  const uid = useId().replace(/:/g, '');
-  const id = `thn-${uid}`;
-
   const path = useMemo(() => {
     const pts: { x: number; y: number }[] = [{ x, y: fromY }];
     const totalLen = y - fromY;
@@ -56,54 +60,28 @@ export function ThunderStrikeFx({
   const strikeMs = Math.round(duration * 0.35);
   const flashMs = Math.round(duration * 0.65);
 
-  const css = `
-    @keyframes ${id}-strike {
-      0%   { stroke-dashoffset: 300; opacity: 0; }
-      15%  { opacity: 1; }
-      40%  { stroke-dashoffset: 0;   opacity: 1; }
-      100% { stroke-dashoffset: 0;   opacity: 0; }
-    }
-    @keyframes ${id}-strike-glow {
-      0%   { opacity: 0; }
-      20%  { opacity: 0.6; }
-      100% { opacity: 0; }
-    }
-    @keyframes ${id}-flash {
-      0%   { transform: translate(-50%, -50%) scale(0.2); opacity: 0; }
-      30%  { transform: translate(-50%, -50%) scale(1);   opacity: 1; }
-      100% { transform: translate(-50%, -50%) scale(1.4); opacity: 0; }
-    }
-    .${id}-bolt { animation: ${id}-strike ${strikeMs}ms var(--ease-out) both; }
-    .${id}-bolt-glow { animation: ${id}-strike-glow ${strikeMs}ms var(--ease-out) both; }
-    .${id}-flash {
-      position: absolute; left: ${x}%; top: ${y}%;
-      width: 8vmin; height: 8vmin; border-radius: 50%;
-      background: radial-gradient(circle, #fff 0%, ${color} 30%, transparent 70%);
-      box-shadow: 0 0 20px ${color}, 0 0 40px ${color}88;
-      animation: ${id}-flash ${flashMs}ms ${strikeMs}ms var(--ease-out) both;
-      pointer-events: none;
-      z-index: var(--z-fx-field);
-    }
-    .${id}-svg {
-      position: absolute; inset: 0; width: 100%; height: 100%;
-      pointer-events: none;
-      z-index: var(--z-fx-field);
-    }
-    @media (prefers-reduced-motion: reduce) {
-      .${id}-bolt, .${id}-bolt-glow, .${id}-flash { animation-duration: 1ms; opacity: 0; }
-    }
-  `;
+  const flashStyle: CSSProperties = {
+    ['--thn-x' as string]: `${x}%`,
+    ['--thn-y' as string]: `${y}%`,
+    ['--thn-color' as string]: color,
+    ['--thn-strike-duration' as string]: `${strikeMs}ms`,
+    ['--thn-flash-duration' as string]: `${flashMs}ms`,
+  };
+  // bolt / boltGlow のアニメ時間は SCSS 側で var(--thn-strike-duration) を参照するため、
+  // SVG の親要素 (= flash と同じ wrapper にしたいが構造上分かれている) に変数を持たせる。
+  // ここでは svg 自体と flash 双方に変数を継承させるため fragment 外側にスタイルは不要、
+  // それぞれ自分の親 chain から var() で参照する。 簡単のため SVG にも同じ style を当てる。
 
   return (
     <>
-      <style dangerouslySetInnerHTML={{ __html: css }} />
       <svg
         viewBox="0 0 100 100"
         preserveAspectRatio="none"
-        className={`${id}-svg`}
+        className={styles.svg}
+        style={flashStyle}
       >
         <path
-          className={`${id}-bolt-glow`}
+          className={styles.boltGlow}
           d={path}
           fill="none"
           stroke={color}
@@ -114,7 +92,7 @@ export function ThunderStrikeFx({
           style={{ filter: `drop-shadow(0 0 3px ${color})`, opacity: 0.5 }}
         />
         <path
-          className={`${id}-bolt`}
+          className={styles.bolt}
           d={path}
           fill="none"
           stroke="#fff"
@@ -126,7 +104,8 @@ export function ThunderStrikeFx({
         />
       </svg>
       <div
-        className={`${id}-flash`}
+        className={styles.flash}
+        style={flashStyle}
         onAnimationEnd={onDone}
       />
     </>

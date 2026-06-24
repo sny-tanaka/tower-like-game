@@ -34,55 +34,43 @@ describe('AppearanceBannerFx', () => {
     expect(screen.getByText('ELITE')).toBeInTheDocument();
   });
 
-  test('duration が CSS に反映される', () => {
+  test('duration が CSS 変数 (--app-duration) に反映される', () => {
     const { container } = render(
       <AppearanceBannerFx
         name="Test"
         duration={2000}
       />
     );
-    const styleEl = container.querySelector('style');
-    expect(styleEl?.innerHTML).toContain('2000ms');
+    const wrap = container.firstChild as HTMLElement;
+    expect(wrap.style.getPropertyValue('--app-duration')).toBe('2000ms');
   });
 
-  test('pointer-events: none を持つ', () => {
-    const { container } = render(<AppearanceBannerFx name="Test" />);
-    const styleEl = container.querySelector('style');
-    expect(styleEl?.innerHTML).toContain('pointer-events: none');
-  });
-
-  test('prefers-reduced-motion: reduce 対応の media query が含まれる', () => {
-    const { container } = render(<AppearanceBannerFx name="Test" />);
-    const styleEl = container.querySelector('style');
-    expect(styleEl?.innerHTML).toContain('prefers-reduced-motion');
-  });
-
-  test('z-index: var(--z-fx-field) が設定される', () => {
-    const { container } = render(<AppearanceBannerFx name="Test" />);
-    const styleEl = container.querySelector('style');
-    expect(styleEl?.innerHTML).toContain('var(--z-fx-field)');
-  });
-
-  test('elite は warning カラーを使う', () => {
+  test('elite は warning カラーを CSS 変数 (--app-color) に渡す', () => {
     const { container } = render(
       <AppearanceBannerFx
         kind="elite"
         name="Test"
       />
     );
-    const styleEl = container.querySelector('style');
-    expect(styleEl?.innerHTML).toContain('var(--c-warning)');
+    const wrap = container.firstChild as HTMLElement;
+    expect(wrap.style.getPropertyValue('--app-color')).toBe('var(--c-warning)');
   });
 
-  test('boss は danger カラーを使う', () => {
+  test('boss は danger カラーを CSS 変数 (--app-color) に渡す', () => {
     const { container } = render(
       <AppearanceBannerFx
         kind="boss"
         name="Test"
       />
     );
-    const styleEl = container.querySelector('style');
-    expect(styleEl?.innerHTML).toContain('var(--c-danger)');
+    const wrap = container.firstChild as HTMLElement;
+    expect(wrap.style.getPropertyValue('--app-color')).toBe('var(--c-danger)');
+  });
+
+  test('battle-start は primary カラーを CSS 変数 (--app-color) に渡す', () => {
+    const { container } = render(<AppearanceBannerFx kind="battle-start" />);
+    const wrap = container.firstChild as HTMLElement;
+    expect(wrap.style.getPropertyValue('--app-color')).toBe('var(--c-primary)');
   });
 
   test('onDone は渡せる（クラッシュしない）', () => {
@@ -109,9 +97,8 @@ describe('AppearanceBannerFx', () => {
     expect(texts).toHaveLength(0);
   });
 
-  test('battle-start は primary カラーを使う', () => {
-    const { container } = render(<AppearanceBannerFx kind="battle-start" />);
-    const styleEl = container.querySelector('style');
-    expect(styleEl?.innerHTML).toContain('var(--c-primary)');
+  test('Issue #87 回帰: <style> タグを動的注入しない', () => {
+    const { container } = render(<AppearanceBannerFx name="Test" />);
+    expect(container.querySelector('style')).toBeNull();
   });
 });

@@ -35,9 +35,8 @@ describe('ChainBoltFx', () => {
     expect(onDone).toHaveBeenCalledTimes(1);
   });
 
-  test('prefers-reduced-motion スタイルが含まれる', () => {
+  test('Issue #87 回帰: <style> タグを動的注入しない', () => {
     const { container } = render(<ChainBoltFx points={POINTS} />);
-    const style = container.querySelector('style');
-    expect(style?.textContent).toContain('prefers-reduced-motion');
+    expect(container.querySelector('style')).toBeNull();
   });
 });

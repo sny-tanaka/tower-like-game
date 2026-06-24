@@ -14,16 +14,16 @@ describe('EnemyHitFx', () => {
     expect(container.firstChild).not.toBeNull();
   });
 
-  test('left/top スタイルに x/y % が反映される', () => {
+  test('CSS 変数 (--hit-x / --hit-y) に x/y % が反映される', () => {
     const { container } = render(
       <EnemyHitFx
         x={30}
         y={70}
       />
     );
-    const wrap = container.querySelector<HTMLElement>('div');
-    expect(wrap?.style.left).toBe('30%');
-    expect(wrap?.style.top).toBe('70%');
+    const wrap = container.firstChild as HTMLElement;
+    expect(wrap.style.getPropertyValue('--hit-x')).toBe('30%');
+    expect(wrap.style.getPropertyValue('--hit-y')).toBe('70%');
   });
 
   test('onDone が onAnimationEnd で呼ばれる', () => {
@@ -35,21 +35,18 @@ describe('EnemyHitFx', () => {
         onDone={onDone}
       />
     );
-    const wrap = container.querySelector<HTMLElement>('div');
-    if (wrap) {
-      fireEvent.animationEnd(wrap);
-    }
+    const wrap = container.firstChild as HTMLElement;
+    fireEvent.animationEnd(wrap);
     expect(onDone).toHaveBeenCalledTimes(1);
   });
 
-  test('prefers-reduced-motion スタイルが style タグに含まれる', () => {
+  test('Issue #87 回帰: <style> タグを動的注入しない', () => {
     const { container } = render(
       <EnemyHitFx
         x={50}
         y={50}
       />
     );
-    const style = container.querySelector('style');
-    expect(style?.textContent).toContain('prefers-reduced-motion');
+    expect(container.querySelector('style')).toBeNull();
   });
 });

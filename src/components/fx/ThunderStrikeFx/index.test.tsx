@@ -12,33 +12,37 @@ describe('ThunderStrikeFx', () => {
     expect(paths[0]?.getAttribute('d')).toBeTruthy();
   });
 
-  test('strikeMs (= 35% of duration) 後に flash アニメーションが始まる CSS が生成される', () => {
+  test('strikeMs (= 35% of duration) が CSS 変数 (--thn-strike-duration) に反映される', () => {
     const { container } = render(<ThunderStrikeFx duration={400} />);
-    const styleEl = container.querySelector('style');
-    const css = styleEl?.innerHTML ?? '';
-    // strikeMs = 140, flashMs = 260
-    expect(css).toContain('140ms');
-    expect(css).toContain('260ms');
+    // strikeMs = 140
+    const svg = container.querySelector('svg') as SVGElement;
+    expect(svg.style.getPropertyValue('--thn-strike-duration')).toBe('140ms');
   });
 
-  test('onDone が flash の animationend で呼ばれる経路がある (handler 渡せる)', () => {
+  test('flashMs (= 65% of duration) が CSS 変数 (--thn-flash-duration) に反映される', () => {
+    const { container } = render(<ThunderStrikeFx duration={400} />);
+    // flashMs = 260
+    const flash = container.querySelector('[class*="flash"]') as HTMLElement;
+    expect(flash.style.getPropertyValue('--thn-flash-duration')).toBe('260ms');
+  });
+
+  test('onDone が flash の animationend で呼ばれる', () => {
     const onDone = vi.fn();
     const { container } = render(<ThunderStrikeFx onDone={onDone} />);
     const flash = container.querySelector('[class*="flash"]') as HTMLElement | null;
     expect(flash).not.toBeNull();
-    // 手動で animationend を発火しても呼ばれる
     flash?.dispatchEvent(new Event('animationend', { bubbles: true }));
     expect(onDone).toHaveBeenCalled();
   });
 
-  test('color が SVG stroke と flash background に反映される', () => {
+  test('color が CSS 変数 (--thn-color) に反映される', () => {
     const { container } = render(<ThunderStrikeFx color="#ff00ff" />);
-    const styleEl = container.querySelector('style');
-    expect(styleEl?.innerHTML).toContain('#ff00ff');
+    const flash = container.querySelector('[class*="flash"]') as HTMLElement;
+    expect(flash.style.getPropertyValue('--thn-color')).toBe('#ff00ff');
   });
 
-  test('prefers-reduced-motion: reduce 用 media query が含まれる', () => {
+  test('Issue #87 回帰: <style> タグを動的注入しない', () => {
     const { container } = render(<ThunderStrikeFx />);
-    expect(container.querySelector('style')?.innerHTML).toContain('prefers-reduced-motion');
+    expect(container.querySelector('style')).toBeNull();
   });
 });

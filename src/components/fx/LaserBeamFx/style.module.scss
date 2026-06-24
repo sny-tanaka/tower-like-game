@@ -1,5 +1,48 @@
+/* LaserBeamFx — 静的 @keyframes (Issue #87 ext)
+ * インスタンス固有値は CSS 変数で渡す:
+ *   --beam-x / --beam-y         : 発射元 (%、 JSX inline)
+ *   --beam-length               : ビーム長 (%、 JSX inline)
+ *   --beam-angle                : 回転角 (deg、 JSX inline)
+ *   --beam-color                : ビーム色 (JSX inline)
+ *   --beam-duration             : アニメ時間 (ms、 JSX inline)
+ *
+ * @keyframes には rotate(var(--beam-angle)) を含めることで angle 依存も静的化できる。
+ */
+
+@keyframes beam {
+  0% {
+    transform: rotate(var(--beam-angle)) scaleX(0);
+    opacity: 1;
+  }
+  30% {
+    transform: rotate(var(--beam-angle)) scaleX(1);
+    opacity: 1;
+  }
+  100% {
+    transform: rotate(var(--beam-angle)) scaleX(1);
+    opacity: 0;
+  }
+}
+
 .beam {
   position: absolute;
+  left: var(--beam-x);
+  top: var(--beam-y);
+  width: var(--beam-length);
+  height: 2px;
+  background: var(--beam-color);
+  transform-origin: 0 50%;
+  box-shadow:
+    0 0 6px var(--beam-color),
+    0 0 14px var(--beam-color);
+  animation: beam var(--beam-duration, 220ms) var(--ease-out) both;
   pointer-events: none;
   z-index: var(--z-fx-field);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .beam {
+    animation-duration: 1ms;
+    opacity: 0;
+  }
 }

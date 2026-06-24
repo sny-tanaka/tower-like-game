@@ -1,5 +1,80 @@
+/* BlastFx — 静的 @keyframes (Issue #87 ext)
+ * インスタンス固有値は CSS 変数で渡す:
+ *   --blast-x / --blast-y       : 位置 (%、 JSX inline)
+ *   --blast-size                : 直径 (vmin、 = radius*2、 JSX inline)
+ *   --blast-color               : 爆発色 (JSX inline)
+ *   --blast-color-aa / -66      : color の透明度違い (JSX inline、 box-shadow 用)
+ *   --blast-duration            : ring アニメ時間 (ms、 JSX inline)
+ *   --blast-flash-duration      : flash アニメ時間 (ms、 = duration*0.5、 JSX inline)
+ *   --blast-delay               : アニメ開始遅延 (ms、 JSX inline)
+ */
+
+@keyframes ring {
+  0% {
+    transform: translate(-50%, -50%) scale(0.1);
+    opacity: 0;
+    border-width: 3px;
+  }
+  30% {
+    transform: translate(-50%, -50%) scale(1);
+    opacity: 1;
+    border-width: 3px;
+  }
+  100% {
+    transform: translate(-50%, -50%) scale(1.3);
+    opacity: 0;
+    border-width: 1px;
+  }
+}
+
+@keyframes flash {
+  0% {
+    transform: translate(-50%, -50%) scale(0.2);
+    opacity: 1;
+  }
+  100% {
+    transform: translate(-50%, -50%) scale(1.2);
+    opacity: 0;
+  }
+}
+
 .wrap {
   position: absolute;
+  left: var(--blast-x);
+  top: var(--blast-y);
   pointer-events: none;
   z-index: var(--z-fx-field);
+}
+
+.ring {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: var(--blast-size);
+  height: var(--blast-size);
+  border-radius: 50%;
+  border: 3px solid var(--blast-color);
+  box-shadow:
+    0 0 24px var(--blast-color-aa),
+    inset 0 0 24px var(--blast-color-66);
+  animation: ring var(--blast-duration, 520ms) var(--blast-delay, 0ms) var(--ease-out) both;
+}
+
+.flash {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: var(--blast-size);
+  height: var(--blast-size);
+  border-radius: 50%;
+  background: radial-gradient(circle, var(--blast-color) 0%, transparent 60%);
+  animation: flash var(--blast-flash-duration, 260ms) var(--blast-delay, 0ms) var(--ease-out) both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ring,
+  .flash {
+    animation-duration: 1ms;
+    opacity: 0;
+  }
 }

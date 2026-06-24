@@ -1,2 +1,43 @@
-// MachineHitFx のスタイルは index.tsx 内のインライン <style> で管理。
-// CSS Modules チェック用に空ファイルを置く。
+/* MachineHitFx — 静的 @keyframes (Issue #87 ext)
+ * CSS 変数: --mhf-x / --mhf-y / --mhf-duration
+ */
+
+@keyframes flash {
+  0% {
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(0.7);
+  }
+  30% {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1.1);
+  }
+  100% {
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(1.4);
+  }
+}
+
+.flash {
+  position: absolute;
+  left: var(--mhf-x);
+  top: var(--mhf-y);
+  width: 80px;
+  height: 80px;
+  border-radius: 50%;
+  pointer-events: none;
+  background: radial-gradient(
+    circle,
+    rgba(255, 77, 109, 0.85) 0%,
+    rgba(255, 77, 109, 0.5) 35%,
+    rgba(255, 77, 109, 0) 70%
+  );
+  animation: flash var(--mhf-duration, 280ms) var(--ease-out) both;
+  z-index: var(--z-fx-field);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .flash {
+    animation-duration: 1ms;
+    opacity: 0;
+  }
+}

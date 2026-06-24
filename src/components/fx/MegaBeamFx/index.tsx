@@ -1,4 +1,4 @@
-import { useId } from 'react';
+import type { CSSProperties } from 'react';
 
 import styles from './style.module.scss';
 
@@ -20,6 +20,9 @@ export interface MegaBeamFxProps {
 /**
  * MegaBeamFx — Laser Mega Beam。
  * (x, y) から angle 方向に太いビームが画面端まで伸びる。
+ *
+ * Issue #87: @keyframes は SCSS module に静的定義、 インスタンス固有値
+ * (位置 / 角度 / 色 / duration) は CSS 変数で渡す。
  */
 export function MegaBeamFx({
   x,
@@ -29,39 +32,19 @@ export function MegaBeamFx({
   color = 'var(--c-primary-hi)',
   onDone,
 }: MegaBeamFxProps) {
-  const uid = useId().replace(/:/g, 'mb');
-
-  const css = `
-    @keyframes ${uid}-grow {
-      0%   { transform: rotate(${angle}deg) scaleX(0)   scaleY(0.3); opacity: 0.6; }
-      18%  { transform: rotate(${angle}deg) scaleX(1)   scaleY(1);   opacity: 1; }
-      70%  { transform: rotate(${angle}deg) scaleX(1)   scaleY(1);   opacity: 1; }
-      100% { transform: rotate(${angle}deg) scaleX(1)   scaleY(0.2); opacity: 0; }
-    }
-    .${uid} {
-      position: absolute;
-      left: ${x}%; top: ${y}%;
-      width: 150%; height: 12px;
-      background: linear-gradient(90deg, ${color}, transparent 95%);
-      box-shadow: 0 0 18px ${color}, 0 0 36px ${color}88;
-      transform-origin: 0 50%;
-      animation: ${uid}-grow ${duration}ms var(--ease-out) both;
-      pointer-events: none;
-      z-index: var(--z-fx-field);
-      border-radius: 6px;
-    }
-    @media (prefers-reduced-motion: reduce) {
-      .${uid} { animation-duration: 1ms; opacity: 0; }
-    }
-  `;
+  const beamStyle: CSSProperties = {
+    ['--mb-x' as string]: `${x}%`,
+    ['--mb-y' as string]: `${y}%`,
+    ['--mb-angle' as string]: `${angle}deg`,
+    ['--mb-color' as string]: color,
+    ['--mb-duration' as string]: `${duration}ms`,
+  };
 
   return (
-    <>
-      <style dangerouslySetInnerHTML={{ __html: css }} />
-      <div
-        className={`${uid} ${styles.beam}`}
-        onAnimationEnd={onDone}
-      />
-    </>
+    <div
+      className={styles.beam}
+      style={beamStyle}
+      onAnimationEnd={onDone}
+    />
   );
 }

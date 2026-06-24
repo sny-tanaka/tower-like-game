@@ -1,4 +1,5 @@
-import { useId, useMemo } from 'react';
+import type { CSSProperties } from 'react';
+import { useMemo } from 'react';
 
 import styles from './style.module.scss';
 
@@ -32,6 +33,9 @@ export interface ChainBoltFxProps {
  * 雷らしいジグザグに分割される。
  *
  * 外側 glow + 内側 white core の 2 重ストロークで描画。
+ *
+ * Issue #87: @keyframes は SCSS module に静的定義、 duration / delay は
+ * CSS 変数で渡す。 SVG path の d 属性は乱数生成のため動的のまま (= CSS 負荷外)。
  */
 export function ChainBoltFx({
   points,
@@ -42,9 +46,6 @@ export function ChainBoltFx({
   delayMs = 0,
   onDone,
 }: ChainBoltFxProps) {
-  const uid = useId().replace(/:/g, '');
-  const id = `chn-${uid}`;
-
   // points が空 / 1 点だけのときは何も描画しない
   const isValid = points.length >= 2;
 
@@ -79,50 +80,43 @@ export function ChainBoltFx({
 
   const total = (points.length - 1) * segmentMs + 200;
 
-  const css = `
-    @keyframes ${id}-draw {
-      0%   { stroke-dashoffset: 300; opacity: 1; }
-      80%  { stroke-dashoffset: 0;   opacity: 1; }
-      100% { stroke-dashoffset: 0;   opacity: 0; }
-    }
-    .${id} { animation: ${id}-draw ${total}ms ${delayMs}ms var(--ease-out) both; }
-    @media (prefers-reduced-motion: reduce) { .${id} { animation-duration: 1ms; opacity: 0; } }
-  `;
+  const svgStyle: CSSProperties = {
+    ['--chn-duration' as string]: `${total}ms`,
+    ['--chn-delay' as string]: `${delayMs}ms`,
+  };
 
   return (
-    <>
-      <style dangerouslySetInnerHTML={{ __html: css }} />
-      <svg
-        viewBox="0 0 100 100"
-        preserveAspectRatio="none"
-        className={styles.svg}
-        onAnimationEnd={onDone}
-      >
-        {/* 外側 glow */}
-        <path
-          className={id}
-          d={d}
-          fill="none"
-          stroke={color}
-          strokeWidth={1.8}
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          strokeDasharray={300}
-          style={{ filter: `drop-shadow(0 0 3px ${color})`, opacity: 0.5 }}
-        />
-        {/* 内側コア (白) */}
-        <path
-          className={id}
-          d={d}
-          fill="none"
-          stroke="#fff"
-          strokeWidth={0.55}
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          strokeDasharray={300}
-          style={{ filter: `drop-shadow(0 0 1.5px ${color}) drop-shadow(0 0 3px ${color})` }}
-        />
-      </svg>
-    </>
+    <svg
+      viewBox="0 0 100 100"
+      preserveAspectRatio="none"
+      className={styles.svg}
+      style={svgStyle}
+      onAnimationEnd={onDone}
+    >
+      {/* 外側 glow */}
+      <path
+        className={styles.path}
+        d={d}
+        fill="none"
+        stroke={color}
+        strokeWidth={1.8}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        strokeDasharray={300}
+        style={{ filter: `drop-shadow(0 0 3px ${color})`, opacity: 0.5 }}
+      />
+      {/* 内側コア (白) */}
+      <path
+        className={styles.path}
+        d={d}
+        fill="none"
+        stroke="#fff"
+        strokeWidth={0.55}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        strokeDasharray={300}
+        style={{ filter: `drop-shadow(0 0 1.5px ${color}) drop-shadow(0 0 3px ${color})` }}
+      />
+    </svg>
   );
 }

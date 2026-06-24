@@ -1,4 +1,6 @@
-import { useId } from 'react';
+import type { CSSProperties } from 'react';
+
+import styles from './style.module.scss';
 
 export interface MachineHitFxProps {
   /** マシン中心の x 座標 (0-100、 .field 空間) */
@@ -20,47 +22,22 @@ export interface MachineHitFxProps {
  * - .field 空間 (0-100) の cx/cy にマウント
  * - 半径 ~40px の赤発光を一瞬出して 280ms で消える
  * - `prefers-reduced-motion` 時は超短縮で即消去
+ *
+ * Issue #87: @keyframes は SCSS module に静的定義、 位置 / duration は CSS 変数で渡す。
  */
 export function MachineHitFx({ cx, cy, duration = 280, onDone }: MachineHitFxProps) {
-  const uid = useId().replace(/:/g, '');
-  const id = `mhf-${uid}`;
-
-  const css = `
-    @keyframes ${id}-flash {
-      0%   { opacity: 0; transform: translate(-50%, -50%) scale(0.7); }
-      30%  { opacity: 1; transform: translate(-50%, -50%) scale(1.1); }
-      100% { opacity: 0; transform: translate(-50%, -50%) scale(1.4); }
-    }
-    .${id} {
-      position: absolute;
-      left: ${cx}%;
-      top: ${cy}%;
-      width: 80px;
-      height: 80px;
-      border-radius: 50%;
-      pointer-events: none;
-      background: radial-gradient(
-        circle,
-        rgba(255, 77, 109, 0.85) 0%,
-        rgba(255, 77, 109, 0.5) 35%,
-        rgba(255, 77, 109, 0) 70%
-      );
-      animation: ${id}-flash ${duration}ms var(--ease-out) both;
-      z-index: var(--z-fx-field);
-    }
-    @media (prefers-reduced-motion: reduce) {
-      .${id} { animation-duration: 1ms; opacity: 0; }
-    }
-  `;
+  const flashStyle: CSSProperties = {
+    ['--mhf-x' as string]: `${cx}%`,
+    ['--mhf-y' as string]: `${cy}%`,
+    ['--mhf-duration' as string]: `${duration}ms`,
+  };
 
   return (
-    <>
-      <style dangerouslySetInnerHTML={{ __html: css }} />
-      <div
-        className={id}
-        onAnimationEnd={onDone}
-        aria-hidden="true"
-      />
-    </>
+    <div
+      className={styles.flash}
+      style={flashStyle}
+      onAnimationEnd={onDone}
+      aria-hidden="true"
+    />
   );
 }

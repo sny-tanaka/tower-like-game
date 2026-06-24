@@ -27,14 +27,12 @@ describe('LaserBeamFx', () => {
         onDone={onDone}
       />
     );
-    const beam = container.querySelector<HTMLElement>('div');
-    if (beam) {
-      fireEvent.animationEnd(beam);
-    }
+    const beam = container.firstChild as HTMLElement;
+    fireEvent.animationEnd(beam);
     expect(onDone).toHaveBeenCalledTimes(1);
   });
 
-  test('x1/y1 の left/top が style タグに反映される', () => {
+  test('x1/y1 が CSS 変数 (--beam-x / --beam-y) に反映される', () => {
     const { container } = render(
       <LaserBeamFx
         x1={20}
@@ -43,12 +41,12 @@ describe('LaserBeamFx', () => {
         y2={70}
       />
     );
-    const style = container.querySelector('style');
-    expect(style?.textContent).toContain('left: 20%');
-    expect(style?.textContent).toContain('top: 30%');
+    const beam = container.firstChild as HTMLElement;
+    expect(beam.style.getPropertyValue('--beam-x')).toBe('20%');
+    expect(beam.style.getPropertyValue('--beam-y')).toBe('30%');
   });
 
-  test('prefers-reduced-motion スタイルが含まれる', () => {
+  test('Issue #87 回帰: <style> タグを動的注入しない', () => {
     const { container } = render(
       <LaserBeamFx
         x1={10}
@@ -57,7 +55,6 @@ describe('LaserBeamFx', () => {
         y2={50}
       />
     );
-    const style = container.querySelector('style');
-    expect(style?.textContent).toContain('prefers-reduced-motion');
+    expect(container.querySelector('style')).toBeNull();
   });
 });

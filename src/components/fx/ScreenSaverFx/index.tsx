@@ -167,6 +167,12 @@ export function ScreenSaverFx({
       }}
       data-screen-saver-fx={id}
     >
+      {/* ScreenSaverFx は items 数 (= PATHS.length × items 配列長) によって
+          @keyframes の数も内部 frame 比率も完全に変動する。 静的 SCSS で表現
+          できない構造のため Issue #87 の no-restricted-syntax lint から除外。
+          mount は ScreenSaverDialog 起動時のみで頻度が極めて低いため、 動的
+          注入の発熱寄与は実質ゼロ。 */}
+      {/* eslint-disable-next-line no-restricted-syntax */}
       <style dangerouslySetInnerHTML={{ __html: css }} />
       {allItems.map((item, i) => {
         const pathIdx = (i % PATHS.length) + 1;
