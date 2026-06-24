@@ -151,7 +151,7 @@
 
 | 種類 | 例 | 配置 |
 |---|---|---|
-| **Fx として実装** | 戦闘演出 (DamagePop / EnemyDeath / Blast / Beam) / 画面演出 (ScreenShake / DamageVignette) / 出現 (WaveStart / AppearanceBanner) / 獲得 (Pickup / LevelUp) | `src/components/fx/<Name>Fx/` |
+| **Fx として実装** | 戦闘演出 (DamagePop / EnemyDeath / Blast / Beam / MachineHit) / 出現 (WaveStart / AppearanceBanner) / 獲得 (Pickup) / クリア (TierClear) | `src/components/fx/<Name>Fx/` |
 | **コンポーネント固有アニメ** | ボトムシートのスライドイン / ダイアログのフェード / オーバーレイのフェード / タブ切替 / トーストのスライド / 画面遷移 | 当該コンポーネント内に `@keyframes` を持つ |
 
 「複数のコンポーネント / 複数の局面で再利用される演出のみ Fx 化」が判断基準。**ボトムシートのスライドイン**のようにそのコンポーネント固有のアニメは、Fx ではなく当該コンポーネント内に閉じる（Sheet / ConfirmDialog / Overlay / TabBar / Toast / AppShell など）。

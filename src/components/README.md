@@ -88,7 +88,7 @@ export const Button = ({ label, variant, disabled, onClick }: ButtonProps) => { 
 
 ### Fx コンポーネントのルール
 
-- 命名は末尾 `Fx`（例: `DamagePopFx`, `LevelUpFx`, `ScreenShakeFx`）。
+- 命名は末尾 `Fx`（例: `DamagePopFx`, `MachineHitFx`, `TierClearFx`）。
 - **マウント = 再生開始、アンマウント = 停止**。Fx 内に「再生中フラグ」は持たない。
 - 再生し直す場合は親が `key` を変えて **再マウント**する。
 - 完了通知は `onDone` props として `onAnimationEnd` / `onTransitionEnd` で伝える。
