@@ -1354,7 +1354,13 @@ export function useBattleLoop({ range, paused = false }: UseBattleLoopOpts): Use
               { type: 'onWaveClear' },
               Math.random
             );
-            if (clearEffect.heal != null && !clearEffect.heal.isZero()) {
+            // gameover (machineHp=0) のフレームで wave クリア判定が同時に成立すると、
+            // heal で復活してゲームオーバーがキャンセルされてしまう。 isZero ガードで防ぐ。
+            if (
+              clearEffect.heal != null &&
+              !clearEffect.heal.isZero() &&
+              !useStore.getState().machineHp.isZero()
+            ) {
               state.addMachineHp(clearEffect.heal);
             }
             if (clearEffect.boltGain != null && !clearEffect.boltGain.isZero()) {
