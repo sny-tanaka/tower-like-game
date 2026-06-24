@@ -110,7 +110,7 @@ export function Page() {
 
   // ── 被ダメ検知 (machineHp の prev/current 比較) ──
   // HP が前フレームより減少したとき damaging=true にして 200ms 後に false に戻す。
-  // HP 回復 (onKill heal) では HP が増加するため lt 比較で誤発火しない。
+  // HP 回復 (onKill heal / HP リジェネ) では HP が増加するため lt 比較で誤発火しない。
   const prevMachineHpRef = useRef<typeof machineHp>(machineHp);
   const [damaging, setDamaging] = useState(false);
   const damagingTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -126,12 +126,19 @@ export function Page() {
       }, 200);
     }
     prevMachineHpRef.current = machineHp;
+    // NOTE: ここで cleanup の clearTimeout を呼んではいけない。 deps machineHp は
+    // HP リジェネで毎フレーム変化するため、 cleanup を入れると 200ms タイマーが
+    // 即座にクリアされてしまい setDamaging(false) が呼ばれず赤文字のまま固着する。
+  }, [machineHp]);
+  // アンマウント時のみ timer を片付ける
+  useEffect(() => {
     return () => {
       if (damagingTimerRef.current != null) {
         clearTimeout(damagingTimerRef.current);
+        damagingTimerRef.current = null;
       }
     };
-  }, [machineHp]);
+  }, []);
 
   // ── BATTLE START バナー: 「isRunActive が false→true に切り替わった瞬間」 のみ表示 ──
   // 単に isRunActive=true で発火すると、 同一ラン中の画面再マウントや内部 state 変動で
