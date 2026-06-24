@@ -13,6 +13,7 @@ import {
 } from './useBattleLoop';
 
 import { scaledReward } from '@/game/enemies';
+import { BigNum } from '@/lib/bignum';
 
 describe('calcFrameGameSec', () => {
   test('isPaused=true なら常に 0', () => {
@@ -254,6 +255,82 @@ describe('calcIntervalTicks', () => {
   test('deltaSec=1.0 (最大クランプ後) + acc=0 → ticks=1', () => {
     const result = calcIntervalTicks(0, 1.0);
     expect(result.ticks).toBe(1);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// HP リジェネ天井丸めバグ回帰防止 (BigNum × deltaSec で 60FPS で +60 倍暴走)
+//
+// commit 38ea50b 以前のバグ: hpRegen(1).mulNumber(0.0167) = 1 (BigNum 天井丸め)
+//   → 60FPS で毎フレーム +1 = +60HP/秒の暴走リジェネ
+// 修正: calcIntervalTicks 方式で 1 秒境界を検出し、 hpRegen.mulInt(ticks) で加算
+//   → 60 フレーム経過で 1 回発火 = +1HP/秒 (仕様通り)
+//
+// useBattleLoop の rAF 統合テストは複雑なので、 同じ累積パターンで totalHpRegen を
+// 数値計算して「60 倍にならず仕様通りの値になる」 ことを担保する。
+// ---------------------------------------------------------------------------
+
+describe('HP リジェネ天井丸めバグ 回帰防止', () => {
+  test('旧バグ反証: BigNum(1).mulNumber(1/60) は天井丸めで 1 になる (使ってはいけない)', () => {
+    // この特性により旧実装 hpRegen.mulNumber(deltaSec) は毎フレーム +1 で暴走する。
+    // 本テストは「mulNumber × deltaSec パターン」 がコードに復活したら気付くための明示的アサーション。
+    expect(
+      BigNum.fromNumber(1)
+        .mulNumber(1 / 60)
+        .toString()
+    ).toBe('1');
+  });
+
+  test('旧バグ再現: 60 フレーム mulNumber(deltaSec) 加算は +60 HP の暴走になる (仕様の 60 倍)', () => {
+    const hpRegen = BigNum.fromNumber(1);
+    let acc = BigNum.ZERO;
+    for (let i = 0; i < 60; i++) {
+      acc = acc.add(hpRegen.mulNumber(1 / 60)); // ← 旧バグの計算式
+    }
+    expect(acc.toString()).toBe('60'); // 仕様は +1 HP/秒のはずが +60 になる
+  });
+
+  test('新実装: calcIntervalTicks + mulInt(ticks) で 60 フレームでは ticks=0 → +0 HP (1 秒未到達)', () => {
+    // 16.67ms × 60 = 999.99ms (< 1000ms) なので 1 秒境界に未到達、 加算は 0
+    const hpRegen = BigNum.fromNumber(1);
+    let accMs = 0;
+    let totalRegen = BigNum.ZERO;
+    for (let i = 0; i < 60; i++) {
+      const r = calcIntervalTicks(accMs, 1 / 60);
+      accMs = r.nextAccumulatorMs;
+      if (r.ticks > 0) totalRegen = totalRegen.add(hpRegen.mulInt(r.ticks));
+    }
+    expect(totalRegen.toString()).toBe('0');
+  });
+
+  test('新実装: 61 フレーム (≈ 1.017 秒) で 1 秒到達 → +1 HP (仕様通り)', () => {
+    const hpRegen = BigNum.fromNumber(1);
+    let accMs = 0;
+    let totalRegen = BigNum.ZERO;
+    for (let i = 0; i < 61; i++) {
+      const r = calcIntervalTicks(accMs, 1 / 60);
+      accMs = r.nextAccumulatorMs;
+      if (r.ticks > 0) totalRegen = totalRegen.add(hpRegen.mulInt(r.ticks));
+    }
+    expect(totalRegen.toString()).toBe('1');
+  });
+
+  test('新実装: hpRegen=5 で 1 秒経過 (deltaSec=1.0 一発) → +5 HP', () => {
+    const hpRegen = BigNum.fromNumber(5);
+    const { ticks } = calcIntervalTicks(0, 1.0);
+    expect(hpRegen.mulInt(ticks).toString()).toBe('5');
+  });
+
+  test('新実装: 2 秒分 deltaSec=1 を 2 回 → +2 HP 累積 (累積 accumulator が正常動作)', () => {
+    const hpRegen = BigNum.fromNumber(1);
+    let accMs = 0;
+    let totalRegen = BigNum.ZERO;
+    for (let i = 0; i < 2; i++) {
+      const r = calcIntervalTicks(accMs, 1.0);
+      accMs = r.nextAccumulatorMs;
+      if (r.ticks > 0) totalRegen = totalRegen.add(hpRegen.mulInt(r.ticks));
+    }
+    expect(totalRegen.toString()).toBe('2');
   });
 });
 
