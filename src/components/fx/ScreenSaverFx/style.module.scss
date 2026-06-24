@@ -1,2 +1,581 @@
-// ScreenSaverFx のスタイルは index.tsx 内のインライン <style> で管理。
-// @keyframes は useId() スコープで一意化しているため CSS Modules 外に置く。
+/* ScreenSaverFx — 完全静的 @keyframes (Issue #87 ext)
+ *
+ * 旧実装は PATHS 定数から @keyframes を JS 側で生成して <style> 動的注入していた。
+ * 発熱寄与は小さい (mount 頻度極低) ものの、 Issue #87 のルール統一と lint
+ * exception 削除のため、 5 つの drift keyframes を完全展開してベタ書きする。
+ *
+ * 二重管理の注意: PATHS の座標を変更したら以下の drift1〜drift5 も同期更新する。
+ * SCSS が source of truth (TSX 側は path 番号 1〜5 をクラスで選ぶだけで実座標を持たない)。
+ *
+ * CSS 変数:
+ *   --ss-cycle  : 1 周のサイクル秒数 (JSX inline、 default 24s)
+ *   --ss-delay  : 各 slot の animationDelay (JSX inline)
+ */
+
+/* 各 drift は 4 点を 25% ずつのセグメントで巡る。
+ * 各セグメント内: 表示開始 +3%、 表示終了 -7%、 フェードアウト -3% */
+
+@keyframes drift1 {
+  0% {
+    left: 20%;
+    top: 28%;
+    opacity: 0;
+  }
+  3% {
+    left: 20%;
+    top: 28%;
+    opacity: 1;
+  }
+  18% {
+    left: 20%;
+    top: 28%;
+    opacity: 1;
+  }
+  22% {
+    left: 20%;
+    top: 28%;
+    opacity: 0;
+  }
+  25% {
+    left: 78%;
+    top: 38%;
+    opacity: 0;
+  }
+  28% {
+    left: 78%;
+    top: 38%;
+    opacity: 1;
+  }
+  43% {
+    left: 78%;
+    top: 38%;
+    opacity: 1;
+  }
+  47% {
+    left: 78%;
+    top: 38%;
+    opacity: 0;
+  }
+  50% {
+    left: 42%;
+    top: 72%;
+    opacity: 0;
+  }
+  53% {
+    left: 42%;
+    top: 72%;
+    opacity: 1;
+  }
+  68% {
+    left: 42%;
+    top: 72%;
+    opacity: 1;
+  }
+  72% {
+    left: 42%;
+    top: 72%;
+    opacity: 0;
+  }
+  75% {
+    left: 85%;
+    top: 82%;
+    opacity: 0;
+  }
+  78% {
+    left: 85%;
+    top: 82%;
+    opacity: 1;
+  }
+  93% {
+    left: 85%;
+    top: 82%;
+    opacity: 1;
+  }
+  97% {
+    left: 85%;
+    top: 82%;
+    opacity: 0;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+
+@keyframes drift2 {
+  0% {
+    left: 62%;
+    top: 18%;
+    opacity: 0;
+  }
+  3% {
+    left: 62%;
+    top: 18%;
+    opacity: 1;
+  }
+  18% {
+    left: 62%;
+    top: 18%;
+    opacity: 1;
+  }
+  22% {
+    left: 62%;
+    top: 18%;
+    opacity: 0;
+  }
+  25% {
+    left: 16%;
+    top: 48%;
+    opacity: 0;
+  }
+  28% {
+    left: 16%;
+    top: 48%;
+    opacity: 1;
+  }
+  43% {
+    left: 16%;
+    top: 48%;
+    opacity: 1;
+  }
+  47% {
+    left: 16%;
+    top: 48%;
+    opacity: 0;
+  }
+  50% {
+    left: 82%;
+    top: 62%;
+    opacity: 0;
+  }
+  53% {
+    left: 82%;
+    top: 62%;
+    opacity: 1;
+  }
+  68% {
+    left: 82%;
+    top: 62%;
+    opacity: 1;
+  }
+  72% {
+    left: 82%;
+    top: 62%;
+    opacity: 0;
+  }
+  75% {
+    left: 32%;
+    top: 86%;
+    opacity: 0;
+  }
+  78% {
+    left: 32%;
+    top: 86%;
+    opacity: 1;
+  }
+  93% {
+    left: 32%;
+    top: 86%;
+    opacity: 1;
+  }
+  97% {
+    left: 32%;
+    top: 86%;
+    opacity: 0;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+
+@keyframes drift3 {
+  0% {
+    left: 80%;
+    top: 24%;
+    opacity: 0;
+  }
+  3% {
+    left: 80%;
+    top: 24%;
+    opacity: 1;
+  }
+  18% {
+    left: 80%;
+    top: 24%;
+    opacity: 1;
+  }
+  22% {
+    left: 80%;
+    top: 24%;
+    opacity: 0;
+  }
+  25% {
+    left: 44%;
+    top: 55%;
+    opacity: 0;
+  }
+  28% {
+    left: 44%;
+    top: 55%;
+    opacity: 1;
+  }
+  43% {
+    left: 44%;
+    top: 55%;
+    opacity: 1;
+  }
+  47% {
+    left: 44%;
+    top: 55%;
+    opacity: 0;
+  }
+  50% {
+    left: 14%;
+    top: 76%;
+    opacity: 0;
+  }
+  53% {
+    left: 14%;
+    top: 76%;
+    opacity: 1;
+  }
+  68% {
+    left: 14%;
+    top: 76%;
+    opacity: 1;
+  }
+  72% {
+    left: 14%;
+    top: 76%;
+    opacity: 0;
+  }
+  75% {
+    left: 70%;
+    top: 90%;
+    opacity: 0;
+  }
+  78% {
+    left: 70%;
+    top: 90%;
+    opacity: 1;
+  }
+  93% {
+    left: 70%;
+    top: 90%;
+    opacity: 1;
+  }
+  97% {
+    left: 70%;
+    top: 90%;
+    opacity: 0;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+
+@keyframes drift4 {
+  0% {
+    left: 34%;
+    top: 30%;
+    opacity: 0;
+  }
+  3% {
+    left: 34%;
+    top: 30%;
+    opacity: 1;
+  }
+  18% {
+    left: 34%;
+    top: 30%;
+    opacity: 1;
+  }
+  22% {
+    left: 34%;
+    top: 30%;
+    opacity: 0;
+  }
+  25% {
+    left: 90%;
+    top: 52%;
+    opacity: 0;
+  }
+  28% {
+    left: 90%;
+    top: 52%;
+    opacity: 1;
+  }
+  43% {
+    left: 90%;
+    top: 52%;
+    opacity: 1;
+  }
+  47% {
+    left: 90%;
+    top: 52%;
+    opacity: 0;
+  }
+  50% {
+    left: 26%;
+    top: 68%;
+    opacity: 0;
+  }
+  53% {
+    left: 26%;
+    top: 68%;
+    opacity: 1;
+  }
+  68% {
+    left: 26%;
+    top: 68%;
+    opacity: 1;
+  }
+  72% {
+    left: 26%;
+    top: 68%;
+    opacity: 0;
+  }
+  75% {
+    left: 58%;
+    top: 86%;
+    opacity: 0;
+  }
+  78% {
+    left: 58%;
+    top: 86%;
+    opacity: 1;
+  }
+  93% {
+    left: 58%;
+    top: 86%;
+    opacity: 1;
+  }
+  97% {
+    left: 58%;
+    top: 86%;
+    opacity: 0;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+
+@keyframes drift5 {
+  0% {
+    left: 50%;
+    top: 14%;
+    opacity: 0;
+  }
+  3% {
+    left: 50%;
+    top: 14%;
+    opacity: 1;
+  }
+  18% {
+    left: 50%;
+    top: 14%;
+    opacity: 1;
+  }
+  22% {
+    left: 50%;
+    top: 14%;
+    opacity: 0;
+  }
+  25% {
+    left: 22%;
+    top: 42%;
+    opacity: 0;
+  }
+  28% {
+    left: 22%;
+    top: 42%;
+    opacity: 1;
+  }
+  43% {
+    left: 22%;
+    top: 42%;
+    opacity: 1;
+  }
+  47% {
+    left: 22%;
+    top: 42%;
+    opacity: 0;
+  }
+  50% {
+    left: 76%;
+    top: 70%;
+    opacity: 0;
+  }
+  53% {
+    left: 76%;
+    top: 70%;
+    opacity: 1;
+  }
+  68% {
+    left: 76%;
+    top: 70%;
+    opacity: 1;
+  }
+  72% {
+    left: 76%;
+    top: 70%;
+    opacity: 0;
+  }
+  75% {
+    left: 46%;
+    top: 94%;
+    opacity: 0;
+  }
+  78% {
+    left: 46%;
+    top: 94%;
+    opacity: 1;
+  }
+  93% {
+    left: 46%;
+    top: 94%;
+    opacity: 1;
+  }
+  97% {
+    left: 46%;
+    top: 94%;
+    opacity: 0;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+
+/* tower composite (rings + glow pulse + slow rotation) */
+@keyframes rot {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes rotR {
+  from {
+    transform: rotate(360deg);
+  }
+  to {
+    transform: rotate(0deg);
+  }
+}
+
+@keyframes pulse {
+  0%,
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+  50% {
+    transform: scale(1.08);
+    opacity: 0.85;
+  }
+}
+
+@keyframes glow {
+  0%,
+  100% {
+    filter: drop-shadow(0 0 8px rgba(78, 228, 246, 0.55))
+      drop-shadow(0 0 16px rgba(78, 228, 246, 0.25));
+  }
+  50% {
+    filter: drop-shadow(0 0 14px rgba(78, 228, 246, 0.85))
+      drop-shadow(0 0 32px rgba(78, 228, 246, 0.5));
+  }
+}
+
+.root {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.slot {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+  opacity: 0;
+  will-change: left, top, opacity;
+  animation-duration: var(--ss-cycle, 24s);
+  animation-timing-function: linear;
+  animation-iteration-count: infinite;
+  animation-delay: var(--ss-delay, 0s);
+}
+
+.p1 {
+  animation-name: drift1;
+}
+.p2 {
+  animation-name: drift2;
+}
+.p3 {
+  animation-name: drift3;
+}
+.p4 {
+  animation-name: drift4;
+}
+.p5 {
+  animation-name: drift5;
+}
+
+.tower {
+  position: relative;
+  width: 120px;
+  height: 120px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.towerR1 {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  border: 1px solid var(--c-primary);
+  box-shadow:
+    var(--glow-cyan-md),
+    inset 0 0 32px rgba(78, 228, 246, 0.18);
+  animation: rot 18s linear infinite;
+}
+
+.towerR2 {
+  position: absolute;
+  inset: 14px;
+  border-radius: 50%;
+  border: 1px dashed rgba(169, 107, 255, 0.6);
+  animation: rotR 24s linear infinite;
+}
+
+.towerCore {
+  color: var(--c-primary-hi);
+  animation:
+    pulse 3.6s var(--ease-default) infinite,
+    glow 3.6s var(--ease-default) infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .slot {
+    animation: none !important;
+    opacity: 0.55 !important;
+  }
+  .slot:not(.rmShow) {
+    display: none;
+  }
+  .rmShow {
+    position: relative;
+    transform: none;
+    left: auto;
+    top: auto;
+  }
+  .towerR1,
+  .towerR2,
+  .towerCore {
+    animation: none !important;
+  }
+}

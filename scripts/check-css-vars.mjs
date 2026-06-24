@@ -51,6 +51,7 @@ const BLESSED = new Set([
   'app-color', 'app-glow', 'app-duration', // AppearanceBannerFx
   'wv-duration', // WaveStartFx
   'tc-duration', 'tc-ray-duration', 'tc-a', // TierClearFx
+  'ss-cycle', 'ss-delay', // ScreenSaverFx
 ]);
 
 function listScssFiles(dir, acc = []) {
