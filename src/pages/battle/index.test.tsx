@@ -390,6 +390,93 @@ describe('finalizeRun — profile 関数の引数', () => {
 });
 
 // ---------------------------------------------------------------------------
+// リザルト Wave / Tier スナップショット (endRun 後リセットされても表示維持)
+// ---------------------------------------------------------------------------
+
+describe('ResultDialog — reachedTier / reachedWave のスナップショット', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    useStore.getState().endRun();
+  });
+
+  afterEach(() => {
+    vi.clearAllMocks();
+  });
+
+  /** 「到達 Wave」 ラベル横の数値テキストを取得 */
+  function getReachedWaveText() {
+    const label = screen.getByText('到達 Wave');
+    const stat = label.parentElement!;
+    return stat.textContent?.replace('到達 Wave', '').trim();
+  }
+
+  /** 「到達 Tier」 ラベル横の数値テキストを取得 */
+  function getReachedTierText() {
+    const label = screen.getByText('到達 Tier');
+    const stat = label.parentElement!;
+    return stat.textContent?.replace('到達 Tier', '').trim();
+  }
+
+  test('gameover: endRun() で currentWave が 1 にリセットされても reachedWave は終了時点の値を表示', async () => {
+    useStore.getState().startRun({
+      initialWeapon: 'laser',
+      baseMachineMaxHp: BigNum.fromNumber(100),
+      initialTier: 3,
+    });
+    // ラン中に Wave 20 まで進んだ状態を再現
+    await act(async () => {
+      useStore.setState({ currentTier: 3, currentWave: 20 });
+    });
+
+    renderPage();
+
+    // gameover 発火
+    await act(async () => {
+      useStore.setState({ machineHp: BigNum.ZERO });
+    });
+
+    // ダイアログの「到達 Wave」 が「20」 (endRun で 1 にリセットされても 20 のまま)
+    expect(getReachedWaveText()).toBe('20');
+    expect(getReachedTierText()).toBe('3');
+    // 実際に store 側は 1 にリセットされていることも確認 (リグレッション防止)
+    expect(useStore.getState().currentWave).toBe(1);
+    expect(useStore.getState().currentTier).toBe(1);
+  });
+
+  test('撤退: endRun() で currentWave が 1 にリセットされても reachedWave は終了時点の値を表示', async () => {
+    useStore.getState().startRun({
+      initialWeapon: 'laser',
+      baseMachineMaxHp: BigNum.fromNumber(100),
+      initialTier: 2,
+    });
+    await act(async () => {
+      useStore.setState({ currentTier: 2, currentWave: 15 });
+    });
+
+    renderPage();
+
+    // 撤退操作 (メニュー → 撤退 → 確認)
+    const pauseBtn = screen.getByRole('button', { name: '一時停止 (メニューを開く)' });
+    await act(async () => {
+      fireEvent.click(pauseBtn);
+    });
+    const retreatBtn = screen.getByRole('button', { name: '撤退' });
+    await act(async () => {
+      fireEvent.click(retreatBtn);
+    });
+    const confirmBtn = screen.getByRole('button', { name: '撤退する' });
+    await act(async () => {
+      fireEvent.click(confirmBtn);
+    });
+
+    expect(getReachedWaveText()).toBe('15');
+    expect(getReachedTierText()).toBe('2');
+    expect(useStore.getState().currentWave).toBe(1);
+    expect(useStore.getState().currentTier).toBe(1);
+  });
+});
+
+// ---------------------------------------------------------------------------
 // SE 配線テスト
 // ---------------------------------------------------------------------------
 
