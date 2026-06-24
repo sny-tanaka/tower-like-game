@@ -52,8 +52,9 @@ export function PatchScreen() {
   const unlockedCount = calcUnlockedSlots(patchSlotsLv);
   const equippedCount = equippedPatches.size;
   const inventoryCount = patches.size;
-  // 合成上限は MAX_TIER-1=4 を採用（PatchMergeTab と同じスコープで全件カウント）
-  const mergeableCount = calcMergeable(patches, 5).length;
+  // 合成可能数は所持パッチの最大 Tier + 1 までを動的算出 (v0.3.0 で MAX_TIER 撤廃、 PatchMergeTab と同じロジック)
+  const maxExistingTier = Math.max(1, ...Array.from(patches.values()).map((e) => e.tier));
+  const mergeableCount = calcMergeable(patches, maxExistingTier + 1).length;
 
   const handleNavChange = (target: Screen) => {
     navigate(target);
