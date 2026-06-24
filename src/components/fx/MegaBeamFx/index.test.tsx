@@ -23,14 +23,12 @@ describe('MegaBeamFx', () => {
         onDone={onDone}
       />
     );
-    const beam = container.querySelector<HTMLElement>('div');
-    if (beam) {
-      fireEvent.animationEnd(beam);
-    }
+    const beam = container.firstChild as HTMLElement;
+    fireEvent.animationEnd(beam);
     expect(onDone).toHaveBeenCalledTimes(1);
   });
 
-  test('angle が style タグの keyframes に反映される', () => {
+  test('angle が CSS 変数 (--mb-angle) に反映される', () => {
     const { container } = render(
       <MegaBeamFx
         x={50}
@@ -38,18 +36,17 @@ describe('MegaBeamFx', () => {
         angle={45}
       />
     );
-    const style = container.querySelector('style');
-    expect(style?.textContent).toContain('rotate(45deg)');
+    const beam = container.firstChild as HTMLElement;
+    expect(beam.style.getPropertyValue('--mb-angle')).toBe('45deg');
   });
 
-  test('prefers-reduced-motion スタイルが含まれる', () => {
+  test('Issue #87 回帰: <style> タグを動的注入しない', () => {
     const { container } = render(
       <MegaBeamFx
         x={50}
         y={50}
       />
     );
-    const style = container.querySelector('style');
-    expect(style?.textContent).toContain('prefers-reduced-motion');
+    expect(container.querySelector('style')).toBeNull();
   });
 });

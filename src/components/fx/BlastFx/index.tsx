@@ -1,4 +1,4 @@
-import { useId } from 'react';
+import type { CSSProperties } from 'react';
 
 import styles from './style.module.scss';
 
@@ -22,6 +22,9 @@ export interface BlastFxProps {
 /**
  * BlastFx — Cannon 着弾点の範囲爆発。
  * 拡大するリング + 中央フラッシュで爆発範囲を表現。
+ *
+ * Issue #87: @keyframes は SCSS module に静的定義、 インスタンス固有値
+ * (位置 / サイズ / 色 / duration / delay) は CSS 変数で渡す。
  */
 export function BlastFx({
   x,
@@ -32,49 +35,27 @@ export function BlastFx({
   delayMs = 0,
   onDone,
 }: BlastFxProps) {
-  const uid = useId().replace(/:/g, 'bl');
   const flashDuration = Math.round(duration * 0.5);
-
-  const css = `
-    @keyframes ${uid}-ring {
-      0%   { transform: translate(-50%, -50%) scale(0.1); opacity: 0; border-width: 3px; }
-      30%  { transform: translate(-50%, -50%) scale(1);   opacity: 1; border-width: 3px; }
-      100% { transform: translate(-50%, -50%) scale(1.3); opacity: 0; border-width: 1px; }
-    }
-    @keyframes ${uid}-flash {
-      0%   { transform: translate(-50%, -50%) scale(0.2); opacity: 1; }
-      100% { transform: translate(-50%, -50%) scale(1.2); opacity: 0; }
-    }
-    .${uid}-wrap  { position: absolute; pointer-events: none; z-index: var(--z-fx-field); }
-    .${uid}-ring  {
-      position: absolute; left: 0; top: 0;
-      width: ${radius * 2}vmin; height: ${radius * 2}vmin; border-radius: 50%;
-      border: 3px solid ${color};
-      box-shadow: 0 0 24px ${color}aa, inset 0 0 24px ${color}66;
-      animation: ${uid}-ring ${duration}ms ${delayMs}ms var(--ease-out) both;
-    }
-    .${uid}-flash {
-      position: absolute; left: 0; top: 0;
-      width: ${radius * 2}vmin; height: ${radius * 2}vmin; border-radius: 50%;
-      background: radial-gradient(circle, ${color} 0%, transparent 60%);
-      animation: ${uid}-flash ${flashDuration}ms ${delayMs}ms var(--ease-out) both;
-    }
-    @media (prefers-reduced-motion: reduce) {
-      .${uid}-ring, .${uid}-flash { animation-duration: 1ms; opacity: 0; }
-    }
-  `;
+  const wrapStyle: CSSProperties = {
+    ['--blast-x' as string]: `${x}%`,
+    ['--blast-y' as string]: `${y}%`,
+    ['--blast-size' as string]: `${radius * 2}vmin`,
+    ['--blast-color' as string]: color,
+    ['--blast-color-aa' as string]: `${color}aa`,
+    ['--blast-color-66' as string]: `${color}66`,
+    ['--blast-duration' as string]: `${duration}ms`,
+    ['--blast-flash-duration' as string]: `${flashDuration}ms`,
+    ['--blast-delay' as string]: `${delayMs}ms`,
+  };
 
   return (
-    <>
-      <style dangerouslySetInnerHTML={{ __html: css }} />
-      <div
-        className={`${uid}-wrap ${styles.wrap}`}
-        style={{ left: `${x}%`, top: `${y}%` }}
-        onAnimationEnd={onDone}
-      >
-        <div className={`${uid}-flash`} />
-        <div className={`${uid}-ring`} />
-      </div>
-    </>
+    <div
+      className={styles.wrap}
+      style={wrapStyle}
+      onAnimationEnd={onDone}
+    >
+      <div className={styles.flash} />
+      <div className={styles.ring} />
+    </div>
   );
 }

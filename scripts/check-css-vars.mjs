@@ -34,6 +34,24 @@ const BLESSED = new Set([
   'divider-color', // Divider: color prop を JSX inline style から渡す
   'enemy-glow-px', // Enemy: drop-shadow の glow 太さを inline で渡す (Issue #79 M-1)
   'enemy-glow-color', // Enemy: drop-shadow の glow 色を inline で渡す (Issue #79 M-1)
+  'pop-x', // DamagePopFx: 位置 % を inline で渡す (Issue #87)
+  'pop-y', // DamagePopFx: 位置 % を inline で渡す (Issue #87)
+  'pop-duration', // DamagePopFx: アニメ時間を inline で渡す (Issue #87)
+  // 以下は Issue #87 拡張 (14 Fx の動的 @keyframes 廃止) で追加
+  'hit-x', 'hit-y', 'hit-duration', 'hit-color', // EnemyHitFx
+  'death-x', 'death-y', 'death-duration', 'death-color', 'death-flash-color', 'death-shard-angle', // EnemyDeathFx
+  'blast-x', 'blast-y', 'blast-size', 'blast-color', 'blast-color-aa', 'blast-color-66', 'blast-duration', 'blast-flash-duration', 'blast-delay', // BlastFx
+  'beam-x', 'beam-y', 'beam-length', 'beam-angle', 'beam-color', 'beam-duration', // LaserBeamFx
+  'mb-x', 'mb-y', 'mb-angle', 'mb-color', 'mb-duration', // MegaBeamFx
+  'thn-x', 'thn-y', 'thn-color', 'thn-strike-duration', 'thn-flash-duration', // ThunderStrikeFx
+  'chn-duration', 'chn-delay', // ChainBoltFx
+  'mhf-x', 'mhf-y', 'mhf-duration', // MachineHitFx
+  'oa-x', 'oa-y', 'oa-size', 'oa-color', // OverdriveAuraFx
+  'ct-cx', 'ct-cy', 'ct-size', 'ct-rotate-ms', 'ct-trail-ms', 'ct-blade-height', 'ct-blade-margin', 'ct-color', // CutterOrbitFx
+  'app-color', 'app-glow', 'app-duration', // AppearanceBannerFx
+  'wv-duration', // WaveStartFx
+  'tc-duration', 'tc-ray-duration', 'tc-a', // TierClearFx
+  'ss-cycle', 'ss-delay', // ScreenSaverFx
 ]);
 
 function listScssFiles(dir, acc = []) {

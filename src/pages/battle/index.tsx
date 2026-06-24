@@ -191,6 +191,11 @@ export function Page() {
   // リセットしてしまうため、 ResultDialog 表示用に finalizeRun の冒頭で保存しておく。
   const [finalTier, setFinalTier] = useState<number | null>(null);
   const [finalWave, setFinalWave] = useState<number | null>(null);
+  // ラン終了時点の獲得 bolt / alloy もスナップショット。 endRun() は runStartBolt/Alloy を
+  // 0 にリセットするため、 再 render 後の earnedBolt = bolt - 0 = 全所持数 になってしまう。
+  // finalizeRun の冒頭で earnedBolt/earnedAlloy 自体を保存しておけば差分計算は固定される。
+  const [finalEarnedBolt, setFinalEarnedBolt] = useState<BigNum | null>(null);
+  const [finalEarnedAlloy, setFinalEarnedAlloy] = useState<BigNum | null>(null);
 
   // ── リザルト SE (clear / gameover) ──
   useEffect(() => {
@@ -205,12 +210,10 @@ export function Page() {
     damageEvents,
     deathEvents,
     projectileEvents,
-    pickupEvents,
     waveElapsedSec,
     onDamageDone,
     onDeathDone,
     onProjectileDone,
-    onPickupDone,
     appearanceEvents,
     onAppearanceDone,
     fireActive,
@@ -254,15 +257,21 @@ export function Page() {
     (status: ResultStatus) => {
       if (hasFinalizedRef.current) return;
       hasFinalizedRef.current = true;
-      // endRun() で currentTier/Wave が 1 にリセットされるので先にスナップショット
+      // endRun() で currentTier/Wave が 1、 runStartBolt/Alloy が 0 にリセットされるので
+      // 先にスナップショット。 earnedBolt/Alloy は useStore.getState() から直接読むことで
+      // useCallback の deps を増やさない (毎フレーム新規 BigNum で memo 化されないのを避ける)
+      const state = useStore.getState();
       setFinalTier(currentTier);
       setFinalWave(currentWave);
+      const finalBolt = state.bolt.sub(state.runStartBolt);
+      const finalAlloy = state.alloy.sub(state.runStartAlloy);
+      setFinalEarnedBolt(finalBolt.lt(BigNum.ZERO) ? BigNum.ZERO : finalBolt);
+      setFinalEarnedAlloy(finalAlloy.lt(BigNum.ZERO) ? BigNum.ZERO : finalAlloy);
       // gameover パス: autoResultStatus は endRun() 後に isRunActive=false で null になるため
       // resultStatus state に固定してダイアログを維持する
       if (status === 'gameover') {
         setResultStatus('gameover');
       }
-      const state = useStore.getState();
       state.endRun();
       state.updateHighest(currentTier, currentWave);
       state.incrementRuns();
@@ -396,11 +405,9 @@ export function Page() {
           hitEvents={hitEvents}
           deathEvents={deathEvents}
           projectileEvents={projectileEvents}
-          pickupEvents={pickupEvents}
           onDamageDone={onDamageDone}
           onDeathDone={onDeathDone}
           onProjectileDone={onProjectileDone}
-          onPickupDone={onPickupDone}
           showCutterOrbit={currentWeapon === 'cutter' && isRunActive && !isPaused && !isResultOpen}
           showOverdriveAura={isOverdriveActive && isRunActive && !isResultOpen}
           machineHitKey={machineHitKey}
@@ -447,8 +454,8 @@ export function Page() {
             killed={killCount}
             elapsedSec={runElapsedSec}
             reward={{
-              bolt: earnedBolt,
-              alloy: earnedAlloy,
+              bolt: finalEarnedBolt ?? earnedBolt,
+              alloy: finalEarnedAlloy ?? earnedAlloy,
               patches: droppedPatches.map((p) => ({ ...p, count: 1 })),
             }}
             onClose={handleResultClose}

@@ -1,5 +1,72 @@
+/* EnemyDeathFx — 静的 @keyframes (Issue #87 ext)
+ * インスタンス固有値は CSS 変数で渡す:
+ *   --death-x / --death-y       : 位置 (%、 JSX inline)
+ *   --death-duration            : アニメ時間 (ms、 JSX inline)
+ *   --death-color               : シャード色 (JSX inline)
+ *   --death-flash-color         : 中央フラッシュ色 (JSX inline)
+ *   --death-shard-angle         : 各 shard の方向 deg (JSX inline、 個別 div ごと)
+ */
+
+@keyframes flash {
+  0% {
+    transform: translate(-50%, -50%) scale(0.4);
+    opacity: 0;
+  }
+  30% {
+    transform: translate(-50%, -50%) scale(1.2);
+    opacity: 1;
+  }
+  100% {
+    transform: translate(-50%, -50%) scale(2.2);
+    opacity: 0;
+  }
+}
+
+@keyframes shard {
+  0% {
+    transform: translate(-50%, -50%) rotate(var(--death-shard-angle)) translateY(0) scale(1);
+    opacity: 1;
+  }
+  100% {
+    transform: translate(-50%, -50%) rotate(var(--death-shard-angle)) translateY(-22px) scale(0.3);
+    opacity: 0;
+  }
+}
+
 .wrap {
   position: absolute;
+  left: var(--death-x);
+  top: var(--death-y);
   pointer-events: none;
   z-index: var(--z-fx-field);
+}
+
+.flash {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: radial-gradient(circle, var(--death-flash-color), transparent 65%);
+  animation: flash var(--death-duration, 480ms) var(--ease-out) both;
+}
+
+.shard {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 4px;
+  height: 4px;
+  background: var(--death-color);
+  box-shadow: 0 0 4px var(--death-color);
+  animation: shard var(--death-duration, 480ms) var(--ease-out) both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .flash,
+  .shard {
+    animation-duration: 1ms;
+    opacity: 0;
+  }
 }

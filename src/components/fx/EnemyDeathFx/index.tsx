@@ -1,4 +1,4 @@
-import { useId } from 'react';
+import type { CSSProperties } from 'react';
 
 import styles from './style.module.scss';
 
@@ -20,6 +20,9 @@ const SHARD_COUNT = 8;
 /**
  * EnemyDeathFx — 敵撃破位置にパーティクル発散 + 中央フラッシュ。
  * 8 方向に粒子が飛び散る。Elite/Boss は color prop で色変更。
+ *
+ * Issue #87: @keyframes は SCSS module に静的定義、 インスタンス固有値
+ * (位置 / duration / 色 / shard 角度) は CSS 変数で渡す。
  */
 export function EnemyDeathFx({
   x,
@@ -28,59 +31,31 @@ export function EnemyDeathFx({
   duration = 480,
   onDone,
 }: EnemyDeathFxProps) {
-  const uid = useId().replace(/:/g, 'ed');
-
   // フラッシュの radial-gradient 色: デフォルト色はグレー系
   const flashColor = color === 'var(--c-text-mid)' ? 'rgba(167,184,216,0.9)' : color;
 
-  const css = `
-    @keyframes ${uid}-flash {
-      0%   { transform: translate(-50%, -50%) scale(0.4); opacity: 0; }
-      30%  { transform: translate(-50%, -50%) scale(1.2); opacity: 1; }
-      100% { transform: translate(-50%, -50%) scale(2.2); opacity: 0; }
-    }
-    @keyframes ${uid}-shard {
-      0%   { transform: translate(-50%, -50%) rotate(var(--a)) translateY(0)     scale(1);   opacity: 1; }
-      100% { transform: translate(-50%, -50%) rotate(var(--a)) translateY(-22px) scale(0.3); opacity: 0; }
-    }
-    .${uid}-wrap  { position: absolute; pointer-events: none; z-index: var(--z-fx-field); }
-    .${uid}-flash {
-      position: absolute; left: 0; top: 0;
-      width: 18px; height: 18px; border-radius: 50%;
-      background: radial-gradient(circle, ${flashColor}, transparent 65%);
-      animation: ${uid}-flash ${duration}ms var(--ease-out) both;
-    }
-    .${uid}-shard {
-      position: absolute; left: 0; top: 0;
-      width: 4px; height: 4px;
-      background: ${color};
-      box-shadow: 0 0 4px ${color};
-      animation: ${uid}-shard ${duration}ms var(--ease-out) both;
-    }
-    @media (prefers-reduced-motion: reduce) {
-      .${uid}-flash, .${uid}-shard { animation-duration: 1ms; opacity: 0; }
-    }
-  `;
-
-  const shards = Array.from({ length: SHARD_COUNT }, (_, i) => (
-    <div
-      key={i}
-      className={`${uid}-shard`}
-      style={{ '--a': `${(i * 360) / SHARD_COUNT}deg` } as React.CSSProperties}
-    />
-  ));
+  const wrapStyle: CSSProperties = {
+    ['--death-x' as string]: `${x}%`,
+    ['--death-y' as string]: `${y}%`,
+    ['--death-duration' as string]: `${duration}ms`,
+    ['--death-color' as string]: color,
+    ['--death-flash-color' as string]: flashColor,
+  };
 
   return (
-    <>
-      <style dangerouslySetInnerHTML={{ __html: css }} />
-      <div
-        className={`${uid}-wrap ${styles.wrap}`}
-        style={{ left: `${x}%`, top: `${y}%` }}
-        onAnimationEnd={onDone}
-      >
-        <div className={`${uid}-flash`} />
-        {shards}
-      </div>
-    </>
+    <div
+      className={styles.wrap}
+      style={wrapStyle}
+      onAnimationEnd={onDone}
+    >
+      <div className={styles.flash} />
+      {Array.from({ length: SHARD_COUNT }, (_, i) => (
+        <div
+          key={i}
+          className={styles.shard}
+          style={{ ['--death-shard-angle' as string]: `${(i * 360) / SHARD_COUNT}deg` }}
+        />
+      ))}
+    </div>
   );
 }

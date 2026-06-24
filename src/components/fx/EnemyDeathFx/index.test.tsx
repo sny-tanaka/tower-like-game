@@ -22,8 +22,8 @@ describe('EnemyDeathFx', () => {
       />
     );
     // wrap div の中に flash (1) + shards (8) = 9 children
-    const wrap = container.querySelector<HTMLElement>('div');
-    expect(wrap?.children.length).toBe(9);
+    const wrap = container.firstChild as HTMLElement;
+    expect(wrap.children.length).toBe(9);
   });
 
   test('onDone が onAnimationEnd で呼ばれる', () => {
@@ -35,21 +35,18 @@ describe('EnemyDeathFx', () => {
         onDone={onDone}
       />
     );
-    const wrap = container.querySelector<HTMLElement>('div');
-    if (wrap) {
-      fireEvent.animationEnd(wrap);
-    }
+    const wrap = container.firstChild as HTMLElement;
+    fireEvent.animationEnd(wrap);
     expect(onDone).toHaveBeenCalledTimes(1);
   });
 
-  test('prefers-reduced-motion スタイルが含まれる', () => {
+  test('Issue #87 回帰: <style> タグを動的注入しない', () => {
     const { container } = render(
       <EnemyDeathFx
         x={50}
         y={50}
       />
     );
-    const style = container.querySelector('style');
-    expect(style?.textContent).toContain('prefers-reduced-motion');
+    expect(container.querySelector('style')).toBeNull();
   });
 });

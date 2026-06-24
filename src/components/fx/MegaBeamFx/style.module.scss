@@ -1,5 +1,46 @@
+/* MegaBeamFx — 静的 @keyframes (Issue #87 ext)
+ * CSS 変数: --mb-x / --mb-y / --mb-angle / --mb-color / --mb-duration
+ */
+
+@keyframes grow {
+  0% {
+    transform: rotate(var(--mb-angle)) scaleX(0) scaleY(0.3);
+    opacity: 0.6;
+  }
+  18% {
+    transform: rotate(var(--mb-angle)) scaleX(1) scaleY(1);
+    opacity: 1;
+  }
+  70% {
+    transform: rotate(var(--mb-angle)) scaleX(1) scaleY(1);
+    opacity: 1;
+  }
+  100% {
+    transform: rotate(var(--mb-angle)) scaleX(1) scaleY(0.2);
+    opacity: 0;
+  }
+}
+
 .beam {
   position: absolute;
+  left: var(--mb-x);
+  top: var(--mb-y);
+  width: 150%;
+  height: 12px;
+  background: linear-gradient(90deg, var(--mb-color), transparent 95%);
+  box-shadow:
+    0 0 18px var(--mb-color),
+    0 0 36px var(--mb-color);
+  transform-origin: 0 50%;
+  animation: grow var(--mb-duration, 600ms) var(--ease-out) both;
   pointer-events: none;
   z-index: var(--z-fx-field);
+  border-radius: 6px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .beam {
+    animation-duration: 1ms;
+    opacity: 0;
+  }
 }

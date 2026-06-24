@@ -245,4 +245,4 @@ A = H195 (cyan) → Z = H295 (purple) を oklch で線形補間。
 - 各 Fx の最終秒数 / イージング微調整（実装段階で計測）
 - 60fps 達成の最終確認（デバイス性能依存）
 - 低スペック端末向けの描画品質モード（`prefers-reduced-motion` だけで足りるか）
-- `MergeSuccessFx`（パッチ合成成功）/ `PatchDropFx`（パッチドロップ）の専用 Fx 化が必要かの判断（現状は `PickupFx` で代用想定）
+- v0.3.2 で `PickupFx` (通貨吸い込み演出) を廃止 (リザルト画面でまとめて確認する仕様に変更)。 `MergeSuccessFx` (パッチ合成成功) / `PatchDropFx` (パッチドロップ) も同方針で **新規追加しない**

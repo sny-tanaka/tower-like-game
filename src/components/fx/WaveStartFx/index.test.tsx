@@ -19,33 +19,15 @@ describe('WaveStartFx', () => {
     expect(screen.getByText('100')).toBeInTheDocument();
   });
 
-  test('duration が CSS に反映される', () => {
+  test('duration が CSS 変数 (--wv-duration) に反映される', () => {
     const { container } = render(
       <WaveStartFx
         waveNumber={1}
         duration={800}
       />
     );
-    const styleEl = container.querySelector('style');
-    expect(styleEl?.innerHTML).toContain('800ms');
-  });
-
-  test('pointer-events: none を持つ', () => {
-    const { container } = render(<WaveStartFx waveNumber={1} />);
-    const styleEl = container.querySelector('style');
-    expect(styleEl?.innerHTML).toContain('pointer-events: none');
-  });
-
-  test('prefers-reduced-motion: reduce 対応の media query が含まれる', () => {
-    const { container } = render(<WaveStartFx waveNumber={1} />);
-    const styleEl = container.querySelector('style');
-    expect(styleEl?.innerHTML).toContain('prefers-reduced-motion');
-  });
-
-  test('z-index: var(--z-fx-field) が設定される', () => {
-    const { container } = render(<WaveStartFx waveNumber={1} />);
-    const styleEl = container.querySelector('style');
-    expect(styleEl?.innerHTML).toContain('var(--z-fx-field)');
+    const wrap = container.firstChild as HTMLElement;
+    expect(wrap.style.getPropertyValue('--wv-duration')).toBe('800ms');
   });
 
   test('onDone は渡せる（クラッシュしない）', () => {
@@ -58,5 +40,10 @@ describe('WaveStartFx', () => {
         />
       )
     ).not.toThrow();
+  });
+
+  test('Issue #87 回帰: <style> タグを動的注入しない', () => {
+    const { container } = render(<WaveStartFx waveNumber={1} />);
+    expect(container.querySelector('style')).toBeNull();
   });
 });

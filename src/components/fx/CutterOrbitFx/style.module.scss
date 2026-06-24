@@ -1,0 +1,94 @@
+/* CutterOrbitFx — 静的 @keyframes (Issue #87 ext)
+ * CSS 変数:
+ *   --ct-cx / --ct-cy           : タワー中心 (%、 JSX inline)
+ *   --ct-size                   : hub サイズ = length*2 (%、 JSX inline)
+ *   --ct-rotate-ms              : 1 周時間 (ms、 JSX inline)
+ *   --ct-trail-ms               : trail-pulse の周期 = rotate*0.7 (ms、 JSX inline)
+ *   --ct-blade-height           : blade 高さ (%、 JSX inline)
+ *   --ct-blade-margin           : blade 縦オフセット (%、 JSX inline)
+ *   --ct-color                  : 刃の色 (JSX inline)
+ *
+ * 回転方向 (cw / ccw) はクラスで分岐 (.hubCw / .hubCcw)。
+ */
+
+@keyframes spinCw {
+  to {
+    transform: translate(-50%, -50%) rotate(360deg);
+  }
+}
+
+@keyframes spinCcw {
+  to {
+    transform: translate(-50%, -50%) rotate(-360deg);
+  }
+}
+
+@keyframes trailPulse {
+  0%,
+  100% {
+    opacity: 0.18;
+  }
+  50% {
+    opacity: 0.36;
+  }
+}
+
+.hub {
+  position: absolute;
+  left: var(--ct-cx);
+  top: var(--ct-cy);
+  width: var(--ct-size);
+  height: var(--ct-size);
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+  z-index: var(--z-fx-field);
+}
+
+.hubCw {
+  animation: spinCw var(--ct-rotate-ms, 1300ms) linear infinite;
+}
+
+.hubCcw {
+  animation: spinCcw var(--ct-rotate-ms, 1300ms) linear infinite;
+}
+
+.orbit {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  border: 1px dashed var(--ct-color);
+  opacity: 0.22;
+  animation: trailPulse var(--ct-trail-ms, 910ms) ease-in-out infinite;
+}
+
+.blade {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 50%;
+  height: var(--ct-blade-height);
+  margin-top: var(--ct-blade-margin);
+  transform-origin: 0 50%;
+  /* drop-shadow を 2 重 → 1 重に減らして GPU 合成コストを削減 (Issue #79 M-4) */
+  filter: drop-shadow(0 0 4px var(--ct-color));
+  color: var(--ct-color);
+}
+
+.sweep {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 50%;
+  height: 50%;
+  transform-origin: 0 0;
+  pointer-events: none;
+  opacity: 0.35;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hubCw,
+  .hubCcw,
+  .orbit {
+    animation-duration: 30s;
+  }
+}

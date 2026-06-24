@@ -16,18 +16,14 @@ describe('ScreenSaverFx', () => {
 
   test('showTower=false でタワー DOM が描画されない', () => {
     const { container } = render(<ScreenSaverFx showTower={false} />);
-    // tower クラスを持つ div が存在しないことを確認
-    // data 属性からラッパーの id プレフィックスを取得
-    const wrapper = container.querySelector('[data-screen-saver-fx]');
-    const id = wrapper?.getAttribute('data-screen-saver-fx') ?? '';
-    expect(container.querySelector(`.${id}-tower`)).toBeNull();
+    const towers = container.querySelectorAll('[class*="tower"]');
+    expect(towers.length).toBe(0);
   });
 
-  test('showTower=true でタワーコンポジットが描画される', () => {
+  test('showTower=true でタワーコンポジット (r1 / r2) が描画される', () => {
     const { container } = render(<ScreenSaverFx showTower={true} />);
-    const styleEl = container.querySelector('style');
-    expect(styleEl?.innerHTML).toContain('-tower-r1');
-    expect(styleEl?.innerHTML).toContain('-tower-r2');
+    expect(container.querySelector('[class*="towerR1"]')).not.toBeNull();
+    expect(container.querySelector('[class*="towerR2"]')).not.toBeNull();
   });
 
   test('towerContent が描画される（showTower=true 時）', () => {
@@ -40,29 +36,37 @@ describe('ScreenSaverFx', () => {
     expect(screen.getByText('tower core')).toBeInTheDocument();
   });
 
-  test('cycleSeconds が CSS に反映される', () => {
-    const { container } = render(<ScreenSaverFx cycleSeconds={12} />);
-    const styleEl = container.querySelector('style');
-    expect(styleEl?.innerHTML).toContain('12s');
+  test('cycleSeconds が CSS 変数 (--ss-cycle) に反映される', () => {
+    const { container } = render(
+      <ScreenSaverFx
+        cycleSeconds={12}
+        items={[<span key="x">x</span>]}
+      />
+    );
+    const slot = container.querySelector('[class*="slot"]') as HTMLElement;
+    expect(slot.style.getPropertyValue('--ss-cycle')).toBe('12s');
   });
 
-  test('prefers-reduced-motion: reduce 対応の media query が含まれる', () => {
-    const { container } = render(<ScreenSaverFx items={[<span key="x">x</span>]} />);
-    const styleEl = container.querySelector('style');
-    expect(styleEl?.innerHTML).toContain('prefers-reduced-motion');
-  });
-
-  test('5 種類のドリフト経路アニメーションが生成される', () => {
-    const { container } = render(<ScreenSaverFx />);
-    const styleEl = container.querySelector('style');
-    // drift-1 〜 drift-5
-    expect(styleEl?.innerHTML).toContain('-drift-1');
-    expect(styleEl?.innerHTML).toContain('-drift-5');
+  test('5 種類のドリフト経路クラス (p1〜p5) が item の index % 5 で割り当てられる', () => {
+    const items = Array.from({ length: 6 }, (_, i) => <span key={i}>{i}</span>);
+    const { container } = render(<ScreenSaverFx items={items} />);
+    const slots = container.querySelectorAll('[class*="slot"]');
+    expect(slots.length).toBe(6);
+    // i=0 → p1, i=4 → p5, i=5 → p1 (wrap)
+    expect((slots[0] as HTMLElement).className).toMatch(/p1/);
+    expect((slots[4] as HTMLElement).className).toMatch(/p5/);
+    expect((slots[5] as HTMLElement).className).toMatch(/p1/);
   });
 
   test('wrapper は pointer-events: none', () => {
     const { container } = render(<ScreenSaverFx />);
     const wrapper = container.firstChild as HTMLElement;
-    expect(wrapper.style.pointerEvents).toBe('none');
+    // SCSS module の .root には pointer-events: none が含まれる
+    expect(wrapper.className).toMatch(/root/);
+  });
+
+  test('Issue #87 回帰: <style> タグを動的注入しない', () => {
+    const { container } = render(<ScreenSaverFx />);
+    expect(container.querySelector('style')).toBeNull();
   });
 });

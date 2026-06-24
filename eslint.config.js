@@ -71,5 +71,24 @@ export default tseslint.config(
         },
       ],
     },
+  },
+  // Fx コンポーネント: dangerouslySetInnerHTML 禁止 (Issue #87)
+  // インスタンスごとに @keyframes を動的注入すると、 撃破ラッシュ等で <style> タグが
+  // 大量に DOM に追加されて CSS パーサ + style recalc コストが発熱寄与する。
+  // @keyframes は SCSS module に静的定義し、 インスタンス固有値は CSS 変数で渡す。
+  // 構造的に静的化困難な箇所 (例: ScreenSaverFx の items 数依存 keyframes) は
+  // 個別 `// eslint-disable-next-line no-restricted-syntax` で許可する。
+  {
+    files: ['src/components/fx/**/*.{ts,tsx}'],
+    rules: {
+      'no-restricted-syntax': [
+        'error',
+        {
+          selector: 'JSXAttribute[name.name="dangerouslySetInnerHTML"]',
+          message:
+            'Fx 配下では dangerouslySetInnerHTML での @keyframes 動的注入は禁止 (Issue #87)。 @keyframes は style.module.scss に静的定義し、 インスタンス固有値は CSS 変数で渡してください。',
+        },
+      ],
+    },
   }
 );

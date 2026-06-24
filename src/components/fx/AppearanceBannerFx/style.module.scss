@@ -1,2 +1,94 @@
-// AppearanceBannerFx のスタイルは index.tsx 内のインライン <style> で管理。
-// @keyframes は useId() スコープで一意化しているため CSS Modules 外に置く。
+/* AppearanceBannerFx — 静的 @keyframes (Issue #87 ext)
+ * CSS 変数:
+ *   --app-color           : kind 別アクセント色 (JSX inline)
+ *   --app-glow            : box-shadow / textShadow 用の glow 文字列 (JSX inline)
+ *   --app-duration        : 演出時間 (ms、 JSX inline)
+ */
+
+@keyframes flash {
+  0% {
+    opacity: 0;
+  }
+  10% {
+    opacity: 0.55;
+  }
+  40% {
+    opacity: 0;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+
+@keyframes band {
+  0% {
+    transform: translateY(-100%);
+    opacity: 0;
+  }
+  12% {
+    transform: translateY(0);
+    opacity: 1;
+  }
+  80% {
+    transform: translateY(0);
+    opacity: 1;
+  }
+  100% {
+    transform: translateY(-100%);
+    opacity: 0;
+  }
+}
+
+.wrap {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: var(--z-fx-field);
+}
+
+.flash {
+  position: absolute;
+  inset: 0;
+  background: var(--app-color);
+  mix-blend-mode: screen;
+  animation: flash var(--app-duration, 1600ms) var(--ease-out) both;
+}
+
+.band {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 30%;
+  padding: 14px 0;
+  background:
+    linear-gradient(
+      90deg,
+      transparent,
+      color-mix(in srgb, var(--app-color) 20%, transparent) 50%,
+      transparent
+    ),
+    linear-gradient(0deg, rgba(10, 15, 28, 0.85), rgba(10, 15, 28, 0.85));
+  border-top: 1px solid var(--app-color);
+  border-bottom: 1px solid var(--app-color);
+  box-shadow: var(--app-glow);
+  text-align: center;
+  animation: band var(--app-duration, 1600ms) var(--ease-out) both;
+}
+
+.label {
+  display: block;
+  margin-bottom: 4px;
+}
+
+.name {
+  display: block;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .flash,
+  .band {
+    animation: none;
+    opacity: 1;
+    transform: none;
+  }
+}

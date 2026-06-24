@@ -1,5 +1,7 @@
-import { useEffect, useId } from 'react';
-import type { ReactElement } from 'react';
+import type { CSSProperties, ReactElement } from 'react';
+import { useEffect } from 'react';
+
+import styles from './style.module.scss';
 
 export interface CutterOrbitFxProps {
   /** タワー中心 X % (default 50) */
@@ -34,6 +36,9 @@ export interface CutterOrbitFxProps {
  * 周囲をスイープする。 半径方向のセクター全体で当たり判定を持つイメージ。
  *
  * duration 未指定 = 武器選択中の常時表示 (無限ループ)。
+ *
+ * Issue #87: @keyframes は SCSS module に静的定義、 位置 / サイズ / 速度 /
+ * 色は CSS 変数で渡す。 cw/ccw は class で keyframe を分岐。
  */
 export function CutterOrbitFx({
   cx = 50,
@@ -47,8 +52,6 @@ export function CutterOrbitFx({
   duration,
   onDone,
 }: CutterOrbitFxProps) {
-  const uid = useId().replace(/:/g, '');
-  const id = `ct-${uid}`;
   const dir = direction === 'ccw' ? -1 : 1;
 
   useEffect(() => {
@@ -65,50 +68,17 @@ export function CutterOrbitFx({
   // その中で blade/sweep は hub に対する相対比 (= length / (length*2) = 50%) を使う。
   const bladeHeightPct = (thickness / (length * 2)) * 100;
   const bladeMarginPct = (thickness / (length * 4)) * 100; // = bladeHeightPct / 2
-  const css = `
-    @keyframes ${id}-spin { to { transform: translate(-50%, -50%) rotate(${360 * dir}deg); } }
-    @keyframes ${id}-trail-pulse {
-      0%, 100% { opacity: 0.18; }
-      50%      { opacity: 0.36; }
-    }
-    .${id}-hub {
-      position: absolute;
-      left: ${cx}%; top: ${cy}%;
-      width: ${length * 2}%; height: ${length * 2}%;
-      transform: translate(-50%, -50%);
-      animation: ${id}-spin ${rotateMs}ms linear infinite;
-      pointer-events: none;
-      z-index: var(--z-fx-field);
-    }
-    .${id}-orbit {
-      position: absolute; inset: 0; border-radius: 50%;
-      border: 1px dashed ${color};
-      opacity: 0.22;
-      animation: ${id}-trail-pulse ${Math.round(rotateMs * 0.7)}ms ease-in-out infinite;
-    }
-    .${id}-blade {
-      position: absolute;
-      left: 50%; top: 50%;
-      width: 50%;
-      height: ${bladeHeightPct}%;
-      margin-top: -${bladeMarginPct}%;
-      transform-origin: 0 50%;
-      /* drop-shadow を 2 重 → 1 重に減らして GPU 合成コストを削減 (Issue #79 M-4) */
-      filter: drop-shadow(0 0 4px ${color});
-      color: ${color};
-    }
-    .${id}-sweep {
-      position: absolute;
-      left: 50%; top: 50%;
-      width: 50%; height: 50%;
-      transform-origin: 0 0;
-      pointer-events: none;
-      opacity: 0.35;
-    }
-    @media (prefers-reduced-motion: reduce) {
-      .${id}-hub, .${id}-orbit { animation-duration: 30s; }
-    }
-  `;
+
+  const hubStyle: CSSProperties = {
+    ['--ct-cx' as string]: `${cx}%`,
+    ['--ct-cy' as string]: `${cy}%`,
+    ['--ct-size' as string]: `${length * 2}%`,
+    ['--ct-rotate-ms' as string]: `${rotateMs}ms`,
+    ['--ct-trail-ms' as string]: `${Math.round(rotateMs * 0.7)}ms`,
+    ['--ct-blade-height' as string]: `${bladeHeightPct}%`,
+    ['--ct-blade-margin' as string]: `-${bladeMarginPct}%`,
+    ['--ct-color' as string]: color,
+  };
 
   const sawTeeth = (sign: -1 | 1) =>
     'M 10 ' +
@@ -132,7 +102,7 @@ export function CutterOrbitFx({
       // sweep (扇形の残光)
       <svg
         key={`sweep-${i}`}
-        className={`${id}-sweep`}
+        className={styles.sweep}
         viewBox={`0 0 ${length} ${length}`}
         style={{ transform: `rotate(${angle - sweepDeg}deg)`, transformOrigin: '0 0' }}
         preserveAspectRatio="none"
@@ -148,7 +118,7 @@ export function CutterOrbitFx({
       // 刃本体: 中心から外側に向かう長い鋸刃
       <svg
         key={`blade-${i}`}
-        className={`${id}-blade`}
+        className={styles.blade}
         viewBox="0 -10 100 20"
         style={{ transform: `rotate(${angle}deg)` }}
         preserveAspectRatio="none"
@@ -214,12 +184,12 @@ export function CutterOrbitFx({
   }
 
   return (
-    <>
-      <style dangerouslySetInnerHTML={{ __html: css }} />
-      <div className={`${id}-hub`}>
-        <div className={`${id}-orbit`} />
-        {bladeEls}
-      </div>
-    </>
+    <div
+      className={`${styles.hub} ${dir === 1 ? styles.hubCw : styles.hubCcw}`}
+      style={hubStyle}
+    >
+      <div className={styles.orbit} />
+      {bladeEls}
+    </div>
   );
 }

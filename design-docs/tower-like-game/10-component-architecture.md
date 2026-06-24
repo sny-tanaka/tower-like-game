@@ -151,7 +151,7 @@
 
 | 種類 | 例 | 配置 |
 |---|---|---|
-| **Fx として実装** | 戦闘演出 (DamagePop / EnemyDeath / Blast / Beam / MachineHit) / 出現 (WaveStart / AppearanceBanner) / 獲得 (Pickup) / クリア (TierClear) | `src/components/fx/<Name>Fx/` |
+| **Fx として実装** | 戦闘演出 (DamagePop / EnemyDeath / Blast / Beam / MachineHit) / 出現 (WaveStart / AppearanceBanner) / クリア (TierClear) | `src/components/fx/<Name>Fx/` |
 | **コンポーネント固有アニメ** | ボトムシートのスライドイン / ダイアログのフェード / オーバーレイのフェード / タブ切替 / トーストのスライド / 画面遷移 | 当該コンポーネント内に `@keyframes` を持つ |
 
 「複数のコンポーネント / 複数の局面で再利用される演出のみ Fx 化」が判断基準。**ボトムシートのスライドイン**のようにそのコンポーネント固有のアニメは、Fx ではなく当該コンポーネント内に閉じる（Sheet / ConfirmDialog / Overlay / TabBar / Toast / AppShell など）。
@@ -209,11 +209,7 @@
 
 #### 獲得・強化演出 (Fx)
 
-| Fx | 起点 | 内容 |
-|---|---|---|
-| `PickupFx` | 通貨 / アイテム獲得 | HUD に吸い込まれる演出。**`icon` + `color` props で 通貨 3 種（screw / bolt / alloy）を吸収**（旧 `CoinPickupFx` / `BoltPickupFx` / `AlloyPickupFx` は統合） |
-
-> ※ `MergeSuccessFx`（パッチ合成成功）/ `PatchDropFx`（パッチドロップ）は専用 Fx を**未実装**。`PickupFx` で代用可能（必要になった段階で追加判断）。
+> 通貨 / パッチのドロップ演出は **すべて廃止**。 ドロップ獲得は戦闘画面に出さず、 リザルト画面でまとめて確認する仕様。 詳細は下の「廃止した Fx」 表を参照。
 
 #### v0.3.0 で廃止した Fx
 
@@ -228,6 +224,12 @@
 | `LevelUpFx` | 強化購入時のキラキラは SE で十分 → 削除 |
 | `ScreenShakeFx` | 画面揺れは UX 阻害 → 削除 |
 | `VolleyFx` | Cannon Volley は弾道アニメ + Blast の組合せで表現済み → 単独 Fx は不要、 削除 |
+
+#### v0.3.2 で廃止した Fx
+
+| 旧 Fx 名 (廃止) | 廃止理由 |
+|---|---|
+| `PickupFx` | 通貨ドロップ (screw / bolt / alloy) の吸い込み演出は撃破ごとに毎フレーム多重発火し過剰。 ドロップ獲得はリザルト画面でまとめて確認する仕様に変更 → 削除。 `MergeSuccessFx` / `PatchDropFx` を新規追加する予定も同方針で取りやめ |
 
 #### コンポーネント固有アニメ（Fx ではなく当該コンポーネント内）
 

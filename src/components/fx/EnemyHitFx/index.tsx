@@ -1,4 +1,4 @@
-import { useId } from 'react';
+import type { CSSProperties } from 'react';
 
 import styles from './style.module.scss';
 
@@ -18,6 +18,9 @@ export interface EnemyHitFxProps {
 /**
  * EnemyHitFx — 敵被弾位置に短い光点フラッシュ。
  * 死亡しない打撃で頻繁に使う軽量演出。
+ *
+ * Issue #87: @keyframes は SCSS module に静的定義、 インスタンス固有値
+ * (位置 / duration / color) は CSS 変数で渡す。
  */
 export function EnemyHitFx({
   x,
@@ -26,37 +29,20 @@ export function EnemyHitFx({
   duration = 220,
   onDone,
 }: EnemyHitFxProps) {
-  const uid = useId().replace(/:/g, 'eh');
-
-  const css = `
-    @keyframes ${uid}-f {
-      0%   { transform: translate(-50%, -50%) scale(0.4); opacity: 1; }
-      100% { transform: translate(-50%, -50%) scale(1.6); opacity: 0; }
-    }
-    .${uid}-w { position: absolute; pointer-events: none; z-index: var(--z-fx-field); }
-    .${uid}-d {
-      position: absolute;
-      left: 0; top: 0;
-      width: 12px; height: 12px;
-      border-radius: 50%;
-      background: radial-gradient(circle, ${color}, transparent 60%);
-      animation: ${uid}-f ${duration}ms var(--ease-out) both;
-    }
-    @media (prefers-reduced-motion: reduce) {
-      .${uid}-d { animation-duration: 1ms; opacity: 0; }
-    }
-  `;
+  const wrapStyle: CSSProperties = {
+    ['--hit-x' as string]: `${x}%`,
+    ['--hit-y' as string]: `${y}%`,
+    ['--hit-duration' as string]: `${duration}ms`,
+    ['--hit-color' as string]: color,
+  };
 
   return (
-    <>
-      <style dangerouslySetInnerHTML={{ __html: css }} />
-      <div
-        className={`${uid}-w ${styles.wrap}`}
-        style={{ left: `${x}%`, top: `${y}%` }}
-        onAnimationEnd={onDone}
-      >
-        <div className={`${uid}-d`} />
-      </div>
-    </>
+    <div
+      className={styles.wrap}
+      style={wrapStyle}
+      onAnimationEnd={onDone}
+    >
+      <div className={styles.dot} />
+    </div>
   );
 }

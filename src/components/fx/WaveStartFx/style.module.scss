@@ -1,2 +1,50 @@
-// WaveStartFx のスタイルは index.tsx 内のインライン <style> で管理。
-// @keyframes は useId() スコープで一意化しているため CSS Modules 外に置く。
+/* WaveStartFx — 静的 @keyframes (Issue #87 ext)
+ * CSS 変数: --wv-duration (アニメ時間 ms、 JSX inline)
+ */
+
+@keyframes in {
+  0% {
+    transform: translate(-50%, -50%) translateX(-40px);
+    opacity: 0;
+  }
+  18% {
+    transform: translate(-50%, -50%) translateX(0);
+    opacity: 1;
+  }
+  75% {
+    transform: translate(-50%, -50%) translateX(0);
+    opacity: 1;
+  }
+  100% {
+    transform: translate(-50%, -50%) translateX(40px);
+    opacity: 0;
+  }
+}
+
+.wrap {
+  position: absolute;
+  left: 50%;
+  top: 26%;
+  pointer-events: none;
+  z-index: var(--z-fx-field);
+  animation: in var(--wv-duration, 1100ms) var(--ease-default) both;
+}
+
+.badge {
+  padding: 8px 16px;
+  background: rgba(10, 15, 28, 0.85);
+  border: 1px solid var(--c-primary);
+  border-radius: var(--r-pill);
+  box-shadow: var(--glow-cyan-md);
+  display: inline-flex;
+  align-items: baseline;
+  gap: 8px;
+  backdrop-filter: blur(6px);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .wrap {
+    animation: none;
+    opacity: 1;
+  }
+}

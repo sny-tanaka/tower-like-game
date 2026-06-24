@@ -13,19 +13,22 @@
   transition: transform 120ms linear;
   line-height: 0;
   /* filter は CSS 側に閉じ込めて type/status による値ぶれを防ぐ (Issue #79 M-1)。
-     glow の太さ・色は JS から CSS variable で渡す (静的)。 status による hue 変化は
-     data-status 属性セレクタで切り替える (位置変化のたびに filter 値が変わらない)。 */
+     glow の太さ・色は JS から CSS variable で渡す (静的)。 status による色変化は
+     data-status 属性セレクタで drop-shadow の色だけ差し替える (Issue #88)。
+     旧実装は drop-shadow + hue-rotate + saturate + brightness の 4 段フィルタチェーン
+     で GPU が複数フィルタの中間テクスチャを連鎖生成 → 敵 30 体同時状態異常で発熱寄与。
+     新実装は drop-shadow 1 段のまま色だけ切替で軽量化。 */
   filter: drop-shadow(0 0 var(--enemy-glow-px, 4px) var(--enemy-glow-color, #ffffff));
 }
 
 .root[data-status='frozen'] .shape {
-  filter: drop-shadow(0 0 var(--enemy-glow-px, 4px) var(--enemy-glow-color, #ffffff))
-    hue-rotate(180deg) saturate(1.6) brightness(1.05);
+  /* 凍結: シアン系のグロー (Thunder と同系色だが太く半透明) */
+  filter: drop-shadow(0 0 calc(var(--enemy-glow-px, 4px) * 1.5) rgba(138, 243, 255, 0.9));
 }
 
 .root[data-status='burning'] .shape {
-  filter: drop-shadow(0 0 var(--enemy-glow-px, 4px) var(--enemy-glow-color, #ffffff))
-    hue-rotate(-25deg) saturate(1.4) brightness(1.1);
+  /* 燃焼: オレンジ系のグロー (Warning と同系色) */
+  filter: drop-shadow(0 0 calc(var(--enemy-glow-px, 4px) * 1.5) rgba(255, 167, 38, 0.9));
 }
 
 @media (prefers-reduced-motion: reduce) {

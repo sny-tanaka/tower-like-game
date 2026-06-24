@@ -23,14 +23,12 @@ describe('BlastFx', () => {
         onDone={onDone}
       />
     );
-    const wrap = container.querySelector<HTMLElement>('div');
-    if (wrap) {
-      fireEvent.animationEnd(wrap);
-    }
+    const wrap = container.firstChild as HTMLElement;
+    fireEvent.animationEnd(wrap);
     expect(onDone).toHaveBeenCalledTimes(1);
   });
 
-  test('radius が style タグに反映される', () => {
+  test('radius が CSS 変数 (--blast-size = radius*2 vmin) に反映される', () => {
     const { container } = render(
       <BlastFx
         x={50}
@@ -38,18 +36,17 @@ describe('BlastFx', () => {
         radius={20}
       />
     );
-    const style = container.querySelector('style');
-    expect(style?.textContent).toContain('40vmin');
+    const wrap = container.firstChild as HTMLElement;
+    expect(wrap.style.getPropertyValue('--blast-size')).toBe('40vmin');
   });
 
-  test('prefers-reduced-motion スタイルが含まれる', () => {
+  test('Issue #87 回帰: <style> タグを動的注入しない', () => {
     const { container } = render(
       <BlastFx
         x={50}
         y={50}
       />
     );
-    const style = container.querySelector('style');
-    expect(style?.textContent).toContain('prefers-reduced-motion');
+    expect(container.querySelector('style')).toBeNull();
   });
 });

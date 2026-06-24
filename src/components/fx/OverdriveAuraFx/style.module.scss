@@ -1,5 +1,58 @@
+/* OverdriveAuraFx — 静的 @keyframes (Issue #87 ext)
+ * CSS 変数: --oa-x / --oa-y / --oa-size / --oa-color
+ */
+
+@keyframes rot {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes pulse {
+  0%,
+  100% {
+    opacity: 0.7;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
 .wrap {
   position: absolute;
+  left: var(--oa-x);
+  top: var(--oa-y);
+  width: var(--oa-size);
+  height: var(--oa-size);
+  transform: translate(-50%, -50%);
   pointer-events: none;
   z-index: var(--z-fx-field);
+  animation: pulse 1.2s ease-in-out infinite;
+}
+
+.r1 {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  border: 2px dashed var(--oa-color);
+  box-shadow: 0 0 16px color-mix(in srgb, var(--oa-color) 53%, transparent);
+  animation: rot 2.4s linear infinite;
+}
+
+.r2 {
+  position: absolute;
+  inset: 12px;
+  border-radius: 50%;
+  border: 1px solid var(--oa-color);
+  opacity: 0.6;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .wrap,
+  .r1 {
+    animation: none;
+  }
 }

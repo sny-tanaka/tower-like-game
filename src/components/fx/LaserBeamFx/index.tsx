@@ -1,4 +1,4 @@
-import { useId } from 'react';
+import type { CSSProperties } from 'react';
 
 import styles from './style.module.scss';
 
@@ -22,6 +22,10 @@ export interface LaserBeamFxProps {
 /**
  * LaserBeamFx — Laser 発射演出。
  * (x1, y1) → (x2, y2) を結ぶ細いビームが一瞬伸びてフェード。
+ *
+ * Issue #87: @keyframes は SCSS module に静的定義、 インスタンス固有値
+ * (位置 / 長さ / 角度 / 色 / duration) は CSS 変数で渡す。
+ * angle は @keyframes 内の transform: rotate(var(--beam-angle)) で展開される。
  */
 export function LaserBeamFx({
   x1,
@@ -32,43 +36,25 @@ export function LaserBeamFx({
   duration = 220,
   onDone,
 }: LaserBeamFxProps) {
-  const uid = useId().replace(/:/g, 'lb');
-
   const dx = x2 - x1;
   const dy = y2 - y1;
   const length = Math.hypot(dx, dy);
   const angle = (Math.atan2(dy, dx) * 180) / Math.PI;
 
-  const css = `
-    @keyframes ${uid}-beam {
-      0%   { transform: rotate(${angle}deg) scaleX(0); opacity: 1; }
-      30%  { transform: rotate(${angle}deg) scaleX(1); opacity: 1; }
-      100% { transform: rotate(${angle}deg) scaleX(1); opacity: 0; }
-    }
-    .${uid} {
-      position: absolute;
-      left: ${x1}%; top: ${y1}%;
-      width: ${length}%;
-      height: 2px;
-      background: ${color};
-      transform-origin: 0 50%;
-      box-shadow: 0 0 6px ${color}, 0 0 14px ${color};
-      animation: ${uid}-beam ${duration}ms var(--ease-out) both;
-      pointer-events: none;
-      z-index: var(--z-fx-field);
-    }
-    @media (prefers-reduced-motion: reduce) {
-      .${uid} { animation-duration: 1ms; opacity: 0; }
-    }
-  `;
+  const beamStyle: CSSProperties = {
+    ['--beam-x' as string]: `${x1}%`,
+    ['--beam-y' as string]: `${y1}%`,
+    ['--beam-length' as string]: `${length}%`,
+    ['--beam-angle' as string]: `${angle}deg`,
+    ['--beam-color' as string]: color,
+    ['--beam-duration' as string]: `${duration}ms`,
+  };
 
   return (
-    <>
-      <style dangerouslySetInnerHTML={{ __html: css }} />
-      <div
-        className={`${uid} ${styles.beam}`}
-        onAnimationEnd={onDone}
-      />
-    </>
+    <div
+      className={styles.beam}
+      style={beamStyle}
+      onAnimationEnd={onDone}
+    />
   );
 }
