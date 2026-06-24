@@ -40,10 +40,18 @@ export function MachineUpgradeList() {
         const currentValue = calcEffectValue(item, lv);
         const nextValue = calcEffectValue(item, lv + 1);
 
-        const formatValue = (v: number): number => {
+        // v1.0.0 リバランスで base 100/10000 にリベースされた multiply 系 4 項目
+        // (maxHp / hpRegen / baseAttack / defense) は BigNum スケールに到達する
+        // (例: maxHp Lv 0 = 10,000 → "10.00A")。 BigNum 化して toDisplay() 表記に乗せる。
+        // それ以外の linear / asymptotic 系 (%/×/px) は number のまま (toLocaleString)。
+        const formatValue = (v: number): number | BigNum => {
           if (item.unit === '%') {
-            // asymptotic 系は割合 (0〜1) → パーセント表示
+            // 線形 cap 系は割合 (0〜1) → パーセント表示
             return Math.round(v * 1000) / 10;
+          }
+          if (item.growthType === 'multiply') {
+            // BigNum 系: ceil で整数化してから BigNum 化 (toDisplay で "10.00A" 表記)
+            return BigNum.fromNumber(Math.ceil(v));
           }
           return v;
         };

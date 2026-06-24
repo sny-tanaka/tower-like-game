@@ -4,6 +4,8 @@ import { describe, expect, test, vi } from 'vitest';
 
 import { UpgradeCard } from './index';
 
+import { BigNum } from '@/lib/bignum/BigNum';
+
 const defaultProps = {
   title: '最大 HP',
   iconName: 'heart' as const,
@@ -114,6 +116,22 @@ describe('UpgradeCard', () => {
     render(<UpgradeCard {...defaultProps} />);
     expect(screen.getByText(/1,200/)).toBeInTheDocument();
     expect(screen.getByText(/1,320/)).toBeInTheDocument();
+  });
+
+  test('before/after に BigNum を渡すと toDisplay 表記 ("10.00A" 等) になる (v1.0.1 regression)', () => {
+    // v1.0.0 リバランス後の maxHp Lv 0 = 10000 を渡すケースを再現。
+    // number で渡すと "10,000" になってしまうバグ。 BigNum なら "10.00A"。
+    render(
+      <UpgradeCard
+        {...defaultProps}
+        before={BigNum.fromNumber(10000)}
+        after={BigNum.fromNumber(10200)}
+      />
+    );
+    expect(screen.getByText(/10\.00A/)).toBeInTheDocument();
+    expect(screen.getByText(/10\.20A/)).toBeInTheDocument();
+    // number 表記の桁区切りカンマが出ていないことを確認
+    expect(screen.queryByText(/10,000/)).toBeNull();
   });
 
   test('options が空の時はボタンが描画されない', () => {

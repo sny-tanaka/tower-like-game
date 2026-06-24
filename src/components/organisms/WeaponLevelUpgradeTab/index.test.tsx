@@ -83,8 +83,10 @@ describe('buildStatsImpact', () => {
     // weaponLv=100, baseAttackLv=100 で before/after の差が BigNum 切り上げを上回ることを確認
     const items = buildStatsImpact(100, 100, 0);
     const item = items.find((i) => i.label === 'LASER DMG')!;
-    // BigNum.toString() は整数を返す（例: "123", "1234"）ので Number() で安全に比較できる
-    expect(Number(item.after)).toBeGreaterThan(Number(item.before));
+    // v1.0.1: DMG 表記は BigNum.toDisplay() 由来 ("12.34A" 等)。 parseFloat で先頭数値を取って大小比較。
+    // 桁数が変わる場合は接尾文字 (A/B/C/...) で順序判定する必要があるが、
+    // weaponLv+1 の差はわずかなので同じ桁内に収まる前提。
+    expect(parseFloat(item.after)).toBeGreaterThan(parseFloat(item.before));
   });
 
   it('LASER DMG が旧ハードコード値 120 と一致しない（実値を使っている）', () => {
@@ -139,19 +141,20 @@ describe('buildStatsImpact', () => {
   it('CANNON DMG は weaponLv+1 で上昇する', () => {
     const items = buildStatsImpact(100, 100, 0);
     const cannon = items.find((i) => i.label === 'CANNON DMG')!;
-    expect(Number(cannon.after)).toBeGreaterThan(Number(cannon.before));
+    // v1.0.1: DMG は BigNum.toDisplay() ("xx.yyA") → parseFloat で先頭値を抽出
+    expect(parseFloat(cannon.after)).toBeGreaterThan(parseFloat(cannon.before));
   });
 
   it('THUNDER DMG は weaponLv+1 で上昇する', () => {
     const items = buildStatsImpact(100, 100, 0);
     const thunder = items.find((i) => i.label === 'THUNDER DMG')!;
-    expect(Number(thunder.after)).toBeGreaterThan(Number(thunder.before));
+    expect(parseFloat(thunder.after)).toBeGreaterThan(parseFloat(thunder.before));
   });
 
   it('CUTTER DMG は weaponLv+1 で上昇する', () => {
     const items = buildStatsImpact(100, 100, 0);
     const cutter = items.find((i) => i.label === 'CUTTER DMG')!;
-    expect(Number(cutter.after)).toBeGreaterThan(Number(cutter.before));
+    expect(parseFloat(cutter.after)).toBeGreaterThan(parseFloat(cutter.before));
   });
 
   it('rangeLv は LASER DMG に影響しない（射程変化はダメージ計算に関与しない）', () => {

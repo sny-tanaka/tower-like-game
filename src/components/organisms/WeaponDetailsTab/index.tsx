@@ -29,9 +29,12 @@ function round1(v: number): number {
  * 実ダメージ表示用: ゲーム本体と同じ BigNum 計算式 (整数演算 + 端数切り上げ) で
  * baseAttack × damageMul を出して文字列化する。 表示専用に Math.round で number 化すると
  * 例えば baseAttack=1 × damageMul=0.4 が 0 になってしまい、 実際のダメージ (= 1) と乖離する。
+ *
+ * v1.0.0: BigNum スケール (baseAttack base 100 リベース) になったので toString ではなく
+ * toDisplay() でアルファベット表記 ("10.00A" 等) にする。
  */
 function calcDisplayDamage(baseAttack: number, damageMul: number): string {
-  return BigNum.fromNumber(baseAttack).mulNumber(damageMul).toString();
+  return BigNum.fromNumber(baseAttack).mulNumber(damageMul).toDisplay();
 }
 
 /** machine の基礎攻撃力を Lv から算出 (UI 表示用) */
