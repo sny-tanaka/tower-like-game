@@ -369,6 +369,18 @@ export function useBattleLoop({ range, paused = false }: UseBattleLoopOpts): Use
     }>
   >([]);
 
+  /**
+   * Fx 完了通知のバッファ (H2-3)。 onDamageDone / onDeathDone / onProjectileDone /
+   * onAppearanceDone は Fx 演出完了時に複数同時に呼ばれることがあり、 各々で setState
+   * (filter で配列再生成) を呼ぶと BattleField 全体が連鎖 re-render する。
+   * 完了 ID をここに溜めて、 tick 冒頭で 1 回だけ filter + setState する。
+   * (Fx unmount は 1 tick = ~16ms 遅れるが視覚への影響なし)
+   */
+  const pendingDamageRemovalsRef = useRef<Set<string>>(new Set());
+  const pendingDeathRemovalsRef = useRef<Set<string>>(new Set());
+  const pendingProjectileRemovalsRef = useRef<Set<string>>(new Set());
+  const pendingAppearanceRemovalsRef = useRef<Set<string>>(new Set());
+
   const [enemies, setEnemies] = useState<SpawnedEnemy[]>([]);
   const [damageEvents, setDamageEvents] = useState<DamageEvent[]>([]);
   const [deathEvents, setDeathEvents] = useState<DeathEvent[]>([]);
@@ -446,20 +458,23 @@ export function useBattleLoop({ range, paused = false }: UseBattleLoopOpts): Use
     }
   }, [isRunActive]);
 
+  // H2-3: Fx 完了通知は ref Set にバッファするだけ (setState を起こさない)。
+  // 実際の配列フィルタ + setState は tick 冒頭で 1 回だけ flush する。
+  // 同フレーム内に大量の Fx (DamagePopFx 等) が完了しても setState 連鎖が消える。
   const onDamageDone = useCallback((id: string) => {
-    setDamageEvents((prev) => prev.filter((e) => e.id !== id));
+    pendingDamageRemovalsRef.current.add(id);
   }, []);
 
   const onDeathDone = useCallback((id: string) => {
-    setDeathEvents((prev) => prev.filter((e) => e.id !== id));
+    pendingDeathRemovalsRef.current.add(id);
   }, []);
 
   const onProjectileDone = useCallback((id: string) => {
-    setProjectileEvents((prev) => prev.filter((e) => e.id !== id));
+    pendingProjectileRemovalsRef.current.add(id);
   }, []);
 
   const onAppearanceDone = useCallback((id: string) => {
-    setAppearanceEvents((prev) => prev.filter((e) => e.id !== id));
+    pendingAppearanceRemovalsRef.current.add(id);
   }, []);
 
   // ---------------------------------------------------------------------------
@@ -628,6 +643,30 @@ export function useBattleLoop({ range, paused = false }: UseBattleLoopOpts): Use
     const tick = (nowMs: number) => {
       const elapsedMs = nowMs - lastFrameMsRef.current;
       lastFrameMsRef.current = nowMs;
+
+      // H2-3: Fx 完了通知をバッチフラッシュ。 同フレーム内に複数 Fx (DamagePopFx 等)
+      // が完了しても setState 呼び出しを 1 回にまとめ、 BattleField の連鎖 re-render を回避。
+      // pause/gameover 中もペンディングがあれば flush (= 残った Fx を確実にクリーンアップ)。
+      if (pendingDamageRemovalsRef.current.size > 0) {
+        const removed = pendingDamageRemovalsRef.current;
+        pendingDamageRemovalsRef.current = new Set();
+        setDamageEvents((prev) => prev.filter((e) => !removed.has(e.id)));
+      }
+      if (pendingDeathRemovalsRef.current.size > 0) {
+        const removed = pendingDeathRemovalsRef.current;
+        pendingDeathRemovalsRef.current = new Set();
+        setDeathEvents((prev) => prev.filter((e) => !removed.has(e.id)));
+      }
+      if (pendingProjectileRemovalsRef.current.size > 0) {
+        const removed = pendingProjectileRemovalsRef.current;
+        pendingProjectileRemovalsRef.current = new Set();
+        setProjectileEvents((prev) => prev.filter((e) => !removed.has(e.id)));
+      }
+      if (pendingAppearanceRemovalsRef.current.size > 0) {
+        const removed = pendingAppearanceRemovalsRef.current;
+        pendingAppearanceRemovalsRef.current = new Set();
+        setAppearanceEvents((prev) => prev.filter((e) => !removed.has(e.id)));
+      }
 
       const state = useStore.getState();
       // 全滅 (machineHp = 0) のときは ResultDialog 表示中なのでバトルを停止する。
