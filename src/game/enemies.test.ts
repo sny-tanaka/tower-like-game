@@ -3,6 +3,7 @@ import { describe, it, expect } from 'vitest';
 import {
   NORMAL_HP_MULT,
   UPPER_REWARD,
+  UPPER_SPD_MULT,
   createEnemyTemplate,
   scaledReward,
   spawnEnemy,
@@ -106,6 +107,11 @@ describe('createEnemyTemplate: elite', () => {
     expect(t.kind).toBe('elite');
   });
 
+  it('speed は TIER_BASE.SPD × UPPER_SPD_MULT.elite', () => {
+    const t = createEnemyTemplate(1, 5, 'elite');
+    expect(t.speed).toBe(TIER_BASE.SPD * UPPER_SPD_MULT.elite);
+  });
+
   it('subtype が undefined である', () => {
     const t = createEnemyTemplate(1, 5, 'elite');
     expect(t.subtype).toBeUndefined();
@@ -122,6 +128,11 @@ describe('createEnemyTemplate: miniboss', () => {
   it('kind が "miniboss" である', () => {
     const t = createEnemyTemplate(1, 10, 'miniboss');
     expect(t.kind).toBe('miniboss');
+  });
+
+  it('speed は TIER_BASE.SPD × UPPER_SPD_MULT.miniboss', () => {
+    const t = createEnemyTemplate(1, 10, 'miniboss');
+    expect(t.speed).toBe(TIER_BASE.SPD * UPPER_SPD_MULT.miniboss);
   });
 
   it('T=1 W=10 miniboss の HP は elite の 5 倍以上', () => {
@@ -142,6 +153,11 @@ describe('createEnemyTemplate: boss', () => {
   it('kind が "boss" である', () => {
     const t = createEnemyTemplate(1, 30, 'boss');
     expect(t.kind).toBe('boss');
+  });
+
+  it('speed は TIER_BASE.SPD × UPPER_SPD_MULT.boss', () => {
+    const t = createEnemyTemplate(1, 30, 'boss');
+    expect(t.speed).toBe(TIER_BASE.SPD * UPPER_SPD_MULT.boss);
   });
 
   it('T=1 W=30 boss の HP が最大', () => {
