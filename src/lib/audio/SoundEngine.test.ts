@@ -148,6 +148,23 @@ describe('SoundEngine', () => {
     expect(engine.getSeVolume()).toBe(0.3);
   });
 
+  // hotfix/0.3.1 回帰防止: init() 前に setBgmVolume/setSeVolume で内部値を更新したとき、
+  // init() 後に GainNode へ正しい値が反映されることを保証する。
+  // これが成立する限り、 App.tsx の initOnce 内で setXxxVolume を呼ぶ必要がなく、
+  // 「initOnce のクロージャ捕捉値で hydrate 後の値を上書きする」 バグが起きない。
+  it('init 前に setSeVolume / setBgmVolume した値が init 後の gain.value に反映される', () => {
+    const engine = new SoundEngine();
+    // hydrate 後想定の値で 内部 volume を更新 (gain はまだ null なので no-op)
+    engine.setSeVolume(0.3);
+    engine.setBgmVolume(0.2);
+    expect(engine.getSeVolume()).toBe(0.3);
+    expect(engine.getBgmVolume()).toBe(0.2);
+    // init で GainNode を作成 → 内部 volume をそのまま gain.value に代入することを期待
+    engine.init();
+    expect(engine.getSeVolume()).toBe(0.3);
+    expect(engine.getBgmVolume()).toBe(0.2);
+  });
+
   it('play() invokes the sound function', () => {
     const engine = new SoundEngine();
     engine.init();
