@@ -290,4 +290,77 @@ describe('thunderPlasmaDischarge — 連鎖上限', () => {
     const result = thunderPlasmaDischarge(machine, stats, enemies);
     expect(result.hits).toHaveLength(5);
   });
+
+  // --- 追加 edge case ---
+
+  it('敵数が plasmaChainCount とちょうど同数 (Lv0=7) のとき全員ヒット', () => {
+    const machine = makeMachine();
+    const stats = thunderStats(0); // plasmaChainCount = 7
+    const enemies = Array.from({ length: 7 }, (_, i) => makeEnemy(`e${i + 1}`));
+    const result = thunderPlasmaDischarge(machine, stats, enemies);
+    expect(result.hits).toHaveLength(7);
+  });
+
+  it('ヒット順は入力配列の順序通り (index 0 が先頭)', () => {
+    const machine = makeMachine();
+    const stats = thunderStats(0); // plasmaChainCount = 7
+    const enemies = Array.from({ length: 10 }, (_, i) => makeEnemy(`enemy-${i}`));
+    const result = thunderPlasmaDischarge(machine, stats, enemies);
+    // 先頭 7 体が順番通りにヒットするはず
+    expect(result.hits.map((h) => h.enemyId)).toEqual(enemies.slice(0, 7).map((e) => e.id));
+  });
+
+  it('Lv9: plasmaChainCount = floor(7 + 0.9) = 7 で 10 体渡すと hits が 7 件', () => {
+    const machine = makeMachine();
+    const stats = thunderStats(9); // Math.floor(7 + 0.9) = 7
+    expect(stats.plasmaChainCount).toBe(7);
+    const enemies = Array.from({ length: 10 }, (_, i) => makeEnemy(`e${i + 1}`));
+    const result = thunderPlasmaDischarge(machine, stats, enemies);
+    expect(result.hits).toHaveLength(7);
+  });
+
+  it('Lv100: plasmaChainCount = floor(7 + 10) = 17 で 20 体渡すと hits が 17 件', () => {
+    const machine = makeMachine();
+    const stats = thunderStats(100); // Math.floor(7 + 10) = 17
+    expect(stats.plasmaChainCount).toBe(17);
+    const enemies = Array.from({ length: 20 }, (_, i) => makeEnemy(`e${i + 1}`));
+    const result = thunderPlasmaDischarge(machine, stats, enemies);
+    expect(result.hits).toHaveLength(17);
+  });
+
+  it('Lv1000: plasmaChainCount = floor(7 + 100) = 107 で 50 体のみ渡すと全員ヒット', () => {
+    const machine = makeMachine();
+    const stats = thunderStats(1000); // Math.floor(7 + 100) = 107
+    expect(stats.plasmaChainCount).toBe(107);
+    const enemies = Array.from({ length: 50 }, (_, i) => makeEnemy(`e${i + 1}`));
+    const result = thunderPlasmaDischarge(machine, stats, enemies);
+    // 敵数 50 < plasmaChainCount 107 → 全員ヒット
+    expect(result.hits).toHaveLength(50);
+  });
+
+  it('負 Lv は 0 として扱い plasmaChainCount = 7 で上限が適用される', () => {
+    const machine = makeMachine();
+    const stats = thunderStats(-99); // lv = max(0, -99) = 0 → plasmaChainCount = 7
+    expect(stats.plasmaChainCount).toBe(7);
+    const enemies = Array.from({ length: 10 }, (_, i) => makeEnemy(`e${i + 1}`));
+    const result = thunderPlasmaDischarge(machine, stats, enemies);
+    expect(result.hits).toHaveLength(7);
+  });
+
+  it('chainFalloff 減衰は 8 体目以降 (Lv10, plasmaChainCount=8) には適用されない', () => {
+    const machine = makeMachine({ baseAttack: BigNum.fromNumber(1000) });
+    const stats = thunderStats(10); // plasmaChainCount = 8
+    const enemies = Array.from({ length: 10 }, (_, i) => makeEnemy(`e${i + 1}`));
+    const result = thunderPlasmaDischarge(machine, stats, enemies);
+    // 8 件ヒットし、8 番目が存在すること
+    expect(result.hits).toHaveLength(8);
+    // 8 体目ダメージ = 1 体目 × 0.9^7
+    const baseDmg = 1000 * stats.damageMul * stats.plasmaDamageMul;
+    const expected8th = Math.floor(baseDmg * Math.pow(THUNDER_CHAIN_FALLOFF, 7));
+    const actual8th = parseInt(result.hits[7]!.damage.toString(), 10);
+    expect(actual8th).toBeGreaterThanOrEqual(expected8th);
+    expect(actual8th).toBeLessThanOrEqual(expected8th + 1);
+    // 9 番目は存在しない
+    expect(result.hits[8]).toBeUndefined();
+  });
 });
