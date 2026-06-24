@@ -65,6 +65,12 @@ export interface SpawnedEnemy extends EnemyTemplate {
   burnUntilMs?: number;
   /** 燃焼中の毎秒ダメージ量 (BigNum)。 burnUntilMs と組で有効 */
   burnPerSec?: BigNum;
+  /**
+   * 燃焼 tick 用の累積 ms。 BigNum は整数演算で `mulNumber(deltaSec)` が天井丸めされて
+   * 60FPS で +60 倍暴走するため、 HP リジェネと同様に「1 秒ごとに `burnPerSec` を 1 回適用」
+   * する累積カウンタを敵ごとに持つ。 burn 付与時に 0 リセット、 期限切れで undefined。
+   */
+  burnAccumulatorMs?: number;
 }
 
 // ---------------------------------------------------------------------------

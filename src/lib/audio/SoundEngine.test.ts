@@ -81,7 +81,14 @@ class MockAudioContext {
     getChannelData: () => new Float32Array(length),
   }));
   createDelay = vi.fn(createMockDelay);
-  resume = vi.fn(() => Promise.resolve());
+  resume = vi.fn(() => {
+    this.state = 'running';
+    return Promise.resolve();
+  });
+  suspend = vi.fn(() => {
+    this.state = 'suspended';
+    return Promise.resolve();
+  });
   close = vi.fn(() => Promise.resolve());
 }
 
@@ -184,11 +191,105 @@ describe('SoundEngine', () => {
     expect(engine.isInitialized()).toBe(false);
   });
 
+  describe('visibilitychange による AudioContext 制御 (発熱抑制)', () => {
+    it('document.hidden=true で AudioContext.suspend が呼ばれる', () => {
+      const engine = new SoundEngine();
+      engine.init();
+      const ctx = (engine as unknown as { ctx: MockAudioContext }).ctx;
+      Object.defineProperty(document, 'hidden', { configurable: true, value: true });
+      document.dispatchEvent(new Event('visibilitychange'));
+      expect(ctx.suspend).toHaveBeenCalled();
+    });
+
+    it('document.hidden=false で AudioContext.resume が呼ばれる', () => {
+      const engine = new SoundEngine();
+      engine.init();
+      const ctx = (engine as unknown as { ctx: MockAudioContext }).ctx;
+      // まず suspend させてから resume を確認
+      Object.defineProperty(document, 'hidden', { configurable: true, value: true });
+      document.dispatchEvent(new Event('visibilitychange'));
+      ctx.resume.mockClear();
+      Object.defineProperty(document, 'hidden', { configurable: true, value: false });
+      document.dispatchEvent(new Event('visibilitychange'));
+      expect(ctx.resume).toHaveBeenCalled();
+    });
+
+    it('既に suspended のとき suspend を二度呼ばない', () => {
+      const engine = new SoundEngine();
+      engine.init();
+      const ctx = (engine as unknown as { ctx: MockAudioContext }).ctx;
+      Object.defineProperty(document, 'hidden', { configurable: true, value: true });
+      document.dispatchEvent(new Event('visibilitychange'));
+      ctx.suspend.mockClear();
+      document.dispatchEvent(new Event('visibilitychange'));
+      expect(ctx.suspend).not.toHaveBeenCalled();
+    });
+
+    it('destroy() で visibilitychange listener が解除される', () => {
+      const engine = new SoundEngine();
+      engine.init();
+      const ctx = (engine as unknown as { ctx: MockAudioContext | null }).ctx!;
+      engine.destroy();
+      Object.defineProperty(document, 'hidden', { configurable: true, value: true });
+      document.dispatchEvent(new Event('visibilitychange'));
+      expect(ctx.suspend).not.toHaveBeenCalled();
+    });
+  });
+
+  it('setMuted(true) で isMuted() が true になる', () => {
+    const engine = new SoundEngine();
+    engine.init();
+    engine.setMuted(true);
+    expect(engine.isMuted()).toBe(true);
+  });
+
+  it('setMuted(false) で isMuted() が false になる', () => {
+    const engine = new SoundEngine();
+    engine.init();
+    engine.setMuted(true);
+    engine.setMuted(false);
+    expect(engine.isMuted()).toBe(false);
+  });
+
+  it('setMuted(true) 後も seVolume / bgmVolume の内部値は変わらない', () => {
+    const engine = new SoundEngine();
+    engine.init();
+    engine.setSeVolume(0.6);
+    engine.setBgmVolume(0.4);
+    engine.setMuted(true);
+    expect(engine.getSeVolume()).toBe(0.6);
+    expect(engine.getBgmVolume()).toBe(0.4);
+  });
+
   it('init() resumes if context is suspended', () => {
     const engine = new SoundEngine();
     engine.init();
     engine.play('tap');
     expect(engine.isInitialized()).toBe(true);
+  });
+
+  it('setMuted() before init() は throw しない', () => {
+    const engine = new SoundEngine();
+    expect(() => engine.setMuted(true)).not.toThrow();
+    expect(engine.isMuted()).toBe(true);
+  });
+
+  it('setMuted(true) → setMuted(false) で isMuted() が false に戻る (init あり)', () => {
+    const engine = new SoundEngine();
+    engine.init();
+    engine.setMuted(true);
+    expect(engine.isMuted()).toBe(true);
+    engine.setMuted(false);
+    expect(engine.isMuted()).toBe(false);
+  });
+
+  it('destroy() 後に isMuted() が false にリセットされる', () => {
+    const engine = new SoundEngine();
+    engine.init();
+    engine.setMuted(true);
+    expect(engine.isMuted()).toBe(true);
+    engine.destroy();
+    expect(engine.isMuted()).toBe(false);
   });
 });
 

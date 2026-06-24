@@ -50,8 +50,6 @@ export interface PatchEffect {
   overrideReceivedDamage?: BigNum;
   /** HP 回復量 */
   heal?: BigNum;
-  /** シールド回復量 */
-  shieldRecover?: number;
   /** ドロップ倍率（bonusDrop） */
   dropMultiplier?: number;
   /**

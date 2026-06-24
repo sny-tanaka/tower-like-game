@@ -151,7 +151,7 @@
 
 | 種類 | 例 | 配置 |
 |---|---|---|
-| **Fx として実装** | 戦闘演出 (DamagePop / EnemyDeath / Blast / Beam) / 画面演出 (ScreenShake / DamageVignette) / 出現 (WaveStart / AppearanceBanner) / 獲得 (Pickup / LevelUp) | `src/components/fx/<Name>Fx/` |
+| **Fx として実装** | 戦闘演出 (DamagePop / EnemyDeath / Blast / Beam / MachineHit) / 出現 (WaveStart / AppearanceBanner) / 獲得 (Pickup) / クリア (TierClear) | `src/components/fx/<Name>Fx/` |
 | **コンポーネント固有アニメ** | ボトムシートのスライドイン / ダイアログのフェード / オーバーレイのフェード / タブ切替 / トーストのスライド / 画面遷移 | 当該コンポーネント内に `@keyframes` を持つ |
 
 「複数のコンポーネント / 複数の局面で再利用される演出のみ Fx 化」が判断基準。**ボトムシートのスライドイン**のようにそのコンポーネント固有のアニメは、Fx ではなく当該コンポーネント内に閉じる（Sheet / ConfirmDialog / Overlay / TabBar / Toast / AppShell など）。
@@ -179,7 +179,7 @@
 ### ディレクトリと命名
 
 - 配置: `src/components/fx/<FxName>/index.tsx` + `style.module.scss`
-- 命名: 末尾を `Fx` で揃える（`DamagePopFx`, `ScreenShakeFx`, `LevelUpFx`）
+- 命名: 末尾を `Fx` で揃える（`DamagePopFx`, `MachineHitFx`, `TierClearFx`）
 - Atom / Molecule / Organism からは `import` で参照、CSS の重複定義は禁止
 
 ### 共通 Fx 一覧
@@ -196,21 +196,15 @@
 | `ChainBoltFx` | Thunder Plasma Discharge | ジグザグ電撃が連鎖 |
 | `OverdriveAuraFx` | Cutter Overdrive 発動中 | マシン周囲の残像オーラ |
 | `MegaBeamFx` | Laser Mega Beam | 太いビームが画面端まで伸びる |
-| `VolleyFx` | Cannon Volley | 全方位 72° 刻み 5 発（`spreadDeg` で扇形にも対応） |
-| `FreezeFx` | 凍結発動 | 敵に氷晶が貼り付く |
-| `BurnFx` | 燃焼発動 | 敵から炎が立ち上がる |
-| `InstantKillFx` | インスタントキル発動 | 即死フラッシュ |
+| `MachineHitFx` | マシン本体被ダメ | マシン中心に局所の赤フラッシュ（旧 `DamageVignetteFx` の全画面ビネットはチカチカで鬱陶しかったため v0.3.0 で局所版に置換） |
 
 #### 画面演出 (Fx)
 
 | Fx | 起点 | 内容 |
 |---|---|---|
-| `ScreenShakeFx` | 大ダメ・大爆発・ボス出現 | 画面全体の揺れ |
-| `DamageVignetteFx` | マシン被ダメ | 画面端に赤ビネット |
-| `HealFlashFx` | HP リジェネ・回復パッチ発動 | HP バーが緑にフェード |
 | `WaveStartFx` | ウェーブ開始 | 上 HUD にウェーブ番号がスライドイン |
 | `AppearanceBannerFx` | エリート / ミニボス / Tier ボス出現、ラン開始 | フラッシュ + 名前バナー。**`kind: 'elite' \| 'mini-boss' \| 'boss' \| 'battle-start'` で表現分岐**（旧 `EliteAppearanceFx` / `BossAppearanceFx` は統合）。`battle-start` は `isRunActive` が false → true に遷移したフレームのみ発火（再マウントでは出さない） |
-| `TierClearFx` | Tier クリア | 画面全体のフィナーレ演出 |
+| `TierClearFx` | Tier クリア (`currentTier` 増加で再マウント発火) | 画面全体のフィナーレ演出 |
 | `ScreenSaverFx` | スクリーンセーバー起動 | フルスクリーンの軽量アニメ |
 
 #### 獲得・強化演出 (Fx)
@@ -218,9 +212,22 @@
 | Fx | 起点 | 内容 |
 |---|---|---|
 | `PickupFx` | 通貨 / アイテム獲得 | HUD に吸い込まれる演出。**`icon` + `color` props で 通貨 3 種（screw / bolt / alloy）を吸収**（旧 `CoinPickupFx` / `BoltPickupFx` / `AlloyPickupFx` は統合） |
-| `LevelUpFx` | 強化購入時 | カードにキラキラ |
 
-> ※ `MergeSuccessFx`（パッチ合成成功）/ `PatchDropFx`（パッチドロップ）は専用 Fx を**未実装**。`LevelUpFx` + `PickupFx` の組合せで代用可能（必要になった段階で追加判断）。
+> ※ `MergeSuccessFx`（パッチ合成成功）/ `PatchDropFx`（パッチドロップ）は専用 Fx を**未実装**。`PickupFx` で代用可能（必要になった段階で追加判断）。
+
+#### v0.3.0 で廃止した Fx
+
+実機 UX 動作確認の結果、 以下は過剰演出・鬱陶しさ・発熱の原因と判断して **削除**:
+
+| 旧 Fx 名 (廃止) | 廃止理由 |
+|---|---|
+| `DamageVignetteFx` | 全画面赤ビネットがチカチカで鬱陶しい → `MachineHitFx` (マシン本体局所赤フラッシュ) に置換 |
+| `HealFlashFx` | HP リジェネが毎秒走るため緑フェードが鬱陶しい → 仕様削除 |
+| `BurnFx` / `FreezeFx` | 状態異常 Fx は敵数倍増で GPU 負荷 → 過剰演出と判断、 削除 |
+| `InstantKillFx` | 即死フラッシュは演出過剰 → 削除 |
+| `LevelUpFx` | 強化購入時のキラキラは SE で十分 → 削除 |
+| `ScreenShakeFx` | 画面揺れは UX 阻害 → 削除 |
+| `VolleyFx` | Cannon Volley は弾道アニメ + Blast の組合せで表現済み → 単独 Fx は不要、 削除 |
 
 #### コンポーネント固有アニメ（Fx ではなく当該コンポーネント内）
 
@@ -238,10 +245,10 @@
 ### 使い方の例（コード方針）
 
 ```tsx
-// 親 (Organism) で条件付きマウント
-{isDamaged && <DamageVignetteFx onDone={() => setIsDamaged(false)} />}
-
-// 親が key を変えて再マウント（連続発動時）
+// 親が key を変えて再マウント（連続発動時 / 同じ被ダメイベントごとに）
+{machineHitKey > 0 && (
+  <MachineHitFx key={machineHitKey} cx={machineX} cy={machineY} />
+)}
 {damageEvents.map((ev) => (
   <DamagePopFx key={ev.id} x={ev.x} y={ev.y} value={ev.value} />
 ))}
@@ -333,7 +340,7 @@ src/
 │   ├── atoms/          # Button, Icon, Text, NumericDisplay, etc
 │   ├── molecules/      # UpgradeCard, PatchCard, WeaponSlotIcon, etc
 │   ├── organisms/      # MachineUpgradeTabs, BattleHUD, ResultDialog, etc
-│   ├── fx/             # DamagePopFx, ScreenShakeFx, LevelUpFx, etc（CSS animation はここのみ）
+│   ├── fx/             # DamagePopFx, MachineHitFx, TierClearFx, etc（CSS animation はここのみ）
 │   └── shell/          # AppShell, PageHeader, MainNav
 ├── pages/              # 旧 page、現状は Screen と呼ぶ
 │   ├── title/

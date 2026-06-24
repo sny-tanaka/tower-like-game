@@ -122,6 +122,52 @@ describe('PatchCard', () => {
     expect(el.className).toMatch(/disabled/);
   });
 
+  test('data-patch-id 属性が付与される', () => {
+    const { container } = render(
+      <PatchCard
+        {...defaultProps}
+        patchId="freeze#2"
+      />
+    );
+    expect(container.firstChild).toHaveAttribute('data-patch-id', 'freeze#2');
+  });
+
+  test('data-patch-id: PatchName#tier 形式が正しく反映される', () => {
+    const { container } = render(
+      <PatchCard
+        {...defaultProps}
+        patchId="damageImmune#1"
+      />
+    );
+    expect(container.firstChild).toHaveAttribute('data-patch-id', 'damageImmune#1');
+  });
+
+  test('data-patch-id: tier 5 (高 Tier) でも正しく反映される', () => {
+    const { container } = render(
+      <PatchCard
+        {...defaultProps}
+        patchId="instantKill#5"
+      />
+    );
+    expect(container.firstChild).toHaveAttribute('data-patch-id', 'instantKill#5');
+  });
+
+  test('data-patch-id: defaultProps の patchId がルート div に付与される', () => {
+    const { container } = render(<PatchCard {...defaultProps} />);
+    expect(container.firstChild).toHaveAttribute('data-patch-id', defaultProps.patchId);
+  });
+
+  test('data-patch-id: locked=true でも属性が付与される', () => {
+    const { container } = render(
+      <PatchCard
+        {...defaultProps}
+        patchId="burnHit#3"
+        locked={true}
+      />
+    );
+    expect(container.firstChild).toHaveAttribute('data-patch-id', 'burnHit#3');
+  });
+
   test('trigger と effect が md サイズで描画される', () => {
     render(
       <PatchCard

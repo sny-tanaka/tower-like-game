@@ -1,9 +1,23 @@
-import { render, screen } from '@testing-library/react';
-import { describe, expect, test } from 'vitest';
+import { render, screen, act, fireEvent } from '@testing-library/react';
+import { describe, expect, test, vi, beforeEach, afterEach } from 'vitest';
 
 import { Page } from './index';
 
+import { soundEngine } from '@/lib/audio';
+import { BigNum } from '@/lib/bignum/BigNum';
+import { useStore } from '@/store/index';
 import { NavigationProvider } from '@/store/navigation';
+import { flushAfterRun } from '@/store/sync';
+
+// flushAfterRun は IndexedDB を叩くのでモック
+vi.mock('@/store/sync', () => ({
+  flushAfterRun: vi.fn().mockResolvedValue(undefined),
+}));
+
+// soundEngine をモック
+vi.mock('@/lib/audio', () => ({
+  soundEngine: { play: vi.fn(), playBgm: vi.fn(), stopBgm: vi.fn(), init: vi.fn() },
+}));
 
 /** NavigationProvider でラップするヘルパー */
 function renderPage() {
@@ -36,5 +50,410 @@ describe('BattleScreen Page', () => {
     expect(
       screen.queryByRole('button', { name: 'スクリーンセーバーを終了' })
     ).not.toBeInTheDocument();
+  });
+});
+
+describe('finalizeRun — gameover 時のラン終了処理', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    // store を初期状態に近い形に戻す（isRunActive=false, machineHp=0）
+    // startRun を呼ぶことで isRunActive=true, machineHp>0 になる
+    useStore.getState().endRun();
+  });
+
+  afterEach(() => {
+    vi.clearAllMocks();
+  });
+
+  test('gameover 時に endRun が呼ばれる', async () => {
+    // store を startRun 状態にしてからテスト
+    const state = useStore.getState();
+    // HP を 1 にして startRun
+    state.startRun({
+      initialWeapon: 'laser',
+      baseMachineMaxHp: BigNum.fromNumber(100),
+      initialTier: 1,
+    });
+
+    const endRunSpy = vi.spyOn(useStore.getState(), 'endRun');
+
+    renderPage();
+
+    // machineHp=0 にして gameover を発生させる
+    await act(async () => {
+      useStore.setState({ machineHp: BigNum.ZERO });
+    });
+
+    expect(endRunSpy).toHaveBeenCalledTimes(1);
+  });
+
+  test('gameover 時に incrementRuns が呼ばれる', async () => {
+    useStore.getState().startRun({
+      initialWeapon: 'laser',
+      baseMachineMaxHp: BigNum.fromNumber(100),
+      initialTier: 1,
+    });
+
+    const incrementRunsSpy = vi.spyOn(useStore.getState(), 'incrementRuns');
+
+    renderPage();
+
+    await act(async () => {
+      useStore.setState({ machineHp: BigNum.ZERO });
+    });
+
+    expect(incrementRunsSpy).toHaveBeenCalledTimes(1);
+  });
+
+  test('gameover 時に setLastPlayedAt が呼ばれる', async () => {
+    useStore.getState().startRun({
+      initialWeapon: 'laser',
+      baseMachineMaxHp: BigNum.fromNumber(100),
+      initialTier: 1,
+    });
+
+    const setLastPlayedAtSpy = vi.spyOn(useStore.getState(), 'setLastPlayedAt');
+
+    renderPage();
+
+    await act(async () => {
+      useStore.setState({ machineHp: BigNum.ZERO });
+    });
+
+    expect(setLastPlayedAtSpy).toHaveBeenCalledTimes(1);
+  });
+
+  test('gameover 時に flushAfterRun が呼ばれる', async () => {
+    useStore.getState().startRun({
+      initialWeapon: 'laser',
+      baseMachineMaxHp: BigNum.fromNumber(100),
+      initialTier: 1,
+    });
+
+    renderPage();
+
+    await act(async () => {
+      useStore.setState({ machineHp: BigNum.ZERO });
+    });
+
+    expect(flushAfterRun).toHaveBeenCalledTimes(1);
+  });
+
+  test('gameover 後に ResultDialog が表示される', async () => {
+    useStore.getState().startRun({
+      initialWeapon: 'laser',
+      baseMachineMaxHp: BigNum.fromNumber(100),
+      initialTier: 1,
+    });
+
+    renderPage();
+
+    await act(async () => {
+      useStore.setState({ machineHp: BigNum.ZERO });
+    });
+
+    expect(screen.getByRole('button', { name: '出撃準備へ' })).toBeInTheDocument();
+  });
+
+  test('重複呼び出しなし — gameover 後に effectiveResultStatus が非 null のまま再レンダーしても endRun は 1 度だけ', async () => {
+    useStore.getState().startRun({
+      initialWeapon: 'laser',
+      baseMachineMaxHp: BigNum.fromNumber(100),
+      initialTier: 1,
+    });
+
+    const endRunSpy = vi.spyOn(useStore.getState(), 'endRun');
+
+    renderPage();
+
+    await act(async () => {
+      useStore.setState({ machineHp: BigNum.ZERO });
+    });
+
+    // machineHp=0 のまま 2 回目の再レンダーを強制的に起こす（screw を更新）
+    await act(async () => {
+      useStore.setState({ screw: BigNum.fromNumber(999) });
+    });
+
+    // endRun は 1 度だけ呼ばれるはず
+    expect(endRunSpy).toHaveBeenCalledTimes(1);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// finalizeRun — 撤退フローのテスト
+// ---------------------------------------------------------------------------
+
+describe('finalizeRun — 撤退フロー', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    useStore.getState().endRun();
+  });
+
+  afterEach(() => {
+    vi.clearAllMocks();
+  });
+
+  /** 撤退操作ヘルパー: メニュー → 撤退 → 確認ダイアログで「撤退する」 */
+  async function doRetreat() {
+    const pauseBtn = screen.getByRole('button', { name: '一時停止 (メニューを開く)' });
+    await act(async () => {
+      fireEvent.click(pauseBtn);
+    });
+    const retreatBtn = screen.getByRole('button', { name: '撤退' });
+    await act(async () => {
+      fireEvent.click(retreatBtn);
+    });
+    // ConfirmDialog の確認ボタン
+    const confirmBtn = screen.getByRole('button', { name: '撤退する' });
+    await act(async () => {
+      fireEvent.click(confirmBtn);
+    });
+  }
+
+  test('撤退時に endRun が呼ばれる', async () => {
+    useStore.getState().startRun({
+      initialWeapon: 'laser',
+      baseMachineMaxHp: BigNum.fromNumber(100),
+      initialTier: 1,
+    });
+
+    const endRunSpy = vi.spyOn(useStore.getState(), 'endRun');
+
+    renderPage();
+    await doRetreat();
+
+    expect(endRunSpy).toHaveBeenCalledTimes(1);
+  });
+
+  test('撤退時に incrementRuns が呼ばれる', async () => {
+    useStore.getState().startRun({
+      initialWeapon: 'laser',
+      baseMachineMaxHp: BigNum.fromNumber(100),
+      initialTier: 1,
+    });
+
+    const incrementRunsSpy = vi.spyOn(useStore.getState(), 'incrementRuns');
+
+    renderPage();
+    await doRetreat();
+
+    expect(incrementRunsSpy).toHaveBeenCalledTimes(1);
+  });
+
+  test('撤退時に flushAfterRun が呼ばれる', async () => {
+    useStore.getState().startRun({
+      initialWeapon: 'laser',
+      baseMachineMaxHp: BigNum.fromNumber(100),
+      initialTier: 1,
+    });
+
+    renderPage();
+    await doRetreat();
+
+    expect(flushAfterRun).toHaveBeenCalledTimes(1);
+  });
+
+  test('撤退後に ResultDialog が表示される', async () => {
+    useStore.getState().startRun({
+      initialWeapon: 'laser',
+      baseMachineMaxHp: BigNum.fromNumber(100),
+      initialTier: 1,
+    });
+
+    renderPage();
+    await doRetreat();
+
+    expect(screen.getByRole('button', { name: '出撃準備へ' })).toBeInTheDocument();
+  });
+
+  test('撤退後に重複呼び出しなし — endRun は 1 度だけ', async () => {
+    useStore.getState().startRun({
+      initialWeapon: 'laser',
+      baseMachineMaxHp: BigNum.fromNumber(100),
+      initialTier: 1,
+    });
+
+    const endRunSpy = vi.spyOn(useStore.getState(), 'endRun');
+
+    renderPage();
+    await doRetreat();
+
+    // 追加の store 変更をしても endRun が再び呼ばれないことを確認
+    await act(async () => {
+      useStore.setState({ screw: BigNum.fromNumber(999) });
+    });
+
+    expect(endRunSpy).toHaveBeenCalledTimes(1);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// finalizeRun — profile 関数の引数テスト
+// ---------------------------------------------------------------------------
+
+describe('finalizeRun — profile 関数の引数', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    useStore.getState().endRun();
+  });
+
+  afterEach(() => {
+    vi.clearAllMocks();
+  });
+
+  test('gameover 時に addEnemiesKilled が number 型引数で呼ばれる', async () => {
+    useStore.getState().startRun({
+      initialWeapon: 'laser',
+      baseMachineMaxHp: BigNum.fromNumber(100),
+      initialTier: 1,
+    });
+
+    const addEnemiesKilledSpy = vi.spyOn(useStore.getState(), 'addEnemiesKilled');
+
+    renderPage();
+
+    await act(async () => {
+      useStore.setState({ machineHp: BigNum.ZERO });
+    });
+
+    expect(addEnemiesKilledSpy).toHaveBeenCalledTimes(1);
+    // 引数が number 型であることを確認（killCount の初期値 0）
+    const [arg] = addEnemiesKilledSpy.mock.calls[0];
+    expect(typeof arg).toBe('number');
+  });
+
+  test('gameover 時に addPlayTimeSec が number 型引数で呼ばれる', async () => {
+    useStore.getState().startRun({
+      initialWeapon: 'laser',
+      baseMachineMaxHp: BigNum.fromNumber(100),
+      initialTier: 1,
+    });
+
+    const addPlayTimeSecSpy = vi.spyOn(useStore.getState(), 'addPlayTimeSec');
+
+    renderPage();
+
+    await act(async () => {
+      useStore.setState({ machineHp: BigNum.ZERO });
+    });
+
+    expect(addPlayTimeSecSpy).toHaveBeenCalledTimes(1);
+    // 引数が number 型であることを確認（runElapsedSec の初期値 0）
+    const [arg] = addPlayTimeSecSpy.mock.calls[0];
+    expect(typeof arg).toBe('number');
+  });
+
+  test('gameover 時に updateHighest が (tier: number, wave: number) で呼ばれる', async () => {
+    useStore.getState().startRun({
+      initialWeapon: 'laser',
+      baseMachineMaxHp: BigNum.fromNumber(100),
+      initialTier: 1,
+    });
+
+    const updateHighestSpy = vi.spyOn(useStore.getState(), 'updateHighest');
+
+    renderPage();
+
+    await act(async () => {
+      useStore.setState({ machineHp: BigNum.ZERO });
+    });
+
+    expect(updateHighestSpy).toHaveBeenCalledTimes(1);
+    const [tier, wave] = updateHighestSpy.mock.calls[0];
+    expect(typeof tier).toBe('number');
+    expect(typeof wave).toBe('number');
+  });
+
+  test('gameover 時に setLastPlayedAt が unix ms (number) で呼ばれる', async () => {
+    useStore.getState().startRun({
+      initialWeapon: 'laser',
+      baseMachineMaxHp: BigNum.fromNumber(100),
+      initialTier: 1,
+    });
+
+    const setLastPlayedAtSpy = vi.spyOn(useStore.getState(), 'setLastPlayedAt');
+    const before = Date.now();
+
+    renderPage();
+
+    await act(async () => {
+      useStore.setState({ machineHp: BigNum.ZERO });
+    });
+
+    const after = Date.now();
+    expect(setLastPlayedAtSpy).toHaveBeenCalledTimes(1);
+    const [ts] = setLastPlayedAtSpy.mock.calls[0];
+    expect(ts).toBeGreaterThanOrEqual(before);
+    expect(ts).toBeLessThanOrEqual(after + 100);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// SE 配線テスト
+// ---------------------------------------------------------------------------
+
+describe('SE 配線', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  afterEach(() => {
+    useStore.getState().endRun();
+    vi.clearAllMocks();
+  });
+
+  test('gameover 時に resultGameOver SE が再生される', async () => {
+    useStore.getState().startRun({
+      initialWeapon: 'laser',
+      baseMachineMaxHp: BigNum.fromNumber(100),
+      initialTier: 1,
+    });
+
+    renderPage();
+
+    await act(async () => {
+      useStore.setState({ machineHp: BigNum.ZERO });
+    });
+
+    expect(soundEngine.play).toHaveBeenCalledWith('resultGameOver');
+  });
+
+  test('メニューを開くと dialogOpen SE が再生される', () => {
+    renderPage();
+    // aria-label は「一時停止 (メニューを開く)」
+    const pauseBtn = screen.getByRole('button', { name: '一時停止 (メニューを開く)' });
+    fireEvent.click(pauseBtn);
+    expect(soundEngine.play).toHaveBeenCalledWith('dialogOpen');
+  });
+
+  test('メニューを閉じると dialogClose SE が再生される', () => {
+    renderPage();
+    // 開く
+    const pauseBtn = screen.getByRole('button', { name: '一時停止 (メニューを開く)' });
+    fireEvent.click(pauseBtn);
+    vi.clearAllMocks();
+    // 閉じる: aria-label は「再開 (メニューを閉じる)」
+    const closeBtn = screen.getByRole('button', { name: '再開 (メニューを閉じる)' });
+    fireEvent.click(closeBtn);
+    expect(soundEngine.play).toHaveBeenCalledWith('dialogClose');
+  });
+
+  test('gameover 時に resultClear SE は再生されない', async () => {
+    useStore.getState().startRun({
+      initialWeapon: 'laser',
+      baseMachineMaxHp: BigNum.fromNumber(100),
+      initialTier: 1,
+    });
+
+    renderPage();
+
+    await act(async () => {
+      useStore.setState({ machineHp: BigNum.ZERO });
+    });
+
+    // gameover → resultGameOver が鳴り、resultClear は鳴らない
+    expect(soundEngine.play).toHaveBeenCalledWith('resultGameOver');
+    expect(soundEngine.play).not.toHaveBeenCalledWith('resultClear');
   });
 });

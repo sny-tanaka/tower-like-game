@@ -145,4 +145,37 @@ describe('BattleHudBottom', () => {
       expect(onOpenScreenSaver).toHaveBeenCalled();
     });
   });
+
+  describe('WeaponSlotIcon ready 配線', () => {
+    it('CD 完了かつ未装備の武器スロットに (ready) が aria-label に含まれる', () => {
+      render(
+        <BattleHudBottom
+          {...makeProps({
+            equippedWeapon: 'laser',
+            weaponCds: { laser: 100, cannon: 50, thunder: 100, cutter: 100 },
+          })}
+        />
+      );
+      // cannon は CD 中なので aria-label に (cooldown 50%) が含まれる
+      expect(screen.getByRole('button', { name: /cannon.*cooldown 50%/i })).toBeInTheDocument();
+      // thunder / cutter は CD 完了かつ未装備なので (ready) が含まれる
+      expect(screen.getByRole('button', { name: /thunder.*ready/i })).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: /cutter.*ready/i })).toBeInTheDocument();
+    });
+
+    it('装備中の武器は CD=100 でも (ready) ではなく (active) になる', () => {
+      render(
+        <BattleHudBottom
+          {...makeProps({
+            equippedWeapon: 'laser',
+            weaponCds: { laser: 100, cannon: 100, thunder: 100, cutter: 100 },
+          })}
+        />
+      );
+      // laser は active なので aria-label に (active) が含まれ (ready) は含まれない
+      const laserBtn = screen.getByRole('button', { name: /laser weapon slot/i });
+      expect(laserBtn).toHaveAttribute('aria-label', expect.stringContaining('(active)'));
+      expect(laserBtn).not.toHaveAttribute('aria-label', expect.stringContaining('(ready)'));
+    });
+  });
 });

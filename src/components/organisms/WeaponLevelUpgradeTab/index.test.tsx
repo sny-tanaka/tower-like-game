@@ -1,5 +1,5 @@
 import { render, screen, fireEvent } from '@testing-library/react';
-import { describe, expect, it, beforeEach } from 'vitest';
+import { describe, expect, it, beforeEach, vi } from 'vitest';
 
 import {
   WeaponLevelUpgradeTab,
@@ -9,8 +9,13 @@ import {
   buildStatsImpact,
 } from './index';
 
+import { soundEngine } from '@/lib/audio';
 import { BigNum } from '@/lib/bignum/BigNum';
 import { useStore } from '@/store/index';
+
+vi.mock('@/lib/audio', () => ({
+  soundEngine: { play: vi.fn(), playBgm: vi.fn(), stopBgm: vi.fn(), init: vi.fn() },
+}));
 
 // ---------------------------------------------------------------------------
 // コスト計算ロジックのテスト
@@ -68,31 +73,102 @@ describe('calcMaxLevels', () => {
 });
 
 describe('buildStatsImpact', () => {
-  it('Lv 0 → 1 の laser DMG が 120 → 122 程度', () => {
-    const impact = buildStatsImpact(0);
-    const laser = impact.find((i) => i.label === 'LASER DMG');
-    expect(laser?.before).toBe(120);
-    expect(laser?.after).toBe(122); // round(120 * 1.02) = round(122.4) = 122
+  it('baseAttackLv=0 と baseAttackLv=10 でビフォーDMG が異なる', () => {
+    const a = buildStatsImpact(0, 0, 0);
+    const b = buildStatsImpact(0, 10, 0);
+    expect(a[0]!.before).not.toBe(b[0]!.before);
   });
 
-  it('Lv 0 → 1 の THUNDER 連鎖は 7 → 7 (floor(7 + 0.1) = 7)', () => {
-    const impact = buildStatsImpact(0);
-    const thunder = impact.find((i) => i.label === 'THUNDER 連鎖');
-    expect(thunder?.before).toBe(7);
-    expect(thunder?.after).toBe(7);
+  it('LASER DMG は weaponLv+1 で上昇する', () => {
+    // weaponLv=100, baseAttackLv=100 で before/after の差が BigNum 切り上げを上回ることを確認
+    const items = buildStatsImpact(100, 100, 0);
+    const item = items.find((i) => i.label === 'LASER DMG')!;
+    // BigNum.toString() は整数を返す（例: "123", "1234"）ので Number() で安全に比較できる
+    expect(Number(item.after)).toBeGreaterThan(Number(item.before));
   });
 
-  it('Lv 9 → 10 の THUNDER 連鎖は 7 → 8', () => {
-    const impact = buildStatsImpact(9);
-    const thunder = impact.find((i) => i.label === 'THUNDER 連鎖');
-    expect(thunder?.before).toBe(7); // floor(7 + 0.1*9) = floor(7.9) = 7
-    expect(thunder?.after).toBe(8); // floor(7 + 0.1*10) = floor(8.0) = 8
+  it('LASER DMG が旧ハードコード値 120 と一致しない（実値を使っている）', () => {
+    // baseAttackLv=0, weaponLv=0 のとき baseAttack=1, damageMul=0.4 → DMG=1
+    const items = buildStatsImpact(0, 0, 0);
+    const laser = items.find((i) => i.label === 'LASER DMG')!;
+    expect(laser.before).not.toBe('120');
   });
 
-  it('suffix: CANNON 半径は m', () => {
-    const impact = buildStatsImpact(0);
-    const cannon = impact.find((i) => i.label === 'CANNON 半径');
-    expect(cannon?.suffix).toBe('m');
+  // -------------------------------------------------------------------------
+  // 追加テスト (#68 カバレッジ充実)
+  // -------------------------------------------------------------------------
+
+  it('返り値は LASER / CANNON / THUNDER / CUTTER DMG の 4 行を持つ', () => {
+    const items = buildStatsImpact(0, 0, 0);
+    const labels = items.map((i) => i.label);
+    expect(labels).toContain('LASER DMG');
+    expect(labels).toContain('CANNON DMG');
+    expect(labels).toContain('THUNDER DMG');
+    expect(labels).toContain('CUTTER DMG');
+    expect(items).toHaveLength(4);
+  });
+
+  it('CANNON DMG が旧ハードコード値 480 と一致しない（実値を使っている）', () => {
+    // baseAttackLv=0 のとき baseAttack=1, CANNON_BASE_DAMAGE_MUL=2.0 → DMG=2（旧=480 と乖離）
+    const items = buildStatsImpact(0, 0, 0);
+    const cannon = items.find((i) => i.label === 'CANNON DMG')!;
+    expect(cannon.before).not.toBe('480');
+  });
+
+  it('THUNDER DMG が旧ハードコード値 84 と一致しない（実値を使っている）', () => {
+    // baseAttackLv=0 のとき baseAttack=1, THUNDER_BASE_DAMAGE_MUL=0.18 → DMG=1（旧=84 と乖離）
+    const items = buildStatsImpact(0, 0, 0);
+    const thunder = items.find((i) => i.label === 'THUNDER DMG')!;
+    expect(thunder.before).not.toBe('84');
+  });
+
+  it('CUTTER DMG が旧ハードコード値 62 と一致しない（実値を使っている）', () => {
+    // baseAttackLv=0 のとき baseAttack=1, CUTTER_BASE_DAMAGE_MUL=1.2 → DMG=2（旧=62 と乖離）
+    const items = buildStatsImpact(0, 0, 0);
+    const cutter = items.find((i) => i.label === 'CUTTER DMG')!;
+    expect(cutter.before).not.toBe('62');
+  });
+
+  it('weaponLv=0 境界: 全 4 武器の before は "0" でなく実値を返す', () => {
+    const items = buildStatsImpact(0, 0, 0);
+    for (const item of items) {
+      expect(item.before).not.toBe('0');
+    }
+  });
+
+  it('CANNON DMG は weaponLv+1 で上昇する', () => {
+    const items = buildStatsImpact(100, 100, 0);
+    const cannon = items.find((i) => i.label === 'CANNON DMG')!;
+    expect(Number(cannon.after)).toBeGreaterThan(Number(cannon.before));
+  });
+
+  it('THUNDER DMG は weaponLv+1 で上昇する', () => {
+    const items = buildStatsImpact(100, 100, 0);
+    const thunder = items.find((i) => i.label === 'THUNDER DMG')!;
+    expect(Number(thunder.after)).toBeGreaterThan(Number(thunder.before));
+  });
+
+  it('CUTTER DMG は weaponLv+1 で上昇する', () => {
+    const items = buildStatsImpact(100, 100, 0);
+    const cutter = items.find((i) => i.label === 'CUTTER DMG')!;
+    expect(Number(cutter.after)).toBeGreaterThan(Number(cutter.before));
+  });
+
+  it('rangeLv は LASER DMG に影響しない（射程変化はダメージ計算に関与しない）', () => {
+    const atRangeZero = buildStatsImpact(10, 10, 0);
+    const atRangeHigh = buildStatsImpact(10, 10, 100);
+    const laserZero = atRangeZero.find((i) => i.label === 'LASER DMG')!;
+    const laserHigh = atRangeHigh.find((i) => i.label === 'LASER DMG')!;
+    expect(laserZero.before).toBe(laserHigh.before);
+    expect(laserZero.after).toBe(laserHigh.after);
+  });
+
+  it('baseAttackLv が高いほど全武器の DMG が大きい', () => {
+    const low = buildStatsImpact(10, 0, 0);
+    const high = buildStatsImpact(10, 50, 0);
+    for (let i = 0; i < low.length; i++) {
+      expect(Number(high[i]!.before)).toBeGreaterThan(Number(low[i]!.before));
+    }
   });
 });
 
@@ -148,5 +224,32 @@ describe('WeaponLevelUpgradeTab', () => {
     expect(useStore.getState().weaponLv).toBe(1);
     // alloy 1000 - 200 (Lv0 cost) = 800
     expect(parseFloat(useStore.getState().alloy.toDisplay())).toBe(800);
+  });
+});
+
+describe('WeaponLevelUpgradeTab — SE 配線', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it('alloy 十分 → +1 購入で purchaseOk SE が再生される', () => {
+    useStore.setState({ weaponLv: 0, alloy: BigNum.fromNumber(1000) });
+    render(<WeaponLevelUpgradeTab />);
+    const buttons = screen.getAllByRole('button');
+    const plusOneBtn = buttons.find((b) => b.textContent === '+1');
+    fireEvent.click(plusOneBtn!);
+    expect(soundEngine.play).toHaveBeenCalledWith('purchaseOk');
+  });
+
+  it('alloy 不足 → +1 ボタンは disabled になり SE は一切再生されない', () => {
+    useStore.setState({ weaponLv: 0, alloy: BigNum.ZERO });
+    render(<WeaponLevelUpgradeTab />);
+    const buttons = screen.getAllByRole('button');
+    const plusOneBtn = buttons.find((b) => b.textContent === '+1');
+    // alloy 不足の場合 +1 ボタンは disabled になる
+    expect(plusOneBtn).toHaveAttribute('disabled');
+    // disabled ボタンは onClick が undefined になるため SE は鳴らない
+    fireEvent.click(plusOneBtn!);
+    expect(soundEngine.play).not.toHaveBeenCalled();
   });
 });

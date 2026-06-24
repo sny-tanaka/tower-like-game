@@ -3,14 +3,20 @@ import styles from './style.module.scss';
 import { Icon } from '@/components/atoms/Icon';
 import type { IconName } from '@/components/atoms/Icon';
 import { Text } from '@/components/atoms/Text';
-import type { Screen } from '@/store/navigation';
+
+// ---------------------------------------------------------------------------
+// 型定義
+// ---------------------------------------------------------------------------
+
+/** BottomNav が扱うタブキーの union 型（battle 等の非タブ画面は含まない） */
+export type BottomNavTab = 'preparation' | 'machine' | 'armory' | 'patches' | 'settings';
 
 // ---------------------------------------------------------------------------
 // タブ定義（固定 5 タブ）
 // ---------------------------------------------------------------------------
 
 interface TabDef {
-  key: Screen;
+  key: BottomNavTab;
   label: string;
   iconName: IconName;
 }
@@ -29,11 +35,11 @@ const TABS: TabDef[] = [
 
 export interface BottomNavProps {
   /** アクティブなタブキー */
-  active: 'preparation' | 'machine' | 'armory' | 'patches' | 'settings';
+  active: BottomNavTab;
   /** タブ選択時のコールバック */
-  onChange: (target: Screen) => void;
+  onChange: (target: BottomNavTab) => void;
   /** バッジ: タブキー → バッジ表示テキスト（数字 or '!'） */
-  badges?: Partial<Record<string, number | string>>;
+  badges?: Partial<Record<BottomNavTab, number | string>>;
 }
 
 /**

@@ -30,8 +30,6 @@ export interface BattleHudTopProps {
   isBossWave?: boolean;
   /** 次のマイルストーン */
   nextMilestone?: WaveMilestone;
-  /** HP バー赤フラッシュ (被ダメ Fx 連動) */
-  damaging?: boolean;
   /** ゲーム pause 状態。 Wave タイマーアニメを停止する */
   paused?: boolean;
 }
@@ -57,7 +55,6 @@ export function BattleHudTop({
   secondsTotal,
   isBossWave = false,
   nextMilestone,
-  damaging = false,
   paused = false,
 }: BattleHudTopProps) {
   const effectiveMilestone =
@@ -96,8 +93,7 @@ export function BattleHudTop({
           <NumericDisplay
             value={hpCurrent}
             size="sm"
-            accentColor={damaging ? 'danger' : 'text'}
-            glow={damaging}
+            accentColor="text"
             style={{ fontSize: 14 }}
           />
           <span className={styles.hpDivider}>/</span>
@@ -151,6 +147,7 @@ export function BattleHudTop({
         secondsLeft={secondsRemaining}
         secondsMax={secondsTotal}
         nextMilestone={effectiveMilestone}
+        // ボス wave では時間を表示しない（isBossWave 側のバナーで代替）
         showSeconds={false}
         size="sm"
         paused={paused}

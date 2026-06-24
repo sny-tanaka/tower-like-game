@@ -74,11 +74,6 @@ function mergeEffects(a: PatchEffect, b: PatchEffect): PatchEffect {
     result.heal = (result.heal ?? BigNum.ZERO).add(b.heal);
   }
 
-  // shieldRecover: 加算
-  if (b.shieldRecover !== undefined) {
-    result.shieldRecover = (result.shieldRecover ?? 0) + b.shieldRecover;
-  }
-
   // dropMultiplier: 加算（仕様書§加算ルール）
   if (b.dropMultiplier !== undefined) {
     result.dropMultiplier = (result.dropMultiplier ?? 1) + (b.dropMultiplier - 1);

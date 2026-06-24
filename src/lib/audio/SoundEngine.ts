@@ -24,7 +24,9 @@ export class SoundEngine {
   private lastPlayAt = new Map<SoundId, number>();
   private seVolume = 0.7;
   private bgmVolume = 0.5;
+  private muted = false;
   private currentBgm: { id: BgmId; track: BgmTrack } | null = null;
+  private visibilityHandler: (() => void) | null = null;
 
   init(): void {
     if (this.ctx) return;
@@ -44,6 +46,20 @@ export class SoundEngine {
     this.masterGain.gain.value = 1.0;
     this.seGain.gain.value = this.seVolume;
     this.bgmGain.gain.value = this.bgmVolume;
+
+    // バックグラウンド時に AudioContext を suspend して、 BGM スケジューラ / OscillatorNode の
+    // 連続稼働による発熱・バッテリー消費を抑える。 復帰時に resume。
+    if (typeof document !== 'undefined') {
+      this.visibilityHandler = () => {
+        if (!this.ctx) return;
+        if (document.hidden) {
+          if (this.ctx.state === 'running') void this.ctx.suspend();
+        } else {
+          if (this.ctx.state === 'suspended') void this.ctx.resume();
+        }
+      };
+      document.addEventListener('visibilitychange', this.visibilityHandler);
+    }
   }
 
   play(id: SoundId): void {
@@ -80,6 +96,17 @@ export class SoundEngine {
     return this.bgmVolume;
   }
 
+  setMuted(muted: boolean): void {
+    this.muted = muted;
+    if (this.masterGain) {
+      this.masterGain.gain.value = muted ? 0 : 1.0;
+    }
+  }
+
+  isMuted(): boolean {
+    return this.muted;
+  }
+
   playBgm(id: BgmId): void {
     if (!this.ctx || !this.bgmGain) return;
     if (this.ctx.state === 'suspended') void this.ctx.resume();
@@ -113,6 +140,10 @@ export class SoundEngine {
   /** for tests: dispose internal state */
   destroy(): void {
     this.stopBgm();
+    if (this.visibilityHandler && typeof document !== 'undefined') {
+      document.removeEventListener('visibilitychange', this.visibilityHandler);
+      this.visibilityHandler = null;
+    }
     if (this.ctx) {
       void this.ctx.close();
       this.ctx = null;
@@ -120,6 +151,7 @@ export class SoundEngine {
     this.masterGain = null;
     this.seGain = null;
     this.bgmGain = null;
+    this.muted = false;
     this.lastPlayAt.clear();
   }
 }

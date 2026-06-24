@@ -34,11 +34,21 @@ export const Empty: Story = {
   },
 };
 
-/** Tier5 のみ所持（上限なので合成不可） */
-export const OnlyMaxTier: Story = {
+/** 高 Tier パッチのみ所持（T5×3 → T6 に合成可能） */
+export const HighTierMergeable: Story = {
   args: {
     overridePatches: new Map<string, PatchEntry>([
       ['bossKiller#5', { name: 'bossKiller', tier: 5, count: 3 }],
+    ]),
+  },
+};
+
+/** 各パッチが 1 個ずつ（合成不可） */
+export const AllSingleCount: Story = {
+  args: {
+    overridePatches: new Map<string, PatchEntry>([
+      ['bossKiller#5', { name: 'bossKiller', tier: 5, count: 1 }],
+      ['freezeHit#3', { name: 'freezeHit', tier: 3, count: 1 }],
     ]),
   },
 };

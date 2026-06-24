@@ -47,7 +47,7 @@ describe('exportSave', () => {
   it('ExportFile が正しい構造を持つ', async () => {
     const file = await exportSave(db);
     expect(file.formatVersion).toBe(1);
-    expect(file.dbVersion).toBe(1);
+    expect(file.dbVersion).toBe(2);
     expect(typeof file.exportedAt).toBe('number');
     expect(file.data).toBeDefined();
   });

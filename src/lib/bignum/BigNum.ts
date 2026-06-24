@@ -122,6 +122,16 @@ export class BigNum {
     return new BigNum(normalize([...j]));
   }
 
+  /** BigNum(1) を返す。fromNumber(1) のショートハンド */
+  static one(): BigNum {
+    return BigNum.fromNumber(1);
+  }
+
+  /** 桁の配列（LSB-first, 各桁 0〜999）から BigNum を生成する */
+  static fromDigits(digits: number[]): BigNum {
+    return new BigNum([...digits]);
+  }
+
   // -------------------------------------------------------------------------
   // Arithmetic
   // -------------------------------------------------------------------------

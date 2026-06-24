@@ -2,6 +2,7 @@ import styles from './style.module.scss';
 
 import { CircularProgress } from '@/components/atoms/CircularProgress';
 import { Icon } from '@/components/atoms/Icon';
+import { WeaponReadyFx } from '@/components/fx/WeaponReadyFx';
 
 // ---------------------------------------------------------------------------
 // 型定義
@@ -59,6 +60,8 @@ export function WeaponSlotIcon({
 
   const onCd = cdProgress < 100;
 
+  const showReadyFx = !active && !onCd && ready;
+
   const classNames = [
     styles.root,
     active ? styles.active : '',
@@ -108,6 +111,9 @@ export function WeaponSlotIcon({
           </span>
         </>
       )}
+
+      {/* ready 発光 Fx (CD 完了・切替可能かつ非アクティブ時にマウント) */}
+      {showReadyFx && <WeaponReadyFx />}
 
       {/* swapDisabled 暗転 */}
       {swapDisabled && (

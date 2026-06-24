@@ -14,6 +14,7 @@ import { openDatabase } from '@/data/db';
 import { exportSave, importSave } from '@/data/export';
 import type { ExportFile } from '@/data/export';
 import { DB_NAME } from '@/data/schema';
+import { soundEngine } from '@/lib/audio';
 import { useNavigation } from '@/store/navigation';
 
 // ---------------------------------------------------------------------------
@@ -35,6 +36,12 @@ const TABS: ReadonlyArray<TabBarItem<SettingsTab>> = [
 export function Page() {
   const { navigate } = useNavigation();
   const [activeTab, setActiveTab] = useState<SettingsTab>('sound');
+
+  const handleTabChange = (k: SettingsTab) => {
+    if (k === activeTab) return; // 同一タブ連打で SE を鳴らさない
+    setActiveTab(k);
+    soundEngine.play('tabSwitch');
+  };
 
   // --- エクスポート ---
   const handleExport = async () => {
@@ -77,7 +84,7 @@ export function Page() {
             <TabBar
               tabs={TABS}
               value={activeTab}
-              onChange={setActiveTab}
+              onChange={handleTabChange}
               fullWidth
             />
           }

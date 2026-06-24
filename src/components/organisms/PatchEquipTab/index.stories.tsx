@@ -17,7 +17,7 @@ export default meta;
 type Story = StoryObj<typeof PatchEquipTab>;
 
 const samplePatches = new Map<string, PatchEntry>([
-  ['装甲補強#1', { name: 'damageImmune', tier: 1, count: 4 }],
+  ['damageImmune#1', { name: 'damageImmune', tier: 1, count: 4 }],
   ['freezeHit#2', { name: 'freezeHit', tier: 2, count: 2 }],
   ['instantKill#3', { name: 'instantKill', tier: 3, count: 1 }],
   ['burnHit#4', { name: 'burnHit', tier: 4, count: 1 }],

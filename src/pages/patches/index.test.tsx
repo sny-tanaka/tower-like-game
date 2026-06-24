@@ -1,10 +1,15 @@
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi, beforeEach } from 'vitest';
 
 import { PatchScreen } from './index';
 
+import { soundEngine } from '@/lib/audio';
 import { NavigationProvider } from '@/store/navigation';
+
+vi.mock('@/lib/audio', () => ({
+  soundEngine: { play: vi.fn(), playBgm: vi.fn(), stopBgm: vi.fn(), init: vi.fn() },
+}));
 
 /** NavigationProvider でラップするヘルパー */
 function renderPatchScreen() {
@@ -85,6 +90,28 @@ describe('PatchScreen', () => {
       renderPatchScreen();
       const patchNavBtn = screen.getByRole('button', { name: 'パッチ' });
       expect(patchNavBtn.getAttribute('aria-current')).toBe('page');
+    });
+  });
+
+  describe('SE 配線', () => {
+    beforeEach(() => {
+      vi.clearAllMocks();
+    });
+
+    it('タブ切替時に tabSwitch SE が再生される', async () => {
+      renderPatchScreen();
+      await userEvent.click(screen.getByRole('tab', { name: /^所持/ }));
+      expect(soundEngine.play).toHaveBeenCalledWith('tabSwitch');
+    });
+
+    it('同一タブを連打しても tabSwitch SE は 1 回しか鳴らない', async () => {
+      renderPatchScreen();
+      const inventoryTab = screen.getByRole('tab', { name: /^所持/ });
+      await userEvent.click(inventoryTab);
+      vi.clearAllMocks();
+      // 同じタブを再クリック → SE は鳴らない
+      await userEvent.click(inventoryTab);
+      expect(soundEngine.play).not.toHaveBeenCalledWith('tabSwitch');
     });
   });
 });

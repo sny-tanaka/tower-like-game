@@ -1,11 +1,16 @@
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { afterEach, describe, expect, test } from 'vitest';
+import { afterEach, describe, expect, test, vi, beforeEach } from 'vitest';
 
+import { soundEngine } from '@/lib/audio';
 import { BigNum } from '@/lib/bignum';
 import { Page } from '@/pages/preparation';
 import { useStore } from '@/store';
 import { NavigationProvider } from '@/store/navigation';
+
+vi.mock('@/lib/audio', () => ({
+  soundEngine: { play: vi.fn(), playBgm: vi.fn(), stopBgm: vi.fn(), init: vi.fn() },
+}));
 
 // ---------------------------------------------------------------------------
 // ヘルパー
@@ -77,6 +82,42 @@ describe('PreparationScreen Page', () => {
     expect(screen.getByRole('tabpanel', { name: 'Tier 選択' })).toBeInTheDocument();
   });
 
+  describe('SE 配線', () => {
+    beforeEach(() => {
+      vi.clearAllMocks();
+    });
+
+    afterEach(() => {
+      useStore.getState().endRun();
+      vi.clearAllMocks();
+    });
+
+    test('タブ切替時に tabSwitch SE が再生される', async () => {
+      const user = userEvent.setup();
+      renderPage();
+      await user.click(screen.getByRole('tab', { name: '武器' }));
+      expect(soundEngine.play).toHaveBeenCalledWith('tabSwitch');
+    });
+
+    test('出撃ボタン押下時に launch SE が再生される', async () => {
+      const user = userEvent.setup();
+      renderPage();
+      await user.click(screen.getByRole('button', { name: '出撃' }));
+      expect(soundEngine.play).toHaveBeenCalledWith('launch');
+    });
+
+    test('同一タブを連打しても tabSwitch SE は 1 回しか鳴らない', async () => {
+      const user = userEvent.setup();
+      renderPage();
+      const weaponTab = screen.getByRole('tab', { name: '武器' });
+      await user.click(weaponTab);
+      vi.clearAllMocks();
+      // 同じタブを再クリック → SE は鳴らない
+      await user.click(weaponTab);
+      expect(soundEngine.play).not.toHaveBeenCalledWith('tabSwitch');
+    });
+  });
+
   describe('出撃ボタン → startRun', () => {
     afterEach(() => {
       useStore.getState().endRun();
@@ -98,6 +139,42 @@ describe('PreparationScreen Page', () => {
       expect(s.machineMaxHp.eq(BigNum.fromNumber(100))).toBe(true);
       expect(s.machineHp.eq(BigNum.fromNumber(100))).toBe(true);
       expect(s.currentWeapon).toBe(s.initialWeapon);
+    });
+
+    test('initialSelectedTier 未指定のとき selectedTier のデフォルト (highestTier=1) で currentTier が 1 になる', async () => {
+      // highestTier=1 (初期値) → selectedTier=1 → currentTier=1
+      const user = userEvent.setup();
+      renderPage();
+
+      await user.click(screen.getByRole('button', { name: '出撃' }));
+
+      expect(useStore.getState().currentTier).toBe(1);
+    });
+
+    test('initialSelectedTier=3 で出撃すると store の currentTier が 3 になる', async () => {
+      const user = userEvent.setup();
+      render(
+        <NavigationProvider initialScreen="preparation">
+          <Page initialSelectedTier={3} />
+        </NavigationProvider>
+      );
+
+      await user.click(screen.getByRole('button', { name: '出撃' }));
+
+      expect(useStore.getState().currentTier).toBe(3);
+    });
+
+    test('initialSelectedTier=5 で出撃すると store の currentTier が 5 になる', async () => {
+      const user = userEvent.setup();
+      render(
+        <NavigationProvider initialScreen="preparation">
+          <Page initialSelectedTier={5} />
+        </NavigationProvider>
+      );
+
+      await user.click(screen.getByRole('button', { name: '出撃' }));
+
+      expect(useStore.getState().currentTier).toBe(5);
     });
   });
 });

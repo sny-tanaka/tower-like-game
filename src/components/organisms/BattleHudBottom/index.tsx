@@ -104,6 +104,7 @@ export function BattleHudBottom({
               weapon={weapon}
               active={weapon === equippedWeapon}
               cdProgress={weaponCds[weapon] ?? 100}
+              ready={(weaponCds[weapon] ?? 100) >= 100 && weapon !== equippedWeapon}
               swapDisabled={isSwapCd && weapon !== equippedWeapon}
               size="md"
               onClick={() => {

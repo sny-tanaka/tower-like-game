@@ -1,8 +1,9 @@
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 
 import styles from './style.module.scss';
 
 import { AppearanceBannerFx } from '@/components/fx/AppearanceBannerFx';
+import { TierClearFx } from '@/components/fx/TierClearFx';
 import { WaveStartFx } from '@/components/fx/WaveStartFx';
 import { AppShell } from '@/components/organisms/AppShell';
 import { BattleField } from '@/components/organisms/BattleField';
@@ -11,7 +12,7 @@ import { BattleHudBottom } from '@/components/organisms/BattleHudBottom';
 import { BattleHudTop } from '@/components/organisms/BattleHudTop';
 import { BattleMenuOverlay } from '@/components/organisms/BattleMenuOverlay';
 import { ResultDialog } from '@/components/organisms/ResultDialog';
-import type { ResultReward, ResultStatus } from '@/components/organisms/ResultDialog';
+import type { ResultStatus } from '@/components/organisms/ResultDialog';
 import { RunWorkshopBottomSheet } from '@/components/organisms/RunWorkshopBottomSheet';
 import {
   calcRunWorkshopMultiplier,
@@ -30,6 +31,7 @@ import { BigNum } from '@/lib/bignum/BigNum';
 import { useStore } from '@/store/index';
 import { useNavigation } from '@/store/navigation';
 import { WEAPON_SWITCH_CD_SEC } from '@/store/slices/battle';
+import { flushAfterRun } from '@/store/sync';
 
 // ---------------------------------------------------------------------------
 // デフォルト値
@@ -107,6 +109,29 @@ export function Page() {
   const [isWorkshopOpen, setIsWorkshopOpen] = useState(false);
   const [isScreenSaverOpen, setIsScreenSaverOpen] = useState(false);
 
+  // ── 被ダメ検知 (machineHp の prev/current 比較) ──
+  // HP が前フレームより減少したとき machineHitKey を +1 して MachineHitFx を再マウント (= 再生開始)。
+  // HP 回復 (onKill heal / HP リジェネ) では HP が増加するため lt 比較で誤発火しない。
+  const prevMachineHpRef = useRef<typeof machineHp>(machineHp);
+  const [machineHitKey, setMachineHitKey] = useState(0);
+  useEffect(() => {
+    if (machineHp.lt(prevMachineHpRef.current)) {
+      setMachineHitKey((k) => k + 1);
+    }
+    prevMachineHpRef.current = machineHp;
+  }, [machineHp]);
+
+  // ── Tier クリア検知 (currentTier の prev/current 比較) ──
+  // currentTier が +1 になった瞬間に TierClearFx を再マウントして全画面演出を発火。
+  const prevTierRef = useRef(currentTier);
+  const [tierClearKey, setTierClearKey] = useState(0);
+  useEffect(() => {
+    if (currentTier > prevTierRef.current) {
+      setTierClearKey((k) => k + 1);
+    }
+    prevTierRef.current = currentTier;
+  }, [currentTier]);
+
   // ── BATTLE START バナー: 「isRunActive が false→true に切り替わった瞬間」 のみ表示 ──
   // 単に isRunActive=true で発火すると、 同一ラン中の画面再マウントや内部 state 変動で
   // 戦闘途中に再発火することがあるため、 prev/current 比較で「ラン開始の瞬間」 だけ拾う。
@@ -162,6 +187,12 @@ export function Page() {
   const effectiveResultStatus = resultStatus ?? autoResultStatus;
   const isResultOpen = effectiveResultStatus !== null;
 
+  // ── リザルト SE (clear / gameover) ──
+  useEffect(() => {
+    if (effectiveResultStatus === 'clear') soundEngine.play('resultClear');
+    if (effectiveResultStatus === 'gameover') soundEngine.play('resultGameOver');
+  }, [effectiveResultStatus]);
+
   // ── ゲームループ (敵 spawn / 武器発射 / ダメージ / 撃破 / 被ダメ / 弾道 / ドロップ) ──
   // ResultDialog 表示中 (撤退 / gameover) は paused で完全停止させる
   const {
@@ -179,6 +210,9 @@ export function Page() {
     onAppearanceDone,
     fireActive,
     isOverdriveActive,
+    killCount,
+    runElapsedSec,
+    droppedPatches,
   } = useBattleLoop({
     range: DEFAULT_RANGE,
     paused: isResultOpen,
@@ -207,12 +241,47 @@ export function Page() {
   const hpCurrentBn = machineHp;
   const hpMaxBn = machineMaxHp.isZero() ? BigNum.fromNumber(1) : machineMaxHp;
 
+  // ── ラン終了共通ヘルパー ──
+  // gameover / 撤退どちらのフローでも endRun / profile 系を 1 度だけ呼ぶ。
+  // hasFinalizedRef で重複呼び出しを防ぐ。
+  const hasFinalizedRef = useRef(false);
+  const finalizeRun = useCallback(
+    (status: ResultStatus) => {
+      if (hasFinalizedRef.current) return;
+      hasFinalizedRef.current = true;
+      // gameover パス: autoResultStatus は endRun() 後に isRunActive=false で null になるため
+      // resultStatus state に固定してダイアログを維持する
+      if (status === 'gameover') {
+        setResultStatus('gameover');
+      }
+      const state = useStore.getState();
+      state.endRun();
+      state.updateHighest(currentTier, currentWave);
+      state.incrementRuns();
+      state.addEnemiesKilled(killCount);
+      state.addPlayTimeSec(runElapsedSec);
+      state.setLastPlayedAt(Date.now());
+      void flushAfterRun();
+    },
+    [currentTier, currentWave, killCount, runElapsedSec]
+  );
+
+  // effectiveResultStatus が null → 非 null に変化した瞬間に 1 度だけ finalizeRun を呼ぶ
+  const prevResultStatusRef = useRef<ResultStatus | null>(null);
+  useEffect(() => {
+    if (effectiveResultStatus !== null && prevResultStatusRef.current === null) {
+      hasFinalizedRef.current = false; // 新しいラン終了イベントのためリセット
+      finalizeRun(effectiveResultStatus);
+    }
+    prevResultStatusRef.current = effectiveResultStatus;
+  }, [effectiveResultStatus, finalizeRun]);
+
   // ── ハンドラ ──
   // pause トグル: 「pause + メニュー開閉」 を同期 (= メニュー単独で開かない / pause 単独でも開かない)
   const handleTogglePause = () => {
     const next = !isPaused;
     setPaused(next);
-    soundEngine.play(next ? 'dialogOpen' : 'tap');
+    soundEngine.play(next ? 'dialogOpen' : 'dialogClose');
   };
 
   const handleOpenScreenSaver = () => {
@@ -255,11 +324,6 @@ export function Page() {
   const earnedAlloyRaw = alloy.sub(runStartAlloy);
   const earnedBolt = earnedBoltRaw.lt(BigNum.ZERO) ? BigNum.ZERO : earnedBoltRaw;
   const earnedAlloy = earnedAlloyRaw.lt(BigNum.ZERO) ? BigNum.ZERO : earnedAlloyRaw;
-  const resultReward: ResultReward = {
-    bolt: earnedBolt,
-    alloy: earnedAlloy,
-    patches: [],
-  };
 
   // ── wave 関連 ──
   const TOTAL_WAVES = 30;
@@ -331,6 +395,7 @@ export function Page() {
           onPickupDone={onPickupDone}
           showCutterOrbit={currentWeapon === 'cutter' && isRunActive && !isPaused && !isResultOpen}
           showOverdriveAura={isOverdriveActive && isRunActive && !isResultOpen}
+          machineHitKey={machineHitKey}
           cutterRotateMs={calcCutterRotateMs(
             // useBattleLoop の effectivePerSec と同じ式 (cutterStats × RW × Overdrive、 ATTACK_PER_SEC_CAP で頭打ち)
             Math.min(
@@ -371,9 +436,13 @@ export function Page() {
             status={effectiveResultStatus!}
             reachedTier={currentTier}
             reachedWave={currentWave}
-            killed={0}
-            elapsedSec={0}
-            reward={resultReward}
+            killed={killCount}
+            elapsedSec={runElapsedSec}
+            reward={{
+              bolt: earnedBolt,
+              alloy: earnedAlloy,
+              patches: droppedPatches.map((p) => ({ ...p, count: 1 })),
+            }}
             onClose={handleResultClose}
           />
         )}
@@ -393,6 +462,14 @@ export function Page() {
             onDone={() => {
               setIsBattleStartShown(false);
             }}
+          />
+        )}
+
+        {/* Tier クリア演出 (currentTier 増加で再マウント) */}
+        {tierClearKey > 0 && (
+          <TierClearFx
+            key={tierClearKey}
+            onDone={() => setTierClearKey(0)}
           />
         )}
 

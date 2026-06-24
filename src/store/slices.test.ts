@@ -375,11 +375,12 @@ describe('equippedPatches slice', () => {
 // ---------------------------------------------------------------------------
 
 describe('settings slice', () => {
-  it('初期値: bgmVolume=0.8, seVolume=0.8, vibration=true', () => {
+  it('初期値: bgmVolume=0.8, seVolume=0.8, vibration=true, muted=false', () => {
     const s = makeStore().getState();
     expect(s.bgmVolume).toBe(0.8);
     expect(s.seVolume).toBe(0.8);
     expect(s.vibrationEnabled).toBe(true);
+    expect(s.muted).toBe(false);
   });
 
   it('setBgmVolume: 0〜1 にクランプされる', () => {
@@ -402,12 +403,55 @@ describe('settings slice', () => {
     expect(store.getState().vibrationEnabled).toBe(false);
   });
 
+  it('setMuted: true/false で切り替えられる', () => {
+    const store = makeStore();
+    expect(store.getState().muted).toBe(false);
+    store.getState().setMuted(true);
+    expect(store.getState().muted).toBe(true);
+    store.getState().setMuted(false);
+    expect(store.getState().muted).toBe(false);
+  });
+
+  it('resetSettings: muted も false にリセットされる', () => {
+    const store = makeStore();
+    store.getState().setMuted(true);
+    store.getState().resetSettings();
+    expect(store.getState().muted).toBe(false);
+  });
+
   it('resetSettings: デフォルト値に戻る', () => {
     const store = makeStore();
     store.getState().setBgmVolume(0.3);
     store.getState().setVibrationEnabled(false);
     store.getState().resetSettings();
     expect(store.getState().bgmVolume).toBe(0.8);
+    expect(store.getState().vibrationEnabled).toBe(true);
+  });
+
+  it('setMuted: true→true の連続呼び出しでも true のまま', () => {
+    const store = makeStore();
+    store.getState().setMuted(true);
+    store.getState().setMuted(true);
+    expect(store.getState().muted).toBe(true);
+  });
+
+  it('setMuted: false→false の連続呼び出しでも false のまま', () => {
+    const store = makeStore();
+    store.getState().setMuted(false);
+    store.getState().setMuted(false);
+    expect(store.getState().muted).toBe(false);
+  });
+
+  it('resetSettings: muted リセット後も bgmVolume / seVolume / vibrationEnabled がデフォルト値になる', () => {
+    const store = makeStore();
+    store.getState().setMuted(true);
+    store.getState().setBgmVolume(0.1);
+    store.getState().setSeVolume(0.2);
+    store.getState().setVibrationEnabled(false);
+    store.getState().resetSettings();
+    expect(store.getState().muted).toBe(false);
+    expect(store.getState().bgmVolume).toBe(0.8);
+    expect(store.getState().seVolume).toBe(0.8);
     expect(store.getState().vibrationEnabled).toBe(true);
   });
 });
@@ -439,6 +483,57 @@ describe('battle slice', () => {
     expect(s.currentWave).toBe(1);
     // 仕様: ラン開始時はアクティブゲージ 0 (= CD 満タン) でスタート
     expect(s.activeCdSec).toBe(60); // DEFAULT_ACTIVE_MAX_SEC
+  });
+
+  it('startRun: initialTier=1 を明示指定すると currentTier が 1 になる', () => {
+    const store = makeStore();
+    store.getState().startRun({
+      initialWeapon: 'laser',
+      baseMachineMaxHp: BigNum.fromNumber(100),
+      initialTier: 1,
+    });
+    expect(store.getState().currentTier).toBe(1);
+  });
+
+  it('startRun: initialTier=3 を渡すと currentTier が 3 になる', () => {
+    const store = makeStore();
+    store.getState().startRun({
+      initialWeapon: 'laser',
+      baseMachineMaxHp: BigNum.fromNumber(100),
+      initialTier: 3,
+    });
+    expect(store.getState().currentTier).toBe(3);
+  });
+
+  it('startRun: initialTier=10 (大きい値) でも currentTier がそのまま 10 になる', () => {
+    // 仕様: startRun 側はクランプしない。UI 層 (TierSelectTab / highestTier) でガード済み
+    const store = makeStore();
+    store.getState().startRun({
+      initialWeapon: 'laser',
+      baseMachineMaxHp: BigNum.fromNumber(100),
+      initialTier: 10,
+    });
+    expect(store.getState().currentTier).toBe(10);
+  });
+
+  it('startRun: initialTier=100 (大きい値) でも currentTier がそのまま 100 になる', () => {
+    // 仕様: startRun 側はクランプしない。UI 層 (TierSelectTab / highestTier) でガード済み
+    const store = makeStore();
+    store.getState().startRun({
+      initialWeapon: 'laser',
+      baseMachineMaxHp: BigNum.fromNumber(100),
+      initialTier: 100,
+    });
+    expect(store.getState().currentTier).toBe(100);
+  });
+
+  it('startRun: initialTier 省略 (undefined) のとき currentTier が 1 になる', () => {
+    const store = makeStore();
+    store.getState().startRun({
+      initialWeapon: 'laser',
+      baseMachineMaxHp: BigNum.fromNumber(100),
+    });
+    expect(store.getState().currentTier).toBe(1);
   });
 
   it('endRun: デフォルト状態に戻る', () => {
@@ -473,6 +568,117 @@ describe('battle slice', () => {
     expect(store.getState().machineHp.eq(BigNum.fromNumber(70))).toBe(true);
     store.getState().damageHp(BigNum.fromNumber(200));
     expect(store.getState().machineHp.isZero()).toBe(true);
+  });
+
+  describe('addMachineHp', () => {
+    it('delta を加算する', () => {
+      const store = makeStore();
+      store
+        .getState()
+        .startRun({ initialWeapon: 'laser', baseMachineMaxHp: BigNum.fromNumber(100) });
+      store.getState().damageHp(BigNum.fromNumber(40)); // HP=60
+      store.getState().addMachineHp(BigNum.fromNumber(20));
+      expect(store.getState().machineHp.eq(BigNum.fromNumber(80))).toBe(true);
+    });
+
+    it('maxHp 超過はクランプされる', () => {
+      const store = makeStore();
+      store
+        .getState()
+        .startRun({ initialWeapon: 'laser', baseMachineMaxHp: BigNum.fromNumber(100) });
+      store.getState().damageHp(BigNum.fromNumber(10)); // HP=90
+      store.getState().addMachineHp(BigNum.fromNumber(50));
+      expect(store.getState().machineHp.eq(BigNum.fromNumber(100))).toBe(true);
+    });
+
+    it('damageHp と addMachineHp が連続して呼ばれても両方反映される (atomicity)', () => {
+      // 旧バグ: useBattleLoop で setMachineHp(stale.machineHp.add(regen)) を使うと
+      // 同 tick 内の damageHp が上書きされて消えていた。 addMachineHp は delta だけを
+      // store の最新値に対して atomic に加算するので、 順番に呼んでも両方反映される
+      const store = makeStore();
+      store
+        .getState()
+        .startRun({ initialWeapon: 'laser', baseMachineMaxHp: BigNum.fromNumber(100) });
+      // HP=100 から: damage 30 → 70、 regen +5 → 75
+      store.getState().damageHp(BigNum.fromNumber(30));
+      store.getState().addMachineHp(BigNum.fromNumber(5));
+      expect(store.getState().machineHp.eq(BigNum.fromNumber(75))).toBe(true);
+    });
+
+    it('regen が damage より大きくても damage 分は消えない (累積)', () => {
+      const store = makeStore();
+      store
+        .getState()
+        .startRun({ initialWeapon: 'laser', baseMachineMaxHp: BigNum.fromNumber(100) });
+      // damage 20 → 80、 regen +5 → 85 (= 80 + 5、 加算 regen が damage を打ち消さない)
+      store.getState().damageHp(BigNum.fromNumber(20));
+      store.getState().addMachineHp(BigNum.fromNumber(5));
+      expect(store.getState().machineHp.eq(BigNum.fromNumber(85))).toBe(true);
+    });
+
+    it('delta=0 のときは HP が変わらない', () => {
+      const store = makeStore();
+      store
+        .getState()
+        .startRun({ initialWeapon: 'laser', baseMachineMaxHp: BigNum.fromNumber(100) });
+      store.getState().damageHp(BigNum.fromNumber(30)); // HP=70
+      store.getState().addMachineHp(BigNum.ZERO);
+      expect(store.getState().machineHp.eq(BigNum.fromNumber(70))).toBe(true);
+    });
+
+    it('ちょうど maxHp のときは maxHp を超えない (境界クランプ)', () => {
+      const store = makeStore();
+      store
+        .getState()
+        .startRun({ initialWeapon: 'laser', baseMachineMaxHp: BigNum.fromNumber(100) });
+      // HP=100 (満タン) に +10 → maxHp=100 にクランプ
+      store.getState().addMachineHp(BigNum.fromNumber(10));
+      expect(store.getState().machineHp.eq(BigNum.fromNumber(100))).toBe(true);
+    });
+
+    it('machineHp=0 に addMachineHp を呼ぶと加算される (呼び出し側ガード責務)', () => {
+      // addMachineHp 自体はゲームオーバーガードを持たない。
+      // ガードは useBattleLoop 側 (useStore.getState().machineHp.isZero() チェック) で行う。
+      // このテストはその仕様を明文化する。
+      const store = makeStore();
+      store
+        .getState()
+        .startRun({ initialWeapon: 'laser', baseMachineMaxHp: BigNum.fromNumber(100) });
+      store.getState().damageHp(BigNum.fromNumber(999)); // HP=0 (ゲームオーバー)
+      store.getState().addMachineHp(BigNum.fromNumber(10));
+      // addMachineHp は delta を足す → HP=10 になる (呼び側がガードしなければ蘇生してしまう)
+      expect(store.getState().machineHp.eq(BigNum.fromNumber(10))).toBe(true);
+    });
+
+    it('複数 damageHp と addMachineHp が交互に呼ばれても全部正しく積み重なる (integration)', () => {
+      const store = makeStore();
+      store
+        .getState()
+        .startRun({ initialWeapon: 'laser', baseMachineMaxHp: BigNum.fromNumber(200) });
+      // 初期 HP=200
+      // damage 50 → 150
+      store.getState().damageHp(BigNum.fromNumber(50));
+      // regen +10 → 160
+      store.getState().addMachineHp(BigNum.fromNumber(10));
+      // damage 30 → 130
+      store.getState().damageHp(BigNum.fromNumber(30));
+      // regen +5 → 135
+      store.getState().addMachineHp(BigNum.fromNumber(5));
+      expect(store.getState().machineHp.eq(BigNum.fromNumber(135))).toBe(true);
+    });
+
+    it('addMachineHp のみ複数回呼ぶと maxHp で上限クランプされる', () => {
+      const store = makeStore();
+      store
+        .getState()
+        .startRun({ initialWeapon: 'laser', baseMachineMaxHp: BigNum.fromNumber(100) });
+      store.getState().damageHp(BigNum.fromNumber(50)); // HP=50
+      // 3 回 regen を積む: +20 → 70、 +20 → 90、 +20 → 100 (クランプ)
+      store.getState().addMachineHp(BigNum.fromNumber(20));
+      store.getState().addMachineHp(BigNum.fromNumber(20));
+      store.getState().addMachineHp(BigNum.fromNumber(20));
+      expect(store.getState().machineHp.eq(BigNum.fromNumber(100))).toBe(true);
+    });
   });
 
   it('advanceWave / advanceTier: Wave と Tier が増加する', () => {

@@ -56,12 +56,20 @@ export interface BattleActions {
     initialWeapon: WeaponType;
     /** マシン本体最大 HP の base 値 (永続強化込み / RunWorkshop hpMul は含まない) */
     baseMachineMaxHp: BigNum;
+    /** 開始 Tier。省略時は 1 */
+    initialTier?: number;
   }) => void;
   endRun: () => void;
   addScrew: (amount: BigNum) => void;
   spendScrew: (amount: BigNum) => boolean;
   setMachineHp: (hp: BigNum) => void;
   damageHp: (amount: BigNum) => void;
+  /**
+   * machineHp に delta を加算する (atomic)。 0 未満 / maxHp 超過はクランプ。
+   * `setMachineHp(state.machineHp.add(...))` を tick 内で呼ぶと最新値を
+   * 読み損ねて他の更新 (damageHp 等) を上書きするので、 加算系はこの action 経由で行う。
+   */
+  addMachineHp: (delta: BigNum) => void;
   /**
    * RunWorkshop hpMul 変化時に、 baseMachineMaxHp と新しい hpMul Lv から
    * machineMaxHp を再計算する。 現在 HP は「減量を維持」で更新:
@@ -138,7 +146,7 @@ function clampBig(value: BigNum, min: BigNum, max: BigNum): BigNum {
 export const createBattleSlice: StateCreator<RootStore, [], [], BattleSlice> = (set, get) => ({
   ...defaultBattleState,
 
-  startRun: ({ initialWeapon, baseMachineMaxHp }) => {
+  startRun: ({ initialWeapon, baseMachineMaxHp, initialTier }) => {
     // ラン跨ぎで RunWorkshop の Lv をリセット (maxHp 計算の前に必須)。
     // ここで先にリセットしないと、 前ランの hpMul Lv が残ったまま読まれて、
     // 新ランの machineMaxHp に前回の HP 倍率が乗ってしまうバグになる。
@@ -153,7 +161,7 @@ export const createBattleSlice: StateCreator<RootStore, [], [], BattleSlice> = (
       machineHp: machineMaxHp,
       machineMaxHp,
       baseMachineMaxHp,
-      currentTier: 1,
+      currentTier: initialTier ?? 1,
       currentWave: 1,
       currentWeapon: initialWeapon,
       weaponSwitchCdSec: 0,
@@ -188,6 +196,9 @@ export const createBattleSlice: StateCreator<RootStore, [], [], BattleSlice> = (
       const next = s.machineHp.sub(amount);
       return { machineHp: next.lt(BigNum.ZERO) ? BigNum.ZERO : next };
     }),
+
+  addMachineHp: (delta) =>
+    set((s) => ({ machineHp: clampBig(s.machineHp.add(delta), BigNum.ZERO, s.machineMaxHp) })),
 
   recalcMachineMaxHpFromHpMul: (newHpMulLv) => {
     const s = get();

@@ -11,6 +11,7 @@ import { PatchEquipTab } from '@/components/organisms/PatchEquipTab';
 import { PatchInventoryTab } from '@/components/organisms/PatchInventoryTab';
 import { PatchMergeTab } from '@/components/organisms/PatchMergeTab';
 import { calcMergeable } from '@/components/organisms/PatchMergeTab';
+import { soundEngine } from '@/lib/audio';
 import { useStore } from '@/store';
 import { useNavigation } from '@/store/navigation';
 import type { Screen } from '@/store/navigation';
@@ -51,8 +52,9 @@ export function PatchScreen() {
   const unlockedCount = calcUnlockedSlots(patchSlotsLv);
   const equippedCount = equippedPatches.size;
   const inventoryCount = patches.size;
-  // 合成上限は MAX_TIER-1=4 を採用（PatchMergeTab と同じスコープで全件カウント）
-  const mergeableCount = calcMergeable(patches, 5).length;
+  // 合成可能数は所持パッチの最大 Tier + 1 までを動的算出 (v0.3.0 で MAX_TIER 撤廃、 PatchMergeTab と同じロジック)
+  const maxExistingTier = Math.max(1, ...Array.from(patches.values()).map((e) => e.tier));
+  const mergeableCount = calcMergeable(patches, maxExistingTier + 1).length;
 
   const handleNavChange = (target: Screen) => {
     navigate(target);
@@ -60,6 +62,12 @@ export function PatchScreen() {
 
   const handleBack = () => {
     navigate('preparation');
+  };
+
+  const handleTabChange = (k: PatchTab) => {
+    if (k === activeTab) return; // 同一タブ連打で SE を鳴らさない
+    setActiveTab(k);
+    soundEngine.play('tabSwitch');
   };
 
   const PATCH_TABS: ReadonlyArray<TabBarItem<PatchTab>> = [
@@ -80,7 +88,7 @@ export function PatchScreen() {
             <TabBar<PatchTab>
               tabs={PATCH_TABS}
               value={activeTab}
-              onChange={setActiveTab}
+              onChange={handleTabChange}
               variant="underline"
               fullWidth
             />

@@ -6,6 +6,7 @@ import { Button } from '@/components/atoms/Button';
 import { Stepper } from '@/components/atoms/Stepper';
 import { Text } from '@/components/atoms/Text';
 import { PatchCard } from '@/components/molecules/PatchCard';
+import { soundEngine } from '@/lib/audio';
 import { useStore } from '@/store';
 import type { PatchEntry } from '@/store/slices/patches';
 
@@ -28,8 +29,6 @@ export interface PatchMergeTabProps {
 // ---------------------------------------------------------------------------
 // 合成ロジック
 // ---------------------------------------------------------------------------
-
-const MAX_TIER = 5;
 
 const PATCH_ICON_MAP: Record<string, string> = {
   instantKill: 'skull',
@@ -83,7 +82,6 @@ export function executeMergeAll(
     for (const entry of Array.from(next.values())) {
       if (entry.tier >= maxTierLimit) continue;
       if (entry.count < 2) continue;
-      if (entry.tier >= MAX_TIER) continue;
 
       const key = `${entry.name}#${entry.tier}`;
       const mergeCount = Math.floor(entry.count / 2);
@@ -120,10 +118,12 @@ export function PatchMergeTab({ overridePatches }: PatchMergeTabProps) {
 
   const patches = overridePatches ?? storePatches;
 
-  // 所持パッチの最大 Tier を初期値に
+  // 所持パッチの最大 Tier を動的に算出
   const maxExistingTier = Math.max(1, ...Array.from(patches.values()).map((e) => e.tier));
+  // ステッパーの上限: 現在所持の最高 Tier + 1（合成後に生まれうる最高 Tier）
+  const stepperMax = maxExistingTier + 1;
 
-  const [maxTierLimit, setMaxTierLimit] = useState<number>(Math.min(maxExistingTier, MAX_TIER - 1));
+  const [maxTierLimit, setMaxTierLimit] = useState<number>(maxExistingTier);
 
   const mergeable = calcMergeable(patches, maxTierLimit + 1);
   const canMerge = mergeable.length > 0;
@@ -131,6 +131,12 @@ export function PatchMergeTab({ overridePatches }: PatchMergeTabProps) {
   const handleMergeAll = () => {
     if (overridePatches) return; // オーバーライド時はストア操作しない
     const nextPatches = executeMergeAll(patches, maxTierLimit + 1);
+
+    // 変化があるかチェック
+    const hasChanges = [...nextPatches].some(([key, entry]) => {
+      const current = patches.get(key);
+      return (current?.count ?? 0) !== entry.count;
+    });
 
     // 差分をストアに反映
     // 消費: 現在 - 次
@@ -150,6 +156,7 @@ export function PatchMergeTab({ overridePatches }: PatchMergeTabProps) {
       }
     }
     pruneEmptyPatches();
+    soundEngine.play(hasChanges ? 'purchaseOk' : 'reject');
   };
 
   return (
@@ -170,7 +177,7 @@ export function PatchMergeTab({ overridePatches }: PatchMergeTabProps) {
           <Stepper
             value={maxTierLimit}
             min={1}
-            max={MAX_TIER - 1}
+            max={stepperMax}
             onChange={setMaxTierLimit}
           />
           <Text
