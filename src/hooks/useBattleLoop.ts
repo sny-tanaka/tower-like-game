@@ -1086,7 +1086,25 @@ export function useBattleLoop({ range, paused = false }: UseBattleLoopOpts): Use
           }
 
           // ---- 撃破処理 (HP <= 0) + onKill / onDropRoll パッチ評価 + 報酬獲得 + 各 Event ----
+          // machineLevels 由来の倍率は 1 フレーム中変化しないので、 撃破ループ前に 1 度だけ
+          // calcEffectValue を呼んで O(4N) → O(4) にキャッシュする (敵 N 体撃破時の発熱対策)。
           const screwGainMul = calcRunWorkshopMultiplier(state.runWorkshopLevels.screwGainMul);
+          const machineScrewGainMul = calcEffectValue(
+            MACHINE_UPGRADE_ITEMS.find((i) => i.key === 'screwGain')!,
+            state.machineLevels.screwGain
+          );
+          const boltGainMul = calcEffectValue(
+            MACHINE_UPGRADE_ITEMS.find((i) => i.key === 'boltGain')!,
+            state.machineLevels.boltGain
+          );
+          const alloyGainMul = calcEffectValue(
+            MACHINE_UPGRADE_ITEMS.find((i) => i.key === 'alloyGain')!,
+            state.machineLevels.alloyGain
+          );
+          const patchDropRateMulMachine = calcEffectValue(
+            MACHINE_UPGRADE_ITEMS.find((i) => i.key === 'patchDropRate')!,
+            state.machineLevels.patchDropRate
+          );
           const newDeathEvents: DeathEvent[] = [];
           const newPickupEvents: PickupEvent[] = [];
           const survivors: SpawnedEnemy[] = [];
@@ -1131,10 +1149,6 @@ export function useBattleLoop({ range, paused = false }: UseBattleLoopOpts): Use
               const dropMul = dropEffect.dropMultiplier ?? 1;
 
               // --- ネジ (screw): 常時獲得 + screwGainMul (RW) × machineScrewGainMul + dropMul ---
-              const machineScrewGainMul = calcEffectValue(
-                MACHINE_UPGRADE_ITEMS.find((i) => i.key === 'screwGain')!,
-                state.machineLevels.screwGain
-              );
               const baseScrew = enemy.reward.screw;
               if (baseScrew > 0) {
                 earnedScrew = earnedScrew.add(
@@ -1150,10 +1164,6 @@ export function useBattleLoop({ range, paused = false }: UseBattleLoopOpts): Use
               }
 
               // --- ボルト (bolt): 通常敵は 50% 確率、 上位敵は 100% + boltGainMul + dropMul ---
-              const boltGainMul = calcEffectValue(
-                MACHINE_UPGRADE_ITEMS.find((i) => i.key === 'boltGain')!,
-                state.machineLevels.boltGain
-              );
               const baseBolt = enemy.reward.bolt;
               if (baseBolt > 0) {
                 const boltDropRoll =
@@ -1174,10 +1184,6 @@ export function useBattleLoop({ range, paused = false }: UseBattleLoopOpts): Use
               }
 
               // --- 超合金 (alloy): reward.alloyChance で reward.alloyAmount を獲得 + alloyGainMul + dropMul ---
-              const alloyGainMul = calcEffectValue(
-                MACHINE_UPGRADE_ITEMS.find((i) => i.key === 'alloyGain')!,
-                state.machineLevels.alloyGain
-              );
               if (enemy.reward.alloyChance > 0 && enemy.reward.alloyAmount > 0) {
                 if (Math.random() < enemy.reward.alloyChance) {
                   const scaledAlloyAmount = scaledReward(
@@ -1198,12 +1204,8 @@ export function useBattleLoop({ range, paused = false }: UseBattleLoopOpts): Use
               }
 
               // --- パッチドロップ (06-patches.md): elite/miniboss/boss のみ ---
-              // patchDropRate = machine 強化 (linear) × bonusDrop パッチの dropMultiplier
-              const patchDropRateMul =
-                calcEffectValue(
-                  MACHINE_UPGRADE_ITEMS.find((i) => i.key === 'patchDropRate')!,
-                  state.machineLevels.patchDropRate
-                ) * dropMul;
+              // patchDropRate = machine 強化 (linear、 ループ外でキャッシュ) × bonusDrop パッチの dropMultiplier
+              const patchDropRateMul = patchDropRateMulMachine * dropMul;
               const dropped = dropPatch(
                 enemy.kind,
                 state.currentTier,
