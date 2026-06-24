@@ -1,4 +1,5 @@
-import type { CSSProperties, ReactElement } from 'react';
+import { memo } from 'react';
+import type { ComponentType, CSSProperties } from 'react';
 
 import styles from './style.module.scss';
 
@@ -96,9 +97,14 @@ const ROTATABLE: Record<EnemyVisualType, boolean> = {
 
 // ---------------------------------------------------------------------------
 // SVG シェイプ群
+//
+// 各シェイプは color のみに依存する純粋関数。 Enemy が facing 変化で毎フレーム
+// 再 render しても、 内部の SVG は color が変わらない限り再評価不要なので
+// React.memo で包んで関数実行ごとスキップさせる (Issue #86)。 敵 40 体 × 60fps
+// で 1 体あたり ~14400 回の不要な Shape 関数呼び出しを排除できる。
 // ---------------------------------------------------------------------------
 
-function StandardShape({ color }: { color: string }) {
+const StandardShape = memo(function StandardShape({ color }: { color: string }) {
   return (
     <svg
       viewBox="-50 -50 100 100"
@@ -119,9 +125,9 @@ function StandardShape({ color }: { color: string }) {
       />
     </svg>
   );
-}
+});
 
-function SwiftShape({ color }: { color: string }) {
+const SwiftShape = memo(function SwiftShape({ color }: { color: string }) {
   return (
     <svg
       viewBox="-50 -50 100 100"
@@ -147,9 +153,9 @@ function SwiftShape({ color }: { color: string }) {
       />
     </svg>
   );
-}
+});
 
-function ToughShape({ color }: { color: string }) {
+const ToughShape = memo(function ToughShape({ color }: { color: string }) {
   return (
     <svg
       viewBox="-50 -50 100 100"
@@ -187,9 +193,9 @@ function ToughShape({ color }: { color: string }) {
       />
     </svg>
   );
-}
+});
 
-function EliteShape({ color }: { color: string }) {
+const EliteShape = memo(function EliteShape({ color }: { color: string }) {
   return (
     <svg
       viewBox="-50 -50 100 100"
@@ -217,9 +223,9 @@ function EliteShape({ color }: { color: string }) {
       />
     </svg>
   );
-}
+});
 
-function MinibossShape({ color }: { color: string }) {
+const MinibossShape = memo(function MinibossShape({ color }: { color: string }) {
   return (
     <svg
       viewBox="-50 -50 100 100"
@@ -266,9 +272,9 @@ function MinibossShape({ color }: { color: string }) {
       />
     </svg>
   );
-}
+});
 
-function BossShape({ color }: { color: string }) {
+const BossShape = memo(function BossShape({ color }: { color: string }) {
   return (
     <svg
       viewBox="-50 -50 100 100"
@@ -314,9 +320,9 @@ function BossShape({ color }: { color: string }) {
       />
     </svg>
   );
-}
+});
 
-const SHAPE_BY_TYPE: Record<EnemyVisualType, (p: { color: string }) => ReactElement> = {
+const SHAPE_BY_TYPE: Record<EnemyVisualType, ComponentType<{ color: string }>> = {
   standard: StandardShape,
   swift: SwiftShape,
   tough: ToughShape,
@@ -350,8 +356,14 @@ export function spawnedEnemyToVisualType(
  *
  * 6 種のタイプ別 SVG シェイプ + HP バー + 状態異常 tint を統合。
  * デザイン source: design-docs/claude-design/molecules/EnemyMarker
+ *
+ * React.memo で props の shallow compare を有効化 (Issue #86)。 props は全てプリミティブ
+ * (type / hp / status / facing / size / showHp) なので Object.is で比較が効く。
+ * 凍結中で position が止まっている敵や、 軸上で facing が一定の敵は 60fps 親 render の
+ * たびに何もせず skip できる。 facing が微小変動する移動中の敵については Enemy 自体は
+ * 再 render されるが、 内部の Shape 6 種も memo 済みなので SVG 関数実行は省ける。
  */
-export function Enemy({ type, size, hp, showHp, facing = 0, status = 'normal' }: EnemyProps) {
+function EnemyImpl({ type, size, hp, showHp, facing = 0, status = 'normal' }: EnemyProps) {
   const preset = TYPE_PRESETS[type];
   const finalSize = size ?? preset.size;
   const ShapeFn = SHAPE_BY_TYPE[type];
@@ -421,3 +433,5 @@ export function Enemy({ type, size, hp, showHp, facing = 0, status = 'normal' }:
     </div>
   );
 }
+
+export const Enemy = memo(EnemyImpl);
