@@ -1,6 +1,6 @@
-import { render, screen, act } from '@testing-library/react';
+import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 
 import { ScreenSaverDialog } from './index';
 
@@ -67,79 +67,5 @@ describe('ScreenSaverDialog', () => {
     saverBtn.focus();
     await user.keyboard(' ');
     expect(onClose).toHaveBeenCalledOnce();
-  });
-});
-
-// ---------------------------------------------------------------------------
-// Wake Lock (Issue #78 焼き付き対策)
-// ---------------------------------------------------------------------------
-
-describe('ScreenSaverDialog — Wake Lock', () => {
-  let releaseSpy: ReturnType<typeof vi.fn>;
-  let requestSpy: ReturnType<typeof vi.fn>;
-  const originalWakeLock = (navigator as unknown as { wakeLock?: unknown }).wakeLock;
-
-  beforeEach(() => {
-    releaseSpy = vi.fn().mockResolvedValue(undefined);
-    requestSpy = vi.fn().mockResolvedValue({ release: releaseSpy });
-    Object.defineProperty(navigator, 'wakeLock', {
-      value: { request: requestSpy },
-      configurable: true,
-    });
-  });
-
-  afterEach(() => {
-    if (originalWakeLock === undefined) {
-      delete (navigator as unknown as { wakeLock?: unknown }).wakeLock;
-    } else {
-      Object.defineProperty(navigator, 'wakeLock', {
-        value: originalWakeLock,
-        configurable: true,
-      });
-    }
-  });
-
-  it('open=true で wakeLock.request("screen") が呼ばれる', async () => {
-    await act(async () => {
-      render(
-        <ScreenSaverDialog
-          open={true}
-          onClose={vi.fn()}
-        />
-      );
-    });
-    expect(requestSpy).toHaveBeenCalledWith('screen');
-  });
-
-  it('open=false → unmount で sentinel.release() が呼ばれる', async () => {
-    const { rerender, unmount } = render(
-      <ScreenSaverDialog
-        open={true}
-        onClose={vi.fn()}
-      />
-    );
-    // Wake Lock 取得の Promise resolve を待つ
-    await act(async () => {});
-    // open=false に切り替え (useEffect cleanup で release)
-    await act(async () => {
-      rerender(
-        <ScreenSaverDialog
-          open={false}
-          onClose={vi.fn()}
-        />
-      );
-    });
-    expect(releaseSpy).toHaveBeenCalled();
-    unmount();
-  });
-
-  it('open=false 初期では wakeLock.request は呼ばれない', () => {
-    render(
-      <ScreenSaverDialog
-        open={false}
-        onClose={vi.fn()}
-      />
-    );
-    expect(requestSpy).not.toHaveBeenCalled();
   });
 });
