@@ -93,6 +93,83 @@ describe('buildStatsImpact', () => {
     const laser = items.find((i) => i.label === 'LASER DMG')!;
     expect(laser.before).not.toBe('120');
   });
+
+  // -------------------------------------------------------------------------
+  // 追加テスト (#68 カバレッジ充実)
+  // -------------------------------------------------------------------------
+
+  it('返り値は LASER / CANNON / THUNDER / CUTTER DMG の 4 行を持つ', () => {
+    const items = buildStatsImpact(0, 0, 0);
+    const labels = items.map((i) => i.label);
+    expect(labels).toContain('LASER DMG');
+    expect(labels).toContain('CANNON DMG');
+    expect(labels).toContain('THUNDER DMG');
+    expect(labels).toContain('CUTTER DMG');
+    expect(items).toHaveLength(4);
+  });
+
+  it('CANNON DMG が旧ハードコード値 480 と一致しない（実値を使っている）', () => {
+    // baseAttackLv=0 のとき baseAttack=1, CANNON_BASE_DAMAGE_MUL=2.0 → DMG=2（旧=480 と乖離）
+    const items = buildStatsImpact(0, 0, 0);
+    const cannon = items.find((i) => i.label === 'CANNON DMG')!;
+    expect(cannon.before).not.toBe('480');
+  });
+
+  it('THUNDER DMG が旧ハードコード値 84 と一致しない（実値を使っている）', () => {
+    // baseAttackLv=0 のとき baseAttack=1, THUNDER_BASE_DAMAGE_MUL=0.18 → DMG=1（旧=84 と乖離）
+    const items = buildStatsImpact(0, 0, 0);
+    const thunder = items.find((i) => i.label === 'THUNDER DMG')!;
+    expect(thunder.before).not.toBe('84');
+  });
+
+  it('CUTTER DMG が旧ハードコード値 62 と一致しない（実値を使っている）', () => {
+    // baseAttackLv=0 のとき baseAttack=1, CUTTER_BASE_DAMAGE_MUL=1.2 → DMG=2（旧=62 と乖離）
+    const items = buildStatsImpact(0, 0, 0);
+    const cutter = items.find((i) => i.label === 'CUTTER DMG')!;
+    expect(cutter.before).not.toBe('62');
+  });
+
+  it('weaponLv=0 境界: 全 4 武器の before は "0" でなく実値を返す', () => {
+    const items = buildStatsImpact(0, 0, 0);
+    for (const item of items) {
+      expect(item.before).not.toBe('0');
+    }
+  });
+
+  it('CANNON DMG は weaponLv+1 で上昇する', () => {
+    const items = buildStatsImpact(100, 100, 0);
+    const cannon = items.find((i) => i.label === 'CANNON DMG')!;
+    expect(Number(cannon.after)).toBeGreaterThan(Number(cannon.before));
+  });
+
+  it('THUNDER DMG は weaponLv+1 で上昇する', () => {
+    const items = buildStatsImpact(100, 100, 0);
+    const thunder = items.find((i) => i.label === 'THUNDER DMG')!;
+    expect(Number(thunder.after)).toBeGreaterThan(Number(thunder.before));
+  });
+
+  it('CUTTER DMG は weaponLv+1 で上昇する', () => {
+    const items = buildStatsImpact(100, 100, 0);
+    const cutter = items.find((i) => i.label === 'CUTTER DMG')!;
+    expect(Number(cutter.after)).toBeGreaterThan(Number(cutter.before));
+  });
+
+  it('rangeLv は LASER DMG に影響しない（射程変化はダメージ計算に関与しない）', () => {
+    const atRangeZero = buildStatsImpact(10, 10, 0);
+    const atRangeHigh = buildStatsImpact(10, 10, 100);
+    const laserZero = atRangeZero.find((i) => i.label === 'LASER DMG')!;
+    const laserHigh = atRangeHigh.find((i) => i.label === 'LASER DMG')!;
+    expect(laserZero.before).toBe(laserHigh.before);
+    expect(laserZero.after).toBe(laserHigh.after);
+  });
+
+  it('baseAttackLv が高いほど全武器の DMG が大きい', () => {
+    const low = buildStatsImpact(10, 0, 0);
+    const high = buildStatsImpact(10, 50, 0);
+    for (let i = 0; i < low.length; i++) {
+      expect(Number(high[i]!.before)).toBeGreaterThan(Number(low[i]!.before));
+    }
+  });
 });
 
 // ---------------------------------------------------------------------------
