@@ -187,6 +187,11 @@ export function Page() {
   const effectiveResultStatus = resultStatus ?? autoResultStatus;
   const isResultOpen = effectiveResultStatus !== null;
 
+  // ラン終了時点の tier / wave をスナップショット。 endRun() が currentTier/Wave を 1 に
+  // リセットしてしまうため、 ResultDialog 表示用に finalizeRun の冒頭で保存しておく。
+  const [finalTier, setFinalTier] = useState<number | null>(null);
+  const [finalWave, setFinalWave] = useState<number | null>(null);
+
   // ── リザルト SE (clear / gameover) ──
   useEffect(() => {
     if (effectiveResultStatus === 'clear') soundEngine.play('resultClear');
@@ -249,6 +254,9 @@ export function Page() {
     (status: ResultStatus) => {
       if (hasFinalizedRef.current) return;
       hasFinalizedRef.current = true;
+      // endRun() で currentTier/Wave が 1 にリセットされるので先にスナップショット
+      setFinalTier(currentTier);
+      setFinalWave(currentWave);
       // gameover パス: autoResultStatus は endRun() 後に isRunActive=false で null になるため
       // resultStatus state に固定してダイアログを維持する
       if (status === 'gameover') {
@@ -434,8 +442,8 @@ export function Page() {
           <ResultDialog
             open={isResultOpen}
             status={effectiveResultStatus!}
-            reachedTier={currentTier}
-            reachedWave={currentWave}
+            reachedTier={finalTier ?? currentTier}
+            reachedWave={finalWave ?? currentWave}
             killed={killCount}
             elapsedSec={runElapsedSec}
             reward={{

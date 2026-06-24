@@ -32,6 +32,8 @@ const BLESSED = new Set([
   'slider-fill-pct', // Slider: 進捗パーセント
   'start-scale', // WaveProgressBar: scaleX アニメ keyframes の開始倍率 (JSX が inline で渡す)
   'divider-color', // Divider: color prop を JSX inline style から渡す
+  'enemy-glow-px', // Enemy: drop-shadow の glow 太さを inline で渡す (Issue #79 M-1)
+  'enemy-glow-color', // Enemy: drop-shadow の glow 色を inline で渡す (Issue #79 M-1)
 ]);
 
 function listScssFiles(dir, acc = []) {

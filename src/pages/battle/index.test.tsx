@@ -390,6 +390,93 @@ describe('finalizeRun — profile 関数の引数', () => {
 });
 
 // ---------------------------------------------------------------------------
+// リザルト Wave / Tier スナップショット (endRun 後リセットされても表示維持)
+// ---------------------------------------------------------------------------
+
+describe('ResultDialog — reachedTier / reachedWave のスナップショット', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    useStore.getState().endRun();
+  });
+
+  afterEach(() => {
+    vi.clearAllMocks();
+  });
+
+  /** 「到達 Wave」 ラベル横の数値テキストを取得 */
+  function getReachedWaveText() {
+    const label = screen.getByText('到達 Wave');
+    const stat = label.parentElement!;
+    return stat.textContent?.replace('到達 Wave', '').trim();
+  }
+
+  /** 「到達 Tier」 ラベル横の数値テキストを取得 */
+  function getReachedTierText() {
+    const label = screen.getByText('到達 Tier');
+    const stat = label.parentElement!;
+    return stat.textContent?.replace('到達 Tier', '').trim();
+  }
+
+  test('gameover: endRun() で currentWave が 1 にリセットされても reachedWave は終了時点の値を表示', async () => {
+    useStore.getState().startRun({
+      initialWeapon: 'laser',
+      baseMachineMaxHp: BigNum.fromNumber(100),
+      initialTier: 3,
+    });
+    // ラン中に Wave 20 まで進んだ状態を再現
+    await act(async () => {
+      useStore.setState({ currentTier: 3, currentWave: 20 });
+    });
+
+    renderPage();
+
+    // gameover 発火
+    await act(async () => {
+      useStore.setState({ machineHp: BigNum.ZERO });
+    });
+
+    // ダイアログの「到達 Wave」 が「20」 (endRun で 1 にリセットされても 20 のまま)
+    expect(getReachedWaveText()).toBe('20');
+    expect(getReachedTierText()).toBe('3');
+    // 実際に store 側は 1 にリセットされていることも確認 (リグレッション防止)
+    expect(useStore.getState().currentWave).toBe(1);
+    expect(useStore.getState().currentTier).toBe(1);
+  });
+
+  test('撤退: endRun() で currentWave が 1 にリセットされても reachedWave は終了時点の値を表示', async () => {
+    useStore.getState().startRun({
+      initialWeapon: 'laser',
+      baseMachineMaxHp: BigNum.fromNumber(100),
+      initialTier: 2,
+    });
+    await act(async () => {
+      useStore.setState({ currentTier: 2, currentWave: 15 });
+    });
+
+    renderPage();
+
+    // 撤退操作 (メニュー → 撤退 → 確認)
+    const pauseBtn = screen.getByRole('button', { name: '一時停止 (メニューを開く)' });
+    await act(async () => {
+      fireEvent.click(pauseBtn);
+    });
+    const retreatBtn = screen.getByRole('button', { name: '撤退' });
+    await act(async () => {
+      fireEvent.click(retreatBtn);
+    });
+    const confirmBtn = screen.getByRole('button', { name: '撤退する' });
+    await act(async () => {
+      fireEvent.click(confirmBtn);
+    });
+
+    expect(getReachedWaveText()).toBe('15');
+    expect(getReachedTierText()).toBe('2');
+    expect(useStore.getState().currentWave).toBe(1);
+    expect(useStore.getState().currentTier).toBe(1);
+  });
+});
+
+// ---------------------------------------------------------------------------
 // SE 配線テスト
 // ---------------------------------------------------------------------------
 
@@ -455,5 +542,95 @@ describe('SE 配線', () => {
     // gameover → resultGameOver が鳴り、resultClear は鳴らない
     expect(soundEngine.play).toHaveBeenCalledWith('resultGameOver');
     expect(soundEngine.play).not.toHaveBeenCalledWith('resultClear');
+  });
+});
+
+// ---------------------------------------------------------------------------
+// MachineHitFx 配線 (machineHp 減少フレームで machineHitKey が +1) — Refs #81
+// ---------------------------------------------------------------------------
+
+describe('MachineHitFx 配線 — machineHp 変化検知 (Refs #81)', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    useStore.getState().endRun();
+  });
+
+  afterEach(() => {
+    vi.clearAllMocks();
+  });
+
+  /** BattleField 内の MachineHitFx 由来 style 要素数 (mhf- prefix を含むもの) を返す */
+  function countMachineHitFxStyles(container: HTMLElement): number {
+    return Array.from(container.querySelectorAll('style')).filter((s) =>
+      (s.textContent ?? '').includes('mhf-')
+    ).length;
+  }
+
+  test('machineHp 減少 (100 → 90) で MachineHitFx がマウントされる', async () => {
+    useStore.getState().startRun({
+      initialWeapon: 'laser',
+      baseMachineMaxHp: BigNum.fromNumber(100),
+      initialTier: 1,
+    });
+
+    const { container } = renderPage();
+
+    // 初期状態: MachineHitFx は未マウント (machineHitKey=0)
+    expect(countMachineHitFxStyles(container)).toBe(0);
+
+    // HP を 90 に減らす
+    await act(async () => {
+      useStore.setState({ machineHp: BigNum.fromNumber(90) });
+    });
+
+    // MachineHitFx が新たにマウントされる (machineHitKey=1 → BattleField が Fx をレンダリング)
+    expect(countMachineHitFxStyles(container)).toBeGreaterThan(0);
+  });
+
+  test('machineHp 回復 (50 → 60) では MachineHitFx は新たにマウントされない', async () => {
+    useStore.getState().startRun({
+      initialWeapon: 'laser',
+      baseMachineMaxHp: BigNum.fromNumber(100),
+      initialTier: 1,
+    });
+    // HP を 50 に設定してから renderPage
+    await act(async () => {
+      useStore.setState({ machineHp: BigNum.fromNumber(50) });
+    });
+
+    const { container } = renderPage();
+
+    // setMachineHp の初回 effect で 1 回マウントされる可能性 (initialHp=baseMaxHp → 50 で減少扱い)
+    // のため、 初期マウント直後の Fx 数を baseline として記録
+    const baselineCount = countMachineHitFxStyles(container);
+
+    // HP を 60 に回復
+    await act(async () => {
+      useStore.setState({ machineHp: BigNum.fromNumber(60) });
+    });
+
+    // 回復では Fx は再マウントされない (machineHitKey は変化しない)
+    expect(countMachineHitFxStyles(container)).toBe(baselineCount);
+  });
+
+  test('machineHp 同値 (50 → 50) では MachineHitFx は再マウントされない', async () => {
+    useStore.getState().startRun({
+      initialWeapon: 'laser',
+      baseMachineMaxHp: BigNum.fromNumber(100),
+      initialTier: 1,
+    });
+    await act(async () => {
+      useStore.setState({ machineHp: BigNum.fromNumber(50) });
+    });
+
+    const { container } = renderPage();
+    const baselineCount = countMachineHitFxStyles(container);
+
+    // 同値で再 set (BigNum を新規生成して参照を変える)
+    await act(async () => {
+      useStore.setState({ machineHp: BigNum.fromNumber(50) });
+    });
+
+    expect(countMachineHitFxStyles(container)).toBe(baselineCount);
   });
 });

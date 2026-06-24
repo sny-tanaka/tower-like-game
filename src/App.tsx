@@ -41,9 +41,12 @@ function useSoundBootstrap(bgmVolume: number, seVolume: number) {
   useEffect(() => {
     const initOnce = () => {
       if (!soundEngine.isInitialized()) {
+        // 注意: ここで setBgmVolume / setSeVolume を呼ぶと、 initOnce のクロージャ
+        // 捕捉値 (= App 初回マウント時の default 0.5/0.7) で hydrate 後の値を
+        // 上書きしてしまうバグになる。 soundEngine.init() の内部で既に
+        // `bgmGain.gain.value = this.bgmVolume` を実行しており、 this.bgmVolume は
+        // 下の useEffect で常に同期されているため、 ここでの再代入は不要。
         soundEngine.init();
-        soundEngine.setBgmVolume(bgmVolume);
-        soundEngine.setSeVolume(seVolume);
       }
     };
     window.addEventListener('pointerdown', initOnce, { once: true });
@@ -52,8 +55,6 @@ function useSoundBootstrap(bgmVolume: number, seVolume: number) {
       window.removeEventListener('pointerdown', initOnce);
       window.removeEventListener('keydown', initOnce);
     };
-    // bgmVolume / seVolume は init 時に 1 回反映するだけ。 以後の変化は下の effect で同期。
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // settings の volume 変化を engine に同期 (init 済みでなくても setXxxVolume は volume 保持する)

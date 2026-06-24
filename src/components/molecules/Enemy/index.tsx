@@ -95,21 +95,6 @@ const ROTATABLE: Record<EnemyVisualType, boolean> = {
 };
 
 // ---------------------------------------------------------------------------
-// 状態異常 tint
-// ---------------------------------------------------------------------------
-
-function statusFilter(status: EnemyStatus): string {
-  switch (status) {
-    case 'frozen':
-      return 'hue-rotate(180deg) saturate(1.6) brightness(1.05)';
-    case 'burning':
-      return 'hue-rotate(-25deg) saturate(1.4) brightness(1.1)';
-    default:
-      return 'none';
-  }
-}
-
-// ---------------------------------------------------------------------------
 // SVG シェイプ群
 // ---------------------------------------------------------------------------
 
@@ -374,16 +359,19 @@ export function Enemy({ type, size, hp, showHp, facing = 0, status = 'normal' }:
   const facingDeg = ROTATABLE[type] ? `${(facing * 180) / Math.PI}deg` : '0deg';
   const dropShadowPx = type === 'boss' ? 8 : type === 'miniboss' ? 6 : 4;
 
+  // glow の太さ・色は CSS variable で渡し、 filter 値は CSS 側 (data-status セレクタ) に
+  // 閉じ込めることで位置変化のたびに filter ラスタライズが再実行されないようにする (Issue #79 M-1)。
   const wrapperStyle: CSSProperties = {
     width: finalSize,
     height: finalSize,
+    ['--enemy-glow-px' as string]: `${dropShadowPx}px`,
+    ['--enemy-glow-color' as string]: preset.glow,
   };
 
   const shapeStyle: CSSProperties = {
     width: finalSize,
     height: finalSize,
     color: preset.color,
-    filter: `drop-shadow(0 0 ${dropShadowPx}px ${preset.glow}) ${statusFilter(status)}`,
     transform: `rotate(${facingDeg})`,
   };
 

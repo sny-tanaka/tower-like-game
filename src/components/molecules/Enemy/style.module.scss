@@ -12,6 +12,20 @@
   transform-origin: center;
   transition: transform 120ms linear;
   line-height: 0;
+  /* filter は CSS 側に閉じ込めて type/status による値ぶれを防ぐ (Issue #79 M-1)。
+     glow の太さ・色は JS から CSS variable で渡す (静的)。 status による hue 変化は
+     data-status 属性セレクタで切り替える (位置変化のたびに filter 値が変わらない)。 */
+  filter: drop-shadow(0 0 var(--enemy-glow-px, 4px) var(--enemy-glow-color, #ffffff));
+}
+
+.root[data-status='frozen'] .shape {
+  filter: drop-shadow(0 0 var(--enemy-glow-px, 4px) var(--enemy-glow-color, #ffffff))
+    hue-rotate(180deg) saturate(1.6) brightness(1.05);
+}
+
+.root[data-status='burning'] .shape {
+  filter: drop-shadow(0 0 var(--enemy-glow-px, 4px) var(--enemy-glow-color, #ffffff))
+    hue-rotate(-25deg) saturate(1.4) brightness(1.1);
 }
 
 @media (prefers-reduced-motion: reduce) {

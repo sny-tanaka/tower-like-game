@@ -93,7 +93,8 @@ export function CutterOrbitFx({
       height: ${bladeHeightPct}%;
       margin-top: -${bladeMarginPct}%;
       transform-origin: 0 50%;
-      filter: drop-shadow(0 0 4px ${color}) drop-shadow(0 0 10px ${color}66);
+      /* drop-shadow を 2 重 → 1 重に減らして GPU 合成コストを削減 (Issue #79 M-4) */
+      filter: drop-shadow(0 0 4px ${color});
       color: ${color};
     }
     .${id}-sweep {

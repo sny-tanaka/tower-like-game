@@ -26,9 +26,10 @@ export function OverdriveAuraFx({
 }: OverdriveAuraFxProps) {
   const uid = useId().replace(/:/g, 'oa');
 
+  // 3 アニメ (rot + rot-r + pulse) を 2 アニメ (rot + pulse) に削減 (Issue #79 M-4)。
+  // r2 (内輪) は静的、 r1 (外輪) の回転 + pulse でモーションを維持する。
   const css = `
     @keyframes ${uid}-rot   { from { transform: rotate(0deg);   } to { transform: rotate(360deg); } }
-    @keyframes ${uid}-rot-r { from { transform: rotate(360deg); } to { transform: rotate(0deg);   } }
     @keyframes ${uid}-pulse { 0%, 100% { opacity: 0.7; } 50% { opacity: 1; } }
     .${uid}-w {
       position: absolute;
@@ -49,10 +50,9 @@ export function OverdriveAuraFx({
       position: absolute; inset: 12px; border-radius: 50%;
       border: 1px solid ${color};
       opacity: 0.6;
-      animation: ${uid}-rot-r 3.6s linear infinite;
     }
     @media (prefers-reduced-motion: reduce) {
-      .${uid}-w, .${uid}-r1, .${uid}-r2 { animation: none; }
+      .${uid}-w, .${uid}-r1 { animation: none; }
     }
   `;
 
