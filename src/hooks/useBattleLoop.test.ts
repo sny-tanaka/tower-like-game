@@ -332,6 +332,27 @@ describe('HP リジェネ天井丸めバグ 回帰防止', () => {
     }
     expect(totalRegen.toString()).toBe('2');
   });
+
+  // Refs #81 補強: 2.5 秒経過 (1 発) で 2 ticks + 500ms 持越し
+  test('新実装: deltaSec=2.5 一発で ticks=2 + accumulator=500ms 持越し', () => {
+    const result = calcIntervalTicks(0, 2.5);
+    expect(result.ticks).toBe(2);
+    expect(result.nextAccumulatorMs).toBe(500);
+  });
+
+  // Refs #81 補強: 0.5 秒経過 (1 発) では加算されない
+  test('新実装: deltaSec=0.5 (1 発) では加算されない (1 秒未到達)', () => {
+    const result = calcIntervalTicks(0, 0.5);
+    expect(result.ticks).toBe(0);
+    expect(result.nextAccumulatorMs).toBe(500);
+  });
+
+  // Refs #81 補強: 持越しと次フレーム加算で「持越し + deltaSec ≥ 1000ms」 → 発火
+  test('新実装: 500ms 持越し + 0.5 秒 deltaSec → ticks=1 + accumulator=0 (持越しが効く)', () => {
+    const result = calcIntervalTicks(500, 0.5);
+    expect(result.ticks).toBe(1);
+    expect(result.nextAccumulatorMs).toBe(0);
+  });
 });
 
 // ---------------------------------------------------------------------------

@@ -544,3 +544,93 @@ describe('SE 配線', () => {
     expect(soundEngine.play).not.toHaveBeenCalledWith('resultClear');
   });
 });
+
+// ---------------------------------------------------------------------------
+// MachineHitFx 配線 (machineHp 減少フレームで machineHitKey が +1) — Refs #81
+// ---------------------------------------------------------------------------
+
+describe('MachineHitFx 配線 — machineHp 変化検知 (Refs #81)', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    useStore.getState().endRun();
+  });
+
+  afterEach(() => {
+    vi.clearAllMocks();
+  });
+
+  /** BattleField 内の MachineHitFx 由来 style 要素数 (mhf- prefix を含むもの) を返す */
+  function countMachineHitFxStyles(container: HTMLElement): number {
+    return Array.from(container.querySelectorAll('style')).filter((s) =>
+      (s.textContent ?? '').includes('mhf-')
+    ).length;
+  }
+
+  test('machineHp 減少 (100 → 90) で MachineHitFx がマウントされる', async () => {
+    useStore.getState().startRun({
+      initialWeapon: 'laser',
+      baseMachineMaxHp: BigNum.fromNumber(100),
+      initialTier: 1,
+    });
+
+    const { container } = renderPage();
+
+    // 初期状態: MachineHitFx は未マウント (machineHitKey=0)
+    expect(countMachineHitFxStyles(container)).toBe(0);
+
+    // HP を 90 に減らす
+    await act(async () => {
+      useStore.setState({ machineHp: BigNum.fromNumber(90) });
+    });
+
+    // MachineHitFx が新たにマウントされる (machineHitKey=1 → BattleField が Fx をレンダリング)
+    expect(countMachineHitFxStyles(container)).toBeGreaterThan(0);
+  });
+
+  test('machineHp 回復 (50 → 60) では MachineHitFx は新たにマウントされない', async () => {
+    useStore.getState().startRun({
+      initialWeapon: 'laser',
+      baseMachineMaxHp: BigNum.fromNumber(100),
+      initialTier: 1,
+    });
+    // HP を 50 に設定してから renderPage
+    await act(async () => {
+      useStore.setState({ machineHp: BigNum.fromNumber(50) });
+    });
+
+    const { container } = renderPage();
+
+    // setMachineHp の初回 effect で 1 回マウントされる可能性 (initialHp=baseMaxHp → 50 で減少扱い)
+    // のため、 初期マウント直後の Fx 数を baseline として記録
+    const baselineCount = countMachineHitFxStyles(container);
+
+    // HP を 60 に回復
+    await act(async () => {
+      useStore.setState({ machineHp: BigNum.fromNumber(60) });
+    });
+
+    // 回復では Fx は再マウントされない (machineHitKey は変化しない)
+    expect(countMachineHitFxStyles(container)).toBe(baselineCount);
+  });
+
+  test('machineHp 同値 (50 → 50) では MachineHitFx は再マウントされない', async () => {
+    useStore.getState().startRun({
+      initialWeapon: 'laser',
+      baseMachineMaxHp: BigNum.fromNumber(100),
+      initialTier: 1,
+    });
+    await act(async () => {
+      useStore.setState({ machineHp: BigNum.fromNumber(50) });
+    });
+
+    const { container } = renderPage();
+    const baselineCount = countMachineHitFxStyles(container);
+
+    // 同値で再 set (BigNum を新規生成して参照を変える)
+    await act(async () => {
+      useStore.setState({ machineHp: BigNum.fromNumber(50) });
+    });
+
+    expect(countMachineHitFxStyles(container)).toBe(baselineCount);
+  });
+});
