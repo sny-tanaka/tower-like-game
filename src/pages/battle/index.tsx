@@ -110,13 +110,13 @@ export function Page() {
   const [isScreenSaverOpen, setIsScreenSaverOpen] = useState(false);
 
   // ── 被ダメ検知 (machineHp の prev/current 比較) ──
-  // HP が前フレームより減少したとき vignetteKey を +1 して Fx を再マウント (= 再生開始)。
+  // HP が前フレームより減少したとき machineHitKey を +1 して MachineHitFx を再マウント (= 再生開始)。
   // HP 回復 (onKill heal / HP リジェネ) では HP が増加するため lt 比較で誤発火しない。
   const prevMachineHpRef = useRef<typeof machineHp>(machineHp);
-  const [vignetteKey, setVignetteKey] = useState(0);
+  const [machineHitKey, setMachineHitKey] = useState(0);
   useEffect(() => {
     if (machineHp.lt(prevMachineHpRef.current)) {
-      setVignetteKey((k) => k + 1);
+      setMachineHitKey((k) => k + 1);
     }
     prevMachineHpRef.current = machineHp;
   }, [machineHp]);
@@ -395,7 +395,7 @@ export function Page() {
           onPickupDone={onPickupDone}
           showCutterOrbit={currentWeapon === 'cutter' && isRunActive && !isPaused && !isResultOpen}
           showOverdriveAura={isOverdriveActive && isRunActive && !isResultOpen}
-          machineHitKey={vignetteKey}
+          machineHitKey={machineHitKey}
           cutterRotateMs={calcCutterRotateMs(
             // useBattleLoop の effectivePerSec と同じ式 (cutterStats × RW × Overdrive、 ATTACK_PER_SEC_CAP で頭打ち)
             Math.min(
