@@ -42,7 +42,7 @@ export const NORMAL_SPD_MULT: Record<NormalSubtype, number> = {
 export const UPPER_HP_MULT: Record<Exclude<EnemyKind, 'normal'>, number> = {
   elite: 10,
   miniboss: 50,
-  boss: 100,
+  boss: 150,
 };
 
 /** 上位敵の ATK 倍率 */
@@ -54,9 +54,9 @@ export const UPPER_ATK_MULT: Record<Exclude<EnemyKind, 'normal'>, number> = {
 
 /** 上位敵の SPD 倍率 */
 export const UPPER_SPD_MULT: Record<Exclude<EnemyKind, 'normal'>, number> = {
-  elite: 0.3,
-  miniboss: 0.1,
-  boss: 0.05,
+  elite: 0.5,
+  miniboss: 0.2,
+  boss: 0.1,
 };
 
 /** 上位敵の基礎ドロップ報酬 */
