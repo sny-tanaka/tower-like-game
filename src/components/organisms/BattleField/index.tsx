@@ -12,8 +12,6 @@ import { LaserBeamFx } from '@/components/fx/LaserBeamFx';
 import { MachineHitFx } from '@/components/fx/MachineHitFx';
 import { MegaBeamFx } from '@/components/fx/MegaBeamFx';
 import { OverdriveAuraFx } from '@/components/fx/OverdriveAuraFx';
-import { PickupFx } from '@/components/fx/PickupFx';
-import type { PickupIconName } from '@/components/fx/PickupFx';
 import { ThunderStrikeFx } from '@/components/fx/ThunderStrikeFx';
 import { Enemy, spawnedEnemyToVisualType } from '@/components/molecules/Enemy';
 import type { SpawnedEnemy } from '@/game/types';
@@ -82,19 +80,6 @@ export type ProjectileEvent =
   | { id: string; kind: 'megaBeam'; x: number; y: number; angle: number };
 
 /**
- * 撃破時の通貨ドロップ演出 (HUD へ吸い込まれる)。
- */
-export interface PickupEvent {
-  id: string;
-  /** ドロップ起点 X % (撃破位置) */
-  x: number;
-  /** ドロップ起点 Y % */
-  y: number;
-  /** 通貨種別 */
-  iconName: PickupIconName;
-}
-
-/**
  * 視覚的なダミーピン (敵 spawn ロジックと無関係の静的飾り)
  *  - 「design.png 準拠」の画面装飾として 6 個程度散布する想定
  */
@@ -126,10 +111,6 @@ export interface BattleFieldProps {
   projectileEvents?: ProjectileEvent[];
   /** ProjectileFx 完了通知 */
   onProjectileDone?: (id: string) => void;
-  /** 通貨ドロップ演出 */
-  pickupEvents?: PickupEvent[];
-  /** PickupFx 完了通知 */
-  onPickupDone?: (id: string) => void;
   /**
    * Cutter の常時回転刃を表示するか。
    * battle 画面側で `currentWeapon === 'cutter' && isRunActive && !paused` を判定して渡す。
@@ -201,8 +182,6 @@ export function BattleField({
   onDeathDone,
   projectileEvents = [],
   onProjectileDone,
-  pickupEvents = [],
-  onPickupDone,
   showCutterOrbit = false,
   showOverdriveAura = false,
   cutterRotateMs,
@@ -375,19 +354,6 @@ export function BattleField({
             x={evt.x}
             y={evt.y}
             onDone={() => onDeathDone?.(evt.id)}
-          />
-        ))}
-
-        {/* 通貨ドロップ演出 (撃破位置 → 画面上部 HUD 付近へ吸い込まれる) */}
-        {pickupEvents.map((evt) => (
-          <PickupFx
-            key={evt.id}
-            x={evt.x}
-            y={evt.y}
-            targetX={50}
-            targetY={4}
-            iconName={evt.iconName}
-            onDone={() => onPickupDone?.(evt.id)}
           />
         ))}
 

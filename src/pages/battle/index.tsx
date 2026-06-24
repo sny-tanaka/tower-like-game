@@ -205,12 +205,10 @@ export function Page() {
     damageEvents,
     deathEvents,
     projectileEvents,
-    pickupEvents,
     waveElapsedSec,
     onDamageDone,
     onDeathDone,
     onProjectileDone,
-    onPickupDone,
     appearanceEvents,
     onAppearanceDone,
     fireActive,
@@ -396,11 +394,9 @@ export function Page() {
           hitEvents={hitEvents}
           deathEvents={deathEvents}
           projectileEvents={projectileEvents}
-          pickupEvents={pickupEvents}
           onDamageDone={onDamageDone}
           onDeathDone={onDeathDone}
           onProjectileDone={onProjectileDone}
-          onPickupDone={onPickupDone}
           showCutterOrbit={currentWeapon === 'cutter' && isRunActive && !isPaused && !isResultOpen}
           showOverdriveAura={isOverdriveActive && isRunActive && !isResultOpen}
           machineHitKey={machineHitKey}

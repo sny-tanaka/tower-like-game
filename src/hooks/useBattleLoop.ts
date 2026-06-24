@@ -1,11 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
-import type {
-  DamageEvent,
-  DeathEvent,
-  PickupEvent,
-  ProjectileEvent,
-} from '@/components/organisms/BattleField';
+import type { DamageEvent, DeathEvent, ProjectileEvent } from '@/components/organisms/BattleField';
 import {
   MACHINE_UPGRADE_ITEMS,
   calcEffectValue,
@@ -274,14 +269,12 @@ export interface UseBattleLoopResult {
   damageEvents: DamageEvent[];
   deathEvents: DeathEvent[];
   projectileEvents: ProjectileEvent[];
-  pickupEvents: PickupEvent[];
   appearanceEvents: AppearanceEvent[];
   /** 現在 wave 内の経過秒 (0 〜 WAVE_DURATION_SEC) */
   waveElapsedSec: number;
   onDamageDone: (id: string) => void;
   onDeathDone: (id: string) => void;
   onProjectileDone: (id: string) => void;
-  onPickupDone: (id: string) => void;
   onAppearanceDone: (id: string) => void;
   /**
    * アクティブスキル発動。 store.triggerActive (CD セット + activeCdSec=max) を呼んだ上で、
@@ -320,7 +313,6 @@ export function useBattleLoop({ range, paused = false }: UseBattleLoopOpts): Use
   const damageEventIdRef = useRef<number>(0);
   const deathEventIdRef = useRef<number>(0);
   const projectileEventIdRef = useRef<number>(0);
-  const pickupEventIdRef = useRef<number>(0);
   const appearanceEventIdRef = useRef<number>(0);
   /**
    * ラン開始からのゲーム内累積時間 (ms)。
@@ -377,7 +369,6 @@ export function useBattleLoop({ range, paused = false }: UseBattleLoopOpts): Use
   const [damageEvents, setDamageEvents] = useState<DamageEvent[]>([]);
   const [deathEvents, setDeathEvents] = useState<DeathEvent[]>([]);
   const [projectileEvents, setProjectileEvents] = useState<ProjectileEvent[]>([]);
-  const [pickupEvents, setPickupEvents] = useState<PickupEvent[]>([]);
   const [appearanceEvents, setAppearanceEvents] = useState<AppearanceEvent[]>([]);
   const [waveElapsedSec, setWaveElapsedSec] = useState<number>(0);
   const [isOverdriveActive, setIsOverdriveActive] = useState<boolean>(false);
@@ -446,10 +437,6 @@ export function useBattleLoop({ range, paused = false }: UseBattleLoopOpts): Use
 
   const onProjectileDone = useCallback((id: string) => {
     setProjectileEvents((prev) => prev.filter((e) => e.id !== id));
-  }, []);
-
-  const onPickupDone = useCallback((id: string) => {
-    setPickupEvents((prev) => prev.filter((e) => e.id !== id));
   }, []);
 
   const onAppearanceDone = useCallback((id: string) => {
@@ -1100,7 +1087,6 @@ export function useBattleLoop({ range, paused = false }: UseBattleLoopOpts): Use
             state.machineLevels.patchDropRate
           );
           const newDeathEvents: DeathEvent[] = [];
-          const newPickupEvents: PickupEvent[] = [];
           const survivors: SpawnedEnemy[] = [];
           let earnedScrew = BigNum.ZERO;
           let earnedBolt = BigNum.ZERO;
@@ -1148,13 +1134,6 @@ export function useBattleLoop({ range, paused = false }: UseBattleLoopOpts): Use
                 earnedScrew = earnedScrew.add(
                   BigNum.fromNumber(baseScrew * screwGainMul * machineScrewGainMul * dropMul)
                 );
-                pickupEventIdRef.current += 1;
-                newPickupEvents.push({
-                  id: `pk-${pickupEventIdRef.current}`,
-                  x: enemy.position.x,
-                  y: enemy.position.y,
-                  iconName: 'screw',
-                });
               }
 
               // --- ボルト (bolt): 通常敵は 50% 確率、 上位敵は 100% + boltGainMul + dropMul ---
@@ -1167,13 +1146,6 @@ export function useBattleLoop({ range, paused = false }: UseBattleLoopOpts): Use
                   earnedBolt = earnedBolt.add(
                     BigNum.fromNumber(scaledBolt * boltGainMul * dropMul)
                   );
-                  pickupEventIdRef.current += 1;
-                  newPickupEvents.push({
-                    id: `pk-${pickupEventIdRef.current}`,
-                    x: enemy.position.x,
-                    y: enemy.position.y,
-                    iconName: 'bolt',
-                  });
                 }
               }
 
@@ -1187,13 +1159,6 @@ export function useBattleLoop({ range, paused = false }: UseBattleLoopOpts): Use
                   earnedAlloy = earnedAlloy.add(
                     BigNum.fromNumber(scaledAlloyAmount * alloyGainMul * dropMul)
                   );
-                  pickupEventIdRef.current += 1;
-                  newPickupEvents.push({
-                    id: `pk-${pickupEventIdRef.current}`,
-                    x: enemy.position.x,
-                    y: enemy.position.y,
-                    iconName: 'alloy',
-                  });
                 }
               }
 
@@ -1234,9 +1199,6 @@ export function useBattleLoop({ range, paused = false }: UseBattleLoopOpts): Use
           if (newDeathEvents.length > 0) {
             enemiesRef.current = survivors;
             setDeathEvents((prev) => [...prev, ...newDeathEvents]);
-          }
-          if (newPickupEvents.length > 0) {
-            setPickupEvents((prev) => [...prev, ...newPickupEvents]);
           }
           if (!earnedScrew.isZero()) {
             state.addScrew(earnedScrew);
@@ -1389,13 +1351,11 @@ export function useBattleLoop({ range, paused = false }: UseBattleLoopOpts): Use
     damageEvents,
     deathEvents,
     projectileEvents,
-    pickupEvents,
     appearanceEvents,
     waveElapsedSec,
     onDamageDone,
     onDeathDone,
     onProjectileDone,
-    onPickupDone,
     onAppearanceDone,
     fireActive,
     isOverdriveActive,
