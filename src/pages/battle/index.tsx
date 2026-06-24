@@ -3,7 +3,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import styles from './style.module.scss';
 
 import { AppearanceBannerFx } from '@/components/fx/AppearanceBannerFx';
-import { DamageVignetteFx } from '@/components/fx/DamageVignetteFx';
+import { TierClearFx } from '@/components/fx/TierClearFx';
 import { WaveStartFx } from '@/components/fx/WaveStartFx';
 import { AppShell } from '@/components/organisms/AppShell';
 import { BattleField } from '@/components/organisms/BattleField';
@@ -110,39 +110,27 @@ export function Page() {
   const [isScreenSaverOpen, setIsScreenSaverOpen] = useState(false);
 
   // ── 被ダメ検知 (machineHp の prev/current 比較) ──
-  // HP が前フレームより減少したとき damaging=true にして 200ms 後に false に戻す + vignette を再マウント。
+  // HP が前フレームより減少したとき vignetteKey を +1 して Fx を再マウント (= 再生開始)。
   // HP 回復 (onKill heal / HP リジェネ) では HP が増加するため lt 比較で誤発火しない。
   const prevMachineHpRef = useRef<typeof machineHp>(machineHp);
-  const [damaging, setDamaging] = useState(false);
-  const damagingTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  // 被ダメ検知ごとに +1 して DamageVignetteFx の key を変える (= 再マウントで再生開始)
   const [vignetteKey, setVignetteKey] = useState(0);
   useEffect(() => {
     if (machineHp.lt(prevMachineHpRef.current)) {
-      setDamaging(true);
       setVignetteKey((k) => k + 1);
-      if (damagingTimerRef.current != null) {
-        clearTimeout(damagingTimerRef.current);
-      }
-      damagingTimerRef.current = setTimeout(() => {
-        setDamaging(false);
-        damagingTimerRef.current = null;
-      }, 200);
     }
     prevMachineHpRef.current = machineHp;
-    // NOTE: ここで cleanup の clearTimeout を呼んではいけない。 deps machineHp は
-    // HP リジェネで毎フレーム変化するため、 cleanup を入れると 200ms タイマーが
-    // 即座にクリアされてしまい setDamaging(false) が呼ばれず赤文字のまま固着する。
   }, [machineHp]);
-  // アンマウント時のみ timer を片付ける
+
+  // ── Tier クリア検知 (currentTier の prev/current 比較) ──
+  // currentTier が +1 になった瞬間に TierClearFx を再マウントして全画面演出を発火。
+  const prevTierRef = useRef(currentTier);
+  const [tierClearKey, setTierClearKey] = useState(0);
   useEffect(() => {
-    return () => {
-      if (damagingTimerRef.current != null) {
-        clearTimeout(damagingTimerRef.current);
-        damagingTimerRef.current = null;
-      }
-    };
-  }, []);
+    if (currentTier > prevTierRef.current) {
+      setTierClearKey((k) => k + 1);
+    }
+    prevTierRef.current = currentTier;
+  }, [currentTier]);
 
   // ── BATTLE START バナー: 「isRunActive が false→true に切り替わった瞬間」 のみ表示 ──
   // 単に isRunActive=true で発火すると、 同一ラン中の画面再マウントや内部 state 変動で
@@ -356,7 +344,6 @@ export function Page() {
             secondsTotal={WAVE_DURATION_SEC}
             isBossWave={currentWave === TOTAL_WAVES}
             paused={isPaused || isResultOpen}
-            damaging={damaging}
           />
         }
         footer={
@@ -408,6 +395,7 @@ export function Page() {
           onPickupDone={onPickupDone}
           showCutterOrbit={currentWeapon === 'cutter' && isRunActive && !isPaused && !isResultOpen}
           showOverdriveAura={isOverdriveActive && isRunActive && !isResultOpen}
+          machineHitKey={vignetteKey}
           cutterRotateMs={calcCutterRotateMs(
             // useBattleLoop の effectivePerSec と同じ式 (cutterStats × RW × Overdrive、 ATTACK_PER_SEC_CAP で頭打ち)
             Math.min(
@@ -427,14 +415,6 @@ export function Page() {
         className={styles.overlayLayer}
         aria-live="polite"
       >
-        {/* 被ダメ時に赤ビネット (key 変化で再マウント → 再生開始、 onDone でアンマウント) */}
-        {vignetteKey > 0 && (
-          <DamageVignetteFx
-            key={vignetteKey}
-            onDone={() => setVignetteKey(0)}
-          />
-        )}
-
         {/* バトルメニュー (isPaused と完全連動: pause = メニュー開) */}
         <BattleMenuOverlay
           open={isPaused}
@@ -482,6 +462,14 @@ export function Page() {
             onDone={() => {
               setIsBattleStartShown(false);
             }}
+          />
+        )}
+
+        {/* Tier クリア演出 (currentTier 増加で再マウント) */}
+        {tierClearKey > 0 && (
+          <TierClearFx
+            key={tierClearKey}
+            onDone={() => setTierClearKey(0)}
           />
         )}
 

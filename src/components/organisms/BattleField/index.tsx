@@ -9,6 +9,7 @@ import { DamagePopFx } from '@/components/fx/DamagePopFx';
 import { EnemyDeathFx } from '@/components/fx/EnemyDeathFx';
 import { EnemyHitFx } from '@/components/fx/EnemyHitFx';
 import { LaserBeamFx } from '@/components/fx/LaserBeamFx';
+import { MachineHitFx } from '@/components/fx/MachineHitFx';
 import { MegaBeamFx } from '@/components/fx/MegaBeamFx';
 import { OverdriveAuraFx } from '@/components/fx/OverdriveAuraFx';
 import { PickupFx } from '@/components/fx/PickupFx';
@@ -152,6 +153,12 @@ export interface BattleFieldProps {
    * - 実ゲームロジックの SpawnedEnemy とは別レイヤ
    */
   dummyPins?: DummyPin[];
+  /**
+   * マシン本体被ダメ Fx の再マウントキー。
+   * 親側で被ダメ検知ごとに +1 して渡すと、 MachineHitFx が再マウントされ赤フラッシュが再生される。
+   * 0 ならマウントしない (初期状態)。
+   */
+  machineHitKey?: number;
 }
 
 // ---------------------------------------------------------------------------
@@ -201,6 +208,7 @@ export function BattleField({
   cutterRotateMs,
   range,
   dummyPins = [],
+  machineHitKey = 0,
 }: BattleFieldProps) {
   const machineX = machinePosition.x;
   const machineY = machinePosition.y;
@@ -326,6 +334,15 @@ export function BattleField({
           <OverdriveAuraFx
             x={machineX}
             y={machineY}
+          />
+        )}
+
+        {/* マシン被ダメ時の局所赤フラッシュ (key 変化で再マウント) */}
+        {machineHitKey > 0 && (
+          <MachineHitFx
+            key={machineHitKey}
+            cx={machineX}
+            cy={machineY}
           />
         )}
 
