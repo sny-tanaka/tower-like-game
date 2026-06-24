@@ -178,11 +178,15 @@ A = H195 (cyan) → Z = H295 (purple) を oklch で線形補間。
   />
 ))}
 
-// 単発フラッシュ
-{isDamaging && <DamageVignetteFx onDone={() => setIsDamaging(false)} />}
+// 単発フラッシュ (key 変化で再マウント発火)
+{machineHitKey > 0 && (
+  <MachineHitFx key={machineHitKey} cx={machineX} cy={machineY} />
+)}
 
-// ループ系（state OFF で unmount → 停止）
-{enemy.burning && <BurnFx x={enemy.x} y={enemy.y} />}
+// Tier クリア時のフィナーレ
+{tierClearKey > 0 && (
+  <TierClearFx key={tierClearKey} onDone={() => setTierClearKey(0)} />
+)}
 ```
 
 ## 7. 画面 × Organism マッピング
@@ -241,4 +245,4 @@ A = H195 (cyan) → Z = H295 (purple) を oklch で線形補間。
 - 各 Fx の最終秒数 / イージング微調整（実装段階で計測）
 - 60fps 達成の最終確認（デバイス性能依存）
 - 低スペック端末向けの描画品質モード（`prefers-reduced-motion` だけで足りるか）
-- `MergeSuccessFx`（パッチ合成成功）/ `PatchDropFx`（パッチドロップ）の専用 Fx 化が必要かの判断（現状は `LevelUpFx` + `PickupFx` の組合せで代用想定）
+- `MergeSuccessFx`（パッチ合成成功）/ `PatchDropFx`（パッチドロップ）の専用 Fx 化が必要かの判断（現状は `PickupFx` で代用想定）
