@@ -862,30 +862,27 @@ export function useBattleLoop({ range, paused = false }: UseBattleLoopOpts): Use
           const newDamageEvents: DamageEvent[] = [];
           const newProjectileEvents: ProjectileEvent[] = [];
 
-          // ---- 射程内敵リストを 1 フレーム = 1 回キャッシュ (Issue #85) ----
-          // 同フレーム内で敵 position は変動しないため、 発射ごとに map+filter+sort+map
-          // を回す必要はない。 撃破は死亡掃除 (後段) が走るまで enemiesRef に残るが、
-          // fireWeapon は HP でフィルタしない (位置だけで当たり判定) ため、 同フレーム内の
-          // 次 shot で「すでに hp<=0 の敵」 をターゲットに含めるのは従来挙動と同じ。
-          // 当たり判定半径: cutter は CutterOrbitFx の刃の長さに合わせて短く、
-          // それ以外は通常の索敵範囲 (range)
-          const effectiveRange = state.currentWeapon === 'cutter' ? CUTTER_ORBIT_RANGE_PCT : range;
-          const sortedInRange = enemiesRef.current
-            .map((enemy) => ({ enemy, dist: distanceFromMachine(enemy.position) }))
-            .filter(({ dist }) => dist <= effectiveRange)
-            .sort((a, b) => a.dist - b.dist)
-            .map(({ enemy }) => enemy);
-
-          if (sortedInRange.length === 0) {
-            // 射程内に敵がいなければ、 累積はそのまま温存 (敵が来たら即発射)
-            fireAccumulatorMsRef.current = Math.min(fireAccumulatorMsRef.current, intervalMs);
-          }
-
           while (
-            sortedInRange.length > 0 &&
             fireAccumulatorMsRef.current >= intervalMs &&
             firedThisFrame < FIRE_PER_FRAME_CAP
           ) {
+            // 当たり判定半径: cutter は CutterOrbitFx の刃の長さに合わせて短く、
+            // それ以外は通常の索敵範囲 (range)
+            const effectiveRange =
+              state.currentWeapon === 'cutter' ? CUTTER_ORBIT_RANGE_PCT : range;
+            // 射程内の敵を距離昇順で取得
+            const sortedInRange = enemiesRef.current
+              .map((enemy) => ({ enemy, dist: distanceFromMachine(enemy.position) }))
+              .filter(({ dist }) => dist <= effectiveRange)
+              .sort((a, b) => a.dist - b.dist)
+              .map(({ enemy }) => enemy);
+
+            if (sortedInRange.length === 0) {
+              // 射程内に敵がいなければ、 累積はそのまま温存 (敵が来たら即発射)
+              fireAccumulatorMsRef.current = Math.min(fireAccumulatorMsRef.current, intervalMs);
+              break;
+            }
+
             fireAccumulatorMsRef.current -= intervalMs;
             firedThisFrame += 1;
 
