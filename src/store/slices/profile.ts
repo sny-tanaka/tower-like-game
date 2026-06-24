@@ -22,6 +22,14 @@ export interface ProfileState {
 
 export interface ProfileActions {
   updateHighest: (tier: number, wave: number) => void;
+  /**
+   * Tier クリア時に次の Tier を解放する。
+   * `highestTier = max(現在の highestTier, clearedTier + 1)`。
+   * preparation 画面の TierSelectTab は highestTier 以下の Tier のみ選択可能なので、
+   * この呼び出しで「クリアした Tier の次」 が選べるようになる。
+   * highestWave は触らない (= 「次 Tier の wave 0 到達」 とは扱わない)。
+   */
+  unlockNextTier: (clearedTier: number) => void;
   addPlayTimeSec: (sec: number) => void;
   incrementRuns: () => void;
   addEnemiesKilled: (count: number) => void;
@@ -61,6 +69,15 @@ export const createProfileSlice: StateCreator<RootStore, [], [], ProfileSlice> =
         return { highestWave: Math.max(s.highestWave, wave) };
       }
       // tier < s.highestTier: 更新しない
+      return {};
+    }),
+
+  unlockNextTier: (clearedTier) =>
+    set((s) => {
+      const newHighest = clearedTier + 1;
+      if (newHighest > s.highestTier) {
+        return { highestTier: newHighest };
+      }
       return {};
     }),
 

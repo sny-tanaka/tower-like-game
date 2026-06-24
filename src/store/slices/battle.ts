@@ -58,6 +58,13 @@ export interface BattleActions {
     baseMachineMaxHp: BigNum;
     /** 開始 Tier。省略時は 1 */
     initialTier?: number;
+    /**
+     * 開始 Wave。省略時は 1。
+     * 主に DEV 限定デバッグ起動 (preparation 画面の DEBUG ボタン) で W28 等から
+     * 開始して Tier クリアフローまで短時間で到達するために使う。
+     * 通常の preparation 出撃では 1 のまま (= 通常 wave 1 から開始)。
+     */
+    initialWave?: number;
   }) => void;
   endRun: () => void;
   addScrew: (amount: BigNum) => void;
@@ -146,7 +153,7 @@ function clampBig(value: BigNum, min: BigNum, max: BigNum): BigNum {
 export const createBattleSlice: StateCreator<RootStore, [], [], BattleSlice> = (set, get) => ({
   ...defaultBattleState,
 
-  startRun: ({ initialWeapon, baseMachineMaxHp, initialTier }) => {
+  startRun: ({ initialWeapon, baseMachineMaxHp, initialTier, initialWave }) => {
     // ラン跨ぎで RunWorkshop の Lv をリセット (maxHp 計算の前に必須)。
     // ここで先にリセットしないと、 前ランの hpMul Lv が残ったまま読まれて、
     // 新ランの machineMaxHp に前回の HP 倍率が乗ってしまうバグになる。
@@ -162,7 +169,7 @@ export const createBattleSlice: StateCreator<RootStore, [], [], BattleSlice> = (
       machineMaxHp,
       baseMachineMaxHp,
       currentTier: initialTier ?? 1,
-      currentWave: 1,
+      currentWave: initialWave ?? 1,
       currentWeapon: initialWeapon,
       weaponSwitchCdSec: 0,
       // ラン開始時はゲージ 0 = CD 満タン (= DEFAULT_ACTIVE_MAX_SEC 待つ)
