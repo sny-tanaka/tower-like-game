@@ -144,15 +144,6 @@ export function Page() {
     prevIsRunActiveRef.current = isRunActive;
   }, [isRunActive]);
 
-  // ── BGM: wave に応じて切替 (App.tsx の画面別 BGM を wave 30 のみ上書き) ──
-  useEffect(() => {
-    if (currentWave === 30) {
-      soundEngine.playBgm('battleBoss');
-    } else {
-      soundEngine.playBgm('battleNormal');
-    }
-  }, [currentWave]);
-
   // ── バックグラウンド時に自動 pause (アプリ非表示 / タブ切替で即停止) ──
   // 復帰時の自動再開はしない (= メニューが開いた状態でユーザーが手動で「再開」 する)。
   // ラン外 / リザルト表示中は対象外。
@@ -225,6 +216,26 @@ export function Page() {
     range: DEFAULT_RANGE,
     paused: isResultOpen,
   });
+
+  // ── BGM: ボス出現を契機に切替 (App.tsx の画面別 BGM を bossPhase 中だけ上書き) ──
+  // wave 30 開始時点では BGM は battleNormal のまま。 wave 開始 25 秒後にボスがスポーン
+  // (= AppearanceBannerFx と同時) するタイミングで battleBoss に切替。 ボス撃破で
+  // enemies からボスが消えた後も、 currentWave === 30 のうちは bossPhase を維持し、
+  // TierClearFx の演出中も battleBoss を流し続ける (advanceTier で wave=1 に戻る瞬間に解除)。
+  // (BUG-W30-2: 旧実装は currentWave===30 だけで判定していたため、 wave 30 開始直後
+  //  (= ボス出現の 25 秒前) から battleBoss に切替わってしまっていた)
+  const [bossPhase, setBossPhase] = useState(false);
+  useEffect(() => {
+    if (enemies.some((e) => e.kind === 'boss')) {
+      setBossPhase(true);
+    }
+  }, [enemies]);
+  useEffect(() => {
+    if (currentWave !== 30) setBossPhase(false);
+  }, [currentWave]);
+  useEffect(() => {
+    soundEngine.playBgm(bossPhase ? 'battleBoss' : 'battleNormal');
+  }, [bossPhase]);
 
   // Wave 残り時間: 0 になったら advanceWave が走り経過秒はリセットされる
   const waveSecondsRemaining = Math.max(0, WAVE_DURATION_SEC - waveElapsedSec);

@@ -207,6 +207,48 @@ describe('getSpawnsAtTime', () => {
     expect(bosses).toHaveLength(1);
   });
 
+  // ボス wave の通常敵スポーン仕様 (BUG-W30-1 regression):
+  // ボスは upperSpawnSec=25s に出現。 それ以降のフレームで通常敵が湧くと
+  // 「ボスを倒しても enemiesCount > 0」 で advanceTier しないので、 boss wave は
+  // upperSpawnSec までで通常敵スポーンを打ち切る。
+  it('W30: ボス出現タイミング (25s) 以降は通常敵を 1 体もスポーンしない', () => {
+    idCounter = 0;
+    const w30 = waves[29]!;
+    // 25.0s → 60.0s: ボス出現後の 35 秒間。 spawnInterval=0.25s で本来なら 140 体湧くはず
+    const spawns = getSpawnsAtTime(w30, 60_000, 25_000, constRng, idGen);
+    const normals = spawns.filter((s) => s.kind === 'normal');
+    expect(normals).toHaveLength(0);
+  });
+
+  it('W30: ボス出現を跨ぐフレームは upperSpawnSec までの通常敵だけ湧く', () => {
+    idCounter = 0;
+    const w30 = waves[29]!;
+    // 24.9s → 25.1s をまたぐ。 24.9s 時点で normalCount = floor(24.9/0.25) = 99
+    // upperSpawnSec=25s で打ち切り → 25.0s 時点で normalCount = floor(25.0/0.25) = 100
+    // 差分 1 体だけが湧く (24.9s〜25.0s の 1 体分)
+    const spawns = getSpawnsAtTime(w30, 25_100, 24_900, constRng, idGen);
+    const normals = spawns.filter((s) => s.kind === 'normal');
+    expect(normals).toHaveLength(1);
+  });
+
+  it('W30: ボス出現後にもう一度呼ばれても通常敵が湧かない (cap 二重適用の確認)', () => {
+    idCounter = 0;
+    const w30 = waves[29]!;
+    // 26s → 30s: 全区間が upperSpawnSec の外
+    const spawns = getSpawnsAtTime(w30, 30_000, 26_000, constRng, idGen);
+    expect(spawns.filter((s) => s.kind === 'normal')).toHaveLength(0);
+    expect(spawns.filter((s) => s.kind === 'boss')).toHaveLength(0);
+  });
+
+  it('W29 (非 boss wave): wave 終盤でも通常敵スポーンが止まらない', () => {
+    idCounter = 0;
+    const w29 = waves[28]!; // eliteKind = undefined
+    // 25.5s → 26.0s: w30 と同じレンジでも、 W29 では通常敵が湧き続ける
+    const spawns = getSpawnsAtTime(w29, 26_000, 25_500, constRng, idGen);
+    const normals = spawns.filter((s) => s.kind === 'normal');
+    expect(normals.length).toBeGreaterThan(0);
+  });
+
   it('スポーンした敵の id が一意である', () => {
     idCounter = 0;
     const spawns = getSpawnsAtTime(w1, 3000, 0, constRng, () => `e-${++idCounter}`);

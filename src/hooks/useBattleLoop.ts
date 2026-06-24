@@ -64,25 +64,28 @@ export const BOSS_SPAWN_LEAD_SEC = 1;
  * ウェーブ進行判定。
  *  - 通常 wave (1〜totalWaves-1): waveElapsedMs >= durationSec*1000 で advanceWave
  *  - 最終 wave (= totalWaves、 boss wave): 時間カウントダウンしない。
- *    「ボススポーン時刻を過ぎている」 かつ 「残敵 0」 で advanceTier
+ *    「ボススポーン時刻を過ぎている」 かつ 「ボスが残っていない」 で advanceTier。
+ *    通常敵 (normal) の生存は無視する。 仕様: ボス撃破で Victory (通常敵が残っていても OK)。
+ *    (BUG-W30-1: 旧実装は enemiesCount===0 必須で、 ボス出現後も通常敵が湧き続ける wave.ts の
+ *    挙動と組み合わさって永久に advanceTier しなかった。 通常敵スポーン停止と併せて修正)
  *
  * @param waveElapsedMs    現 wave の経過 ms
  * @param durationSec      schedule.durationSec (= WAVE_DURATION_SEC)
  * @param currentWave      1〜totalWaves
  * @param totalWaves       1 tier の wave 数
- * @param enemiesCount     現在の生存敵数
+ * @param bossAlive        ボス (kind==='boss') が enemiesRef に生存しているか
  */
 export function decideWaveAdvance(
   waveElapsedMs: number,
   durationSec: number,
   currentWave: number,
   totalWaves: number,
-  enemiesCount: number
+  bossAlive: boolean
 ): AdvanceDecision {
   if (currentWave >= totalWaves) {
-    // 最終 wave: ボス撃破 (= スポーン後の残敵 0) で advanceTier。 時間経過は無視
+    // 最終 wave: ボス出現時刻を過ぎていてボス不在で advanceTier。 時間経過は無視
     const bossSpawnedMs = Math.max(0, (durationSec - BOSS_SPAWN_LEAD_SEC) * 1000);
-    if (waveElapsedMs >= bossSpawnedMs && enemiesCount === 0) {
+    if (waveElapsedMs >= bossSpawnedMs && !bossAlive) {
       return 'advanceTier';
     }
     return 'continue';
@@ -1302,12 +1305,15 @@ export function useBattleLoop({ range, paused = false }: UseBattleLoopOpts): Use
           }
 
           // ---- Wave 終了判定 (最終 wave は時間でなくボス撃破で advance) ----
+          // 最終 wave の判定は「ボス kind の敵が居るか」 のみ。 通常敵が残っていても
+          // 仕様上 Victory なので無視する (BUG-W30-1)。
+          const bossAlive = enemiesRef.current.some((e) => e.kind === 'boss');
           const decision = decideWaveAdvance(
             waveElapsedMsRef.current,
             schedule.durationSec,
             state.currentWave,
             tierWaves.length,
-            enemiesRef.current.length
+            bossAlive
           );
           if (decision === 'advanceWave' || decision === 'advanceTier') {
             // onWaveClear パッチ評価 (shieldRegen: HP heal、 boltCast: bolt gain)
