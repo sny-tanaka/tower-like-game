@@ -840,6 +840,12 @@ export function useBattleLoop({ range, paused = false }: UseBattleLoopOpts): Use
           });
           const delayedDamageEvents: DamageEvent[] = [];
           if (expiredHits.length > 0) {
+            // H2-2: 着弾後の DamageEvent 用に「敵 ID → 敵」 Map を作る (O(N) 1 回)。
+            // update 後の position も update 前と同じなので、 ここでの Map は update 前のもの
+            // を使い回しても OK (HP は新規だが position は不変)。
+            const enemiesById = new Map<string, SpawnedEnemy>(
+              enemiesRef.current.map((e) => [e.id, e])
+            );
             const hitMap = new Map(expiredHits.map((h) => [h.enemyId, h]));
             enemiesRef.current = enemiesRef.current.map((e) => {
               const hit = hitMap.get(e.id);
@@ -868,7 +874,8 @@ export function useBattleLoop({ range, paused = false }: UseBattleLoopOpts): Use
               return updated;
             });
             for (const hit of expiredHits) {
-              const enemy = enemiesRef.current.find((e) => e.id === hit.enemyId);
+              // H2-2: O(N) find() → O(1) Map.get() に置換
+              const enemy = enemiesById.get(hit.enemyId);
               damageEventIdRef.current += 1;
               delayedDamageEvents.push({
                 id: `de-${damageEventIdRef.current}`,
@@ -953,9 +960,16 @@ export function useBattleLoop({ range, paused = false }: UseBattleLoopOpts): Use
 
                 // 敵 HP 減算 (immutable に置換) + onAttack パッチ適用
                 if (result.hits.length > 0) {
+                  // H2-2: hit ごとの enemiesRef.current.find() (O(N)) を避けるため、
+                  // 「敵 ID → 敵」 Map を 1 度だけ構築 (O(N))。 同 hit 処理ブロック内の
+                  // 3 箇所 (onAttack 評価 / DamageEvent 位置取得 / hitPositions) で使い回す。
+                  // HP 減算後の Map 再構築は不要 (position は不変、 HP は read しない)。
+                  const enemiesById = new Map<string, SpawnedEnemy>(
+                    enemiesRef.current.map((e) => [e.id, e])
+                  );
                   // 各 hit について onAttack パッチを評価し、 damage / 状態異常を補正
                   const augmentedHits = result.hits.map((hit) => {
-                    const targetEnemy = enemiesRef.current.find((e) => e.id === hit.enemyId);
+                    const targetEnemy = enemiesById.get(hit.enemyId);
                     if (targetEnemy == null) {
                       return {
                         ...hit,
@@ -1040,7 +1054,8 @@ export function useBattleLoop({ range, paused = false }: UseBattleLoopOpts): Use
 
                     // DamageEvent 発火 — augmented damage を表示に使う
                     for (const hit of augmentedHits) {
-                      const enemy = enemiesRef.current.find((e) => e.id === hit.enemyId);
+                      // H2-2: O(N) find() → O(1) Map.get()
+                      const enemy = enemiesById.get(hit.enemyId);
                       damageEventIdRef.current += 1;
                       newDamageEvents.push({
                         id: `de-${damageEventIdRef.current}`,
@@ -1057,8 +1072,9 @@ export function useBattleLoop({ range, paused = false }: UseBattleLoopOpts): Use
                   // cannon: マシン → 着弾点に砲弾 (CannonShellFx) → duration 後に Blast (BlastFx)
                   // thunder: 着弾点の真上から落雷 (ThunderStrikeFx) → duration 後に連鎖 (ChainBoltFx)
                   // cutter:  常時表示の CutterOrbitFx に任せるため発火ごとの projectile は生成しない
+                  // H2-2: O(N) find() × hits 数 → O(1) Map.get() × hits 数
                   const hitPositions = augmentedHits
-                    .map((h) => enemiesRef.current.find((e) => e.id === h.enemyId))
+                    .map((h) => enemiesById.get(h.enemyId))
                     .filter((e): e is SpawnedEnemy => e != null)
                     .map((e) => ({ x: e.position.x, y: e.position.y }));
 
