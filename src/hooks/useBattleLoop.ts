@@ -342,12 +342,6 @@ export function useBattleLoop({ range, paused = false }: UseBattleLoopOpts): Use
    */
   const hpRegenAccumulatorMsRef = useRef<number>(0);
   /**
-   * 接触ダメージ用の累積 ms。 burn DoT / HP リジェネと同じく、 BigNum mulNumber(deltaSec) で
-   * 60FPS で +60 倍暴走するため、 1 秒ごとに「合計 DPS」 を 1 回 damageHp する方式に統一。
-   * 接触敵がいないフレームでは 0 リセット (接触解除中に負債が溜まらない)。
-   */
-  const contactDmgAccumulatorMsRef = useRef<number>(0);
-  /**
    * 前フレームに「接触中」だった敵 ID の集合。 ノックバックは「新規接触したフレームのみ」
    * 適用するための状態遷移マーカー。 frame N で接触 → frame N+1 で非接触 (押し戻された) →
    * frame N+M で再接触 → ノックバック再発火、 というサイクルでダメージ間隔を空ける。
@@ -1254,25 +1248,25 @@ export function useBattleLoop({ range, paused = false }: UseBattleLoopOpts): Use
             state.addAlloy(earnedAlloy);
           }
 
-          // ---- 被ダメ処理 (マシン近接の敵から 1 秒粒度で合計 DPS を適用) + onHit パッチ
+          // ---- 被ダメ処理 (マシン近接の敵から enemy.atk × deltaSec) + onHit パッチ
           //      + 新規接触敵へのノックバック ----
-          // BigNum.mulNumber(deltaSec) は天井丸めで 60FPS +60 倍暴走するため、 接触敵の
-          // 合計 DPS を計算 (mulNumber は使わない) → accumulator が 1 秒経過したフレームで
-          // ticks 倍の DPS を damageHp、 という HP リジェネと同じ atomic-tick 方式に統一。
+          // ダメージは「接触してる時間 × DPS」(現状通り)。 ノックバックは「新規接触フレームのみ」
+          // 適用し、 押し戻された敵は MELEE 外に出るため次フレーム以降は DPS が止まる。
+          // 敵が enemy.speed で再接近 → 再接触したらまたノックバック + 短時間 DPS、 を繰り返す。
           const machineStats = buildMachineStats({
             machineMaxHp: state.machineMaxHp,
             machineLevels: state.machineLevels,
           });
-          let totalDpsThisFrame = BigNum.ZERO;
+          let totalReceived = BigNum.ZERO;
           const newContactSet = new Set<string>();
           enemiesRef.current = enemiesRef.current.map((enemy) => {
             const dist = distanceFromMachine(enemy.position);
             if (dist > MELEE_CONTACT_RANGE) {
               return enemy;
             }
-            // 接触中: DPS 合計に加算
+            // 接触中: DPS 加算
             const dmgPerSec = calcReceivedDamage(enemy.atk, machineStats);
-            totalDpsThisFrame = totalDpsThisFrame.add(dmgPerSec);
+            totalReceived = totalReceived.add(dmgPerSec.mulNumber(deltaSec));
             newContactSet.add(enemy.id);
             // 継続接触はノックバックなし (毎フレーム押し戻すと不自然なため)
             if (prevContactSetRef.current.has(enemy.id)) {
@@ -1289,21 +1283,6 @@ export function useBattleLoop({ range, paused = false }: UseBattleLoopOpts): Use
             };
           });
           prevContactSetRef.current = newContactSet;
-          // 1 秒境界で合計 DPS × ticks 倍を damageHp。 接触なしフレームは accumulator を
-          // 0 リセット (接触解除中に「次の接触で即発火」 するのを防ぐ)
-          let totalReceived = BigNum.ZERO;
-          if (totalDpsThisFrame.isZero()) {
-            contactDmgAccumulatorMsRef.current = 0;
-          } else {
-            const { ticks, nextAccumulatorMs } = calcIntervalTicks(
-              contactDmgAccumulatorMsRef.current,
-              deltaSec
-            );
-            contactDmgAccumulatorMsRef.current = nextAccumulatorMs;
-            if (ticks > 0) {
-              totalReceived = totalDpsThisFrame.mulInt(ticks);
-            }
-          }
           if (!totalReceived.isZero()) {
             // onHit パッチ評価 (damageImmune で overrideReceivedDamage = 0 になる可能性)
             const hitEffect = evaluatePatches(
