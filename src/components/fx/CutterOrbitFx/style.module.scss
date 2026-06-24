@@ -86,9 +86,13 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
+  /* H2-7: 旧実装は animation-duration: 30s で「ゆっくり回す」 にしていたが、
+     iteration-count: infinite が残るため reduced-motion 設定 ON のユーザーで
+     GPU 合成レイヤーが永遠に更新され続け発熱寄与していた。 完全停止 + 静止表示に。
+     Cutter の刃と軌道リングは静止状態でも武器の存在は示せる。 */
   .hubCw,
   .hubCcw,
   .orbit {
-    animation-duration: 30s;
+    animation: none;
   }
 }
