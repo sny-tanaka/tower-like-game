@@ -70,3 +70,13 @@
     linear-gradient(90deg, rgba(78, 228, 246, 0.05) 1px, transparent 1px) 0 0 / 24px 24px,
     var(--c-bg-deep);
 }
+
+/* battle variant では header/footer の backdrop-filter blur を無効化する (Issue #79 M-3)。
+   モバイル GPU で常時 blur(12px) を維持するのは合成コストが高く、 戦闘中の発熱原因に
+   なる。 background が完全不透明 (--c-bg-deep) のため、 blur を切っても見た目はほぼ
+   変わらない。 */
+.shell.battle .header,
+.shell.battle .footer {
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
