@@ -476,6 +476,83 @@ describe('ResultDialog — reachedTier / reachedWave のスナップショット
   });
 });
 
+describe('ResultDialog — 獲得 bolt / alloy のスナップショット', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    useStore.getState().endRun();
+    // 残高もクリア (前テストから持ち越さない)
+    useStore.setState({ bolt: BigNum.ZERO, alloy: BigNum.ZERO });
+  });
+
+  afterEach(() => {
+    vi.clearAllMocks();
+  });
+
+  test('gameover: endRun() で runStartBolt が 0 にリセットされても 獲得 bolt は ラン中に得た差分を表示 (回帰: 既存残高を全部「獲得」 と誤表示するバグ)', async () => {
+    // 既存所持: bolt 100, alloy 50
+    useStore.setState({ bolt: BigNum.fromNumber(100), alloy: BigNum.fromNumber(50) });
+    useStore.getState().startRun({
+      initialWeapon: 'laser',
+      baseMachineMaxHp: BigNum.fromNumber(100),
+      initialTier: 1,
+    });
+    // ラン中に bolt +30 / alloy +12 獲得
+    await act(async () => {
+      useStore.getState().addBolt(BigNum.fromNumber(30));
+      useStore.getState().addAlloy(BigNum.fromNumber(12));
+    });
+
+    renderPage();
+
+    // gameover 発火
+    await act(async () => {
+      useStore.setState({ machineHp: BigNum.ZERO });
+    });
+
+    // ダイアログ「獲得」 セクションの bolt / alloy は **差分** が表示されるべき
+    // (既存残高 100/50 ではなく、 獲得した 30/12)
+    expect(screen.getByRole('img', { name: 'bolt 30' })).toBeInTheDocument();
+    expect(screen.getByRole('img', { name: 'alloy 12' })).toBeInTheDocument();
+
+    // store 側は endRun で runStartBolt / runStartAlloy が 0 にリセットされている
+    // (= スナップショットしないと bolt=130 / alloy=62 が「獲得」 と誤表示される)
+    expect(useStore.getState().runStartBolt.isZero()).toBe(true);
+    expect(useStore.getState().runStartAlloy.isZero()).toBe(true);
+  });
+
+  test('撤退: runStartBolt リセット後も 獲得 bolt は差分を維持', async () => {
+    useStore.setState({ bolt: BigNum.fromNumber(200), alloy: BigNum.fromNumber(80) });
+    useStore.getState().startRun({
+      initialWeapon: 'laser',
+      baseMachineMaxHp: BigNum.fromNumber(100),
+      initialTier: 1,
+    });
+    await act(async () => {
+      useStore.getState().addBolt(BigNum.fromNumber(7));
+      useStore.getState().addAlloy(BigNum.fromNumber(3));
+    });
+
+    renderPage();
+
+    const pauseBtn = screen.getByRole('button', { name: '一時停止 (メニューを開く)' });
+    await act(async () => {
+      fireEvent.click(pauseBtn);
+    });
+    const retreatBtn = screen.getByRole('button', { name: '撤退' });
+    await act(async () => {
+      fireEvent.click(retreatBtn);
+    });
+    const confirmBtn = screen.getByRole('button', { name: '撤退する' });
+    await act(async () => {
+      fireEvent.click(confirmBtn);
+    });
+
+    expect(screen.getByRole('img', { name: 'bolt 7' })).toBeInTheDocument();
+    expect(screen.getByRole('img', { name: 'alloy 3' })).toBeInTheDocument();
+    expect(useStore.getState().runStartBolt.isZero()).toBe(true);
+  });
+});
+
 // ---------------------------------------------------------------------------
 // SE 配線テスト
 // ---------------------------------------------------------------------------
