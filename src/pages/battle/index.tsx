@@ -3,6 +3,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import styles from './style.module.scss';
 
 import { AppearanceBannerFx } from '@/components/fx/AppearanceBannerFx';
+import { DamageVignetteFx } from '@/components/fx/DamageVignetteFx';
 import { WaveStartFx } from '@/components/fx/WaveStartFx';
 import { AppShell } from '@/components/organisms/AppShell';
 import { BattleField } from '@/components/organisms/BattleField';
@@ -109,14 +110,17 @@ export function Page() {
   const [isScreenSaverOpen, setIsScreenSaverOpen] = useState(false);
 
   // ── 被ダメ検知 (machineHp の prev/current 比較) ──
-  // HP が前フレームより減少したとき damaging=true にして 200ms 後に false に戻す。
+  // HP が前フレームより減少したとき damaging=true にして 200ms 後に false に戻す + vignette を再マウント。
   // HP 回復 (onKill heal / HP リジェネ) では HP が増加するため lt 比較で誤発火しない。
   const prevMachineHpRef = useRef<typeof machineHp>(machineHp);
   const [damaging, setDamaging] = useState(false);
   const damagingTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // 被ダメ検知ごとに +1 して DamageVignetteFx の key を変える (= 再マウントで再生開始)
+  const [vignetteKey, setVignetteKey] = useState(0);
   useEffect(() => {
     if (machineHp.lt(prevMachineHpRef.current)) {
       setDamaging(true);
+      setVignetteKey((k) => k + 1);
       if (damagingTimerRef.current != null) {
         clearTimeout(damagingTimerRef.current);
       }
@@ -423,6 +427,14 @@ export function Page() {
         className={styles.overlayLayer}
         aria-live="polite"
       >
+        {/* 被ダメ時に赤ビネット (key 変化で再マウント → 再生開始、 onDone でアンマウント) */}
+        {vignetteKey > 0 && (
+          <DamageVignetteFx
+            key={vignetteKey}
+            onDone={() => setVignetteKey(0)}
+          />
+        )}
+
         {/* バトルメニュー (isPaused と完全連動: pause = メニュー開) */}
         <BattleMenuOverlay
           open={isPaused}
