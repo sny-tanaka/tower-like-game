@@ -64,8 +64,9 @@ export const MACHINE_UPGRADE_ITEMS: readonly MachineUpgradeItem[] = [
     key: 'maxHp',
     title: '最大 HP',
     category: 'defense',
-    baseValue: 100,
-    growthFactor: 1.02, // 乗算 ×1.02 / Lv
+    // v1.0.0 リバランス: base 100 → 10000 (敵 ATK 100× リスケールに伴う整合)
+    baseValue: 10000,
+    growthFactor: 1.02,
     growthType: 'multiply',
     baseCost: 100,
     costGrowth: 1.1,
@@ -75,8 +76,9 @@ export const MACHINE_UPGRADE_ITEMS: readonly MachineUpgradeItem[] = [
     key: 'hpRegen',
     title: 'HP リジェネ/秒',
     category: 'defense',
-    baseValue: 1.0,
-    growthFactor: 1.02, // 乗算 ×1.02 / Lv
+    // v1.0.0 リバランス: base 1 → 100 (+1 floor バグ修正 & 敵 ATK 100× との整合)
+    baseValue: 100,
+    growthFactor: 1.02,
     growthType: 'multiply',
     baseCost: 100,
     costGrowth: 1.1,
@@ -87,9 +89,12 @@ export const MACHINE_UPGRADE_ITEMS: readonly MachineUpgradeItem[] = [
     key: 'damageReduction',
     title: '被ダメ軽減',
     category: 'defense',
+    // v1.0.0 リバランス: 漸近 (100% 不到達) → 線形 +0.5%/Lv MAX Lv 196 = 0→98%
+    // The Tower の Defense% 絶対 cap (98%) と同等の上限を採用。
     baseValue: 0,
-    growthFactor: 0.01, // 漸近 α=0.01 → r = 0.01 × Lv, 値 = 1 - 1/(1+r)
-    growthType: 'asymptotic',
+    growthFactor: 0.005,
+    growthType: 'linear',
+    maxLv: 196,
     baseCost: 100,
     costGrowth: 1.1,
     unit: '%',
@@ -99,8 +104,9 @@ export const MACHINE_UPGRADE_ITEMS: readonly MachineUpgradeItem[] = [
     key: 'defense',
     title: '防御力',
     category: 'defense',
-    baseValue: 1,
-    growthFactor: 1.02, // 乗算 ×1.02 / Lv
+    // v1.0.0 リバランス: base 1 → 100 (+1 floor バグ修正 & 敵 ATK 100× との整合)
+    baseValue: 100,
+    growthFactor: 1.02,
     growthType: 'multiply',
     baseCost: 100,
     costGrowth: 1.1,
@@ -112,8 +118,9 @@ export const MACHINE_UPGRADE_ITEMS: readonly MachineUpgradeItem[] = [
     key: 'baseAttack',
     title: '基礎攻撃力',
     category: 'offense',
-    baseValue: 1,
-    growthFactor: 1.02, // 乗算 ×1.02 / Lv
+    // v1.0.0 リバランス: base 1 → 100 (+1 floor バグ修正 & 敵 HP 100× との整合)
+    baseValue: 100,
+    growthFactor: 1.02,
     growthType: 'multiply',
     baseCost: 100,
     costGrowth: 1.1,
@@ -123,12 +130,16 @@ export const MACHINE_UPGRADE_ITEMS: readonly MachineUpgradeItem[] = [
     key: 'attackSpeed',
     title: '攻撃速度',
     category: 'offense',
+    // v1.0.0 リバランス: 乗算無限 → 線形 +0.05/Lv MAX Lv 99 = 1.00→5.95×
+    // The Tower の Workshop Attack Speed (99 Lv +0.05/Lv 5.95×) と同等の上限を採用。
+    // 「明確な MAX を持つステ」 の代表格として攻撃速度をキャップ。
     baseValue: 1.0,
-    growthFactor: 1.02, // 乗算 ×1.02 / Lv
-    growthType: 'multiply',
+    growthFactor: 0.05,
+    growthType: 'linear',
+    maxLv: 99,
     baseCost: 100,
     costGrowth: 1.1,
-    unit: '/s',
+    unit: '×',
     iconName: 'lightning',
   },
   {
@@ -147,9 +158,12 @@ export const MACHINE_UPGRADE_ITEMS: readonly MachineUpgradeItem[] = [
     key: 'critRate',
     title: 'クリ率',
     category: 'offense',
+    // v1.0.0 リバランス: 漸近 (100% 不到達) → 線形 +0.5%/Lv MAX Lv 160 = 0→80%
+    // The Tower の Critical Chance Workshop MAX (80%) と同等の上限を採用。
     baseValue: 0,
-    growthFactor: 0.01, // 漸近 α=0.01
-    growthType: 'asymptotic',
+    growthFactor: 0.005,
+    growthType: 'linear',
+    maxLv: 160,
     baseCost: 100,
     costGrowth: 1.1,
     unit: '%',
@@ -185,9 +199,12 @@ export const MACHINE_UPGRADE_ITEMS: readonly MachineUpgradeItem[] = [
     key: 'activeCdReduction',
     title: 'アクティブ CD 減少',
     category: 'active',
+    // v1.0.0 リバランス: CD 漸近 (50% に近づくのみ) → 線形 +0.5%/Lv MAX Lv 100 = 0→50%
+    // 旧仕様の事実上の上限 50% を、 達成可能な MAX として明確化。
     baseValue: 0,
-    growthFactor: 0.01, // CD 漸近 α=0.01, cap 50%
-    growthType: 'asymptotic_half',
+    growthFactor: 0.005,
+    growthType: 'linear',
+    maxLv: 100,
     baseCost: 100,
     costGrowth: 1.1,
     unit: '%',
@@ -266,7 +283,14 @@ export const MACHINE_UPGRADE_ITEMS: readonly MachineUpgradeItem[] = [
 /**
  * Lv k での「multiply 差分」を計算する。
  * Lv (k-1) → Lv k での増分: ceil(base × factor^k) - ceil(base × factor^(k-1))。
- * 最低でも +1 を保証 (= base 値が 1 のときでも Lv up で必ず +1 上がる)。
+ *
+ * v1.0.0: 旧バージョンでは Math.max(1, ...) で「最低 +1 保証」 をしていたが、
+ * baseValue=1.0 の項目 (旧 baseAttack / defense / hpRegen / attackSpeed) で
+ * 「Lv ごとに必ず +1」 となり、 ×1.02/Lv の設計意図を大きく超える指数爆発
+ * (Lv 10 で 11× → Cannon マシンガン化) を引き起こしていた。
+ * v1.0.0 で +1 floor を撤廃し、 純粋な ceil 差分に戻した。
+ * 同時に baseValue を 1 → 100 (HP は 10000) に rebase することで、
+ * 整数 baseValue でも各 Lv の差分が安定して +1〜+3 になる。
  *
  * NOTE: 浮動小数誤差で 100 × 1.02 = 102.0000...18 のように ceil で +1 ずれることがあるため、
  *       EPSILON を引いてから ceil する。
@@ -275,17 +299,18 @@ const MULTIPLY_EPSILON = 1e-9;
 function multiplyDelta(baseValue: number, growthFactor: number, k: number): number {
   const cur = Math.ceil(baseValue * Math.pow(growthFactor, k) - MULTIPLY_EPSILON);
   const prev = Math.ceil(baseValue * Math.pow(growthFactor, k - 1) - MULTIPLY_EPSILON);
-  return Math.max(1, cur - prev);
+  return cur - prev;
 }
 
 /**
  * 指定 Lv での効果値を返す。
  * - multiply: value(0) = ceil(baseValue)、 value(Lv) = value(Lv-1) + multiplyDelta(base, factor, Lv)
- *             「base 保証 + 緩やかな指数差分」 で、 Lv up で必ず value が増える。
- * - linear / fixed_step: baseValue + growthFactor × Lv
- * - asymptotic: r = growthFactor × Lv, 値 = 1 - 1/(1+r)（割合、0〜1）
- * - asymptotic_half: r = growthFactor × Lv, 値 = 0.5 × (1 - 1/(1+r))（割合、0〜0.5）
- * - range_asymptotic: r = growthFactor × Lv, 値 = 150 + 250 × (1 - 1/(1+r))
+ *             v1.0.0 から +1 floor を撤廃し、 純粋な指数差分。
+ * - linear / fixed_step: baseValue + growthFactor × min(Lv, maxLv)
+ *             maxLv 指定時は Lv をクランプして MAX 値を超えないようにする。
+ * - asymptotic: r = growthFactor × Lv, 値 = 1 - 1/(1+r)（割合、0〜1）※v1.0.0 でいずれの項目も未使用
+ * - asymptotic_half: r = growthFactor × Lv, 値 = 0.5 × (1 - 1/(1+r))（割合、0〜0.5）※v1.0.0 で未使用
+ * - range_asymptotic: r = growthFactor × Lv, 値 = 150 + 250 × (1 - 1/(1+r))（range のみ）
  */
 export function calcEffectValue(item: MachineUpgradeItem, lv: number): number {
   switch (item.growthType) {
@@ -297,8 +322,10 @@ export function calcEffectValue(item: MachineUpgradeItem, lv: number): number {
       return value;
     }
     case 'linear':
-    case 'fixed_step':
-      return item.baseValue + item.growthFactor * lv;
+    case 'fixed_step': {
+      const cappedLv = item.maxLv != null ? Math.min(lv, item.maxLv) : lv;
+      return item.baseValue + item.growthFactor * cappedLv;
+    }
     case 'asymptotic': {
       const r = item.growthFactor * lv;
       return 1 - 1 / (1 + r);

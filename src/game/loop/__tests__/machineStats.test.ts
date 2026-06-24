@@ -118,32 +118,34 @@ describe('buildMachineStats — 未反映 5 項目', () => {
     expect(stats.activeCdReduction).toBe(0);
   });
 
-  test('activeCdReduction Lv100 は 0.5 × (1 - 1/(1+1)) = 0.25 を返す', () => {
-    // asymptotic_half: r = 0.01 × 100 = 1, 値 = 0.5 × (1 - 1/(1+1)) = 0.25
+  test('activeCdReduction Lv100 は 0.50 (v1.0.0: linear +0.5%/Lv MAX Lv 100)', () => {
+    // v1.0.0: 旧 asymptotic_half → 線形 +0.5%/Lv MAX Lv 100 = 50%
     const stats = buildMachineStats({
       machineMaxHp: zeroHp,
       machineLevels: makeZeroLevels({ activeCdReduction: 100 }),
     });
-    expect(stats.activeCdReduction).toBeCloseTo(0.25, 5);
+    expect(stats.activeCdReduction).toBeCloseTo(0.5, 5);
   });
 
-  test('activeCdReduction は上限 0.5 に漸近し超えない', () => {
-    // Lv が非常に高くても 0.5 未満であること（漸近式の設計）
-    const stats = buildMachineStats({
+  test('activeCdReduction MAX (Lv 100) で 0.5、 それ以上は同値でキャップ', () => {
+    const stats100 = buildMachineStats({
+      machineMaxHp: zeroHp,
+      machineLevels: makeZeroLevels({ activeCdReduction: 100 }),
+    });
+    const stats10000 = buildMachineStats({
       machineMaxHp: zeroHp,
       machineLevels: makeZeroLevels({ activeCdReduction: 10000 }),
     });
-    expect(stats.activeCdReduction).toBeLessThan(0.5);
-    expect(stats.activeCdReduction).toBeGreaterThan(0.49);
+    expect(stats100.activeCdReduction).toBeCloseTo(0.5, 5);
+    expect(stats10000.activeCdReduction).toBeCloseTo(0.5, 5);
   });
 
-  test('activeCdReduction Lv200: r=2 → 0.5 × (1 - 1/3) = 1/3 ≈ 0.333', () => {
-    // r = 0.01 × 200 = 2, 値 = 0.5 × (1 - 1/(1+2)) = 0.5 × 2/3 = 1/3
+  test('activeCdReduction Lv50 は 0.25 (線形の途中)', () => {
     const stats = buildMachineStats({
       machineMaxHp: zeroHp,
-      machineLevels: makeZeroLevels({ activeCdReduction: 200 }),
+      machineLevels: makeZeroLevels({ activeCdReduction: 50 }),
     });
-    expect(stats.activeCdReduction).toBeCloseTo(1 / 3, 5);
+    expect(stats.activeCdReduction).toBeCloseTo(0.25, 5);
   });
 });
 
@@ -213,23 +215,23 @@ describe('activeCdReduction によるアクティブ CD 短縮', () => {
     expect(effectiveCdSec).toBeCloseTo(DEFAULT_ACTIVE_MAX_SEC, 5);
   });
 
-  test('activeCdReduction Lv100(≈0.25) のとき effectiveCdSec ≈ 60 × 0.75 = 45', () => {
+  test('activeCdReduction Lv50(=0.25) のとき effectiveCdSec = 60 × 0.75 = 45', () => {
     const stats = buildMachineStats({
       machineMaxHp: zeroHp,
-      machineLevels: makeZeroLevels({ activeCdReduction: 100 }),
+      machineLevels: makeZeroLevels({ activeCdReduction: 50 }),
     });
     const effectiveCdSec = DEFAULT_ACTIVE_MAX_SEC * (1 - stats.activeCdReduction);
     expect(effectiveCdSec).toBeCloseTo(45, 2);
   });
 
-  test('activeCdReduction が上限に近いとき effectiveCdSec は 30 秒以上を維持する (cap 50%)', () => {
-    // activeCdReduction の上限は 0.5 なので effectiveCdSec の下限は 60 × 0.5 = 30
+  test('activeCdReduction MAX (Lv 100) で effectiveCdSec = 30 秒 (60 × 0.5、 cap 50%)', () => {
+    // v1.0.0: MAX Lv 100 で 50% 減 = 効果的に 30 秒 (60 × 0.5)
     const stats = buildMachineStats({
       machineMaxHp: zeroHp,
       machineLevels: makeZeroLevels({ activeCdReduction: 100000 }),
     });
     const effectiveCdSec = DEFAULT_ACTIVE_MAX_SEC * (1 - stats.activeCdReduction);
-    expect(effectiveCdSec).toBeGreaterThan(30);
+    expect(effectiveCdSec).toBeCloseTo(30, 5);
     expect(effectiveCdSec).toBeLessThanOrEqual(DEFAULT_ACTIVE_MAX_SEC);
   });
 });

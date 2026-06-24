@@ -87,14 +87,15 @@ SPAWN(T, W)       = SPAWN_base / WAVE_SPAWN_FACTOR(W)
 
 ### 基準値
 
-| 係数 | 役割 | 値 |
+| 係数 | 役割 | 値 (v1.0.0) |
 |---|---|---:|
-| `HP_base` | T1W1 Standard の HP | 10 |
-| `ATK_base` | T1W1 Standard が与えるダメージ | 2 |
-| `SPD_base` | T1W1 Standard の移動速度（px/s） | 30 |
-| `SPAWN_base` | T1W1 W1 のスポーン間隔（秒/体） | 0.5 |
+| `HP_base` | T1W1 Standard の HP | **1000** |
+| `ATK_base` | T1W1 Standard が与えるダメージ | **200** |
+| `SPD_base` | T1W1 Standard の移動速度（px/s） | 10 |
+| `SPAWN_base` | T1W1 W1 のスポーン間隔（秒/体） | 2 |
 
-> プレイヤー初期 HP 100 / 攻撃 1 を想定。マシン中央、画面端からマシンまでを 400 px と仮定すると、Standard は ≈13 秒でマシンに到達。
+> **v1.0.0 リバランス**: HP_base / ATK_base を 100× にリスケール。 マシン本体強化の baseValue を 1→100 (maxHp は 100→10000) に rebase して `multiplyDelta` の +1 floor バグを撤廃したのに伴い、 ダメージ比率を保つために敵側も同倍率で持ち上げた。 SPD / SPAWN はダメージスケールと無関係なので不変。
+> プレイヤー初期 HP 10000 / 攻撃 100 を想定。 旧 v0.x 仕様 (HP 100 / 攻撃 1) と比率上は同一。
 
 ### Tier 係数
 

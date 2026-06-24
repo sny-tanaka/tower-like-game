@@ -110,8 +110,8 @@ describe('buildCutterStats', () => {
 
 describe('calcMachineBaseAttack', () => {
   it('Lv 0 で MACHINE_UPGRADE_ITEMS の baseAttack の baseValue を返す', () => {
-    // baseAttack item の baseValue = 1
-    expect(calcMachineBaseAttack(0)).toBe(1);
+    // v1.0.0: baseAttack item の baseValue = 100 (旧 1 → 100 リベース)
+    expect(calcMachineBaseAttack(0)).toBe(100);
   });
 });
 

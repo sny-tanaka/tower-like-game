@@ -7,10 +7,14 @@ import { BigNum } from '@/lib/bignum/BigNum';
 // ---------------------------------------------------------------------------
 
 export const TIER_BASE = {
+  // v1.0.0 リバランス: HP / ATK を 100× にリスケール。
+  // 永続強化 baseAttack / defense / hpRegen / maxHp の baseValue を 1→100 / 100→10000 に
+  // rebase したため、 ダメージ比率を保つために敵側も 100× する。
+  // SPD / SPAWN_INTERVAL はダメージスケールと無関係なので touch しない。
   /** T1W1 Standard の HP */
-  HP: 10,
+  HP: 1000,
   /** T1W1 Standard の ATK */
-  ATK: 2,
+  ATK: 200,
   /** T1W1 Standard の移動速度（px/s） */
   SPD: 10,
   /** T1W1 のスポーン間隔（秒/体） */

@@ -28,32 +28,41 @@ beforeEach(() => {
 // ---------------------------------------------------------------------------
 
 describe('calcEffectValue', () => {
-  test('multiply: Lv 0 は baseValue をそのまま切り上げ', () => {
+  test('multiply: maxHp Lv 0 は baseValue 10000 (v1.0.0 リバランス)', () => {
     const item = MACHINE_UPGRADE_ITEMS.find((i) => i.key === 'maxHp')!;
-    expect(calcEffectValue(item, 0)).toBe(100); // 100 × 1.02^0 = 100
+    expect(calcEffectValue(item, 0)).toBe(10000); // 10000 × 1.02^0 = 10000
   });
 
-  test('multiply: Lv 1 は baseValue × growthFactor 切り上げ', () => {
+  test('multiply: maxHp Lv 1 は ceil(10000 × 1.02) = 10200', () => {
     const item = MACHINE_UPGRADE_ITEMS.find((i) => i.key === 'maxHp')!;
-    expect(calcEffectValue(item, 1)).toBe(102); // 100 × 1.02 = 102
+    expect(calcEffectValue(item, 1)).toBe(10200);
   });
 
-  test('multiply: 累積差分で base=1 でも Lv up で必ず +1 上がる', () => {
+  test('multiply: baseAttack Lv 0 は base 100 (v1.0.0 リバランス)', () => {
     const item = MACHINE_UPGRADE_ITEMS.find((i) => i.key === 'baseAttack')!;
-    // base=1, factor=1.02 では従来 ceil(1 × 1.02^Lv) で Lv 1〜35 まで 2 のまま停滞していたが、
-    // 新仕様は「累積差分 + 最低 +1」 で必ず Lv up で増える
-    expect(calcEffectValue(item, 0)).toBe(1);
-    expect(calcEffectValue(item, 1)).toBe(2);
-    expect(calcEffectValue(item, 5)).toBe(6); // 1 + 5
-    expect(calcEffectValue(item, 50)).toBe(51); // 1 + 50
+    // v1.0.0: base 1 → 100 にリベース、 +1 floor バグ撤廃。
+    // ceil(100 × 1.02^Lv) で滑らかに上昇する (Lv 1 で +2, Lv 5 で +11)。
+    expect(calcEffectValue(item, 0)).toBe(100);
+    expect(calcEffectValue(item, 1)).toBe(102); // ceil(102.00)
+    expect(calcEffectValue(item, 5)).toBe(111); // ceil(110.41)
+    expect(calcEffectValue(item, 50)).toBe(270); // ceil(269.16)
   });
 
-  test('multiply: 高 Lv では差分が指数増加 (base=100, factor=1.02)', () => {
+  test('multiply: 全 Lv で値が単調非減少 (累積差分で逆行しない)', () => {
     const item = MACHINE_UPGRADE_ITEMS.find((i) => i.key === 'maxHp')!;
-    // base=100, factor=1.02 → 高 Lv では差分も指数的に増える
+    let prev = calcEffectValue(item, 0);
+    for (let lv = 1; lv <= 200; lv++) {
+      const v = calcEffectValue(item, lv);
+      expect(v).toBeGreaterThanOrEqual(prev);
+      prev = v;
+    }
+  });
+
+  test('multiply: 高 Lv では差分が指数増加 (base=10000, factor=1.02)', () => {
+    const item = MACHINE_UPGRADE_ITEMS.find((i) => i.key === 'maxHp')!;
     const v100 = calcEffectValue(item, 100);
     const v101 = calcEffectValue(item, 101);
-    expect(v101 - v100).toBeGreaterThan(1); // 最低 +1 を超えて指数加速
+    expect(v101 - v100).toBeGreaterThan(1); // 高 Lv では数百単位の差分
   });
 
   test('linear: Lv 0 は baseValue', () => {
@@ -66,21 +75,44 @@ describe('calcEffectValue', () => {
     expect(calcEffectValue(item, 10)).toBeCloseTo(2.0); // 1.5 + 0.05 × 10
   });
 
-  test('asymptotic: Lv 0 は 0', () => {
+  test('linear cap (critRate): Lv 0 は 0', () => {
     const item = MACHINE_UPGRADE_ITEMS.find((i) => i.key === 'critRate')!;
     expect(calcEffectValue(item, 0)).toBe(0);
   });
 
-  test('asymptotic: Lv 100 は約 0.5', () => {
+  test('linear cap (critRate): +0.5%/Lv, Lv 100 = 0.50', () => {
     const item = MACHINE_UPGRADE_ITEMS.find((i) => i.key === 'critRate')!;
-    // r = 0.01 × 100 = 1, 1 - 1/(1+1) = 0.5
     expect(calcEffectValue(item, 100)).toBeCloseTo(0.5);
   });
 
-  test('asymptotic_half: Lv 100 は約 0.25 (CD 漸近)', () => {
+  test('linear cap (critRate): MAX Lv 160 で 80% (v1.0.0)', () => {
+    const item = MACHINE_UPGRADE_ITEMS.find((i) => i.key === 'critRate')!;
+    expect(item.maxLv).toBe(160);
+    expect(calcEffectValue(item, 160)).toBeCloseTo(0.8);
+    // maxLv を超えても 80% でキャップ
+    expect(calcEffectValue(item, 200)).toBeCloseTo(0.8);
+  });
+
+  test('linear cap (activeCdReduction): MAX Lv 100 で 50% (v1.0.0)', () => {
     const item = MACHINE_UPGRADE_ITEMS.find((i) => i.key === 'activeCdReduction')!;
-    // r = 0.01 × 100 = 1, 0.5 × (1 - 1/(1+1)) = 0.25
-    expect(calcEffectValue(item, 100)).toBeCloseTo(0.25);
+    expect(item.maxLv).toBe(100);
+    expect(calcEffectValue(item, 100)).toBeCloseTo(0.5);
+    // maxLv を超えても 50% でキャップ (旧 asymptotic_half と同等の上限)
+    expect(calcEffectValue(item, 500)).toBeCloseTo(0.5);
+  });
+
+  test('linear cap (attackSpeed): MAX Lv 99 で 5.95× (v1.0.0)', () => {
+    const item = MACHINE_UPGRADE_ITEMS.find((i) => i.key === 'attackSpeed')!;
+    expect(item.maxLv).toBe(99);
+    expect(calcEffectValue(item, 99)).toBeCloseTo(5.95);
+    expect(calcEffectValue(item, 200)).toBeCloseTo(5.95);
+  });
+
+  test('linear cap (damageReduction): MAX Lv 196 で 98% (v1.0.0)', () => {
+    const item = MACHINE_UPGRADE_ITEMS.find((i) => i.key === 'damageReduction')!;
+    expect(item.maxLv).toBe(196);
+    expect(calcEffectValue(item, 196)).toBeCloseTo(0.98);
+    expect(calcEffectValue(item, 300)).toBeCloseTo(0.98);
   });
 
   test('range_asymptotic: Lv 0 は 150 (base)', () => {

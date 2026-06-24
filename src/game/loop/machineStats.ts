@@ -34,14 +34,18 @@ export function buildMachineStats({
   machineMaxHp,
   machineLevels,
 }: BuildMachineStatsOpts): MachineStats {
+  // v1.0.0 リバランス: fallback 値も baseValue rebase に追随
+  //   baseAttack / defense / hpRegen: 1 → 100
+  //   maxHp: 1 → 10000
+  //   attackSpeed: Lv 0 値は 1.0 のまま
   return {
-    baseAttack: BigNum.fromNumber(effect('baseAttack', machineLevels.baseAttack, 1)),
-    defense: BigNum.fromNumber(effect('defense', machineLevels.defense, 1)),
+    baseAttack: BigNum.fromNumber(effect('baseAttack', machineLevels.baseAttack, 100)),
+    defense: BigNum.fromNumber(effect('defense', machineLevels.defense, 100)),
     damageReduction: effect('damageReduction', machineLevels.damageReduction, 0),
     critRate: effect('critRate', machineLevels.critRate, 0),
     critMultiplier: effect('critMultiplier', machineLevels.critMultiplier, 1.5),
-    maxHp: machineMaxHp.isZero() ? BigNum.fromNumber(1) : machineMaxHp,
-    hpRegen: BigNum.fromNumber(effect('hpRegen', machineLevels.hpRegen, 1)),
+    maxHp: machineMaxHp.isZero() ? BigNum.fromNumber(10000) : machineMaxHp,
+    hpRegen: BigNum.fromNumber(effect('hpRegen', machineLevels.hpRegen, 100)),
     attackSpeed: effect('attackSpeed', machineLevels.attackSpeed, 1),
     activePower: effect('activePower', machineLevels.activePower, 1),
     activeCdReduction: effect('activeCdReduction', machineLevels.activeCdReduction, 0),

@@ -104,24 +104,23 @@ describe('waveSpawnFactor', () => {
 // ---------------------------------------------------------------------------
 
 describe('tierBaseHp', () => {
-  it('T=1: HP_base * HP_GROWTH^0 = 10', () => {
+  it('T=1: HP_base * HP_GROWTH^0 = 1000 (v1.0.0: 10 → 1000)', () => {
     const hp = tierBaseHp(1);
-    expect(hp.toString()).toBe('10');
+    expect(hp.toString()).toBe('1000');
   });
 
-  it('T=2: 10 * 1.8 = 18', () => {
+  it('T=2: 1000 * 1.8 = 1800 (v1.0.0)', () => {
     const hp = tierBaseHp(2);
-    // mulNumber(1.8) → mulRational(9, 5) → mulInt(9).divInt(5) = 90/5 = 18
-    expect(hp.toString()).toBe('18');
+    // mulNumber(1.8) → mulRational(9, 5) → mulInt(9).divInt(5)
+    expect(hp.toString()).toBe('1800');
   });
 
-  it('T=3: 10 * 1.8^2 = 32.4 → BigNum で 32 か 33（切り捨て or 切り上げ）', () => {
+  it('T=3: 1000 * 1.8^2 = 3240 → BigNum で 3240 付近 (端数許容、 v1.0.0)', () => {
     const hp = tierBaseHp(3);
-    // 10 * 1.8 = 18, 18 * 1.8 = 32.4
-    // BigNum の divInt は切り上げなので 18*9=162, 162/5=32.4 → 33
+    // 1000 * 1.8 = 1800, 1800 * 1.8 = 3240
     const val = parseInt(hp.toString(), 10);
-    expect(val).toBeGreaterThanOrEqual(32);
-    expect(val).toBeLessThanOrEqual(33);
+    expect(val).toBeGreaterThanOrEqual(3240);
+    expect(val).toBeLessThanOrEqual(3250);
   });
 
   it('T=10: 値が T=1 より大きい', () => {
@@ -130,13 +129,12 @@ describe('tierBaseHp', () => {
     expect(hp10.gt(hp1)).toBe(true);
   });
 
-  it('T=10 の HP は 1.8^9 * 10 ≈ 342 以上（BigNum 切り上げ誤差を考慮し広めに確認）', () => {
+  it('T=10 の HP は 1.8^9 * 1000 ≈ 34,272 以上 (v1.0.0、 BigNum 端数許容)', () => {
     const hp = tierBaseHp(10);
     const val = parseInt(hp.toString(), 10);
-    // 1.8^9 = 34.27... * 10 = 342.7...
-    // BigNum の divInt は切り上げなので各 tier で誤差が蓄積するため上限は広めに確認
-    expect(val).toBeGreaterThan(200);
-    expect(val).toBeLessThan(5000);
+    // 1.8^9 = 34.27... * 1000 = 34,275.xx
+    expect(val).toBeGreaterThan(20000);
+    expect(val).toBeLessThan(500000);
   });
 
   it('T=100: BigNum で表現でき、ZERO ではない', () => {
@@ -163,16 +161,16 @@ describe('tierBaseHp', () => {
 // ---------------------------------------------------------------------------
 
 describe('tierBaseAtk', () => {
-  it('T=1: ATK_base * ATK_GROWTH^0 = 2', () => {
+  it('T=1: ATK_base * ATK_GROWTH^0 = 200 (v1.0.0: 2 → 200)', () => {
     const atk = tierBaseAtk(1);
-    expect(atk.toString()).toBe('2');
+    expect(atk.toString()).toBe('200');
   });
 
-  it('T=2: 2 * 1.4 = 2.8 → 2 か 3（BigNum の端数処理）', () => {
+  it('T=2: 200 * 1.4 = 280 (v1.0.0、 BigNum 端数許容)', () => {
     const atk = tierBaseAtk(2);
     const val = parseInt(atk.toString(), 10);
-    expect(val).toBeGreaterThanOrEqual(2);
-    expect(val).toBeLessThanOrEqual(3);
+    expect(val).toBeGreaterThanOrEqual(280);
+    expect(val).toBeLessThanOrEqual(290);
   });
 
   it('T が大きいほど ATK が大きい: T=100 > T=10 > T=1', () => {
