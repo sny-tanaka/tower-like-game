@@ -33,23 +33,6 @@
   }
 }
 
-/* ready (CD 完了・切替可能) */
-.ready {
-  border-color: var(--c-secondary);
-  box-shadow: var(--glow-purple-sm);
-  animation: readyPulse 1.4s ease-in-out infinite;
-}
-
-@keyframes readyPulse {
-  0%,
-  100% {
-    box-shadow: var(--glow-purple-sm);
-  }
-  50% {
-    box-shadow: var(--glow-purple-md);
-  }
-}
-
 /* swapDisabled (切替 CD 中) */
 .swapDisabled {
   cursor: not-allowed;
@@ -99,9 +82,5 @@
 @media (prefers-reduced-motion: reduce) {
   .root {
     transition: none;
-  }
-
-  .ready {
-    animation: none;
   }
 }
