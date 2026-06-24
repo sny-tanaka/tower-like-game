@@ -745,14 +745,27 @@ export function useBattleLoop({ range, paused = false }: UseBattleLoopOpts): Use
           // ---- 状態異常 tick: 燃焼 DoT 適用 + 期限切れフィールドのクリア ----
           enemiesRef.current = enemiesRef.current.map((e) => {
             let next = e;
-            // 燃焼: 期限内なら毎秒 burnPerSec を HP から減算
+            // 燃焼: 期限内なら累積 ms を進めて 1 秒経過ごとに burnPerSec を 1 回 HP から減算する。
+            // BigNum は整数演算で `mulNumber(deltaSec)` が天井丸めされて 60FPS で +60 倍暴走するため、
+            // HP リジェネと同じ calcIntervalTicks 方式で「1 秒粒度の atomic 減算」に統一。
             if (
               next.burnUntilMs != null &&
               next.burnPerSec != null &&
               next.burnUntilMs > nowGameMs
             ) {
-              const dmg = next.burnPerSec.mulNumber(deltaSec);
-              next = { ...next, hp: next.hp.sub(dmg) };
+              const { ticks, nextAccumulatorMs } = calcIntervalTicks(
+                next.burnAccumulatorMs ?? 0,
+                deltaSec
+              );
+              if (ticks > 0) {
+                next = {
+                  ...next,
+                  hp: next.hp.sub(next.burnPerSec.mulInt(ticks)),
+                  burnAccumulatorMs: nextAccumulatorMs,
+                };
+              } else {
+                next = { ...next, burnAccumulatorMs: nextAccumulatorMs };
+              }
             }
             // 期限切れチェック (frozen / burn)
             const updates: Partial<SpawnedEnemy> = {};
@@ -762,6 +775,7 @@ export function useBattleLoop({ range, paused = false }: UseBattleLoopOpts): Use
             if (next.burnUntilMs != null && next.burnUntilMs <= nowGameMs) {
               updates.burnUntilMs = undefined;
               updates.burnPerSec = undefined;
+              updates.burnAccumulatorMs = undefined;
             }
             if (Object.keys(updates).length > 0) {
               next = { ...next, ...updates };
@@ -797,10 +811,13 @@ export function useBattleLoop({ range, paused = false }: UseBattleLoopOpts): Use
                 const newBurnUntil = nowGameMs + hit.burnSec * 1000;
                 const newBurnPerSec = hit.damage.mulNumber(0.3);
                 const prev = updated.burnPerSec;
+                const wasBurning = updated.burnUntilMs != null;
                 updated = {
                   ...updated,
                   burnUntilMs: Math.max(updated.burnUntilMs ?? 0, newBurnUntil),
                   burnPerSec: prev != null && prev.gt(newBurnPerSec) ? prev : newBurnPerSec,
+                  // 新規燃焼開始時のみ accumulator を 0 リセット (継続中は維持して 1 秒境界を保つ)
+                  burnAccumulatorMs: wasBurning ? updated.burnAccumulatorMs : 0,
                 };
               }
               return updated;
@@ -958,9 +975,12 @@ export function useBattleLoop({ range, paused = false }: UseBattleLoopOpts): Use
                     const newBurnUntil = nowGameMs + hit.burnSec * 1000;
                     const newBurnPerSec = hit.damage.mulNumber(0.3);
                     const prevBurnPerSec = updated.burnPerSec;
+                    const wasBurning = updated.burnUntilMs != null;
                     updated = {
                       ...updated,
                       burnUntilMs: Math.max(updated.burnUntilMs ?? 0, newBurnUntil),
+                      // 新規燃焼開始時のみ accumulator を 0 リセット
+                      burnAccumulatorMs: wasBurning ? updated.burnAccumulatorMs : 0,
                       burnPerSec:
                         prevBurnPerSec != null && prevBurnPerSec.gt(newBurnPerSec)
                           ? prevBurnPerSec
