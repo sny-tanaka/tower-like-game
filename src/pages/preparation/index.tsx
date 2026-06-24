@@ -85,6 +85,31 @@ export function Page(props: PreparationPageProps) {
     navigate('battle');
   }
 
+  /**
+   * DEV 限定デバッグ出撃。 W28 から開始 + ネジ/ボルト/超合金を各 1A (1e9) 持って出撃。
+   * Tier クリアフローを短時間で検証するためのショートカット。
+   * 本番ビルドでは呼ばれない (UI 側の `import.meta.env.DEV` ガードで消える)。
+   */
+  function handleLaunchDebug() {
+    const maxHpItem = MACHINE_UPGRADE_ITEMS.find((i) => i.key === 'maxHp');
+    const baseMaxHpNum = maxHpItem != null ? calcEffectValue(maxHpItem, machineLevels.maxHp) : 100;
+    const huge = BigNum.fromNumber(1e9);
+    const state = useStore.getState();
+    // ボルト / 超合金は currencies slice (startRun でリセットされない) なので先に加算 OK
+    state.addBolt(huge);
+    state.addAlloy(huge);
+    startRun({
+      initialWeapon,
+      baseMachineMaxHp: BigNum.fromNumber(baseMaxHpNum),
+      initialTier: selectedTier,
+      initialWave: 28,
+    });
+    // ネジは battle slice の中 (startRun で screw=ZERO にリセットされる) → startRun の後に加算
+    useStore.getState().addScrew(huge);
+    soundEngine.play('launch');
+    navigate('battle');
+  }
+
   const handleTabChange = (k: PreparationTab) => {
     if (k === activeTab) return; // 同一タブ連打で SE を鳴らさない
     setActiveTab(k);
@@ -116,6 +141,20 @@ export function Page(props: PreparationPageProps) {
         sticky={false}
         onLaunch={handleLaunch}
       />
+      {/* DEV 限定: W28 + ネジ/ボルト/超合金 1A デバッグ出撃。
+          import.meta.env.DEV のリテラル false 評価で本番ビルドからは消える (tree shaking)。 */}
+      {import.meta.env.DEV && (
+        <div className={styles.debugContainer}>
+          <button
+            type="button"
+            className={styles.debugButton}
+            onClick={handleLaunchDebug}
+            data-testid="debug-launch"
+          >
+            [DEV] W28 開始 + ネジ/ボルト/合金 1A
+          </button>
+        </div>
+      )}
       <BottomNav
         active="preparation"
         onChange={(screen) => navigate(screen)}

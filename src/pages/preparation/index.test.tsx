@@ -177,4 +177,66 @@ describe('PreparationScreen Page', () => {
       expect(useStore.getState().currentTier).toBe(5);
     });
   });
+
+  // ------------------------------------------------------------------------
+  // DEBUG 出撃ボタン (DEV 限定、 v0.3.5)
+  // ------------------------------------------------------------------------
+  describe('DEBUG 出撃ボタン (DEV 限定)', () => {
+    beforeEach(() => {
+      useStore.getState().endRun();
+      useStore.setState({ bolt: BigNum.ZERO, alloy: BigNum.ZERO });
+    });
+    afterEach(() => {
+      useStore.getState().endRun();
+    });
+
+    test('DEV 環境では DEBUG 出撃ボタンが表示される (data-testid="debug-launch")', () => {
+      renderPage();
+      expect(screen.getByTestId('debug-launch')).toBeInTheDocument();
+      // ボタン文言の確認 (DEV プレフィックス + 開始 wave + 所持量)
+      expect(screen.getByTestId('debug-launch').textContent).toContain('W28');
+    });
+
+    test('DEBUG 出撃押下 → startRun + initialWave=28 で currentWave=28', async () => {
+      const user = userEvent.setup();
+      renderPage();
+      await user.click(screen.getByTestId('debug-launch'));
+      const s = useStore.getState();
+      expect(s.isRunActive).toBe(true);
+      expect(s.currentWave).toBe(28);
+    });
+
+    test('DEBUG 出撃押下 → ネジ / ボルト / 超合金が 1A (1e9) 加算される', async () => {
+      const user = userEvent.setup();
+      renderPage();
+      await user.click(screen.getByTestId('debug-launch'));
+      const s = useStore.getState();
+      // 1A = 1e9
+      expect(s.screw.eq(BigNum.fromNumber(1e9))).toBe(true);
+      expect(s.bolt.eq(BigNum.fromNumber(1e9))).toBe(true);
+      expect(s.alloy.eq(BigNum.fromNumber(1e9))).toBe(true);
+    });
+
+    test('DEBUG 出撃押下 → selectedTier を尊重 (initialTier も渡る)', async () => {
+      const user = userEvent.setup();
+      // highestTier=3 にして Tier 2 を選択
+      useStore.setState({ highestTier: 3 });
+      render(
+        <NavigationProvider initialScreen="preparation">
+          <Page initialSelectedTier={2} />
+        </NavigationProvider>
+      );
+      await user.click(screen.getByTestId('debug-launch'));
+      const s = useStore.getState();
+      expect(s.currentTier).toBe(2);
+      expect(s.currentWave).toBe(28);
+    });
+
+    test('DEBUG 出撃押下 → launch SE が再生される', async () => {
+      const user = userEvent.setup();
+      renderPage();
+      await user.click(screen.getByTestId('debug-launch'));
+      expect(soundEngine.play).toHaveBeenCalledWith('launch');
+    });
+  });
 });

@@ -581,6 +581,49 @@ describe('battle slice', () => {
     expect(store.getState().currentTier).toBe(1);
   });
 
+  // --- initialWave (DEV 限定デバッグ出撃用、 v0.3.5) ---
+  it('startRun: initialWave 省略 (undefined) のとき currentWave が 1 になる', () => {
+    const store = makeStore();
+    store.getState().startRun({
+      initialWeapon: 'laser',
+      baseMachineMaxHp: BigNum.fromNumber(100),
+    });
+    expect(store.getState().currentWave).toBe(1);
+  });
+
+  it('startRun: initialWave=28 を渡すと currentWave が 28 になる (DEV デバッグ出撃)', () => {
+    const store = makeStore();
+    store.getState().startRun({
+      initialWeapon: 'laser',
+      baseMachineMaxHp: BigNum.fromNumber(100),
+      initialWave: 28,
+    });
+    expect(store.getState().currentWave).toBe(28);
+  });
+
+  it('startRun: initialWave=30 (ボス wave) を渡しても currentWave が 30 になる', () => {
+    const store = makeStore();
+    store.getState().startRun({
+      initialWeapon: 'laser',
+      baseMachineMaxHp: BigNum.fromNumber(100),
+      initialWave: 30,
+    });
+    expect(store.getState().currentWave).toBe(30);
+  });
+
+  it('startRun: initialTier + initialWave を組み合わせて指定できる (Tier 3 W28 から開始)', () => {
+    const store = makeStore();
+    store.getState().startRun({
+      initialWeapon: 'laser',
+      baseMachineMaxHp: BigNum.fromNumber(100),
+      initialTier: 3,
+      initialWave: 28,
+    });
+    const s = store.getState();
+    expect(s.currentTier).toBe(3);
+    expect(s.currentWave).toBe(28);
+  });
+
   it('endRun: デフォルト状態に戻る', () => {
     const store = makeStore();
     store.getState().startRun({ initialWeapon: 'laser', baseMachineMaxHp: BigNum.fromNumber(500) });

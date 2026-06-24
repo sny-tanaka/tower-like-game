@@ -18,3 +18,33 @@
   flex-direction: column;
   min-height: 100%;
 }
+
+// DEBUG 出撃ボタン (import.meta.env.DEV のときだけ表示)
+// W28 から開始 + ネジ/ボルト/超合金を各 1A (1e9) 持って出撃。 Tier クリアフローを
+// 短時間で検証するための開発用ショートカット。
+// 本番ビルドでは Vite の dead code elimination で {DEV && ...} ごと消える。
+.debugContainer {
+  display: flex;
+  justify-content: center;
+  padding: 6px 12px;
+  background: rgba(220, 38, 38, 0.12);
+  border-top: 1px dashed rgba(220, 38, 38, 0.5);
+  border-bottom: 1px dashed rgba(220, 38, 38, 0.5);
+}
+
+.debugButton {
+  appearance: none;
+  background: rgba(220, 38, 38, 0.85);
+  color: #fff;
+  border: 1px solid rgba(255, 80, 80, 0.9);
+  border-radius: 6px;
+  padding: 6px 14px;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  cursor: pointer;
+
+  &:active {
+    background: rgba(180, 24, 24, 1);
+  }
+}
