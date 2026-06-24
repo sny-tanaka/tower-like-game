@@ -335,6 +335,13 @@ export function useBattleLoop({ range, paused = false }: UseBattleLoopOpts): Use
    */
   const intervalAccumulatorMsRef = useRef<number>(0);
   /**
+   * HP リジェネ用の累積 ms。
+   * BigNum は整数しか持てず `hpRegen.mulNumber(deltaSec)` は天井丸めで 1 になってしまう
+   * (例: 1 × 0.0167 = 1 → 60FPS で +60/秒の暴走リジェネ)。 そのため
+   * 「1 秒ごとに hpRegen 値を 1 回 atomic に加算」 方式に変更し、 1 秒未満は累積するだけにする。
+   */
+  const hpRegenAccumulatorMsRef = useRef<number>(0);
+  /**
    * 前フレームに「接触中」だった敵 ID の集合。 ノックバックは「新規接触したフレームのみ」
    * 適用するための状態遷移マーカー。 frame N で接触 → frame N+1 で非接触 (押し戻された) →
    * frame N+M で再接触 → ノックバック再発火、 というサイクルでダメージ間隔を空ける。
@@ -1277,13 +1284,18 @@ export function useBattleLoop({ range, paused = false }: UseBattleLoopOpts): Use
             }
           }
 
-          // ---- HP リジェネ ----
-          // machineHp.isZero() (ゲームオーバー) は最新値で再判定する。
-          // delta だけを atomic に加算 (addMachineHp が max クランプ)。
-          // setMachineHp に state.machineHp.add(...) を渡すと tick 序盤のスナップショットで
-          // 上書きしてしまい、 同 tick 内の damageHp が消える。
-          if (!useStore.getState().machineHp.isZero()) {
-            state.addMachineHp(machineStats.hpRegen.mulNumber(deltaSec));
+          // ---- HP リジェネ (1 秒ごとに hpRegen 量を加算) ----
+          // BigNum は整数しか持てず、 `hpRegen.mulNumber(deltaSec)` は天井丸めで毎フレーム +1
+          // (= +60/秒) になってしまう。 そのため 1 秒ごとに 1 回 atomic に加算する方式にする。
+          {
+            const { ticks, nextAccumulatorMs } = calcIntervalTicks(
+              hpRegenAccumulatorMsRef.current,
+              deltaSec
+            );
+            hpRegenAccumulatorMsRef.current = nextAccumulatorMs;
+            if (ticks > 0 && !useStore.getState().machineHp.isZero()) {
+              state.addMachineHp(machineStats.hpRegen.mulInt(ticks));
+            }
           }
 
           // ---- Wave 終了判定 (最終 wave は時間でなくボス撃破で advance) ----
