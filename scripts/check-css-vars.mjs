@@ -34,6 +34,9 @@ const BLESSED = new Set([
   'divider-color', // Divider: color prop を JSX inline style から渡す
   'enemy-glow-px', // Enemy: drop-shadow の glow 太さを inline で渡す (Issue #79 M-1)
   'enemy-glow-color', // Enemy: drop-shadow の glow 色を inline で渡す (Issue #79 M-1)
+  'pop-x', // DamagePopFx: 位置 % を inline で渡す (Issue #87)
+  'pop-y', // DamagePopFx: 位置 % を inline で渡す (Issue #87)
+  'pop-duration', // DamagePopFx: アニメ時間を inline で渡す (Issue #87)
 ]);
 
 function listScssFiles(dir, acc = []) {

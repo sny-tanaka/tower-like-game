@@ -204,22 +204,16 @@ describe('BattleField — Fx イベント', () => {
       { id: 'd1', x: 30, y: 40, value: BigNum.fromNumber(100) },
       { id: 'd2', x: 60, y: 30, value: BigNum.fromNumber(200), crit: true },
     ];
-    render(
-      <BattleField
-        {...defaultProps}
-        damageEvents={damageEvents}
-      />
-    );
-    // DamagePopFx は NumericDisplay を含む → data-testid はないが、value のテキストが存在
-    // 2つの style タグが注入されているか確認（style タグ = Fx 数）
     const { container } = render(
       <BattleField
         {...defaultProps}
         damageEvents={damageEvents}
       />
     );
-    // DamagePopFx は <style> + <div> の 2 要素セットをレンダリングする
-    expect(container.querySelectorAll('style').length).toBeGreaterThanOrEqual(2);
+    // DamagePopFx は --pop-x / --pop-y / --pop-duration の CSS 変数を持つ div を出す
+    // (Issue #87 で <style> タグの動的注入を廃止したのでそちらでは判別できない)
+    const popEls = container.querySelectorAll<HTMLElement>('[style*="--pop-x"]');
+    expect(popEls.length).toBe(damageEvents.length);
   });
 
   test('onDamageDone がアニメ完了時に呼ばれる', async () => {

@@ -1,6 +1,62 @@
+/* DamagePopFx — 静的 @keyframes (Issue #87)
+ *
+ * 旧実装は <style dangerouslySetInnerHTML> でインスタンスごとに @keyframes を
+ * 動的生成していた。 撃破ラッシュで数十個の <style> タグが DOM に追加され
+ * CSS パーサ + style recalc コストが発熱に寄与していた。
+ *
+ * インスタンス固有値は CSS 変数で渡す:
+ *   --pop-x / --pop-y       : 位置 (%、 JSX inline)
+ *   --pop-duration          : アニメ時間 (ms、 JSX inline)
+ */
+
+@keyframes pop {
+  0% {
+    transform: translate(-50%, 0) scale(0.8);
+    opacity: 0;
+  }
+  15% {
+    transform: translate(-50%, -4px) scale(1);
+    opacity: 1;
+  }
+  100% {
+    transform: translate(-50%, -28px) scale(0.95);
+    opacity: 0;
+  }
+}
+
+@keyframes popCrit {
+  0% {
+    transform: translate(-50%, 0) scale(0.6);
+    opacity: 0;
+  }
+  15% {
+    transform: translate(-50%, -4px) scale(1.15);
+    opacity: 1;
+  }
+  100% {
+    transform: translate(-50%, -28px) scale(1);
+    opacity: 0;
+  }
+}
+
 .root {
   position: absolute;
+  left: var(--pop-x);
+  top: var(--pop-y);
   pointer-events: none;
   z-index: var(--z-fx-field);
-  // translate(-50%, -50%) は keyframes 内で行う
+  animation: pop var(--pop-duration, 800ms) var(--ease-out) both;
+  filter: drop-shadow(0 0 4px rgba(255, 255, 255, 0.45));
+}
+
+.crit {
+  animation-name: popCrit;
+  filter: drop-shadow(0 0 4px rgba(246, 185, 74, 0.7));
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .root {
+    animation-duration: 1ms;
+    opacity: 0;
+  }
 }

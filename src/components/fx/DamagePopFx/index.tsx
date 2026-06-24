@@ -1,4 +1,4 @@
-import { useId } from 'react';
+import type { CSSProperties } from 'react';
 
 import styles from './style.module.scss';
 
@@ -22,6 +22,10 @@ export interface DamagePopFxProps {
 /**
  * DamagePopFx — 敵被弾位置に数値がポップしてフェードアウト。
  * crit=true でクリティカル強調表示（大きめ + warning 色）。
+ *
+ * Issue #87: @keyframes は SCSS module に静的定義し、 インスタンス固有値
+ * (位置 / duration) のみ CSS 変数で渡す。 撃破ラッシュで数十個の
+ * <style> タグが DOM に追加されるのを防ぐ。
  */
 export function DamagePopFx({
   value,
@@ -31,43 +35,25 @@ export function DamagePopFx({
   duration = 800,
   onDone,
 }: DamagePopFxProps) {
-  const uid = useId().replace(/:/g, 'dp');
-
-  const css = `
-    @keyframes ${uid}-pop {
-      0%   { transform: translate(-50%, 0) scale(${crit ? 0.6 : 0.8}); opacity: 0; }
-      15%  { transform: translate(-50%, -4px) scale(${crit ? 1.15 : 1}); opacity: 1; }
-      100% { transform: translate(-50%, -28px) scale(${crit ? 1 : 0.95}); opacity: 0; }
-    }
-    .${uid} {
-      position: absolute;
-      left: ${x}%;
-      top: ${y}%;
-      animation: ${uid}-pop ${duration}ms var(--ease-out) both;
-      pointer-events: none;
-      z-index: var(--z-fx-field);
-      filter: drop-shadow(0 0 4px ${crit ? 'rgba(246,185,74,0.7)' : 'rgba(255,255,255,0.45)'});
-    }
-    @media (prefers-reduced-motion: reduce) {
-      .${uid} { animation-duration: 1ms; opacity: 0; }
-    }
-  `;
+  const rootStyle: CSSProperties = {
+    ['--pop-x' as string]: `${x}%`,
+    ['--pop-y' as string]: `${y}%`,
+    ['--pop-duration' as string]: `${duration}ms`,
+  };
 
   return (
-    <>
-      <style dangerouslySetInnerHTML={{ __html: css }} />
-      <div
-        className={`${uid} ${styles.root}`}
-        onAnimationEnd={onDone}
-      >
-        <NumericDisplay
-          value={value}
-          size={crit ? 'lg' : 'md'}
-          accentColor={crit ? 'warning' : 'scale'}
-          glow
-          style={crit ? { fontSize: 22, fontWeight: 700 } : { fontSize: 16, fontWeight: 600 }}
-        />
-      </div>
-    </>
+    <div
+      className={`${styles.root} ${crit ? styles.crit : ''}`}
+      style={rootStyle}
+      onAnimationEnd={onDone}
+    >
+      <NumericDisplay
+        value={value}
+        size={crit ? 'lg' : 'md'}
+        accentColor={crit ? 'warning' : 'scale'}
+        glow
+        style={crit ? { fontSize: 22, fontWeight: 700 } : { fontSize: 16, fontWeight: 600 }}
+      />
+    </div>
   );
 }
