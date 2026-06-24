@@ -75,7 +75,8 @@ export function Page(props: PreparationPageProps) {
 
   function handleLaunch() {
     const maxHpItem = MACHINE_UPGRADE_ITEMS.find((i) => i.key === 'maxHp');
-    const baseMaxHpNum = maxHpItem != null ? calcEffectValue(maxHpItem, machineLevels.maxHp) : 100;
+    const baseMaxHpNum =
+      maxHpItem != null ? calcEffectValue(maxHpItem, machineLevels.maxHp) : 10000;
     startRun({
       initialWeapon,
       baseMachineMaxHp: BigNum.fromNumber(baseMaxHpNum),
@@ -92,7 +93,8 @@ export function Page(props: PreparationPageProps) {
    */
   function handleLaunchDebug() {
     const maxHpItem = MACHINE_UPGRADE_ITEMS.find((i) => i.key === 'maxHp');
-    const baseMaxHpNum = maxHpItem != null ? calcEffectValue(maxHpItem, machineLevels.maxHp) : 100;
+    const baseMaxHpNum =
+      maxHpItem != null ? calcEffectValue(maxHpItem, machineLevels.maxHp) : 10000;
     const huge = BigNum.fromNumber(1e9);
     const state = useStore.getState();
     // ボルト / 超合金は currencies slice (startRun でリセットされない) なので先に加算 OK

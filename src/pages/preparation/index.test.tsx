@@ -133,11 +133,11 @@ describe('PreparationScreen Page', () => {
 
       await user.click(screen.getByRole('button', { name: '出撃' }));
 
-      // 押した後: ラン中 / HP は base 値 (=100, machineLevels.maxHp=0 のとき)
+      // 押した後: ラン中 / HP は base 値 (=10000, v1.0.0 で 100→10000 リベース)
       const s = useStore.getState();
       expect(s.isRunActive).toBe(true);
-      expect(s.machineMaxHp.eq(BigNum.fromNumber(100))).toBe(true);
-      expect(s.machineHp.eq(BigNum.fromNumber(100))).toBe(true);
+      expect(s.machineMaxHp.eq(BigNum.fromNumber(10000))).toBe(true);
+      expect(s.machineHp.eq(BigNum.fromNumber(10000))).toBe(true);
       expect(s.currentWeapon).toBe(s.initialWeapon);
     });
 
