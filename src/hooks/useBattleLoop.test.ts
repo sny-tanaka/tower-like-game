@@ -38,38 +38,47 @@ describe('calcFrameGameSec', () => {
 
 describe('decideWaveAdvance', () => {
   // 通常 wave (1〜29) は時間で advance、 最終 wave (30) はボス撃破で advance。
-  // 最後の引数 enemiesCount は最終 wave で意味を持つ (通常 wave では無視)。
+  // 最後の引数 bossAlive は最終 wave で意味を持つ (通常 wave では無視)。
+  // 通常敵の生存有無は判定に関与しない (仕様: ボス撃破で Victory)。
 
   test('通常 wave: 経過時間 < durationSec → continue', () => {
-    expect(decideWaveAdvance(10_000, 26, 5, 30, 0)).toBe('continue');
+    expect(decideWaveAdvance(10_000, 26, 5, 30, false)).toBe('continue');
   });
 
   test('通常 wave: 経過時間 = durationSec → advanceWave', () => {
-    expect(decideWaveAdvance(26_000, 26, 5, 30, 0)).toBe('advanceWave');
+    expect(decideWaveAdvance(26_000, 26, 5, 30, false)).toBe('advanceWave');
   });
 
-  test('通常 wave: 経過時間 > durationSec → advanceWave (残敵がいても時間で進む)', () => {
-    expect(decideWaveAdvance(27_000, 26, 5, 30, 5)).toBe('advanceWave');
+  test('通常 wave: 経過時間 > durationSec → advanceWave (敵が残っていても時間で進む)', () => {
+    expect(decideWaveAdvance(27_000, 26, 5, 30, true)).toBe('advanceWave');
   });
 
-  test('最終 wave: 時間経過 (26 秒) だけでは advanceTier しない (敵が残ってる)', () => {
-    expect(decideWaveAdvance(26_000, 26, 30, 30, 1)).toBe('continue');
+  test('最終 wave: 時間経過 (26 秒) だけでは advanceTier しない (ボス生存)', () => {
+    expect(decideWaveAdvance(26_000, 26, 30, 30, true)).toBe('continue');
   });
 
-  test('最終 wave: 経過時間 1 分でも敵 (boss) が残ってるなら continue', () => {
-    expect(decideWaveAdvance(60_000, 26, 30, 30, 1)).toBe('continue');
+  test('最終 wave: 経過時間 1 分でもボスが残ってるなら continue', () => {
+    expect(decideWaveAdvance(60_000, 26, 30, 30, true)).toBe('continue');
   });
 
-  test('最終 wave: ボススポーン時刻 (25s) 前は敵 0 でも continue (ボス未登場)', () => {
-    expect(decideWaveAdvance(20_000, 26, 30, 30, 0)).toBe('continue');
+  test('最終 wave: ボススポーン時刻 (25s) 前は bossAlive=false でも continue (まだ未登場)', () => {
+    expect(decideWaveAdvance(20_000, 26, 30, 30, false)).toBe('continue');
   });
 
-  test('最終 wave: ボススポーン (25s) 後で敵 0 → advanceTier', () => {
-    expect(decideWaveAdvance(25_500, 26, 30, 30, 0)).toBe('advanceTier');
+  test('最終 wave: ボススポーン (25s) 後でボス不在 → advanceTier', () => {
+    expect(decideWaveAdvance(25_500, 26, 30, 30, false)).toBe('advanceTier');
   });
 
   test('最終 wave: ボス撃破まで時間が長引いても advanceTier', () => {
-    expect(decideWaveAdvance(120_000, 26, 30, 30, 0)).toBe('advanceTier');
+    expect(decideWaveAdvance(120_000, 26, 30, 30, false)).toBe('advanceTier');
+  });
+
+  // BUG-W30-1 regression:
+  // 通常敵が残っていてもボス撃破で advanceTier に進むこと。 旧実装は enemiesCount===0
+  // 必須だったため、 通常敵がスポーン後撃破前であってもクリアにならなかった。
+  test('最終 wave: 通常敵が残っていてもボス不在なら advanceTier', () => {
+    // bossAlive=false で advanceTier。 通常敵の生存有無は引数で表現されない (= 関与しない)
+    expect(decideWaveAdvance(30_000, 26, 30, 30, false)).toBe('advanceTier');
   });
 });
 

@@ -123,9 +123,21 @@ export function getSpawnsAtTime(
   const elapsedSec = elapsedMs / 1000;
   const prevElapsedSec = prevElapsedMs / 1000;
 
+  // 上位敵スポーン: ウェーブの終了 1 秒前（UPPER_ENEMY_LEAD_SEC = 1）に出現
+  const UPPER_ENEMY_LEAD_SEC = 1;
+  const upperSpawnSec = schedule.durationSec - UPPER_ENEMY_LEAD_SEC;
+
   // 通常敵スポーン
-  const normalCount = Math.floor(elapsedSec / schedule.spawnIntervalSec);
-  const prevNormalCount = Math.floor(prevElapsedSec / schedule.spawnIntervalSec);
+  // boss wave (W30) では「ボス出現タイミング (upperSpawnSec) 以降は通常敵を出さない」。
+  // ボス撃破で Tier クリア (advanceTier) する仕様上、 ボス出現後も通常敵が湧き続けると
+  // 「ボスを倒しても通常敵が残って enemiesCount > 0」 になり、 advanceTier を阻害する。
+  // (BUG-W30-1: ボス撃破で Tier クリアが出ない致命的不具合の原因)
+  const elapsedSecForNormal =
+    schedule.eliteKind === 'boss' ? Math.min(elapsedSec, upperSpawnSec) : elapsedSec;
+  const prevElapsedSecForNormal =
+    schedule.eliteKind === 'boss' ? Math.min(prevElapsedSec, upperSpawnSec) : prevElapsedSec;
+  const normalCount = Math.floor(elapsedSecForNormal / schedule.spawnIntervalSec);
+  const prevNormalCount = Math.floor(prevElapsedSecForNormal / schedule.spawnIntervalSec);
   const toSpawn = normalCount - prevNormalCount;
 
   for (let i = 0; i < toSpawn; i++) {
@@ -133,10 +145,6 @@ export function getSpawnsAtTime(
     const template = createEnemyTemplate(schedule.tier, schedule.waveIndex, 'normal', subtype);
     spawns.push(spawnEnemy(template, idGenerator(), elapsedMs, rng));
   }
-
-  // 上位敵スポーン: ウェーブの終了 1 秒前（UPPER_ENEMY_LEAD_SEC = 1）に出現
-  const UPPER_ENEMY_LEAD_SEC = 1;
-  const upperSpawnSec = schedule.durationSec - UPPER_ENEMY_LEAD_SEC;
 
   if (
     schedule.eliteKind !== undefined &&
