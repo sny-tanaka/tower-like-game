@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import styles from './style.module.scss';
 
@@ -39,6 +39,13 @@ import { flushAfterRun } from '@/store/sync';
 
 /** 索敵半径（パーセント） */
 const DEFAULT_RANGE = 30;
+
+/**
+ * BattleField の hitEvents 用の空配列定数。
+ * 毎 render で `const hitEvents: HitEvent[] = []` を新規生成すると BattleField への
+ * props 参照が毎フレーム変化 → memo 化阻害。 EnemyHitFx 系の配線が入るまでは固定で空 (H2-4)。
+ */
+const EMPTY_HIT_EVENTS: HitEvent[] = [];
 
 /**
  * Cutter の刃の枚数 (CutterOrbitFx の blades default と一致)。
@@ -240,25 +247,32 @@ export function Page() {
   // Wave 残り時間: 0 になったら advanceWave が走り経過秒はリセットされる
   const waveSecondsRemaining = Math.max(0, WAVE_DURATION_SEC - waveElapsedSec);
 
-  // HitEvent (EnemyHitFx) は別途配線予定。 当面 [] のまま (弾道は projectileEvents が担う)
-  const hitEvents: HitEvent[] = [];
+  // HitEvent (EnemyHitFx) は別途配線予定。 当面はモジュール定数の空配列を使い回す (H2-4)
+  const hitEvents = EMPTY_HIT_EVENTS;
 
   // 武器切替 CD (仕様 05-weapons.md §武器切替: 3 秒)
-  // 装備中の武器は常に 100 (= CD なし表示)、 他の武器は経過率 % を出す
-  const weaponCdPct = Math.max(
-    0,
-    Math.min(100, ((WEAPON_SWITCH_CD_SEC - weaponSwitchCdSec) / WEAPON_SWITCH_CD_SEC) * 100)
-  );
-  const weaponCds: Record<typeof currentWeapon, number> = {
-    laser: currentWeapon === 'laser' ? 100 : weaponCdPct,
-    cannon: currentWeapon === 'cannon' ? 100 : weaponCdPct,
-    thunder: currentWeapon === 'thunder' ? 100 : weaponCdPct,
-    cutter: currentWeapon === 'cutter' ? 100 : weaponCdPct,
-  };
+  // 装備中の武器は常に 100 (= CD なし表示)、 他の武器は経過率 % を出す。
+  // (H2-4: weaponCds は同じ値の組み合わせなら参照を安定化させて BattleHudBottom の memo を活かす)
+  const weaponCds = useMemo<Record<typeof currentWeapon, number>>(() => {
+    const weaponCdPct = Math.max(
+      0,
+      Math.min(100, ((WEAPON_SWITCH_CD_SEC - weaponSwitchCdSec) / WEAPON_SWITCH_CD_SEC) * 100)
+    );
+    return {
+      laser: currentWeapon === 'laser' ? 100 : weaponCdPct,
+      cannon: currentWeapon === 'cannon' ? 100 : weaponCdPct,
+      thunder: currentWeapon === 'thunder' ? 100 : weaponCdPct,
+      cutter: currentWeapon === 'cutter' ? 100 : weaponCdPct,
+    };
+  }, [currentWeapon, weaponSwitchCdSec]);
 
   // BattleHudTop は BigNum を受け取る — machineMaxHp が 0 (ラン外) のときは 1 にクランプ
+  // (H2-4: BigNum 演算結果を useMemo してパス先 BattleHudTop の memo を活かす)
   const hpCurrentBn = machineHp;
-  const hpMaxBn = machineMaxHp.isZero() ? BigNum.fromNumber(1) : machineMaxHp;
+  const hpMaxBn = useMemo(
+    () => (machineMaxHp.isZero() ? BigNum.fromNumber(1) : machineMaxHp),
+    [machineMaxHp]
+  );
 
   // ── ラン終了共通ヘルパー ──
   // gameover / 撤退どちらのフローでも endRun / profile 系を 1 度だけ呼ぶ。
@@ -305,53 +319,79 @@ export function Page() {
   }, [effectiveResultStatus, finalizeRun]);
 
   // ── ハンドラ ──
+  // (H2-4: BattleHudBottom / RunWorkshopBottomSheet に渡すハンドラを useCallback 化。
+  //  下流コンポーネントの React.memo を活かすため、 props の関数参照を安定化する。
+  //  pause/screenSaver 等の依存は setState 系のみで安定なので deps を最小化できる)
   // pause トグル: 「pause + メニュー開閉」 を同期 (= メニュー単独で開かない / pause 単独でも開かない)
-  const handleTogglePause = () => {
+  const handleTogglePause = useCallback(() => {
     const next = !isPaused;
     setPaused(next);
     soundEngine.play(next ? 'dialogOpen' : 'dialogClose');
-  };
+  }, [isPaused, setPaused]);
 
-  const handleOpenScreenSaver = () => {
+  const handleOpenScreenSaver = useCallback(() => {
     setIsScreenSaverOpen(true);
     soundEngine.play('dialogOpen');
-  };
+  }, []);
 
-  const handleRetreat = () => {
+  const handleRetreat = useCallback(() => {
     // retreat 時はメニューも閉じる (= pause 解除)。 ResultDialog 側で停止が担保される
     setPaused(false);
     setResultStatus('retreat');
     soundEngine.play('resultRetreat');
-  };
+  }, [setPaused]);
 
-  const handleResultClose = () => {
+  const handleResultClose = useCallback(() => {
     navigate('preparation');
-  };
+  }, [navigate]);
 
-  const handleWorkshopUpgrade = (key: RunWorkshopKey, delta: 1 | 5 | 'max') => {
-    const ok = upgradeRunWorkshop(key, delta);
-    soundEngine.play(ok ? 'purchaseOk' : 'reject');
-  };
+  const handleWorkshopUpgrade = useCallback(
+    (key: RunWorkshopKey, delta: 1 | 5 | 'max') => {
+      const ok = upgradeRunWorkshop(key, delta);
+      soundEngine.play(ok ? 'purchaseOk' : 'reject');
+    },
+    [upgradeRunWorkshop]
+  );
 
-  const handleSwitchWeapon = (weapon: typeof currentWeapon) => {
-    switchWeapon(weapon);
-    soundEngine.play('weaponSwitch');
-  };
+  const handleSwitchWeapon = useCallback(
+    (weapon: typeof currentWeapon) => {
+      switchWeapon(weapon);
+      soundEngine.play('weaponSwitch');
+    },
+    [switchWeapon]
+  );
 
-  const handleManualActivate = () => {
+  const handleManualActivate = useCallback(() => {
     // useBattleLoop の fireActive は内部で triggerActive (CD セット) + active 関数の実行
     // (Mega Beam / Volley / Plasma / Overdrive) + SE / Fx 配信をまとめて行う。
     const ok = fireActive();
     if (!ok) {
       soundEngine.play('reject');
     }
-  };
+  }, [fireActive]);
 
-  // リザルトリワード: ラン開始時残高からの差分で算出 (負にならないようクランプ)
-  const earnedBoltRaw = bolt.sub(runStartBolt);
-  const earnedAlloyRaw = alloy.sub(runStartAlloy);
-  const earnedBolt = earnedBoltRaw.lt(BigNum.ZERO) ? BigNum.ZERO : earnedBoltRaw;
-  const earnedAlloy = earnedAlloyRaw.lt(BigNum.ZERO) ? BigNum.ZERO : earnedAlloyRaw;
+  // BattleHudBottom の onToggleWorkshop: inline arrow 廃止 (毎 render 新規参照になり memo 阻害)
+  const handleToggleWorkshop = useCallback(() => {
+    setIsWorkshopOpen((prev) => !prev);
+  }, []);
+
+  // RunWorkshopBottomSheet の onClose: inline arrow 廃止 (同上)
+  const handleCloseWorkshop = useCallback(() => {
+    setIsWorkshopOpen(false);
+  }, []);
+
+  // リザルトリワード: ラン開始時残高からの差分で算出 (負にならないようクランプ)。
+  // (H2-4: BigNum.sub は新規 BigNum を返すため、 毎 render で参照が変わって BattleHudBottom +
+  //  CurrencyAmount が 60fps re-render してしまう。 useMemo で固定し、 deps が変化しないフレームでは
+  //  同一参照を返す)
+  const earnedBolt = useMemo(() => {
+    const raw = bolt.sub(runStartBolt);
+    return raw.lt(BigNum.ZERO) ? BigNum.ZERO : raw;
+  }, [bolt, runStartBolt]);
+  const earnedAlloy = useMemo(() => {
+    const raw = alloy.sub(runStartAlloy);
+    return raw.lt(BigNum.ZERO) ? BigNum.ZERO : raw;
+  }, [alloy, runStartAlloy]);
 
   // ── wave 関連 ──
   const TOTAL_WAVES = 30;
@@ -383,9 +423,7 @@ export function Page() {
               screw={screw}
               levels={runWorkshopLevels}
               onUpgrade={handleWorkshopUpgrade}
-              onClose={() => {
-                setIsWorkshopOpen(false);
-              }}
+              onClose={handleCloseWorkshop}
             />
             <BattleHudBottom
               screw={screw}
@@ -402,9 +440,7 @@ export function Page() {
               onTogglePause={handleTogglePause}
               onOpenScreenSaver={handleOpenScreenSaver}
               isWorkshopOpen={isWorkshopOpen}
-              onToggleWorkshop={() => {
-                setIsWorkshopOpen((prev) => !prev);
-              }}
+              onToggleWorkshop={handleToggleWorkshop}
             />
           </div>
         }
