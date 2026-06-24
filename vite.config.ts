@@ -22,7 +22,9 @@ export default defineConfig({
         description: 'NEON SPIRE — サイバーフューチャー調のタワーディフェンス PWA',
         theme_color: '#04060d',
         background_color: '#04060d',
-        display: 'standalone',
+        // Android Chrome PWA でステータスバー/ナビバーを完全に隠す (Issue #78 焼き付き対策)。
+        // iOS は manifest を読まないため index.html の apple-mobile-web-app-* meta で対応。
+        display: 'fullscreen',
         start_url: BASE,
         scope: BASE,
         icons: [
