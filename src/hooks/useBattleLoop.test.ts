@@ -1,7 +1,5 @@
 import { describe, expect, test } from 'vitest';
 
-import { scaledReward } from '@/game/enemies';
-
 import {
   KNOCKBACK_DISTANCE_PCT,
   MAX_FRAME_GAME_SEC,
@@ -13,6 +11,8 @@ import {
   decideWaveAdvance,
   distanceFromMachine,
 } from './useBattleLoop';
+
+import { scaledReward } from '@/game/enemies';
 
 describe('calcFrameGameSec', () => {
   test('isPaused=true なら常に 0', () => {

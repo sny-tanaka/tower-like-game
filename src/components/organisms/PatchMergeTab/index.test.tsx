@@ -276,16 +276,13 @@ describe('PatchMergeTab', () => {
       expect(soundEngine.play).toHaveBeenCalledWith('purchaseOk');
     });
 
-    it('ストアモードでマージ対象なし (count=1) → 一括合成で reject SE が鳴る', () => {
-      // count=1 は合成できないのでマージ対象なし
+    it('ストアモードで count=1 のときは「一括合成」 ボタンが存在しない (合成不可表示)', () => {
       useStore.setState({
         patches: new Map([['damageImmune#1', { name: 'damageImmune', tier: 1, count: 1 }]]),
         machineLevels: { ...useStore.getState().machineLevels, patchSlots: 0 },
       });
       render(<PatchMergeTab />);
-      const mergeBtn = screen.getByRole('button', { name: /一括合成/ });
-      fireEvent.click(mergeBtn);
-      expect(soundEngine.play).toHaveBeenCalledWith('reject');
+      expect(screen.queryByRole('button', { name: /一括合成/ })).toBeNull();
     });
   });
 });
