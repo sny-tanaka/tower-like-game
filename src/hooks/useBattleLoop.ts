@@ -296,6 +296,20 @@ export interface UseBattleLoopResult {
   runElapsedSec: number;
   /** このランでドロップしたパッチ一覧 */
   droppedPatches: PatchDrop[];
+  /**
+   * Tier ボス撃破でクリア条件が成立したフラグ。
+   * 一度立つと `onTierClearedAck` が呼ばれるまで保持される。
+   * 親 (pages/battle) はこのフラグを検知して:
+   *   1. useBattleLoop に paused=true を渡してゲームループを停止
+   *   2. TierClearFx を表示
+   *   3. TierClearFx onDone で `state.unlockNextTier(currentTier)` + `setResultStatus('clear')`
+   *      + `onTierClearedAck()` を呼ぶ
+   * 旧実装は decideWaveAdvance='advanceTier' で即座に `state.advanceTier()` を呼んで currentTier
+   * を +1 していたため、 「Tier クリア → 勝手に次 Tier が始まる」 になっていた。 0.3.5 で廃止。
+   */
+  tierCleared: boolean;
+  /** tierCleared フラグをリセット (親が消費したことを通知) */
+  onTierClearedAck: () => void;
 }
 
 /** 通常敵が ボルト をドロップする確率 (02-currencies.md 仕様) */
@@ -395,6 +409,18 @@ export function useBattleLoop({ range, paused = false }: UseBattleLoopOpts): Use
   const runElapsedSecRef = useRef<number>(0);
   const [runElapsedSec, setRunElapsedSec] = useState<number>(0);
   const [droppedPatches, setDroppedPatches] = useState<PatchDrop[]>([]);
+  /**
+   * Tier ボス撃破でクリア成立した瞬間に true。 親 (pages/battle) が TierClearFx 表示 +
+   * unlockNextTier + ResultDialog 表示までを行ったあと onTierClearedAck() でリセット。
+   * tierCleared=true の間はゲームループを内部で自己停止 (tierClearedRef を deltaSec 計算で参照)。
+   * 親に paused 引数として伝える必要はなく、 useBattleLoop 内部で完結する。
+   */
+  const [tierCleared, setTierCleared] = useState<boolean>(false);
+  const tierClearedRef = useRef<boolean>(false);
+  const onTierClearedAck = useCallback(() => {
+    setTierCleared(false);
+    tierClearedRef.current = false;
+  }, []);
 
   const isRunActive = useStore((s) => s.isRunActive);
   const currentTier = useStore((s) => s.currentTier);
@@ -447,7 +473,7 @@ export function useBattleLoop({ range, paused = false }: UseBattleLoopOpts): Use
     }
   }, [currentTier, currentWave]);
 
-  // ---- ラン開始時に統計 3 state をリセット ----
+  // ---- ラン開始時に統計 3 state + tierCleared フラグをリセット ----
   // isRunActive が false → true になる瞬間のみリセット (wave/tier 切替では isRunActive は変わらない)
   useEffect(() => {
     if (isRunActive) {
@@ -455,6 +481,9 @@ export function useBattleLoop({ range, paused = false }: UseBattleLoopOpts): Use
       setRunElapsedSec(0);
       runElapsedSecRef.current = 0;
       setDroppedPatches([]);
+      // 前ラン (Tier クリア) で立った tierCleared が残っていれば確実にリセット
+      setTierCleared(false);
+      tierClearedRef.current = false;
     }
   }, [isRunActive]);
 
@@ -675,7 +704,9 @@ export function useBattleLoop({ range, paused = false }: UseBattleLoopOpts): Use
       const isGameOver = state.machineHp.isZero();
       const deltaSec = calcFrameGameSec(
         elapsedMs,
-        state.isPaused || isGameOver || pausedRef.current
+        // tierClearedRef.current=true の間は TierClearFx 演出中なのでループを完全停止
+        // (親が ack するまで毎フレーム deltaSec=0)
+        state.isPaused || isGameOver || pausedRef.current || tierClearedRef.current
       );
 
       if (deltaSec > 0) {
@@ -1393,17 +1424,26 @@ export function useBattleLoop({ range, paused = false }: UseBattleLoopOpts): Use
               state.advanceWave();
               soundEngine.play('waveClear');
               vibrate(15);
+              // wave 切替直後の同フレームで waveElapsedMsRef も 0 に揃える。
+              // (currentWave 変化に反応する useEffect でも 0 にされるが、 そちらより前に
+              //  setWaveElapsedSec(古い値) が走ってしまうと WaveProgressBar の AnimatedTimerBar
+              //  が「残量 0 近く」で再マウントされ、 バーが満タンに戻らない。)
+              waveElapsedMsRef.current = 0;
+              prevWaveElapsedMsRef.current = 0;
             } else {
-              state.advanceTier();
+              // Tier クリア: state.advanceTier() は呼ばない (= currentTier を勝手に進めない)。
+              // 親 (pages/battle) が tierCleared フラグを検知して TierClearFx → ResultDialog の
+              // 順で表示し、 onTierClearedAck() を呼んでフラグをリセット。 次の出撃で
+              // preparation 画面が表示される。
+              // (旧 0.3.4 までは state.advanceTier() を呼んで currentTier を +1 していたため、
+              //  ボス撃破後に勝手に次 Tier が開始してしまっていた)
               soundEngine.play('tierClear');
               vibrate([40, 30, 40]);
+              setTierCleared(true);
+              tierClearedRef.current = true; // 次フレームの tick で deltaSec=0 にする
+              // wave 進行は止めるが waveElapsedMsRef はあえて触らない (= ボス出現演出後の
+              // 静止状態を維持。 tierClearedRef で次フレーム以降の進行が止まる)
             }
-            // wave / tier 切替直後の同フレームで waveElapsedMsRef も 0 に揃える。
-            // (currentWave 変化に反応する useEffect でも 0 にされるが、 そちらより前に
-            //  setWaveElapsedSec(古い値) が走ってしまうと WaveProgressBar の AnimatedTimerBar
-            //  が「残量 0 近く」で再マウントされ、 バーが満タンに戻らない。)
-            waveElapsedMsRef.current = 0;
-            prevWaveElapsedMsRef.current = 0;
           }
         }
 
@@ -1442,5 +1482,7 @@ export function useBattleLoop({ range, paused = false }: UseBattleLoopOpts): Use
     killCount,
     runElapsedSec,
     droppedPatches,
+    tierCleared,
+    onTierClearedAck,
   };
 }

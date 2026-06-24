@@ -128,16 +128,12 @@ export function Page() {
     prevMachineHpRef.current = machineHp;
   }, [machineHp]);
 
-  // ── Tier クリア検知 (currentTier の prev/current 比較) ──
-  // currentTier が +1 になった瞬間に TierClearFx を再マウントして全画面演出を発火。
-  const prevTierRef = useRef(currentTier);
+  // ── Tier クリア検知 ──
+  // 0.3.5: useBattleLoop の tierCleared フラグを契機に TierClearFx を再マウント。
+  // 旧 0.3.4 までは「currentTier の prev/current 比較」 で発火していたが、
+  // advanceTier 廃止 (= ボス撃破でも currentTier がインクリメントされない仕様) に伴い
+  // フラグベース通知に変更。 演出終了後に handleTierClearFxDone で次 Tier 解放 + endRun する。
   const [tierClearKey, setTierClearKey] = useState(0);
-  useEffect(() => {
-    if (currentTier > prevTierRef.current) {
-      setTierClearKey((k) => k + 1);
-    }
-    prevTierRef.current = currentTier;
-  }, [currentTier]);
 
   // ── BATTLE START バナー: 「isRunActive が false→true に切り替わった瞬間」 のみ表示 ──
   // 単に isRunActive=true で発火すると、 同一ラン中の画面再マウントや内部 state 変動で
@@ -219,10 +215,20 @@ export function Page() {
     killCount,
     runElapsedSec,
     droppedPatches,
+    tierCleared,
+    onTierClearedAck,
   } = useBattleLoop({
     range: DEFAULT_RANGE,
     paused: isResultOpen,
   });
+
+  // Tier クリア通知: tierCleared が true になった瞬間に TierClearFx をマウント。
+  // 演出終了 (onDone) は handleTierClearFxDone で処理 (次 Tier 解放 + ラン終了 + ResultDialog)。
+  useEffect(() => {
+    if (tierCleared) {
+      setTierClearKey((k) => k + 1);
+    }
+  }, [tierCleared]);
 
   // ── BGM: ボス出現を契機に切替 (App.tsx の画面別 BGM を bossPhase 中だけ上書き) ──
   // wave 30 開始時点では BGM は battleNormal のまま。 wave 開始 25 秒後にボスがスポーン
@@ -283,36 +289,45 @@ export function Page() {
       if (hasFinalizedRef.current) return;
       hasFinalizedRef.current = true;
       // endRun() で currentTier/Wave が 1、 runStartBolt/Alloy が 0 にリセットされるので
-      // 先にスナップショット。 earnedBolt/Alloy は useStore.getState() から直接読むことで
-      // useCallback の deps を増やさない (毎フレーム新規 BigNum で memo 化されないのを避ける)
+      // useStore.getState() で fresh な値をスナップショット。
+      // (0.3.5: 旧実装は selector closure (deps に [currentTier, currentWave, ...]) を使って
+      //  いたが、 handleTierClearFxDone 経由で同期的に finalizeRun を呼ぶケースで「setState
+      //  → react reconcile 待ち」 タイミングの問題が起きるため、 すべて getState() に統一)
       const state = useStore.getState();
-      setFinalTier(currentTier);
-      setFinalWave(currentWave);
+      const snapTier = state.currentTier;
+      const snapWave = state.currentWave;
+      setFinalTier(snapTier);
+      setFinalWave(snapWave);
       const finalBolt = state.bolt.sub(state.runStartBolt);
       const finalAlloy = state.alloy.sub(state.runStartAlloy);
       setFinalEarnedBolt(finalBolt.lt(BigNum.ZERO) ? BigNum.ZERO : finalBolt);
       setFinalEarnedAlloy(finalAlloy.lt(BigNum.ZERO) ? BigNum.ZERO : finalAlloy);
-      // gameover パス: autoResultStatus は endRun() 後に isRunActive=false で null になるため
-      // resultStatus state に固定してダイアログを維持する
-      if (status === 'gameover') {
-        setResultStatus('gameover');
+      // gameover / clear パス: autoResultStatus は endRun() 後に「machineHp=0 → gameover」
+      // を返してしまう (defaultBattleState.machineHp = ZERO のため)。 'clear' でも 'gameover' でも
+      // ローカル state に固定してダイアログを維持する。
+      // (0.3.5: 'clear' を追加。 旧仕様では Tier ボス撃破で advanceTier していたため 'clear'
+      //  ステータスは事実上未使用だったが、 Tier クリア → リザルト画面フローで明示的に使う)
+      if (status === 'gameover' || status === 'clear') {
+        setResultStatus(status);
       }
       state.endRun();
-      state.updateHighest(currentTier, currentWave);
+      state.updateHighest(snapTier, snapWave);
       state.incrementRuns();
       state.addEnemiesKilled(killCount);
       state.addPlayTimeSec(runElapsedSec);
       state.setLastPlayedAt(Date.now());
       void flushAfterRun();
     },
-    [currentTier, currentWave, killCount, runElapsedSec]
+    [killCount, runElapsedSec]
   );
 
-  // effectiveResultStatus が null → 非 null に変化した瞬間に 1 度だけ finalizeRun を呼ぶ
+  // effectiveResultStatus が null → 非 null に変化した瞬間に 1 度だけ finalizeRun を呼ぶ。
+  // hasFinalizedRef のリセットは handleResultClose (preparation 遷移時) で行う。
+  // 0.3.5: Tier クリアフロー (handleTierClearFxDone) が finalizeRun を先行呼びするケースが
+  // あるため、 ここでリセットすると重複呼び (updateHighest や incrementRuns が 2 回) になる。
   const prevResultStatusRef = useRef<ResultStatus | null>(null);
   useEffect(() => {
     if (effectiveResultStatus !== null && prevResultStatusRef.current === null) {
-      hasFinalizedRef.current = false; // 新しいラン終了イベントのためリセット
       finalizeRun(effectiveResultStatus);
     }
     prevResultStatusRef.current = effectiveResultStatus;
@@ -342,6 +357,9 @@ export function Page() {
   }, [setPaused]);
 
   const handleResultClose = useCallback(() => {
+    // 次のラン開始用に finalize ガードをリセット (0.3.5: 旧実装は useEffect 内でリセット
+    // していたが、 Tier クリアフロー (handleTierClearFxDone) との重複防止のため移動)
+    hasFinalizedRef.current = false;
     navigate('preparation');
   }, [navigate]);
 
@@ -379,6 +397,24 @@ export function Page() {
   const handleCloseWorkshop = useCallback(() => {
     setIsWorkshopOpen(false);
   }, []);
+
+  // TierClearFx 演出終了時のハンドラ (0.3.5):
+  //   1. Fx unmount (key を 0 に)
+  //   2. クリア Tier 番号を事前にスナップショット (finalizeRun の endRun で 1 にリセットされる)
+  //   3. finalizeRun('clear') を呼んで通常のラン終了処理 (updateHighest / endRun / SE / etc.)
+  //   4. unlockNextTier(clearedTier) で次 Tier 解放
+  //      → 順序が重要: updateHighest は「tier > highestTier なら更新、 そうでなければ拒否」
+  //        ロジックなので、 unlockNextTier(N) で highestTier=N+1 にした「後」 に
+  //        updateHighest(N, wave) を呼ぶと「N <= N+1」 で highestWave が更新されない。
+  //        finalizeRun (= updateHighest) を先、 unlockNextTier を後にすることで両方有効化。
+  //   5. onTierClearedAck() で useBattleLoop の tierCleared をリセット
+  const handleTierClearFxDone = useCallback(() => {
+    setTierClearKey(0);
+    const clearedTier = useStore.getState().currentTier;
+    finalizeRun('clear');
+    useStore.getState().unlockNextTier(clearedTier);
+    onTierClearedAck();
+  }, [onTierClearedAck, finalizeRun]);
 
   // リザルトリワード: ラン開始時残高からの差分で算出 (負にならないようクランプ)。
   // (H2-4: BigNum.sub は新規 BigNum を返すため、 毎 render で参照が変わって BattleHudBottom +
@@ -527,11 +563,12 @@ export function Page() {
           />
         )}
 
-        {/* Tier クリア演出 (currentTier 増加で再マウント) */}
+        {/* Tier クリア演出 (useBattleLoop の tierCleared フラグで再マウント、 0.3.5)。
+            onDone で次 Tier 解放 + ack + ラン終了 → ResultDialog 'clear' 表示の流れに繋ぐ */}
         {tierClearKey > 0 && (
           <TierClearFx
             key={tierClearKey}
-            onDone={() => setTierClearKey(0)}
+            onDone={handleTierClearFxDone}
           />
         )}
 

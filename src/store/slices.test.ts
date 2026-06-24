@@ -88,6 +88,51 @@ describe('profile slice', () => {
     expect(store.getState().highestWave).toBe(10);
   });
 
+  // --- unlockNextTier (Tier クリア時の次 Tier 解放) ---
+  describe('unlockNextTier', () => {
+    it('Tier 1 クリア → highestTier=2 になる (初期値 0 から)', () => {
+      const store = makeStore();
+      store.getState().unlockNextTier(1);
+      expect(store.getState().highestTier).toBe(2);
+    });
+
+    it('Tier 3 クリア → highestTier=4 になる', () => {
+      const store = makeStore();
+      store.getState().unlockNextTier(3);
+      expect(store.getState().highestTier).toBe(4);
+    });
+
+    it('既に Tier 5 まで解放済み + Tier 2 クリア → highestTier は 5 のまま (下げない)', () => {
+      const store = makeStore();
+      store.getState().updateHighest(5, 10);
+      store.getState().unlockNextTier(2);
+      expect(store.getState().highestTier).toBe(5);
+    });
+
+    it('Tier N クリア + 既に highestTier=N+1 → 変化なし', () => {
+      const store = makeStore();
+      store.getState().updateHighest(3, 10); // highestTier=3
+      store.getState().unlockNextTier(2); // 2+1=3 → 既に到達済み、 変化なし
+      expect(store.getState().highestTier).toBe(3);
+    });
+
+    it('highestWave は触らない (Tier N+1 の wave 0 到達とは扱わない)', () => {
+      const store = makeStore();
+      store.getState().updateHighest(1, 25); // highestTier=1, highestWave=25
+      store.getState().unlockNextTier(1);
+      expect(store.getState().highestTier).toBe(2);
+      expect(store.getState().highestWave).toBe(25); // 触らない
+    });
+
+    it('同 Tier を 2 度クリア (アイドル) → 1 度目で解放、 2 度目は no-op', () => {
+      const store = makeStore();
+      store.getState().unlockNextTier(2);
+      expect(store.getState().highestTier).toBe(3);
+      store.getState().unlockNextTier(2);
+      expect(store.getState().highestTier).toBe(3);
+    });
+  });
+
   it('addPlayTimeSec: 累積される', () => {
     const store = makeStore();
     store.getState().addPlayTimeSec(100);
