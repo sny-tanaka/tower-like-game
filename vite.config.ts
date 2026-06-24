@@ -1,3 +1,4 @@
+import { readFileSync } from 'node:fs';
 import path from 'node:path';
 
 import react from '@vitejs/plugin-react';
@@ -7,6 +8,17 @@ import { defineConfig } from 'vitest/config';
 // GitHub Pages のサブパス公開に合わせる。リポジトリ名と一致させること。
 // 例: https://<user>.github.io/tower-like-game/
 const BASE = '/tower-like-game/';
+
+// package.json を直接読んで version を取得する。
+// 過去は `process.env.npm_package_version` を使っていたが、 これは yarn/npm が
+// **スクリプト開始時にキャプチャ**する値で、 `yarn build` 内の bump-patch-version.mjs が
+// 走ってから vite build までの間に package.json が書き換わっても反映されない。
+// 結果、 bundle に古い version が埋め込まれる pre-existing バグになっていた
+// (v0.3.5 → 1.0.0 → 1.0.1 全て同じ症状)。 ファイル直読みで根治。
+const pkgJson = JSON.parse(readFileSync(path.resolve(__dirname, './package.json'), 'utf8')) as {
+  version?: string;
+};
+const APP_VERSION = pkgJson.version ?? '0.0.0';
 
 export default defineConfig({
   base: BASE,
@@ -55,7 +67,7 @@ export default defineConfig({
     }),
   ],
   define: {
-    __APP_VERSION__: JSON.stringify(process.env.npm_package_version ?? '0.0.0'),
+    __APP_VERSION__: JSON.stringify(APP_VERSION),
   },
   resolve: {
     alias: {
