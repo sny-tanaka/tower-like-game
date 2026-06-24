@@ -24,12 +24,15 @@
 }
 
 @keyframes trailPulse {
+  /* H2-5: 振幅を 0.18-0.36 → 0.22-0.30 に縮小 (中央値 0.26 維持)。
+     さらに JSX 側で周期を rotateMs*0.7 → *1.4 に倍化することで GPU の opacity
+     合成頻度を半減。 視覚的にはほぼ気づかない範囲で常時負荷を削減。 */
   0%,
   100% {
-    opacity: 0.18;
+    opacity: 0.22;
   }
   50% {
-    opacity: 0.36;
+    opacity: 0.3;
   }
 }
 
@@ -58,7 +61,10 @@
   border-radius: 50%;
   border: 1px dashed var(--ct-color);
   opacity: 0.22;
-  animation: trailPulse var(--ct-trail-ms, 910ms) ease-in-out infinite;
+  /* H2-5: opacity 専用変化なので will-change で GPU に明示。 layer 化により
+     親要素 (.hub) の transform: rotate と独立合成され、 hub 回転の影響を受けない */
+  will-change: opacity;
+  animation: trailPulse var(--ct-trail-ms, 1820ms) ease-in-out infinite;
 }
 
 .blade {
@@ -69,8 +75,10 @@
   height: var(--ct-blade-height);
   margin-top: var(--ct-blade-margin);
   transform-origin: 0 50%;
-  /* drop-shadow を 2 重 → 1 重に減らして GPU 合成コストを削減 (Issue #79 M-4) */
-  filter: drop-shadow(0 0 4px var(--ct-color));
+  /* drop-shadow を 2 重 → 1 重に減らして GPU 合成コストを削減 (Issue #79 M-4)。
+     H2-5: blur radius を 4px → 2px に削減。 blades × 60fps の GPU フィルタ計算を軽量化。
+     視覚的には光の広がりが少し控えめになる程度 (Cutter の本体ラインは保たれる)。 */
+  filter: drop-shadow(0 0 2px var(--ct-color));
   color: var(--ct-color);
 }
 
