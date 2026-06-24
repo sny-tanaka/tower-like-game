@@ -31,10 +31,10 @@ export interface UpgradeCardProps {
   iconColor?: string;
   /** 現 Lv 表示文字列 (例: "Lv 4") */
   currentLabel?: string;
-  /** 強化前の効果値 */
-  before?: number;
+  /** 強化前の効果値。 BigNum 系ステ (HP / 攻撃力 / 防御力 / リジェネ) は BigNum を渡して "10.00A" 表記にする。 */
+  before?: number | BigNum;
   /** 強化後（+1 時）の効果値 */
-  after?: number;
+  after?: number | BigNum;
   /** before/after に付与する suffix (例: "%", "×", "/s") */
   beforeSuffix?: string;
   /** 通貨種（コスト表示の色付けに使用） */
