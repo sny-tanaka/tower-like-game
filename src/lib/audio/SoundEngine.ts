@@ -26,6 +26,7 @@ export class SoundEngine {
   private bgmVolume = 0.5;
   private muted = false;
   private currentBgm: { id: BgmId; track: BgmTrack } | null = null;
+  private visibilityHandler: (() => void) | null = null;
 
   init(): void {
     if (this.ctx) return;
@@ -45,6 +46,20 @@ export class SoundEngine {
     this.masterGain.gain.value = 1.0;
     this.seGain.gain.value = this.seVolume;
     this.bgmGain.gain.value = this.bgmVolume;
+
+    // バックグラウンド時に AudioContext を suspend して、 BGM スケジューラ / OscillatorNode の
+    // 連続稼働による発熱・バッテリー消費を抑える。 復帰時に resume。
+    if (typeof document !== 'undefined') {
+      this.visibilityHandler = () => {
+        if (!this.ctx) return;
+        if (document.hidden) {
+          if (this.ctx.state === 'running') void this.ctx.suspend();
+        } else {
+          if (this.ctx.state === 'suspended') void this.ctx.resume();
+        }
+      };
+      document.addEventListener('visibilitychange', this.visibilityHandler);
+    }
   }
 
   play(id: SoundId): void {
@@ -125,6 +140,10 @@ export class SoundEngine {
   /** for tests: dispose internal state */
   destroy(): void {
     this.stopBgm();
+    if (this.visibilityHandler && typeof document !== 'undefined') {
+      document.removeEventListener('visibilitychange', this.visibilityHandler);
+      this.visibilityHandler = null;
+    }
     if (this.ctx) {
       void this.ctx.close();
       this.ctx = null;

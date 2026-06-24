@@ -1061,9 +1061,10 @@ export function useBattleLoop({ range, paused = false }: UseBattleLoopOpts): Use
           let earnedBolt = BigNum.ZERO;
           let earnedAlloy = BigNum.ZERO;
           let totalKillHeal = BigNum.ZERO;
+          let killedThisFrame = 0;
           for (const enemy of enemiesRef.current) {
             if (enemy.hp.lte(BigNum.ZERO)) {
-              setKillCount((c) => c + 1);
+              killedThisFrame += 1;
               deathEventIdRef.current += 1;
               newDeathEvents.push({
                 id: `dh-${deathEventIdRef.current}`,
@@ -1193,6 +1194,10 @@ export function useBattleLoop({ range, paused = false }: UseBattleLoopOpts): Use
               survivors.push(enemy);
             }
           }
+          // 撃破数を 1 フレーム分まとめて setState (1 体ごとに呼ぶと React の追加 render が連鎖し発熱)
+          if (killedThisFrame > 0) {
+            setKillCount((c) => c + killedThisFrame);
+          }
           // onKill heal を機体 HP に加算 (atomic、 同 tick 内の他の更新と競合しない)
           if (!totalKillHeal.isZero()) {
             state.addMachineHp(totalKillHeal);
@@ -1319,10 +1324,11 @@ export function useBattleLoop({ range, paused = false }: UseBattleLoopOpts): Use
             prevWaveElapsedMsRef.current = 0;
           }
         }
-      }
 
-      setEnemies(enemiesRef.current);
-      setWaveElapsedSec(waveElapsedMsRef.current / 1000);
+        // pause / gameover 中は表示更新もスキップ (60fps 再描画で発熱するため、 deltaSec > 0 ブロック内に置く)
+        setEnemies(enemiesRef.current);
+        setWaveElapsedSec(waveElapsedMsRef.current / 1000);
+      }
 
       rafIdRef.current = requestAnimationFrame(tick);
     };

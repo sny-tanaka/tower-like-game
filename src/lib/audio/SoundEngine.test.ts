@@ -81,7 +81,14 @@ class MockAudioContext {
     getChannelData: () => new Float32Array(length),
   }));
   createDelay = vi.fn(createMockDelay);
-  resume = vi.fn(() => Promise.resolve());
+  resume = vi.fn(() => {
+    this.state = 'running';
+    return Promise.resolve();
+  });
+  suspend = vi.fn(() => {
+    this.state = 'suspended';
+    return Promise.resolve();
+  });
   close = vi.fn(() => Promise.resolve());
 }
 
@@ -182,6 +189,51 @@ describe('SoundEngine', () => {
     expect(engine.isInitialized()).toBe(true);
     engine.destroy();
     expect(engine.isInitialized()).toBe(false);
+  });
+
+  describe('visibilitychange による AudioContext 制御 (発熱抑制)', () => {
+    it('document.hidden=true で AudioContext.suspend が呼ばれる', () => {
+      const engine = new SoundEngine();
+      engine.init();
+      const ctx = (engine as unknown as { ctx: MockAudioContext }).ctx;
+      Object.defineProperty(document, 'hidden', { configurable: true, value: true });
+      document.dispatchEvent(new Event('visibilitychange'));
+      expect(ctx.suspend).toHaveBeenCalled();
+    });
+
+    it('document.hidden=false で AudioContext.resume が呼ばれる', () => {
+      const engine = new SoundEngine();
+      engine.init();
+      const ctx = (engine as unknown as { ctx: MockAudioContext }).ctx;
+      // まず suspend させてから resume を確認
+      Object.defineProperty(document, 'hidden', { configurable: true, value: true });
+      document.dispatchEvent(new Event('visibilitychange'));
+      ctx.resume.mockClear();
+      Object.defineProperty(document, 'hidden', { configurable: true, value: false });
+      document.dispatchEvent(new Event('visibilitychange'));
+      expect(ctx.resume).toHaveBeenCalled();
+    });
+
+    it('既に suspended のとき suspend を二度呼ばない', () => {
+      const engine = new SoundEngine();
+      engine.init();
+      const ctx = (engine as unknown as { ctx: MockAudioContext }).ctx;
+      Object.defineProperty(document, 'hidden', { configurable: true, value: true });
+      document.dispatchEvent(new Event('visibilitychange'));
+      ctx.suspend.mockClear();
+      document.dispatchEvent(new Event('visibilitychange'));
+      expect(ctx.suspend).not.toHaveBeenCalled();
+    });
+
+    it('destroy() で visibilitychange listener が解除される', () => {
+      const engine = new SoundEngine();
+      engine.init();
+      const ctx = (engine as unknown as { ctx: MockAudioContext | null }).ctx!;
+      engine.destroy();
+      Object.defineProperty(document, 'hidden', { configurable: true, value: true });
+      document.dispatchEvent(new Event('visibilitychange'));
+      expect(ctx.suspend).not.toHaveBeenCalled();
+    });
   });
 
   it('setMuted(true) で isMuted() が true になる', () => {
