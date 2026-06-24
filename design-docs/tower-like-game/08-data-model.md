@@ -255,6 +255,10 @@ export function runMigrations(
 - **forward-only**: ダウングレードはサポートしない
 - **idempotent**: 同じバージョンへのマイグレーションを 2 回実行しても壊れない
 - マイグレーション失敗時は **エラーログを出してデータをそのまま残す**（ロールバックしない、新規プレイのみ可能にする）
+- **migration は同期実装で書く**（Issue #82）。
+  - 理由: `idb` ライブラリの `upgrade` コールバックは Promise を await しない。 async migration を書いても `runMigrations` の戻り値 Promise は呼び出し元 (`openDatabase`) で await されず、 upgrade transaction の oncomplete が先に発火するリスクがある。
+  - IndexedDB の API は `IDBRequest.onsuccess` コールバック内で次の `store.put()` を呼べば、 同じ upgrade transaction 内で同期チェインが完結する。 async/await を使わずにこの仕組みで書ける。
+  - 真の非同期処理（外部 API fetch 等）が必要になった場合は、 migration ではなく `seedInitialData` 相当の別ステップ（`openDatabase` の後段）で処理する。
 
 ## エクスポート / インポート
 
