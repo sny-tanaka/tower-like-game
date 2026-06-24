@@ -427,6 +427,33 @@ describe('settings slice', () => {
     expect(store.getState().bgmVolume).toBe(0.8);
     expect(store.getState().vibrationEnabled).toBe(true);
   });
+
+  it('setMuted: true→true の連続呼び出しでも true のまま', () => {
+    const store = makeStore();
+    store.getState().setMuted(true);
+    store.getState().setMuted(true);
+    expect(store.getState().muted).toBe(true);
+  });
+
+  it('setMuted: false→false の連続呼び出しでも false のまま', () => {
+    const store = makeStore();
+    store.getState().setMuted(false);
+    store.getState().setMuted(false);
+    expect(store.getState().muted).toBe(false);
+  });
+
+  it('resetSettings: muted リセット後も bgmVolume / seVolume / vibrationEnabled がデフォルト値になる', () => {
+    const store = makeStore();
+    store.getState().setMuted(true);
+    store.getState().setBgmVolume(0.1);
+    store.getState().setSeVolume(0.2);
+    store.getState().setVibrationEnabled(false);
+    store.getState().resetSettings();
+    expect(store.getState().muted).toBe(false);
+    expect(store.getState().bgmVolume).toBe(0.8);
+    expect(store.getState().seVolume).toBe(0.8);
+    expect(store.getState().vibrationEnabled).toBe(true);
+  });
 });
 
 // ---------------------------------------------------------------------------

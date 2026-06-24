@@ -215,6 +215,30 @@ describe('SoundEngine', () => {
     engine.play('tap');
     expect(engine.isInitialized()).toBe(true);
   });
+
+  it('setMuted() before init() は throw しない', () => {
+    const engine = new SoundEngine();
+    expect(() => engine.setMuted(true)).not.toThrow();
+    expect(engine.isMuted()).toBe(true);
+  });
+
+  it('setMuted(true) → setMuted(false) で isMuted() が false に戻る (init あり)', () => {
+    const engine = new SoundEngine();
+    engine.init();
+    engine.setMuted(true);
+    expect(engine.isMuted()).toBe(true);
+    engine.setMuted(false);
+    expect(engine.isMuted()).toBe(false);
+  });
+
+  it('destroy() 後に isMuted() が false にリセットされる', () => {
+    const engine = new SoundEngine();
+    engine.init();
+    engine.setMuted(true);
+    expect(engine.isMuted()).toBe(true);
+    engine.destroy();
+    expect(engine.isMuted()).toBe(false);
+  });
 });
 
 describe('SoundEngine BGM', () => {

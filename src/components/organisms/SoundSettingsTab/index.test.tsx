@@ -1,10 +1,17 @@
 import { render, screen, fireEvent } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 import { SoundSettingsTab } from './index';
 
+import { useStore } from '@/store';
+
 describe('SoundSettingsTab', () => {
+  beforeEach(() => {
+    // store の muted を初期値 false にリセット
+    useStore.setState({ muted: false });
+  });
+
   it('BGM / SE スライダーが表示される', () => {
     render(
       <SoundSettingsTab
@@ -95,5 +102,22 @@ describe('SoundSettingsTab', () => {
     );
     const toggle = screen.getByRole('switch');
     expect(toggle.getAttribute('aria-checked')).toBe('false');
+  });
+
+  it('onMuteChange なし (store 経由パス) でトグルクリック時に store の muted が更新される', async () => {
+    const user = userEvent.setup();
+    // overrideMute を渡さず、overrideBgmVolume / overrideSeVolume だけ渡すと store.muted が使われる
+    render(
+      <SoundSettingsTab
+        overrideBgmVolume={0.8}
+        overrideSeVolume={0.7}
+        // overrideMute なし → store.muted (false) を使う
+        // onMuteChange なし → store.setMuted (store 更新パス) が呼ばれる
+      />
+    );
+    expect(useStore.getState().muted).toBe(false);
+    const toggle = screen.getByRole('switch');
+    await user.click(toggle);
+    expect(useStore.getState().muted).toBe(true);
   });
 });
