@@ -106,6 +106,15 @@ function mergeEffects(a: PatchEffect, b: PatchEffect): PatchEffect {
 // ---------------------------------------------------------------------------
 
 /**
+ * 「効果なし」 を表す共有 immutable オブジェクト。
+ * 装着パッチが 0 件 or 該当 trigger が空のとき、 毎呼び出しで `{}` を new せず
+ * これを返す。 H2-8: 戦闘ループの evaluatePatches は onAttack / onKill / onHit 等で
+ * 毎フレーム複数回呼ばれるため、 GC 圧と新規オブジェクトの allocate を排除する。
+ * (`Object.freeze` で mutation を防止。 spread copy で使用するため freeze していても安全)
+ */
+const EMPTY_EFFECT: PatchEffect = Object.freeze({}) as PatchEffect;
+
+/**
  * 装着中の全パッチをイベントに対して評価し、効果を集約する。
  *
  * @param equipped - 装着中のパッチ配列
@@ -118,7 +127,12 @@ export function evaluatePatches(
   trigger: PatchTrigger,
   rng: () => number
 ): PatchEffect {
-  let merged: PatchEffect = {};
+  // H2-8: 装着パッチが 0 件なら即座に共有 EMPTY_EFFECT を返す。
+  // 序盤 (パッチ未装着) のランでは evaluatePatches が毎フレーム複数回呼ばれるため
+  // ループに入らない早期 return で空回り CPU を排除。
+  if (equipped.length === 0) return EMPTY_EFFECT;
+
+  let merged: PatchEffect | null = null;
 
   for (const patch of equipped) {
     const applyFn = PATCH_APPLY_MAP[patch.name];
@@ -127,8 +141,12 @@ export function evaluatePatches(
     const effect = applyFn(patch, trigger, rng);
     if (effect === null) continue;
 
-    merged = mergeEffects(merged, effect);
+    // H2-8: 最初の effect は merge せずそのまま採用 (merge は 2 件目以降で初めて allocate)。
+    // 該当 trigger を持つパッチが 1 件もないケース (装着パッチ ≠ 0 だが trigger 不一致)、
+    // または 1 件だけのケースで `{ ...{}, ...effect }` のような無駄な new を防ぐ。
+    merged = merged === null ? effect : mergeEffects(merged, effect);
   }
 
-  return merged;
+  // 1 件も該当 effect がなければ共有 EMPTY_EFFECT
+  return merged ?? EMPTY_EFFECT;
 }
