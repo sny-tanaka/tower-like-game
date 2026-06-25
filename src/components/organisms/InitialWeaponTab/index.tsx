@@ -8,6 +8,7 @@ import {
   buildCutterStats,
   buildLaserStats,
   buildThunderStats,
+  calcMachineAttackSpeed,
   calcMachineBaseAttack,
   calcMachineRange,
 } from '@/components/organisms/WeaponDetailsTab';
@@ -24,33 +25,38 @@ interface WeaponDef {
   kind: WeaponType;
   name: string;
   description: string;
-  buildStats: (lv: number, baseAttack: number, machineRange: number) => WeaponStat[];
+  buildStats: (
+    lv: number,
+    baseAttack: number,
+    machineRange: number,
+    machineAttackSpeed: number
+  ) => WeaponStat[];
 }
 
 const WEAPON_DEFS: WeaponDef[] = [
   {
     kind: 'laser',
     name: 'LASER',
-    description: '高速直進ビーム。貫通で削る。',
+    description: '中距離単体ぶち抜き。Lv でクリ倍率が伸びる。',
     buildStats: buildLaserStats,
   },
   {
     kind: 'cannon',
     name: 'CANNON',
-    description: '範囲爆発で群れを薙ぐ。',
+    description: '遠距離 splash 爆発（マシン背面はカット）。Lv で爆発半径が伸びる。',
     buildStats: buildCannonStats,
   },
   {
     kind: 'thunder',
     name: 'THUNDER',
-    description: '同時 3 体を撃つ電撃。',
+    description: '中距離 3 体同時落雷 + 攻撃時 HP 回復。Lv で回復率が伸びる。',
     buildStats: buildThunderStats,
   },
   {
     kind: 'cutter',
     name: 'CUTTER',
-    description: 'マシン周囲を旋回する斬撃。',
-    buildStats: (lv, baseAttack) => buildCutterStats(lv, baseAttack),
+    description: '近接 2 枚刃旋回。Lv で Overdrive 持続が伸びる。',
+    buildStats: buildCutterStats,
   },
 ];
 
@@ -81,6 +87,7 @@ export function InitialWeaponTab({ selectedWeapon, onSelect }: InitialWeaponTabP
 
   const baseAttack = calcMachineBaseAttack(machineLevels.baseAttack);
   const machineRange = calcMachineRange(machineLevels.range);
+  const machineAttackSpeed = calcMachineAttackSpeed(machineLevels.attackSpeed);
 
   const active = selectedWeapon ?? storeWeapon;
 
@@ -113,7 +120,7 @@ export function InitialWeaponTab({ selectedWeapon, onSelect }: InitialWeaponTabP
             weapon={w.kind}
             name={w.name}
             description={w.description}
-            stats={w.buildStats(0, baseAttack, machineRange)}
+            stats={w.buildStats(0, baseAttack, machineRange, machineAttackSpeed)}
             layout="tall"
             active={w.kind === active}
             onClick={() => handleSelect(w.kind)}
