@@ -56,6 +56,12 @@ export interface BattleActions {
     initialWeapon: WeaponType;
     /** マシン本体最大 HP の base 値 (永続強化込み / RunWorkshop hpMul は含まない) */
     baseMachineMaxHp: BigNum;
+    /**
+     * マシン強化「アクティブ CD 短縮率」の漸近実効値 (0〜0.5)。
+     * 省略時は 0 (短縮なし)。 ラン開始時のゲージ初期値 (= 60s から短縮された値) と
+     * fireActive 時の CD 再設定に使われる。
+     */
+    activeCdReduction?: number;
     /** 開始 Tier。省略時は 1 */
     initialTier?: number;
     /**
@@ -153,7 +159,13 @@ function clampBig(value: BigNum, min: BigNum, max: BigNum): BigNum {
 export const createBattleSlice: StateCreator<RootStore, [], [], BattleSlice> = (set, get) => ({
   ...defaultBattleState,
 
-  startRun: ({ initialWeapon, baseMachineMaxHp, initialTier, initialWave }) => {
+  startRun: ({
+    initialWeapon,
+    baseMachineMaxHp,
+    activeCdReduction = 0,
+    initialTier,
+    initialWave,
+  }) => {
     // ラン跨ぎで RunWorkshop の Lv をリセット (maxHp 計算の前に必須)。
     // ここで先にリセットしないと、 前ランの hpMul Lv が残ったまま読まれて、
     // 新ランの machineMaxHp に前回の HP 倍率が乗ってしまうバグになる。
@@ -162,6 +174,9 @@ export const createBattleSlice: StateCreator<RootStore, [], [], BattleSlice> = (
     const multiplier = calcRunWorkshopMultiplier(hpMulLv);
     const machineMaxHp = baseMachineMaxHp.mulNumber(multiplier);
     const currentState = get();
+    // マシン強化「アクティブ CD 短縮」 を初回ゲージ充填にも反映させる。
+    // (旧バグ: 初回は 60s 固定、 2 回目以降の fireActive 経路だけ短縮されていた)
+    const initialCdSec = DEFAULT_ACTIVE_MAX_SEC * (1 - Math.max(0, Math.min(1, activeCdReduction)));
     set({
       isRunActive: true,
       screw: BigNum.ZERO,
@@ -172,8 +187,8 @@ export const createBattleSlice: StateCreator<RootStore, [], [], BattleSlice> = (
       currentWave: initialWave ?? 1,
       currentWeapon: initialWeapon,
       weaponSwitchCdSec: 0,
-      // ラン開始時はゲージ 0 = CD 満タン (= DEFAULT_ACTIVE_MAX_SEC 待つ)
-      activeCdSec: DEFAULT_ACTIVE_MAX_SEC,
+      // ラン開始時はゲージ 0 = CD 満タン (= activeCdReduction 適用後の秒数を待つ)
+      activeCdSec: initialCdSec,
       isAutoActive: false,
       isPaused: false,
       // ラン開始時の bolt/alloy 残高をスナップショット (リザルト獲得量算出用)

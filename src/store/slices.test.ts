@@ -526,8 +526,39 @@ describe('battle slice', () => {
     expect(s.currentWeapon).toBe('cannon');
     expect(s.currentTier).toBe(1);
     expect(s.currentWave).toBe(1);
-    // 仕様: ラン開始時はアクティブゲージ 0 (= CD 満タン) でスタート
-    expect(s.activeCdSec).toBe(60); // DEFAULT_ACTIVE_MAX_SEC
+    // 仕様: ラン開始時はアクティブゲージ 0 (= CD 満タン) でスタート、
+    // activeCdReduction=0 (= マシン強化なし) なら DEFAULT_ACTIVE_MAX_SEC のまま
+    expect(s.activeCdSec).toBe(60);
+  });
+
+  it('startRun: activeCdReduction=0.25 のとき初回ゲージ充填は 60×(1-0.25) = 45s に短縮される', () => {
+    const store = makeStore();
+    store.getState().startRun({
+      initialWeapon: 'cannon',
+      baseMachineMaxHp: BigNum.fromNumber(1000),
+      activeCdReduction: 0.25,
+    });
+    expect(store.getState().activeCdSec).toBe(45);
+  });
+
+  it('startRun: activeCdReduction=0.5 (上限) で初回充填が 30s に短縮される', () => {
+    const store = makeStore();
+    store.getState().startRun({
+      initialWeapon: 'cannon',
+      baseMachineMaxHp: BigNum.fromNumber(1000),
+      activeCdReduction: 0.5,
+    });
+    expect(store.getState().activeCdSec).toBe(30);
+  });
+
+  it('startRun: activeCdReduction が範囲外 (負値) でも 0 にクランプして 60s で初期化', () => {
+    const store = makeStore();
+    store.getState().startRun({
+      initialWeapon: 'cannon',
+      baseMachineMaxHp: BigNum.fromNumber(1000),
+      activeCdReduction: -0.3,
+    });
+    expect(store.getState().activeCdSec).toBe(60);
   });
 
   it('startRun: initialTier=1 を明示指定すると currentTier が 1 になる', () => {
