@@ -30,8 +30,21 @@ export const CANNON_BASE_AS = 0.5;
 /** Cannon 底値 武器ダメージ倍率 (DPS = 0.5 × 3.0 = 1.5) */
 export const CANNON_BASE_DAMAGE_MUL = 3.0;
 
-/** 爆発半径 底値 (px) */
-const BASE_SPLASH_RADIUS_PX = 30;
+/**
+ * 爆発半径 底値 (フィールド % 半径)。
+ *
+ * v1.1.2 で「ダメージ判定半径 = BlastFx の見た目」 に統一する目的で大幅縮小。
+ * 旧仕様は 30 を「px」 と称しつつ実体は「フィールド %」 として比較していたため、
+ * Lv 0 の cannon でフィールド直径 60% の爆風判定が出てしまい、 BlastFx 見た目
+ * (12 vmin ≒ フィールド 8.5%) と大きく乖離していた (= 明らかに範囲外でも当たる)。
+ *
+ * 新仕様: BASE = 8 (フィールド % 半径)、 Lv あたり +0.1 (Lv 100 で 18)。
+ * 単位は 「敵 position の % 距離と同じ系」。 BlastFx 側もこの値で見た目を出す。
+ */
+const BASE_SPLASH_RADIUS_PCT = 8;
+
+/** Lv あたりの splash 半径増分 (フィールド %) */
+const SPLASH_RADIUS_PER_LV_PCT = 0.1;
 
 /** Volley 発射数 */
 export const VOLLEY_SHOTS = 5;
@@ -111,7 +124,7 @@ export function predictCannonImpact(
 export interface CannonStats {
   /** 実効 attacks/sec（マシン AS 倍率・RW は呼び出し元で適用済み想定） */
   attackPerSec: number;
-  /** 爆発半径 (px)。小数 OK */
+  /** 爆発半径 (フィールド % 半径、 敵 position の % 距離と直接比較する系)。 小数 OK */
   splashRadius: number;
   /** 武器ダメージ倍率（Lv スケール） */
   damageMul: number;
@@ -141,8 +154,10 @@ export function cannonStats(weaponLv: number): CannonStats {
   const attackPerSec = CANNON_BASE_AS;
   const volleyDamageMul = VOLLEY_DAMAGE_MUL;
 
-  // Cannon の Lv 軸: splash 半径 (30 + 0.5 × Lv) px
-  const splashRadius = BASE_SPLASH_RADIUS_PX + 0.5 * lv;
+  // Cannon の Lv 軸: splash 半径 (8 + 0.1 × Lv) フィールド %。
+  // 単位は敵 position の % 距離と同じ系 (cannonApplySplash の dist() と直接比較)。
+  // BlastFx 側もこの値で見た目を出す (= 「見た目 = 当たり判定」 を保証)。
+  const splashRadius = BASE_SPLASH_RADIUS_PCT + SPLASH_RADIUS_PER_LV_PCT * lv;
 
   return {
     attackPerSec,

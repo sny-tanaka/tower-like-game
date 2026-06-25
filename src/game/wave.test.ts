@@ -207,36 +207,44 @@ describe('getSpawnsAtTime', () => {
     expect(bosses).toHaveLength(1);
   });
 
-  // ボス wave の通常敵スポーン仕様 (BUG-W30-1 regression):
-  // ボスは upperSpawnSec=25s に出現。 それ以降のフレームで通常敵が湧くと
-  // 「ボスを倒しても enemiesCount > 0」 で advanceTier しないので、 boss wave は
-  // upperSpawnSec までで通常敵スポーンを打ち切る。
-  it('W30: ボス出現タイミング (25s) 以降は通常敵を 1 体もスポーンしない', () => {
+  // ボス wave の通常敵スポーン仕様 (v1.1.2):
+  // ボスは upperSpawnSec=25s に出現。 それ以降は通常敵スポーンを「通常 wave の半分の頻度」
+  // (= spawnIntervalSec × 2) で継続する。 advanceTier は bossAlive===false で判定するので
+  // 通常敵が残っていても tier クリアを阻害しない。
+  //
+  // W30 の spawnIntervalSec = TIER_BASE.SPAWN_INTERVAL(=2) / waveSpawnFactor(30)(≒2.0) ≒ 1.0 秒。
+  // ボス後の半頻度 = 1.0 × 2 = 2.0 秒/体。
+  it('W30: ボス出現タイミング (25s) 以降も半頻度で通常敵が湧き続ける', () => {
     idCounter = 0;
     const w30 = waves[29]!;
-    // 25.0s → 60.0s: ボス出現後の 35 秒間。 spawnInterval=0.25s で本来なら 140 体湧くはず
+    // 25.0s → 60.0s: ボス出現後の 35 秒間。 半頻度 2.0s 間隔で floor(35/2)=17 体湧く
     const spawns = getSpawnsAtTime(w30, 60_000, 25_000, constRng, idGen);
     const normals = spawns.filter((s) => s.kind === 'normal');
-    expect(normals).toHaveLength(0);
+    expect(normals).toHaveLength(17);
   });
 
-  it('W30: ボス出現を跨ぐフレームは upperSpawnSec までの通常敵だけ湧く', () => {
+  it('W30: ボス出現を跨ぐフレームは「ボス前は通常テンポ + ボス後は半テンポ」 を正しく合算', () => {
     idCounter = 0;
     const w30 = waves[29]!;
-    // 24.9s → 25.1s をまたぐ。 24.9s 時点で normalCount = floor(24.9/0.25) = 99
-    // upperSpawnSec=25s で打ち切り → 25.0s 時点で normalCount = floor(25.0/0.25) = 100
-    // 差分 1 体だけが湧く (24.9s〜25.0s の 1 体分)
-    const spawns = getSpawnsAtTime(w30, 25_100, 24_900, constRng, idGen);
+    // 24.9s → 25.5s をまたぐ。
+    // - 24.9s 時点: ボス前累積 = floor(24.9/1.0) = 24
+    // - 25.5s 時点: ボス前累積 = floor(25/1.0)=25 + ボス後 floor(0.5/2.0)=0 → 25
+    // 差分 = 1 体 (ボス出現タイミング 25s に湧く 1 体のみ、 ボス後は 0.5s しか経ってない)
+    const spawns = getSpawnsAtTime(w30, 25_500, 24_900, constRng, idGen);
     const normals = spawns.filter((s) => s.kind === 'normal');
     expect(normals).toHaveLength(1);
   });
 
-  it('W30: ボス出現後にもう一度呼ばれても通常敵が湧かない (cap 二重適用の確認)', () => {
+  it('W30: ボス出現後の単発フレームでも半頻度の通常敵が湧く', () => {
     idCounter = 0;
     const w30 = waves[29]!;
-    // 26s → 30s: 全区間が upperSpawnSec の外
+    // 26s → 30s: 全区間がボス後 (= 半頻度 2.0s 間隔)。
+    // - 26s 時点: ボス前 25 + ボス後 floor(1/2)=0 → 25
+    // - 30s 時点: ボス前 25 + ボス後 floor(5/2)=2 → 27
+    // 差分 = 2 体
     const spawns = getSpawnsAtTime(w30, 30_000, 26_000, constRng, idGen);
-    expect(spawns.filter((s) => s.kind === 'normal')).toHaveLength(0);
+    const normals = spawns.filter((s) => s.kind === 'normal');
+    expect(normals).toHaveLength(2);
     expect(spawns.filter((s) => s.kind === 'boss')).toHaveLength(0);
   });
 

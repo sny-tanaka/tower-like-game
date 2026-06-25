@@ -28,7 +28,9 @@ describe('BlastFx', () => {
     expect(onDone).toHaveBeenCalledTimes(1);
   });
 
-  test('radius が CSS 変数 (--blast-size = radius*2 vmin) に反映される', () => {
+  test('radius が CSS 変数 (--blast-size = radius*2 %) に反映される', () => {
+    // v1.1.2: 単位を vmin → % に変更 (親 .field の % に対する直径)。
+    // これでフィールド % 半径 (= 敵 position と同系) で動作し、 ダメージ判定と完全同期する。
     const { container } = render(
       <BlastFx
         x={50}
@@ -37,7 +39,7 @@ describe('BlastFx', () => {
       />
     );
     const wrap = container.firstChild as HTMLElement;
-    expect(wrap.style.getPropertyValue('--blast-size')).toBe('40vmin');
+    expect(wrap.style.getPropertyValue('--blast-size')).toBe('40%');
   });
 
   test('Issue #87 回帰: <style> タグを動的注入しない', () => {

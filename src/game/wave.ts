@@ -128,16 +128,30 @@ export function getSpawnsAtTime(
   const upperSpawnSec = schedule.durationSec - UPPER_ENEMY_LEAD_SEC;
 
   // 通常敵スポーン
-  // boss wave (W30) では「ボス出現タイミング (upperSpawnSec) 以降は通常敵を出さない」。
-  // ボス撃破で Tier クリア (advanceTier) する仕様上、 ボス出現後も通常敵が湧き続けると
-  // 「ボスを倒しても通常敵が残って enemiesCount > 0」 になり、 advanceTier を阻害する。
-  // (BUG-W30-1: ボス撃破で Tier クリアが出ない致命的不具合の原因)
-  const elapsedSecForNormal =
-    schedule.eliteKind === 'boss' ? Math.min(elapsedSec, upperSpawnSec) : elapsedSec;
-  const prevElapsedSecForNormal =
-    schedule.eliteKind === 'boss' ? Math.min(prevElapsedSec, upperSpawnSec) : prevElapsedSec;
-  const normalCount = Math.floor(elapsedSecForNormal / schedule.spawnIntervalSec);
-  const prevNormalCount = Math.floor(prevElapsedSecForNormal / schedule.spawnIntervalSec);
+  // boss wave (W30): ボス出現以降も通常敵を湧かせるが「通常 wave の半分の頻度」 に落とす。
+  // 実装: ボス出現タイミング (upperSpawnSec) 以降は spawnIntervalSec を 2 倍にする。
+  // 累積本数は「ボス出現前: 通常テンポ、 ボス出現後: 半テンポ」 の合算で計算する。
+  // advanceTier は bossAlive===false で判定する (decideWaveAdvance) ので、 ボス出現後に
+  // 通常敵が湧き続けても tier クリアを阻害しない (= ボスさえ倒せば残雑魚は無視できる)。
+  const BOSS_NORMAL_SPAWN_INTERVAL_MUL = 2;
+  const normalCount =
+    schedule.eliteKind === 'boss'
+      ? countBossNormalSpawns(
+          elapsedSec,
+          upperSpawnSec,
+          schedule.spawnIntervalSec,
+          BOSS_NORMAL_SPAWN_INTERVAL_MUL
+        )
+      : Math.floor(elapsedSec / schedule.spawnIntervalSec);
+  const prevNormalCount =
+    schedule.eliteKind === 'boss'
+      ? countBossNormalSpawns(
+          prevElapsedSec,
+          upperSpawnSec,
+          schedule.spawnIntervalSec,
+          BOSS_NORMAL_SPAWN_INTERVAL_MUL
+        )
+      : Math.floor(prevElapsedSec / schedule.spawnIntervalSec);
   const toSpawn = normalCount - prevNormalCount;
 
   for (let i = 0; i < toSpawn; i++) {
@@ -161,6 +175,32 @@ export function getSpawnsAtTime(
 // ---------------------------------------------------------------------------
 // ヘルパー
 // ---------------------------------------------------------------------------
+
+/**
+ * boss wave での通常敵累積スポーン数を計算する。
+ * - 0〜upperSpawnSec: 通常テンポ (intervalSec)
+ * - upperSpawnSec〜: 半テンポ (intervalSec × intervalMul)
+ *
+ * elapsedSec が upperSpawnSec 未満なら、 通常テンポでの累積数のみ。
+ * elapsedSec が upperSpawnSec 以上なら、 upperSpawnSec までの通常テンポ累積数 +
+ * その後の半テンポ累積数 を合算して返す。
+ */
+function countBossNormalSpawns(
+  elapsedSec: number,
+  upperSpawnSec: number,
+  intervalSec: number,
+  intervalMul: number
+): number {
+  if (elapsedSec <= 0) return 0;
+  if (elapsedSec <= upperSpawnSec) {
+    return Math.floor(elapsedSec / intervalSec);
+  }
+  const beforeBoss = Math.floor(upperSpawnSec / intervalSec);
+  const afterBossSec = elapsedSec - upperSpawnSec;
+  const afterBossInterval = intervalSec * intervalMul;
+  const afterBoss = Math.floor(afterBossSec / afterBossInterval);
+  return beforeBoss + afterBoss;
+}
 
 /**
  * 重み付きランダムでサブタイプを選択する。

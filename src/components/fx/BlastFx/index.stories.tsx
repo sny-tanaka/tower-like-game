@@ -40,6 +40,9 @@ function LoopStage({ radius, color }: { radius?: number; color?: string }) {
   );
 }
 
+// v1.1.2: radius は「親要素サイズに対する % 半径」 (旧 vmin → 新 %)。
+// LoopStage の親は 320×240 のコンテナなので、 radius=8 (= 直径 16% ≒ 51×38 px) で
+// 旧 vmin 表現とほぼ同じ大きさになる。
 export const Small: Story = {
   render: () => (
     <LoopStage
