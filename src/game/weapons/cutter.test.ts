@@ -137,18 +137,20 @@ describe('cutterNormalAttack', () => {
     expect(result.hits).toHaveLength(0);
   });
 
-  it('blades=2 (固定): 1 fire の sweep 合計は 360° → どの方向の敵も候補、 先頭 2 体ヒット', () => {
+  it('v1.1.2: blades=2 で 1 fire の sweep 合計は 360° → 範囲内の全敵にヒット (上限なし)', () => {
     const stats = cutterStats(0);
     const right = inRange('right', 70, 50); // 0°
     const down = inRange('down', 50, 70); // 90°
     const left = inRange('left', 30, 50); // 180°
     const up = inRange('up', 50, 30); // 270°
     const result = cutterNormalAttack(machine, stats, [right, down, left, up], 0, rngNever);
-    // blades=2 で先頭 2 体 (enemiesInRange の順)
-    expect(result.hits.map((h) => h.enemyId)).toEqual(['right', 'down']);
+    // v1.1.2: 刃が物理的に触れた敵全員にヒット (旧仕様の「最大 blades 体」上限を撤廃)
+    expect(result.hits.map((h) => h.enemyId).sort()).toEqual(
+      ['down', 'left', 'right', 'up'].sort()
+    );
   });
 
-  it('Lv100 でも blades=2 のまま 2 体までしかヒットしない', () => {
+  it('v1.1.2: Lv100 でも blades=2、4 体範囲内なら 4 体全員ヒット', () => {
     const stats = cutterStats(100);
     const enemies = [
       inRange('e1', 70, 50),
@@ -157,7 +159,22 @@ describe('cutterNormalAttack', () => {
       inRange('e4', 50, 30),
     ];
     const result = cutterNormalAttack(machine, stats, enemies, 0, rngNever);
-    expect(result.hits).toHaveLength(2);
+    expect(result.hits).toHaveLength(4);
+  });
+
+  it('v1.1.2: 1 rotation (= blades fires) で各敵が blades 回 (=2 回) ヒットを受ける', () => {
+    const stats = cutterStats(0);
+    const blades = stats.blades; // 2
+    const enemy = inRange('e1', 70, 50);
+    // 2 連続の fire で計 360° カバー、 各 fire で 1 ヒット
+    let angle = 0;
+    let totalHits = 0;
+    for (let i = 0; i < blades; i++) {
+      const result = cutterNormalAttack(machine, stats, [enemy], angle, rngNever);
+      totalHits += result.hits.length;
+      angle = result.angle;
+    }
+    expect(totalHits).toBe(blades);
   });
 
   it('blades=2 default: 反対側 (180°) の敵にもヒット', () => {

@@ -12,7 +12,11 @@ export interface CutterStats {
   attackPerSec: number;
   /** 旋回半径（px）。敵の position との距離比較に使う。Lv 不問で固定 */
   orbitRadius: number;
-  /** 刃の枚数（旋回上で同時に判定される刃の数）。Lv 不問で固定 2 */
+  /**
+   * 刃の枚数。 Lv 不問で固定 2。
+   * 視覚的な刃の本数 = 1 rotation あたりの 1 体あたりヒット数 (v1.1.2)。
+   * blades=2 なら 1 rotation で各敵に 2 回ヒット (Blade A → Blade B が順に通過)。
+   */
   blades: number;
   /** 通常攻撃ダメージ倍率 (×1.02^Lv) */
   damageMul: number;
@@ -129,8 +133,14 @@ export function isAngleInRange(angleDeg: number, startDeg: number, spanDeg: numb
  *
  * 1 fire = 「視覚 1 周の 1 / blades 分」 を担当する判定。 各刃 (blades 個、 360/blades 度間隔) が
  * 前フレームの fire 時点 currentAngleDeg から sweepDeg(=360/blades) 度 進む間に通過する弧 を
- * 担当範囲とし、 その範囲内 (= orbitRadius 以内 + 角度) に居る敵にヒット判定。
+ * 担当範囲とし、 その範囲内 (= orbitRadius 以内 + 角度) に居る **全敵** にヒット判定。
  * 全 blades 個の担当範囲を合わせると 360° = 全周をカバーする (= 「視覚的に刃が通過した = 当たる」)。
+ *
+ * v1.1.2: 刃が物理的に通過した敵全員にダメージを与える仕様に変更。
+ * 「最大 effectiveBlades 体」 という旧上限は撤廃。
+ *   1 fire (= sweepDeg 進行) の間に N 体が刃の弧上にいれば N 体全員にヒット。
+ *   1 rotation (= blades fires) すると、 各敵は blades 回ヒットを受ける
+ *   (blades=2 の場合、 異なるフレームで Blade A と Blade B が順に通過するため)。
  *
  * blades は通常 stats.blades (= CUTTER_BLADES = 2) を使う。 引数で明示した場合はそれを優先する
  * (テスト用)。
@@ -163,16 +173,13 @@ export function cutterNormalAttack(
     bladeStarts.push(currentAngleDeg + i * sweepDeg);
   }
 
-  // 敵がいずれかの刃の sweep 範囲に入っていればヒット候補
-  const onSweep = enemiesInRange.filter((enemy) => {
+  // 敵がいずれかの刃の sweep 範囲に入っていればヒット (v1.1.2 で上限撤廃 — 刃が触れた敵全員)
+  const targets = enemiesInRange.filter((enemy) => {
     const dx = enemy.position.x - machineX;
     const dy = enemy.position.y - machineY;
     const enemyAngle = (Math.atan2(dy, dx) * 180) / Math.PI;
     return bladeStarts.some((start) => isAngleInRange(enemyAngle, start, sweepDeg));
   });
-
-  // blades 枚数 = 1 fire で同時にヒットできる敵の最大数
-  const targets = onSweep.slice(0, effectiveBlades);
 
   const hits = targets.map((enemy) => {
     const isCrit = rollCrit(machine.critRate, rng);
