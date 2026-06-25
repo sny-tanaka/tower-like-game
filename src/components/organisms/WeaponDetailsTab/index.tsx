@@ -194,10 +194,11 @@ export function buildCutterStats(
 // 武器固定メタデータ
 // ---------------------------------------------------------------------------
 
-interface WeaponMeta {
+export interface WeaponMeta {
   kind: 'laser' | 'cannon' | 'thunder' | 'cutter';
   name: string;
   description: string;
+  activeSkillDescription: string;
   buildStats: (
     lv: number,
     baseAttack: number,
@@ -206,29 +207,33 @@ interface WeaponMeta {
   ) => WeaponStat[];
 }
 
-const WEAPON_META: WeaponMeta[] = [
+export const WEAPON_META: WeaponMeta[] = [
   {
     kind: 'laser',
     name: 'LASER',
-    description: '中距離単体ぶち抜き。Lv でクリ倍率が伸びる',
+    description: '単体特化の連射型レーザー',
+    activeSkillDescription: '直線上の敵を殲滅する高威力の極太ビームを放つ',
     buildStats: buildLaserStats,
   },
   {
     kind: 'cannon',
     name: 'CANNON',
-    description: '遠距離 splash 爆発（マシン背面はカット）。Lv で爆発半径が伸びる',
+    description: '爆発範囲にも複数ヒットする',
+    activeSkillDescription: '周囲に5発の大きな砲撃を発射する',
     buildStats: buildCannonStats,
   },
   {
     kind: 'thunder',
     name: 'THUNDER',
-    description: '中距離 3 体同時落雷 + 攻撃時 HP 回復。Lv で回復率が伸びる',
+    description: '最大3体の敵に同時に雷を落とす',
+    activeSkillDescription: '射程無限の全範囲攻撃',
     buildStats: buildThunderStats,
   },
   {
     kind: 'cutter',
     name: 'CUTTER',
-    description: '近接 2 枚刃旋回。Lv で Overdrive 持続が伸びる',
+    description: 'マシンの周囲を回転する2枚の刃',
+    activeSkillDescription: '一定時間回転速度と攻撃力が大幅に増加する',
     buildStats: buildCutterStats,
   },
 ];
@@ -256,6 +261,7 @@ export function WeaponDetailsTab() {
           weapon={meta.kind}
           name={meta.name}
           description={meta.description}
+          activeSkillDescription={meta.activeSkillDescription}
           stats={meta.buildStats(weaponLv, baseAttack, machineRange, machineAttackSpeed)}
           layout="wide"
         />

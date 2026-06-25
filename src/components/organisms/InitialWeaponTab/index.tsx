@@ -2,12 +2,8 @@ import styles from './style.module.scss';
 
 import { Text } from '@/components/atoms/Text';
 import { WeaponPreview } from '@/components/molecules/WeaponPreview';
-import type { WeaponStat } from '@/components/molecules/WeaponPreview';
 import {
-  buildCannonStats,
-  buildCutterStats,
-  buildLaserStats,
-  buildThunderStats,
+  WEAPON_META,
   calcMachineAttackSpeed,
   calcMachineBaseAttack,
   calcMachineRange,
@@ -15,50 +11,8 @@ import {
 import { useStore } from '@/store';
 import type { WeaponType } from '@/store/slices/weapons';
 
-// ---------------------------------------------------------------------------
-// 武器メタ定義 (Lv 0 固定の表示)
-// 数値は WeaponDetailsTab と同じ計算経路 (game/weapons の *Stats(0)) を使うので、
-// 仕様変更時に両画面とも自動追従する。
-// ---------------------------------------------------------------------------
-
-interface WeaponDef {
-  kind: WeaponType;
-  name: string;
-  description: string;
-  buildStats: (
-    lv: number,
-    baseAttack: number,
-    machineRange: number,
-    machineAttackSpeed: number
-  ) => WeaponStat[];
-}
-
-const WEAPON_DEFS: WeaponDef[] = [
-  {
-    kind: 'laser',
-    name: 'LASER',
-    description: '中距離単体ぶち抜き。Lv でクリ倍率が伸びる。',
-    buildStats: buildLaserStats,
-  },
-  {
-    kind: 'cannon',
-    name: 'CANNON',
-    description: '遠距離 splash 爆発（マシン背面はカット）。Lv で爆発半径が伸びる。',
-    buildStats: buildCannonStats,
-  },
-  {
-    kind: 'thunder',
-    name: 'THUNDER',
-    description: '中距離 3 体同時落雷 + 攻撃時 HP 回復。Lv で回復率が伸びる。',
-    buildStats: buildThunderStats,
-  },
-  {
-    kind: 'cutter',
-    name: 'CUTTER',
-    description: '近接 2 枚刃旋回。Lv で Overdrive 持続が伸びる。',
-    buildStats: buildCutterStats,
-  },
-];
+// 武器メタは WeaponDetailsTab から共通 import (WEAPON_META)。
+// description / activeSkillDescription / buildStats / name が両画面で同一になる。
 
 // ---------------------------------------------------------------------------
 // 型定義
@@ -114,12 +68,13 @@ export function InitialWeaponTab({ selectedWeapon, onSelect }: InitialWeaponTabP
 
       {/* WeaponPreview グリッド（2 列） */}
       <div className={styles.grid}>
-        {WEAPON_DEFS.map((w) => (
+        {WEAPON_META.map((w) => (
           <WeaponPreview
             key={w.kind}
             weapon={w.kind}
             name={w.name}
             description={w.description}
+            activeSkillDescription={w.activeSkillDescription}
             stats={w.buildStats(0, baseAttack, machineRange, machineAttackSpeed)}
             layout="tall"
             active={w.kind === active}

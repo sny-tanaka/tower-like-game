@@ -167,6 +167,30 @@
   white-space: nowrap;
 }
 
+/* アクティブスキル説明 (ステ 2x2 グリッドの下に表示) */
+.activeSkill {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding-top: 6px;
+  border-top: 1px dashed var(--c-border-faint);
+}
+
+.activeSkillLabel {
+  font-family: var(--ff-display);
+  font-size: 9.5px;
+  font-weight: 600;
+  line-height: 1;
+  letter-spacing: var(--ls-loose);
+  color: var(--c-secondary);
+}
+
+.activeSkillText {
+  font-size: 12px;
+  line-height: 1.45;
+  color: var(--c-text-mid);
+}
+
 /* locked バッジ */
 .lockedBadge {
   display: flex;
