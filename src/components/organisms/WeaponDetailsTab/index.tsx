@@ -100,7 +100,7 @@ export function buildCutterStats(weaponLv: number, baseAttack: number): WeaponSt
   return [
     { label: 'DMG', value: calcDisplayDamage(baseAttack, s.damageMul), accent: 'primary' },
     { label: '回転半径', value: round1(s.orbitRadius), suffix: 'm' },
-    { label: '刃の数', value: s.simultaneousHits },
+    { label: '刃の数', value: s.blades },
     { label: '回転速度', value: round1(s.attackPerSec), suffix: '/s' },
   ];
 }

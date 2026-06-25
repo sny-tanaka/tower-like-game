@@ -89,9 +89,9 @@ describe('buildCutterStats', () => {
     expect(stats.find((s) => s.label === '回転半径')?.value).toBe(80);
   });
 
-  it('Lv 0 で刃の数 = 1', () => {
+  it('Lv 0 で刃の数 = 2 (固定)', () => {
     const stats = buildCutterStats(0, BASE_ATTACK);
-    expect(stats.find((s) => s.label === '刃の数')?.value).toBe(1);
+    expect(stats.find((s) => s.label === '刃の数')?.value).toBe(2);
   });
 
   it('Lv 0 で DMG = baseAttack × CUTTER_BASE_DAMAGE_MUL', () => {

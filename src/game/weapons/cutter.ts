@@ -10,19 +10,17 @@ import { BigNum } from '@/lib/bignum/BigNum';
 export interface CutterStats {
   /** 攻撃速度 (attacks/sec)。旋回ヒット間隔として扱う */
   attackPerSec: number;
-  /** 旋回半径（px）。敵の position との距離比較に使う */
+  /** 旋回半径（px）。敵の position との距離比較に使う。Lv 不問で固定 */
   orbitRadius: number;
-  /** 同時ヒット数（旋回上の敵に同時にダメージを与える最大数） */
-  simultaneousHits: number;
+  /** 刃の枚数（旋回上で同時に判定される刃の数）。Lv 不問で固定 2 */
+  blades: number;
   /** 通常攻撃ダメージ倍率 (×1.02^Lv) */
   damageMul: number;
-  /** Overdrive CD（秒） */
-  overdriveCdSec: number;
-  /** Overdrive 持続秒数 */
+  /** Overdrive 持続秒数 (8 + 0.1×Lv) */
   overdriveDurationSec: number;
   /** Overdrive 中の AS 倍率 */
   overdriveAttackSpeedMul: number;
-  /** Overdrive 中のダメ倍率（仕様: AS バフのみなので 1.0） */
+  /** Overdrive 中のダメ倍率 (AS×ダメ×blades の DPS 倍率を生成) */
   overdriveDamageMul: number;
 }
 
@@ -33,50 +31,50 @@ export interface CutterStats {
 /**
  * 武器強化 Lv から Cutter の各ステータスを計算する。
  *
- * 仕様 (05-weapons.md):
- *   - 攻撃速度底値: 2.0 attacks/sec、+0.03×2.0/Lv
- *   - 旋回半径: 80px + 0.5px/Lv
- *   - 同時ヒット数: floor(1 + 0.05×Lv)
- *   - ダメ倍率: 1.02^Lv
- *   - Overdrive: 持続 8s、AS×3、ダメ倍率×1（なし）、CD 35s
+ * 仕様 (14-weapons-rebalance-v1.1.md):
+ *   - 攻撃速度底値: 1.0 attacks/sec、+0.03×1.0/Lv (描画見やすさ優先で減速)
+ *   - 旋回半径: 80px 固定 (Lv で増えない)
+ *   - 刃の枚数: 2 固定 (Lv で増えない)
+ *   - ダメ倍率: 1.02^Lv (底値 1.2)
+ *   - Overdrive: 持続 8 + 0.1×Lv 秒、AS×3、ダメ×3 (DPS 倍率 9)
  */
 /** Cutter 底値 attacks/sec。 1 fire = 「視覚 1 周のうち 1 / blades 分」 を判定する周期 */
-export const CUTTER_BASE_AS = 2.5;
-/** Cutter 底値 旋回半径 (px) */
+export const CUTTER_BASE_AS = 1.0;
+/** Cutter 旋回半径 (px)。 Lv 不問で固定 */
 export const CUTTER_BASE_ORBIT_RADIUS = 80;
-/** Cutter 底値 同時ヒット数 */
-export const CUTTER_BASE_SIMULTANEOUS_HITS = 1;
+/** Cutter 刃の枚数。 Lv 不問で固定 2 */
+export const CUTTER_BLADES = 2;
 /**
- * Cutter 底値 武器ダメージ倍率。 DPS は AS × damageMul で 2.5 × 1.2 = 3.0 を維持。
- * (回転速度を半分にして 1 撃の威力を倍にする方針)
+ * Cutter 底値 武器ダメージ倍率。 単体 DPS は AS × damageMul = 1.0 × 1.2 = 1.2、
+ * 2 体同時時は 2.4 (blades=2 で 360° カバー)
  */
 export const CUTTER_BASE_DAMAGE_MUL = 1.2;
 
 export function cutterStats(weaponLv: number): CutterStats {
   const attackPerSec = CUTTER_BASE_AS * (1 + 0.03 * weaponLv);
-  const orbitRadius = CUTTER_BASE_ORBIT_RADIUS + 0.5 * weaponLv;
-  const simultaneousHits = Math.floor(CUTTER_BASE_SIMULTANEOUS_HITS + 0.05 * weaponLv);
+  const orbitRadius = CUTTER_BASE_ORBIT_RADIUS;
+  const blades = CUTTER_BLADES;
   const damageMul = CUTTER_BASE_DAMAGE_MUL * Math.pow(1.02, weaponLv);
-  const overdriveDamageMul = 1;
+  const overdriveDurationSec = CUTTER_OVERDRIVE_BASE_DURATION_SEC + 0.1 * weaponLv;
+  const overdriveDamageMul = CUTTER_OVERDRIVE_DAMAGE_MUL;
 
   return {
     attackPerSec,
     orbitRadius,
-    simultaneousHits,
+    blades,
     damageMul,
-    overdriveCdSec: CUTTER_OVERDRIVE_CD_SEC,
-    overdriveDurationSec: CUTTER_OVERDRIVE_DURATION_SEC,
+    overdriveDurationSec,
     overdriveAttackSpeedMul: CUTTER_OVERDRIVE_ATTACK_SPEED_MUL,
     overdriveDamageMul,
   };
 }
 
-/** Cutter アクティブ (Overdrive) のクールダウン秒 */
-export const CUTTER_OVERDRIVE_CD_SEC = 35;
-/** Cutter アクティブ (Overdrive) の持続秒 */
-export const CUTTER_OVERDRIVE_DURATION_SEC = 8;
+/** Cutter アクティブ (Overdrive) の底値持続秒 (Lv で +0.1/Lv 延長) */
+export const CUTTER_OVERDRIVE_BASE_DURATION_SEC = 8;
 /** Cutter アクティブ (Overdrive) 中の攻撃速度倍率 */
 export const CUTTER_OVERDRIVE_ATTACK_SPEED_MUL = 3;
+/** Cutter アクティブ (Overdrive) 中のダメージ倍率 (AS×3 と合わせて DPS×9) */
+export const CUTTER_OVERDRIVE_DAMAGE_MUL = 3;
 
 /**
  * 純粋関数: 攻撃速度 (attacks/sec) と刃の枚数から CutterOrbitFx の 1 周時間 (ms) を算出。
@@ -130,12 +128,15 @@ export function isAngleInRange(angleDeg: number, startDeg: number, spanDeg: numb
  * 担当範囲とし、 その範囲内 (= orbitRadius 以内 + 角度) に居る敵にヒット判定。
  * 全 blades 個の担当範囲を合わせると 360° = 全周をカバーする (= 「視覚的に刃が通過した = 当たる」)。
  *
+ * blades は通常 stats.blades (= CUTTER_BLADES = 2) を使う。 引数で明示した場合はそれを優先する
+ * (テスト用)。
+ *
  * @param machine           マシンステ
  * @param stats             Cutter ステ
  * @param enemiesInRange    旋回半径 (orbitRadius) 以内の敵 (caller がフィルタ済み)
  * @param currentAngleDeg   前 fire 時の基準刃の角度 (度)。 useBattleLoop の cutterAngleDegRef
  * @param rng               クリ判定用
- * @param blades            刃の枚数 (default 2)
+ * @param blades            刃の枚数 (省略時 stats.blades)
  * @param machineX          マシン中心 X % (default 50)
  * @param machineY          マシン中心 Y % (default 50)
  */
@@ -145,15 +146,16 @@ export function cutterNormalAttack(
   enemiesInRange: SpawnedEnemy[],
   currentAngleDeg: number,
   rng: () => number,
-  blades = 2,
+  blades?: number,
   machineX = 50,
   machineY = 50
 ): CutterAttackResult {
-  // 各刃が担当する弧 = sweepDeg。 blades 個の弧を合計すると 360° (全周カバー)
-  const sweepDeg = 360 / blades;
+  const effectiveBlades = blades ?? stats.blades;
+  // 各刃が担当する弧 = sweepDeg。 effectiveBlades 個の弧を合計すると 360° (全周カバー)
+  const sweepDeg = 360 / effectiveBlades;
   // 担当弧の開始角度: 基準刃 (currentAngleDeg) からの各刃のオフセット位置
   const bladeStarts: number[] = [];
-  for (let i = 0; i < blades; i++) {
+  for (let i = 0; i < effectiveBlades; i++) {
     bladeStarts.push(currentAngleDeg + i * sweepDeg);
   }
 
@@ -165,7 +167,8 @@ export function cutterNormalAttack(
     return bladeStarts.some((start) => isAngleInRange(enemyAngle, start, sweepDeg));
   });
 
-  const targets = onSweep.slice(0, stats.simultaneousHits);
+  // blades 枚数 = 1 fire で同時にヒットできる敵の最大数
+  const targets = onSweep.slice(0, effectiveBlades);
 
   const hits = targets.map((enemy) => {
     const isCrit = rollCrit(machine.critRate, rng);
