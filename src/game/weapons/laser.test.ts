@@ -4,7 +4,6 @@ import {
   LASER_BASE_AS,
   LASER_BASE_DAMAGE_MUL,
   LASER_MEGA_BEAM_WIDTH_PCT,
-  LASER_MEGA_CD_SEC,
   laserMegaBeam,
   laserNormalAttack,
   laserStats,
@@ -53,6 +52,24 @@ function makeEnemy(overrides: Partial<SpawnedEnemy> = {}): SpawnedEnemy {
 }
 
 // ---------------------------------------------------------------------------
+// LASER_BASE_* 定数 — v1.1 で底値変更
+// ---------------------------------------------------------------------------
+
+describe('LASER_BASE_* 定数', () => {
+  it('LASER_BASE_AS = 2.5（v1.1 維持）', () => {
+    expect(LASER_BASE_AS).toBe(2.5);
+  });
+
+  it('LASER_BASE_DAMAGE_MUL = 0.8（v1.1 で 0.4 → 0.8）', () => {
+    expect(LASER_BASE_DAMAGE_MUL).toBe(0.8);
+  });
+
+  it('LASER_MEGA_BEAM_WIDTH_PCT = 12（v1.1 で 6 → 12）', () => {
+    expect(LASER_MEGA_BEAM_WIDTH_PCT).toBe(12);
+  });
+});
+
+// ---------------------------------------------------------------------------
 // laserStats — スケールテスト
 // ---------------------------------------------------------------------------
 
@@ -62,32 +79,58 @@ describe('laserStats', () => {
     expect(s.attackPerSec).toBeCloseTo(LASER_BASE_AS);
     expect(s.pierce).toBe(1);
     expect(s.damageMul).toBeCloseTo(LASER_BASE_DAMAGE_MUL);
-    expect(s.megaCdSec).toBe(LASER_MEGA_CD_SEC);
-    expect(s.megaDamageMul).toBeCloseTo(10.0);
+    expect(s.megaDamageMul).toBeCloseTo(50.0);
+    expect(s.critMultiplierBonus).toBeCloseTo(0);
   });
 
-  it('Lv1: AS / damageMul が Lv で増加', () => {
+  it('Lv1: AS / damageMul / megaDamageMul / critMultiplierBonus が Lv で増加', () => {
     const s = laserStats(1);
     expect(s.attackPerSec).toBeCloseTo(LASER_BASE_AS * 1.03);
     expect(s.pierce).toBe(1);
     expect(s.damageMul).toBeCloseTo(LASER_BASE_DAMAGE_MUL * 1.02);
-    expect(s.megaDamageMul).toBeCloseTo(10.5);
+    // 50 × (1 + 0.05 × 1) = 52.5
+    expect(s.megaDamageMul).toBeCloseTo(52.5);
+    expect(s.critMultiplierBonus).toBeCloseTo(0.01);
   });
 
-  it('Lv10: pierce = floor(1 + 1.0) = 2, megaDamageMul = 10 × 1.5 = 15', () => {
+  it('Lv10: pierce 固定 1（Lv で増えない）、megaDamageMul = 50 × 1.5 = 75', () => {
     const s = laserStats(10);
     expect(s.attackPerSec).toBeCloseTo(LASER_BASE_AS * 1.3);
-    expect(s.pierce).toBe(2);
+    expect(s.pierce).toBe(1);
     expect(s.damageMul).toBeCloseTo(LASER_BASE_DAMAGE_MUL * Math.pow(1.02, 10));
-    expect(s.megaDamageMul).toBeCloseTo(15.0);
+    expect(s.megaDamageMul).toBeCloseTo(75.0);
+    expect(s.critMultiplierBonus).toBeCloseTo(0.1);
   });
 
-  it('Lv50: pierce = floor(1 + 5.0) = 6', () => {
+  it('Lv20: megaDamageMul = 50 × (1 + 1.0) = 100', () => {
+    const s = laserStats(20);
+    expect(s.pierce).toBe(1);
+    expect(s.megaDamageMul).toBeCloseTo(100.0);
+    expect(s.critMultiplierBonus).toBeCloseTo(0.2);
+  });
+
+  it('Lv50: pierce 固定 1（Lv 50 でも増えない）', () => {
     const s = laserStats(50);
     expect(s.attackPerSec).toBeCloseTo(LASER_BASE_AS * (1 + 0.03 * 50));
-    expect(s.pierce).toBe(6);
+    expect(s.pierce).toBe(1);
     expect(s.damageMul).toBeCloseTo(LASER_BASE_DAMAGE_MUL * Math.pow(1.02, 50), 3);
-    expect(s.megaDamageMul).toBeCloseTo(35.0);
+    // 50 × (1 + 0.05 × 50) = 50 × 3.5 = 175
+    expect(s.megaDamageMul).toBeCloseTo(175.0);
+    expect(s.critMultiplierBonus).toBeCloseTo(0.5);
+  });
+
+  it('Lv60: critMultiplierBonus = 0.6（仕様 Lv 60 値）', () => {
+    const s = laserStats(60);
+    expect(s.pierce).toBe(1);
+    expect(s.critMultiplierBonus).toBeCloseTo(0.6);
+    // megaDamageMul = 50 × (1 + 3.0) = 200
+    expect(s.megaDamageMul).toBeCloseTo(200.0);
+  });
+
+  it('Lv100: pierce 固定 1（Lv 100 でも増えない）、critMultiplierBonus = 1.0', () => {
+    const s = laserStats(100);
+    expect(s.pierce).toBe(1);
+    expect(s.critMultiplierBonus).toBeCloseTo(1.0);
   });
 
   it('負の Lv は 0 に丸めて Lv0 と同じ結果になる', () => {
@@ -96,6 +139,8 @@ describe('laserStats', () => {
     expect(sNeg.attackPerSec).toBeCloseTo(s0.attackPerSec);
     expect(sNeg.pierce).toBe(s0.pierce);
     expect(sNeg.damageMul).toBeCloseTo(s0.damageMul);
+    expect(sNeg.megaDamageMul).toBeCloseTo(s0.megaDamageMul);
+    expect(sNeg.critMultiplierBonus).toBeCloseTo(s0.critMultiplierBonus);
   });
 });
 
@@ -126,33 +171,31 @@ describe('laserNormalAttack', () => {
     expect(result.beamY).toBe(10);
   });
 
-  it('pierce=2 で 2 体ヒット、3 体目はヒットしない', () => {
+  it('Lv100 でも pierce 固定 1（複数体ヒットしない）', () => {
     const machine = makeMachine();
-    const stats = laserStats(10); // pierce = floor(1 + 0.1×10) = 2
+    const stats = laserStats(100); // v1.1: pierce 固定 1
     const e1 = makeEnemy({ id: 'e1', position: { x: 10, y: 10 } });
     const e2 = makeEnemy({ id: 'e2', position: { x: 20, y: 20 } });
     const e3 = makeEnemy({ id: 'e3', position: { x: 30, y: 30 } });
     const result = laserNormalAttack(machine, stats, [e1, e2, e3], () => 0.5);
-    expect(result.hits).toHaveLength(2);
+    expect(result.hits).toHaveLength(1);
     expect(result.hits[0].enemyId).toBe('e1');
-    expect(result.hits[1].enemyId).toBe('e2');
-    // beamX/Y は最も遠いヒット対象 = e2 の position
-    expect(result.beamX).toBe(20);
-    expect(result.beamY).toBe(20);
+    expect(result.beamX).toBe(10);
+    expect(result.beamY).toBe(10);
   });
 
-  it('rng=0（< critRate）のとき必ずクリティカルになる', () => {
+  it('rng=0（< critRate）のとき必ずクリティカルになる（Lv0: critBonus=0 なので素のクリ倍率）', () => {
     const baseAttack = 100;
     const machine = makeMachine({
       baseAttack: BigNum.fromNumber(baseAttack),
       critRate: 0.5,
       critMultiplier: 2.0,
     });
-    const stats = laserStats(0);
+    const stats = laserStats(0); // critMultiplierBonus = 0
     const enemy = makeEnemy();
     const result = laserNormalAttack(machine, stats, [enemy], () => 0);
     expect(result.hits[0].crit).toBe(true);
-    // baseAttack × LASER_BASE_DAMAGE_MUL × 2.0
+    // baseAttack × LASER_BASE_DAMAGE_MUL × 2.0 (critMultiplierBonus=0 なので 2.0 のまま)
     const expected = String(Math.floor(baseAttack * LASER_BASE_DAMAGE_MUL * 2));
     expect(result.hits[0].damage.toString()).toBe(expected);
   });
@@ -187,7 +230,7 @@ describe('laserNormalAttack', () => {
     expect(result.hits[0].damage.toString()).toBe(expected);
   });
 
-  it('damageMul が正しくダメージに乗算される（Lv10）', () => {
+  it('damageMul が正しくダメージに乗算される（Lv10、非クリ）', () => {
     const baseAttack = 100;
     const machine = makeMachine({ baseAttack: BigNum.fromNumber(baseAttack), critRate: 0 });
     const stats = laserStats(10);
@@ -198,6 +241,67 @@ describe('laserNormalAttack', () => {
     const actual = parseInt(result.hits[0].damage.toString(), 10);
     expect(actual).toBeGreaterThanOrEqual(expected - 1);
     expect(actual).toBeLessThanOrEqual(expected + 1);
+  });
+
+  it('Lv100 クリ時: critMultiplierBonus が乗る (machine.critMultiplier 1.5 → 実効 2.5)', () => {
+    // rng = () => 0 で必ずクリヒット (critRate>0 なら true)
+    const baseAttack = 100;
+    const machine = makeMachine({
+      baseAttack: BigNum.fromNumber(baseAttack),
+      critRate: 1.0,
+      critMultiplier: 1.5,
+    });
+    const stats = laserStats(100); // critMultiplierBonus = 1.0
+    const enemy = makeEnemy();
+    const result = laserNormalAttack(machine, stats, [enemy], () => 0);
+    expect(result.hits[0].crit).toBe(true);
+    // damage = baseAttack × damageMul × (1.5 + 1.0)
+    //        = 100 × (0.8 × 1.02^100) × 2.5
+    const effectiveCritMul = 2.5;
+    const damageMul = LASER_BASE_DAMAGE_MUL * Math.pow(1.02, 100);
+    const expected = Math.floor(baseAttack * damageMul * effectiveCritMul);
+    const actual = parseInt(result.hits[0].damage.toString(), 10);
+    // BigNum 内部丸めの誤差を許容
+    expect(actual).toBeGreaterThanOrEqual(expected - 2);
+    expect(actual).toBeLessThanOrEqual(expected + 2);
+  });
+
+  it('Lv60 クリ時: critMultiplier 1.5 → 実効 2.1 で計算される', () => {
+    const baseAttack = 100;
+    const machine = makeMachine({
+      baseAttack: BigNum.fromNumber(baseAttack),
+      critRate: 1.0,
+      critMultiplier: 1.5,
+    });
+    const stats = laserStats(60); // critMultiplierBonus = 0.6
+    const enemy = makeEnemy();
+    const result = laserNormalAttack(machine, stats, [enemy], () => 0);
+    expect(result.hits[0].crit).toBe(true);
+    const effectiveCritMul = 2.1;
+    const damageMul = LASER_BASE_DAMAGE_MUL * Math.pow(1.02, 60);
+    const expected = Math.floor(baseAttack * damageMul * effectiveCritMul);
+    const actual = parseInt(result.hits[0].damage.toString(), 10);
+    expect(actual).toBeGreaterThanOrEqual(expected - 2);
+    expect(actual).toBeLessThanOrEqual(expected + 2);
+  });
+
+  it('非クリ時は critMultiplierBonus が乗らない（Lv100 でもクリ無しなら素ダメ）', () => {
+    const baseAttack = 100;
+    const machine = makeMachine({
+      baseAttack: BigNum.fromNumber(baseAttack),
+      critRate: 0,
+      critMultiplier: 1.5,
+    });
+    const stats = laserStats(100);
+    const enemy = makeEnemy();
+    const result = laserNormalAttack(machine, stats, [enemy], () => 0);
+    expect(result.hits[0].crit).toBe(false);
+    // damage = baseAttack × damageMul（critMultiplierBonus は乗らない）
+    const damageMul = LASER_BASE_DAMAGE_MUL * Math.pow(1.02, 100);
+    const expected = Math.floor(baseAttack * damageMul);
+    const actual = parseInt(result.hits[0].damage.toString(), 10);
+    expect(actual).toBeGreaterThanOrEqual(expected - 2);
+    expect(actual).toBeLessThanOrEqual(expected + 2);
   });
 });
 
@@ -234,7 +338,7 @@ describe('laserMegaBeam', () => {
   it('ビーム軸から幅の半分より外の敵はヒットしない', () => {
     const machine = makeMachine();
     const stats = laserStats(0);
-    // beamWidthPct=LASER_MEGA_BEAM_WIDTH_PCT の半分より上の敵は外れる
+    // beamWidthPct=LASER_MEGA_BEAM_WIDTH_PCT の半分より外の敵は外れる
     const inside = makeEnemy({ id: 'in', position: { x: 70, y: 50 } });
     const outside = makeEnemy({
       id: 'out',
@@ -266,14 +370,14 @@ describe('laserMegaBeam', () => {
     expect(result.hits).toHaveLength(1);
   });
 
-  it('Mega Beam のダメージは通常攻撃の ×megaDamageMul になる（Lv0）', () => {
+  it('Mega Beam のダメージは通常攻撃の ×megaDamageMul になる（Lv0: × 50）', () => {
     const baseAttack = 100;
     const machine = makeMachine({ baseAttack: BigNum.fromNumber(baseAttack), critRate: 0 });
     const stats = laserStats(0);
     const enemy = makeEnemy({ id: 'mega-dmg', position: { x: 70, y: 50 } });
     const result = laserMegaBeam(machine, stats, [enemy], 0);
-    // damage = baseAttack × LASER_BASE_DAMAGE_MUL × megaDamageMul(=10)
-    const expected = String(Math.floor(baseAttack * LASER_BASE_DAMAGE_MUL * 10));
+    // damage = baseAttack × LASER_BASE_DAMAGE_MUL × megaDamageMul(=50)
+    const expected = String(Math.floor(baseAttack * LASER_BASE_DAMAGE_MUL * 50));
     expect(result.hits[0].damage.toString()).toBe(expected);
   });
 
@@ -289,17 +393,23 @@ describe('laserMegaBeam', () => {
     expect(actual).toBeLessThanOrEqual(expected + 2);
   });
 
-  it('Mega Beam にクリティカルが乗らない（isCrit=false 固定）', () => {
+  it('Mega Beam にクリティカルが乗らない（isCrit=false 固定）— critMultiplierBonus も影響しない', () => {
     const baseAttack = 100;
     const machine = makeMachine({
       baseAttack: BigNum.fromNumber(baseAttack),
       critRate: 1.0,
       critMultiplier: 3.0,
     });
-    const stats = laserStats(0);
+    const stats = laserStats(100); // critMultiplierBonus = 1.0 でも Mega Beam には乗らない
     const enemy = makeEnemy({ id: 'mega-nocrit', position: { x: 70, y: 50 } });
     const result = laserMegaBeam(machine, stats, [enemy], 0);
-    const expected = String(Math.floor(baseAttack * LASER_BASE_DAMAGE_MUL * 10));
-    expect(result.hits[0].damage.toString()).toBe(expected);
+    // Mega Beam は isCrit:false 固定 + machine（ボーナス無し）を渡すので素ダメのみ
+    const damageMul = LASER_BASE_DAMAGE_MUL * Math.pow(1.02, 100);
+    const megaDamageMul = 50 * (1 + 0.05 * 100); // 300
+    const totalMul = damageMul * megaDamageMul;
+    const expected = Math.floor(baseAttack * totalMul);
+    const actual = parseInt(result.hits[0].damage.toString(), 10);
+    expect(actual).toBeGreaterThanOrEqual(expected - 2);
+    expect(actual).toBeLessThanOrEqual(expected + 2);
   });
 });
