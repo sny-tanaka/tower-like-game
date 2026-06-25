@@ -270,6 +270,15 @@ export function Page() {
     return calcEffectValue(item, machineLevels.range);
   }, [machineLevels.range]);
 
+  // マシン強化「攻撃速度」倍率 (linear: 1.0 + 0.05/Lv, maxLv 99)。
+  // useBattleLoop の effectivePerSec が machineTick.attackSpeed を乗算しているので、
+  // Cutter の rotateMs も同じ倍率を含めて視覚と当たり判定を同期する。
+  const machineAttackSpeedMul = useMemo(() => {
+    const item = MACHINE_UPGRADE_ITEMS.find((i) => i.key === 'attackSpeed');
+    if (item == null) return 1;
+    return calcEffectValue(item, machineLevels.attackSpeed);
+  }, [machineLevels.attackSpeed]);
+
   // 武器切替 CD (仕様 05-weapons.md §武器切替: 3 秒)
   // 装備中の武器は常に 100 (= CD なし表示)、 他の武器は経過率 % を出す。
   // (H2-4: weaponCds は同じ値の組み合わせなら参照を安定化させて BattleHudBottom の memo を活かす)
@@ -509,10 +518,12 @@ export function Page() {
           showOverdriveAura={isOverdriveActive && isRunActive && !isResultOpen}
           machineHitKey={machineHitKey}
           cutterRotateMs={calcCutterRotateMs(
-            // useBattleLoop の effectivePerSec と同じ式 (cutterStats × RW × Overdrive、 ATTACK_PER_SEC_CAP で頭打ち)
+            // useBattleLoop の effectivePerSec と同じ式
+            // (cutterStats × machineAS × RW × Overdrive、 ATTACK_PER_SEC_CAP で頭打ち)
             Math.min(
               ATTACK_PER_SEC_CAP,
               cutterStats(weaponLv).attackPerSec *
+                machineAttackSpeedMul *
                 calcRunWorkshopMultiplier(runWorkshopLevels.attackSpeedMul) *
                 (isOverdriveActive ? CUTTER_OVERDRIVE_ATTACK_SPEED_MUL : 1)
             ),
