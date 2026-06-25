@@ -72,7 +72,7 @@ export interface StatsImpactItem {
  *
  * v1.1.1 で武器Lv は damageMul / attackPerSec を一切伸ばさないため、
  * プレビューは「各武器の Lv 軸 1 つ」だけを表示する:
- *   - Laser: クリ倍率ボーナス +0.01/Lv
+ *   - Laser: Critical倍率ボーナス +0.01/Lv
  *   - Cannon: 爆発半径 +0.5/Lv (px)
  *   - Thunder: HP 回復率 +0.1%/Lv
  *   - Cutter: Overdrive 持続秒 +0.1/Lv
@@ -88,7 +88,7 @@ export function buildStatsImpact(
   const nextLv = lv + 1;
   return [
     {
-      label: 'LASER クリ倍率ボーナス',
+      label: 'LASER Critical倍率ボーナス',
       before: `+${(calcLaserCritBonus(lv) * 100).toFixed(0)}%`,
       after: `+${(calcLaserCritBonus(nextLv) * 100).toFixed(0)}%`,
     },

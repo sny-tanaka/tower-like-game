@@ -30,7 +30,7 @@ const BASE_ATTACK = 100;
 const MACHINE_RANGE = 150; // Lv 0 (倍率 1.0)
 const MACHINE_AS = 1.0; // Lv 0 (倍率 1.0)
 
-describe('buildLaserStats (v1.1.1: 4 ステ DMG / 連射速度 / 射程 / クリ倍率)', () => {
+describe('buildLaserStats (v1.1.1: 4 ステ DMG / 連射速度 / 射程 / Critical倍率)', () => {
   it('Lv 0 で DMG = baseAttack × LASER_BASE_DAMAGE_MUL', () => {
     const stats = buildLaserStats(0, BASE_ATTACK, MACHINE_RANGE, MACHINE_AS);
     expect(stats.find((s) => s.label === 'DMG')?.value).toBe(
@@ -38,10 +38,10 @@ describe('buildLaserStats (v1.1.1: 4 ステ DMG / 連射速度 / 射程 / クリ
     );
   });
 
-  it('表示ステは DMG / 連射速度 / 射程 / クリ倍率ボーナス の 4 つだけ', () => {
+  it('表示ステは DMG / 連射速度 / 射程 / Critical倍率ボーナス の 4 つだけ', () => {
     const stats = buildLaserStats(0, BASE_ATTACK, MACHINE_RANGE, MACHINE_AS);
     const labels = stats.map((s) => s.label);
-    expect(labels).toEqual(['DMG', '連射速度', '射程', 'クリ倍率ボーナス']);
+    expect(labels).toEqual(['DMG', '連射速度', '射程', 'Critical倍率ボーナス']);
   });
 
   it('射程 = machineRange × WEAPON_RANGE_PCT.laser / 100 で m 表示', () => {

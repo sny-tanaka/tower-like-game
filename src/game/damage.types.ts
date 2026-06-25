@@ -10,9 +10,9 @@ export interface MachineStats {
   defense: BigNum;
   /** 被ダメ軽減率 (#3)。0〜1 の比率（1.0 未満） */
   damageReduction: number;
-  /** クリ率 (#8)。0〜1 の確率 */
+  /** Critical率 (#8)。0〜1 の確率 */
   critRate: number;
-  /** クリ倍率 (#9)。例: 1.5, 2.0 */
+  /** Critical倍率 (#9)。例: 1.5, 2.0 */
   critMultiplier: number;
   /** 最大 HP (#1) */
   maxHp: BigNum;

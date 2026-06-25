@@ -161,7 +161,7 @@ export const MACHINE_UPGRADE_ITEMS: readonly MachineUpgradeItem[] = [
   },
   {
     key: 'critRate',
-    title: 'クリ率',
+    title: 'Critical率',
     category: 'offense',
     // v1.0.0 リバランス: 漸近 (100% 不到達) → 線形 +0.5%/Lv MAX Lv 160 = 0→80%
     // The Tower の Critical Chance Workshop MAX (80%) と同等の上限を採用。
@@ -176,7 +176,7 @@ export const MACHINE_UPGRADE_ITEMS: readonly MachineUpgradeItem[] = [
   },
   {
     key: 'critMultiplier',
-    title: 'クリ倍率',
+    title: 'Critical倍率',
     category: 'offense',
     baseValue: 1.5,
     growthFactor: 0.05, // 線形 +0.05 / Lv

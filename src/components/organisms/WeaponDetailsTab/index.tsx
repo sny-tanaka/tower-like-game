@@ -84,7 +84,7 @@ export function calcEffectiveRange(
 // 武器固有 Lv 強化軸の計算ユーティリティ (v1.1.1 で各武器 1 軸だけ Lv で伸びる)
 // ---------------------------------------------------------------------------
 
-/** Laser クリ倍率ボーナス: +0.01 × Lv (Lv 100 で +1.0) */
+/** Laser Critical倍率ボーナス: +0.01 × Lv (Lv 100 で +1.0) */
 export function calcLaserCritBonus(weaponLv: number): number {
   return Math.max(0, weaponLv) * 0.01;
 }
@@ -131,7 +131,7 @@ export function buildLaserStats(
     { label: '連射速度', value: round1(effAS), suffix: '/s' },
     { label: '射程', value: round1(effRange), suffix: 'm' },
     {
-      label: 'クリ倍率ボーナス',
+      label: 'Critical倍率ボーナス',
       value: `+${(calcLaserCritBonus(weaponLv) * 100).toFixed(0)}%`,
       accent: 'secondary',
     },

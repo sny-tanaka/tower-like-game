@@ -48,7 +48,7 @@ function applyReduction(afterDefense: BigNum, damageReduction: number): BigNum {
  * クリ判定ヘルパ。
  * rng を引数で受けることでテスト再現性を担保する。
  *
- * @param critRate  クリ率（0〜1）
+ * @param critRate  Critical率（0〜1）
  * @param rng       0〜1 の乱数を返す関数
  * @returns         クリ判定結果
  */

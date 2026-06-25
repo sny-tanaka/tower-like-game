@@ -39,7 +39,7 @@ const rngCrit = (): number => 0;
 /** 常に 1 を返す RNG（クリ不発） */
 const rngNoCrit = (): number => 0.9999;
 
-/** デフォルトのマシンステータス（クリ率 0）*/
+/** デフォルトのマシンステータス（Critical率 0）*/
 function defaultMachine(overrides?: Partial<MachineStats>): MachineStats {
   return {
     baseAttack: BigNum.fromNumber(100),

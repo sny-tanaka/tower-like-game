@@ -105,7 +105,7 @@ export const RunFireRateScrew: Story = {
 export const RunAllDisabled: Story = {
   name: 'Run WS — all disabled',
   args: {
-    title: 'クリ率',
+    title: 'Critical率',
     iconName: 'spark',
     iconColor: 'var(--c-warning)',
     currentLabel: 'Lv 7',

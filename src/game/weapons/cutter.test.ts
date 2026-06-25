@@ -178,7 +178,7 @@ describe('cutterNormalAttack', () => {
     expect(result.hits[0].damage.eq(expected)).toBe(true);
   });
 
-  it('クリット時にクリ倍率が乗算される', () => {
+  it('クリット時にCritical倍率が乗算される', () => {
     const baseAttack = 100;
     const m = makeMachine({
       baseAttack: BigNum.fromNumber(baseAttack),

@@ -15,7 +15,7 @@ import { BigNum } from '@/lib/bignum/BigNum';
  *   pierce              = 1 (固定)                           ← Lv で増えない（v1.1 で固定化）
  *   damageMul           = LASER_BASE_DAMAGE_MUL × 1.02^Lv    ← 武器ダメ倍率（底値 0.8）
  *   megaDamageMul       = 50 × (1 + 0.05 × Lv)               ← Mega Beam ダメ倍率（base 50 に強化）
- *   critMultiplierBonus = 0.01 × Lv                          ← クリ倍率ボーナス（Lv 60 で +0.6）
+ *   critMultiplierBonus = 0.01 × Lv                          ← Critical倍率ボーナス（Lv 60 で +0.6）
  *
  * NOTE: critMultiplierBonus は通常攻撃のクリ時にのみ反映される。
  *       Mega Beam は isCrit=false 固定なので影響しない。

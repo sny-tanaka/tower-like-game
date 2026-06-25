@@ -182,7 +182,7 @@ describe('laserNormalAttack', () => {
     expect(result.beamY).toBe(10);
   });
 
-  it('rng=0（< critRate）のとき必ずクリティカルになる（Lv0: critBonus=0 なので素のクリ倍率）', () => {
+  it('rng=0（< critRate）のとき必ずクリティカルになる（Lv0: critBonus=0 なので素のCritical倍率）', () => {
     const baseAttack = 100;
     const machine = makeMachine({
       baseAttack: BigNum.fromNumber(baseAttack),
