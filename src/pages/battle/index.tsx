@@ -42,7 +42,7 @@ import { flushAfterRun } from '@/store/sync';
 // デフォルト値
 // ---------------------------------------------------------------------------
 
-// 索敵半径は武器別に WEAPON_RANGE_PCT で管理 (currentWeapon に応じて切替)
+// 索敵範囲は武器別に WEAPON_RANGE_PCT (= 直径 %) で管理 (currentWeapon に応じて切替)
 
 /**
  * BattleField の hitEvents 用の空配列定数。
@@ -260,9 +260,9 @@ export function Page() {
   // HitEvent (EnemyHitFx) は別途配線予定。 当面はモジュール定数の空配列を使い回す (H2-4)
   const hitEvents = EMPTY_HIT_EVENTS;
 
-  // マシン索敵距離 (range_asymptotic: 150 → 400 px)。
-  // 索敵円描画と useBattleLoop 内の effectiveRange は WEAPON_RANGE_PCT × (range / 150) で同期。
-  // useBattleLoop 側は machineTick.range を読むので二重に計算しているが、
+  // マシン索敵距離 (range_asymptotic: 150 → 450 px、Lv 100 で 300)。
+  // BattleField の range prop は **直径 %** を渡す: WEAPON_RANGE_PCT × (machineRange / 150)。
+  // useBattleLoop 側は machineTick.range を読んで /2 して半径として当たり判定に使う (二重計算)。
   // 描画用にここでも machineLevels.range から導出する。
   const machineRangePx = useMemo(() => {
     const item = MACHINE_UPGRADE_ITEMS.find((i) => i.key === 'range');

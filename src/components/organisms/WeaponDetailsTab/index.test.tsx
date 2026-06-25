@@ -44,11 +44,13 @@ describe('buildLaserStats (v1.1.1: 4 ステ DMG / 連射速度 / 射程 / Critic
     expect(labels).toEqual(['DMG', '連射速度', '射程', 'Critical倍率ボーナス']);
   });
 
-  it('射程 = machineRange × WEAPON_RANGE_PCT.laser / 100 で m 表示', () => {
-    // machineRange=300m × 35/100 = 105m
+  it('射程 = machineRange × WEAPON_RANGE_PCT.laser / 100 / 2 で m 表示 (= 半径)', () => {
+    // WEAPON_RANGE_PCT は直径 % なので半径換算で /2:
+    // v1.1.1 縮小後 laser = 35 × 7/9 = 27.222...
+    // machineRange=300m × 27.222/100 / 2 ≈ 40.833... → round1 で 40.8m
     const stats = buildLaserStats(0, BASE_ATTACK, 300, MACHINE_AS);
     const range = stats.find((s) => s.label === '射程');
-    expect(range?.value).toBe(105);
+    expect(range?.value).toBe(40.8);
     expect(range?.suffix).toBe('m');
   });
 

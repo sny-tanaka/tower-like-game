@@ -14,6 +14,7 @@ import { MegaBeamFx } from '@/components/fx/MegaBeamFx';
 import { OverdriveAuraFx } from '@/components/fx/OverdriveAuraFx';
 import { ThunderStrikeFx } from '@/components/fx/ThunderStrikeFx';
 import { Enemy, spawnedEnemyToVisualType } from '@/components/molecules/Enemy';
+import type { EnemyVisualType } from '@/components/molecules/Enemy';
 import type { SpawnedEnemy } from '@/game/types';
 import type { BigNum } from '@/lib/bignum/BigNum';
 
@@ -126,7 +127,10 @@ export interface BattleFieldProps {
    * Overdrive 中は battle 画面側で 1/3 (≈433ms) を渡して刃の回転を体感 3 倍速にする。
    */
   cutterRotateMs?: number;
-  /** 索敵半径（パーセント） */
+  /**
+   * 索敵範囲の **直径** (フィールド % — 円の幅 / 高さ)。
+   * 当たり判定半径はこの値の 1/2 で、CutterOrbitFx の刃長さも 1/2 を渡す。
+   */
   range: number;
   /**
    * 視覚装飾用のダミーピン。
@@ -157,6 +161,22 @@ function pinKindToColor(kind: DummyPin['kind']): string {
       return 'var(--c-text-mid)';
   }
 }
+
+/**
+ * 敵タイプ別 cqmin サイズ (= フィールド短辺に対する % 相当)。
+ *
+ * v1.1.1 で px 固定から cqmin に切替。 端末間で「マシン本体に対する敵の相対サイズ」 を
+ * 揃えるため。 値は旧 px 値を「典型的なポートレート field (~390 cqmin)」 で割った比率を
+ * 採用 (standard 14px / 390 ≈ 3.6cqmin)。
+ */
+const ENEMY_SIZE_CQMIN: Record<EnemyVisualType, string> = {
+  standard: '3.6cqmin',
+  swift: '3.3cqmin',
+  tough: '4.6cqmin',
+  elite: '6.7cqmin',
+  miniboss: '9.2cqmin',
+  boss: '14.4cqmin',
+};
 
 // ---------------------------------------------------------------------------
 // コンポーネント
@@ -192,9 +212,9 @@ export function BattleField({
   const machineX = machinePosition.x;
   const machineY = machinePosition.y;
 
-  // 索敵円の直径は range の 2 倍（パーセント単位の縦幅を基準）
+  // 索敵円の直径 = range (= フィールド % の直径)。当たり判定とは「中心からの半径 ≤ range/2」 で同期。
   // design ref に合わせて 1 本のリングのみ描画
-  const rangeDiameterPct = range * 2;
+  const rangeDiameterPct = range;
 
   return (
     <div
@@ -202,7 +222,7 @@ export function BattleField({
       role="img"
       aria-label="バトルフィールド"
     >
-      {/* 内部座標系（長辺基準の正方形）。 全ての描画はこの .field 内 % で配置する。 */}
+      {/* 内部座標系（短辺基準の正方形）。 全ての描画はこの .field 内 % で配置する。 */}
       <div className={styles.field}>
         {/* 索敵円（width/height とも .field の % で真円） */}
         <div
@@ -269,6 +289,7 @@ export function BattleField({
             >
               <Enemy
                 type={visualType}
+                size={ENEMY_SIZE_CQMIN[visualType]}
                 hp={hpRatio}
                 status={status}
                 facing={facing}
@@ -299,11 +320,14 @@ export function BattleField({
 
         {/* Fx レイヤ */}
 
-        {/* Cutter 武器選択中の常時回転刃 (タワー周囲を旋回) */}
+        {/* Cutter 武器選択中の常時回転刃 (タワー周囲を旋回)。
+            刃の長さ (length) は中心からの **半径** = range (直径) / 2 を渡し、
+            当たり判定半径と完全同期する。 索敵距離強化で判定が広がったときに刃も長くなる。 */}
         {showCutterOrbit && (
           <CutterOrbitFx
             cx={machineX}
             cy={machineY}
+            length={range / 2}
             rotateMs={cutterRotateMs}
           />
         )}
