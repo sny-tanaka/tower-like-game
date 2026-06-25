@@ -1,14 +1,18 @@
 /**
  * cannon.ts — Cannon 武器の戦闘ロジック（通常攻撃 + Volley アクティブ）
  *
- * 仕様: design-docs/tower-like-game/05-weapons.md
+ * 仕様: design-docs/tower-like-game/14-weapons-rebalance-v1.1.md (v1.1)
+ *       design-docs/tower-like-game/05-weapons.md (旧仕様、参考用)
  *
- * Cannon 基本仕様:
+ * Cannon 基本仕様 (v1.1):
  *   - 通常攻撃: 最寄り敵に着弾、爆発半径内の全敵にスプラッシュダメージ
  *   - 攻撃速度 底値: 0.5 attacks/sec
+ *   - 武器ダメージ倍率 底値: 3.0（DPS 1.5）
  *   - 爆発半径 底値: 30 px（+0.5 px / Lv、小数 OK）
- *   - アクティブ (Volley): 72° 刻み 5 発放射、各爆発半径は通常の ×3、1 発ダメ = 通常の ×20
- *   - Volley CD: 25 秒
+ *   - スプラッシュは「マシン背面側」をカット（半円判定）
+ *   - アクティブ (Volley): 72° 刻み 5 発放射、各爆発半径は通常の ×3、
+ *     1 発ダメ = 通常の ×10、各 shot にも半円カットを適用
+ *   - アクティブ CD: グローバル `DEFAULT_ACTIVE_MAX_SEC = 60s` に統一（武器個別 CD は撤去）
  */
 
 import { calcOutgoingDamage, rollCrit } from '@/game/damage';
@@ -23,14 +27,11 @@ import { BigNum } from '@/lib/bignum/BigNum';
 /** Cannon 底値 attacks/sec (低速・高ダメ型 — 未強化状態で 2 秒に 1 発) */
 export const CANNON_BASE_AS = 0.5;
 
-/** Cannon 底値 武器ダメージ倍率 (高ダメ。 AS 0.5/s × 2.0 で DPS=1.0) */
-export const CANNON_BASE_DAMAGE_MUL = 2.0;
+/** Cannon 底値 武器ダメージ倍率 (DPS = 0.5 × 3.0 = 1.5) */
+export const CANNON_BASE_DAMAGE_MUL = 3.0;
 
 /** 爆発半径 底値 (px) */
 const BASE_SPLASH_RADIUS_PX = 30;
-
-/** Volley CD 秒数 */
-export const VOLLEY_CD_SEC = 25;
 
 /** Volley 発射数 */
 export const VOLLEY_SHOTS = 5;
@@ -42,10 +43,14 @@ const VOLLEY_SPREAD_DEG = 360 / VOLLEY_SHOTS; // 72°
 const VOLLEY_SPLASH_MUL = 3;
 
 /** Volley 1 発ダメージ倍率（通常攻撃比） */
-const VOLLEY_DAMAGE_MUL = 20;
+const VOLLEY_DAMAGE_MUL = 10;
 
 /** 砲弾の飛翔時間 (ms) — 着弾まで HP 減算を遅延するために参照 */
 export const CANNON_SHELL_MS = 480;
+
+/** マシン座標（フィールド中央固定。 useBattleLoop の MACHINE_CENTER と一致） */
+const MACHINE_X = 50;
+const MACHINE_Y = 50;
 
 // ---------------------------------------------------------------------------
 // CannonStats
@@ -58,8 +63,6 @@ export interface CannonStats {
   splashRadius: number;
   /** 武器ダメージ倍率（Lv スケール） */
   damageMul: number;
-  /** Volley CD (秒) */
-  volleyCdSec: number;
   /** Volley 1 発ダメージ倍率（通常攻撃比） */
   volleyDamageMul: number;
   /** Volley 発射数 */
@@ -69,12 +72,11 @@ export interface CannonStats {
 /**
  * 武器強化 Lv から CannonStats を計算する。
  *
- * Lv スケール（05-weapons.md 共通ルール）:
- *   - 武器ダメージ倍率: 1.02^Lv
+ * Lv スケール（14-weapons-rebalance-v1.1.md）:
+ *   - 武器ダメージ倍率: CANNON_BASE_DAMAGE_MUL × 1.02^Lv
  *   - 攻撃速度: BASE_AS × (1 + 0.03 × Lv)、上限 10
  *   - 爆発半径 (固有ステ): 30 + 0.5 × Lv (px)
  *   - Volley ダメージ倍率: VOLLEY_DAMAGE_MUL × (1 + 0.05 × Lv)
- *   - Volley CD: 25 秒（固定）
  *   - Volley 発射数: 5 発（固定）
  */
 export function cannonStats(weaponLv: number): CannonStats {
@@ -96,7 +98,6 @@ export function cannonStats(weaponLv: number): CannonStats {
     attackPerSec,
     splashRadius,
     damageMul,
-    volleyCdSec: VOLLEY_CD_SEC,
     volleyDamageMul,
     volleyShots: VOLLEY_SHOTS,
   };
@@ -131,12 +132,37 @@ function dist(ax: number, ay: number, bx: number, by: number): number {
 }
 
 /**
+ * 半円カット判定。
+ *
+ * マシン → 着弾点ベクトルと、マシン → 敵ベクトルの内積が正であれば、
+ * 敵はマシンより着弾側（前方）にいると判定する。内積が 0 以下の場合は
+ * マシン背面側とみなしてスプラッシュ対象から除外する。
+ *
+ * 仕様: design-docs/tower-like-game/14-weapons-rebalance-v1.1.md
+ *   `(ex - mx) × (bx - mx) + (ey - my) × (by - my) > 0`
+ *
+ * @returns true ならスプラッシュ対象、false なら背面側でカット
+ */
+function isInFrontSemicircle(
+  blastX: number,
+  blastY: number,
+  enemyX: number,
+  enemyY: number
+): boolean {
+  const bx = blastX - MACHINE_X;
+  const by = blastY - MACHINE_Y;
+  const ex = enemyX - MACHINE_X;
+  const ey = enemyY - MACHINE_Y;
+  return ex * bx + ey * by > 0;
+}
+
+/**
  * Cannon 通常攻撃。
  *
  * 動作:
- *   1. `enemiesInRange` の中で最も遠い敵（マシン基点 x=0, y=50 と仮定）を
- *      着弾点として選ぶ
- *   2. 着弾点を中心に `splashRadius` 内の全敵にダメージを与える
+ *   1. `enemiesInRange` の中で最寄り敵 (マシン基点) を選び、着弾点とする
+ *   2. 着弾点を中心に `splashRadius` 内 **かつマシン前方半円** の全敵に
+ *      ダメージを与える（背面側はカット）
  *   3. クリ判定は 1 回ロールして全スプラッシュヒットに適用
  *
  * @param machine          マシンステータス
@@ -154,17 +180,13 @@ export function cannonNormalAttack(
     return { hits: [], blastX: 50, blastY: 50 };
   }
 
-  // マシン座標（フィールド中央固定。 useBattleLoop の MACHINE_CENTER と一致）
-  const machineX = 50;
-  const machineY = 50;
-
-  // 着弾点 = 最寄り敵 (design-docs/05-weapons.md 仕様)
+  // 着弾点 = 最寄り敵 (design-docs/14-weapons-rebalance-v1.1.md 仕様)
   let nearestEnemy = enemiesInRange[0]!;
-  let minD = dist(machineX, machineY, nearestEnemy.position.x, nearestEnemy.position.y);
+  let minD = dist(MACHINE_X, MACHINE_Y, nearestEnemy.position.x, nearestEnemy.position.y);
 
   for (let i = 1; i < enemiesInRange.length; i++) {
     const e = enemiesInRange[i]!;
-    const d = dist(machineX, machineY, e.position.x, e.position.y);
+    const d = dist(MACHINE_X, MACHINE_Y, e.position.x, e.position.y);
     if (d < minD) {
       minD = d;
       nearestEnemy = e;
@@ -177,27 +199,28 @@ export function cannonNormalAttack(
   // クリ判定（1 回ロール、全スプラッシュヒットに適用）
   const isCrit = rollCrit(machine.critRate, rng);
 
-  // スプラッシュ範囲内の全敵にダメージ
+  // スプラッシュ範囲内 ＋ 半円カット で対象を絞る
   const hits: CannonAttackHit[] = [];
 
   for (const enemy of enemiesInRange) {
     const d = dist(blastX, blastY, enemy.position.x, enemy.position.y);
-    if (d <= stats.splashRadius) {
-      const result = calcOutgoingDamage(
-        {
-          machine,
-          weapon: { damageMultiplier: stats.damageMul },
-          isCrit,
-        },
-        BigNum.ZERO,
-        0
-      );
-      hits.push({
-        enemyId: enemy.id,
-        damage: result.finalDmg,
-        crit: isCrit,
-      });
-    }
+    if (d > stats.splashRadius) continue;
+    if (!isInFrontSemicircle(blastX, blastY, enemy.position.x, enemy.position.y)) continue;
+
+    const result = calcOutgoingDamage(
+      {
+        machine,
+        weapon: { damageMultiplier: stats.damageMul },
+        isCrit,
+      },
+      BigNum.ZERO,
+      0
+    );
+    hits.push({
+      enemyId: enemy.id,
+      damage: result.finalDmg,
+      crit: isCrit,
+    });
   }
 
   return { hits, blastX, blastY };
@@ -229,7 +252,8 @@ export interface VolleyResult {
  *   1. 全敵の中で最近の敵の方向を基準角 (0°) として 72° 刻みで 5 方向に発射
  *   2. 各方向につき、その方向に最も射影成分が大きい敵（正面）を着弾点とする
  *      （方向上に敵がいない場合は仮想着弾点）
- *   3. 各着弾点を中心に splashRadius × 3 内の全敵にダメージ
+ *   3. 各着弾点を中心に splashRadius × 3 内 **かつマシン前方半円** の全敵に
+ *      ダメージを与える（背面側はカット）
  *   4. ダメージ = 通常攻撃の volleyDamageMul 倍（クリ判定なし）
  *
  * @param machine     マシンステータス
@@ -243,26 +267,22 @@ export function cannonVolley(
   enemies: SpawnedEnemy[],
   spreadDeg?: number
 ): VolleyResult {
-  // useBattleLoop の MACHINE_CENTER と一致 (フィールド中央固定)
-  const machineX = 50;
-  const machineY = 50;
-
   // 発射角度の基準を決める
   // 起点: 全敵の中で最近の敵の方向（敵がいなければ右方向 = 0°）
   let baseDeg = 0;
   if (enemies.length > 0) {
     let nearest = enemies[0]!;
-    let minD = dist(machineX, machineY, nearest.position.x, nearest.position.y);
+    let minD = dist(MACHINE_X, MACHINE_Y, nearest.position.x, nearest.position.y);
     for (let i = 1; i < enemies.length; i++) {
       const e = enemies[i]!;
-      const d = dist(machineX, machineY, e.position.x, e.position.y);
+      const d = dist(MACHINE_X, MACHINE_Y, e.position.x, e.position.y);
       if (d < minD) {
         minD = d;
         nearest = e;
       }
     }
-    const dx = nearest.position.x - machineX;
-    const dy = nearest.position.y - machineY;
+    const dx = nearest.position.x - MACHINE_X;
+    const dy = nearest.position.y - MACHINE_Y;
     baseDeg = (Math.atan2(dy, dx) * 180) / Math.PI;
   }
 
@@ -286,8 +306,8 @@ export function cannonVolley(
     let maxProj = -Infinity;
 
     for (const e of enemies) {
-      const ex = e.position.x - machineX;
-      const ey = e.position.y - machineY;
+      const ex = e.position.x - MACHINE_X;
+      const ey = e.position.y - MACHINE_Y;
       const proj = ex * dirX + ey * dirY;
       if (proj > 0 && proj > maxProj) {
         maxProj = proj;
@@ -304,30 +324,31 @@ export function cannonVolley(
       blastY = targetEnemy.position.y;
     } else {
       // 仮想着弾点（マシンから固定距離 100 先）
-      blastX = machineX + dirX * 100;
-      blastY = machineY + dirY * 100;
+      blastX = MACHINE_X + dirX * 100;
+      blastY = MACHINE_Y + dirY * 100;
     }
 
-    // 着弾点周囲の敵にダメージ
+    // 着弾点周囲の敵にダメージ（半円カット適用）
     const shotHits: Array<{ enemyId: string; damage: BigNum }> = [];
 
     for (const e of enemies) {
       const d = dist(blastX, blastY, e.position.x, e.position.y);
-      if (d <= volleySplashRadius) {
-        const result = calcOutgoingDamage(
-          {
-            machine,
-            weapon: { damageMultiplier: stats.damageMul * stats.volleyDamageMul },
-            isCrit: false,
-          },
-          BigNum.ZERO,
-          0
-        );
-        shotHits.push({
-          enemyId: e.id,
-          damage: result.finalDmg,
-        });
-      }
+      if (d > volleySplashRadius) continue;
+      if (!isInFrontSemicircle(blastX, blastY, e.position.x, e.position.y)) continue;
+
+      const result = calcOutgoingDamage(
+        {
+          machine,
+          weapon: { damageMultiplier: stats.damageMul * stats.volleyDamageMul },
+          isCrit: false,
+        },
+        BigNum.ZERO,
+        0
+      );
+      shotHits.push({
+        enemyId: e.id,
+        damage: result.finalDmg,
+      });
     }
 
     shots.push({

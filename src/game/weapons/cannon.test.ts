@@ -2,9 +2,13 @@
  * cannon.test.ts — Cannon 武器ロジックのユニットテスト
  *
  * カバー範囲:
- *   - cannonStats: Lv スケール検証
- *   - cannonNormalAttack: splashRadius 内の全敵ヒット、外の敵は対象外、splashRadius=0 の挙動
- *   - cannonVolley: 5 発生成、各 shot の角度差が 72°、ヒット範囲検証
+ *   - cannonStats: Lv スケール検証（v1.1 底値）
+ *   - cannonNormalAttack: splashRadius 内の全敵ヒット、外の敵は対象外、
+ *     半円カット（マシン背面側の敵は除外）
+ *   - cannonVolley: 5 発生成、各 shot の角度差が 72°、ヒット範囲検証、
+ *     各 shot にも半円カット適用
+ *
+ * 仕様: design-docs/tower-like-game/14-weapons-rebalance-v1.1.md
  */
 
 import { describe, it, expect } from 'vitest';
@@ -13,7 +17,6 @@ import {
   CANNON_BASE_AS,
   CANNON_BASE_DAMAGE_MUL,
   CANNON_SHELL_MS,
-  VOLLEY_CD_SEC,
   VOLLEY_SHOTS,
   cannonNormalAttack,
   cannonStats,
@@ -74,14 +77,14 @@ function makeEnemy(id: string, x: number, y: number): SpawnedEnemy {
 // ---------------------------------------------------------------------------
 
 describe('cannonStats', () => {
-  it('Lv 0 は底値を返す', () => {
+  it('Lv 0 は底値を返す (v1.1: damageMul=3.0, AS=0.5, splash=30, volleyMul=10)', () => {
     const s = cannonStats(0);
     expect(s.attackPerSec).toBeCloseTo(CANNON_BASE_AS);
     expect(s.splashRadius).toBeCloseTo(30);
     expect(s.damageMul).toBeCloseTo(CANNON_BASE_DAMAGE_MUL);
-    expect(s.volleyCdSec).toBe(VOLLEY_CD_SEC);
+    expect(CANNON_BASE_DAMAGE_MUL).toBe(3.0);
     expect(s.volleyShots).toBe(VOLLEY_SHOTS);
-    expect(s.volleyDamageMul).toBeCloseTo(20);
+    expect(s.volleyDamageMul).toBeCloseTo(10);
   });
 
   it('Lv 10 のスケール: damageMul と attackPerSec が Lv で増加', () => {
@@ -92,8 +95,8 @@ describe('cannonStats', () => {
     expect(s.attackPerSec).toBeCloseTo(CANNON_BASE_AS * 1.3, 5);
     // 爆発半径: 30 + 0.5 × 10 = 35
     expect(s.splashRadius).toBeCloseTo(35, 5);
-    // Volley ダメ倍率: 20 × (1 + 0.05 × 10) = 30
-    expect(s.volleyDamageMul).toBeCloseTo(30, 5);
+    // Volley ダメ倍率: 10 × (1 + 0.05 × 10) = 15
+    expect(s.volleyDamageMul).toBeCloseTo(15, 5);
   });
 
   it('Lv 50 のスケール', () => {
@@ -136,7 +139,7 @@ describe('cannonStats', () => {
 
 describe('cannonNormalAttack', () => {
   const machine = defaultMachine();
-  const stats = cannonStats(0); // Lv 0: splashRadius = 30, damageMul = 1.0
+  const stats = cannonStats(0); // Lv 0: splashRadius = 30, damageMul = 3.0
 
   it('敵が 0 体のとき hits は空で blastX/Y はマシン中心', () => {
     const result = cannonNormalAttack(machine, stats, [], rngFixed);
@@ -156,11 +159,11 @@ describe('cannonNormalAttack', () => {
     expect(result.blastY).toBe(50);
   });
 
-  it('splashRadius 内の全敵がヒットする', () => {
+  it('splashRadius 内 かつ マシン前方の敵がヒットする', () => {
     // splashRadius = 30
     // マシン中心 (50, 50)
     //   NEAR(x=60, y=50):  マシンから距離 10 → 最寄り、 着弾点
-    //   MID (x=65, y=50):  着弾点 NEAR から距離 5 ≤ 30 → ヒット
+    //   MID (x=65, y=50):  着弾点 NEAR から距離 5 ≤ 30、マシン前方 → ヒット
     //   OUT (x=30, y=20):  着弾点 NEAR から √(900+900)≈42.4 > 30 → スプラッシュ外
     const statsLv0: CannonStats = { ...stats, splashRadius: 30 };
     const enemyNear = makeEnemy('NEAR', 60, 50);
@@ -185,6 +188,7 @@ describe('cannonNormalAttack', () => {
 
     const result = cannonNormalAttack(machine, statsZeroRadius, [enemyFar, enemyNear], rngFixed);
     // NEAR が着弾点 (最寄り)、 距離 0 → ヒット
+    //   半円判定: (60-50)×(60-50) + 0×0 = 100 > 0 → 前方 OK
     // FAR は着弾点から距離 30 > 0 → ヒットしない
     expect(result.hits).toHaveLength(1);
     expect(result.hits[0]!.enemyId).toBe('NEAR');
@@ -192,18 +196,21 @@ describe('cannonNormalAttack', () => {
 
   it('クリ発動でダメージが増加する', () => {
     const machineCrit = defaultMachine({ critRate: 1, critMultiplier: 2 });
-    const enemyA = makeEnemy('A', 50, 50);
+    // マシン (50,50) より前方に置く（半円カット回避）
+    const enemyA = makeEnemy('A', 60, 50);
 
     const resultCrit = cannonNormalAttack(machineCrit, stats, [enemyA], rngCrit);
     const resultNoCrit = cannonNormalAttack(defaultMachine(), stats, [enemyA], rngNoCrit);
 
+    expect(resultCrit.hits).toHaveLength(1);
+    expect(resultNoCrit.hits).toHaveLength(1);
     expect(resultCrit.hits[0]!.crit).toBe(true);
     expect(resultCrit.hits[0]!.damage.compare(resultNoCrit.hits[0]!.damage)).toBe(1);
   });
 
   it('クリ判定は全ヒットに一律適用される', () => {
     const machineCrit = defaultMachine({ critRate: 1, critMultiplier: 2 });
-    // 複数敵が splashRadius 内にいる
+    // 複数敵が splashRadius 内にいる（どちらもマシン前方）
     const enemyFar = makeEnemy('FAR', 80, 50);
     const enemyNear = makeEnemy('NEAR', 82, 50); // 距離 2 ≤ 30
     const statsWide: CannonStats = { ...stats, splashRadius: 30 };
@@ -215,15 +222,80 @@ describe('cannonNormalAttack', () => {
   });
 
   it('damageMul が正しくダメージに反映される', () => {
-    // Lv 0: damageMul=1.0, Lv 10: damageMul=1.02^10
+    // Lv 0: damageMul=CANNON_BASE_DAMAGE_MUL, Lv 10: damageMul=CANNON_BASE_DAMAGE_MUL × 1.02^10
+    // マシン前方 (60,50) に置く
     const statsLv10 = cannonStats(10);
-    const enemy = makeEnemy('A', 50, 50);
+    const enemy = makeEnemy('A', 60, 50);
 
     const resultLv0 = cannonNormalAttack(machine, stats, [enemy], rngNoCrit);
     const resultLv10 = cannonNormalAttack(machine, statsLv10, [enemy], rngNoCrit);
 
+    expect(resultLv0.hits).toHaveLength(1);
+    expect(resultLv10.hits).toHaveLength(1);
     // Lv 10 の方がダメージが大きいはず
     expect(resultLv10.hits[0]!.damage.compare(resultLv0.hits[0]!.damage)).toBe(1);
+  });
+
+  // ---------------------------------------------------------------------------
+  // 半円カット（v1.1 新仕様）
+  // ---------------------------------------------------------------------------
+
+  describe('半円カット (マシン背面側の敵は除外)', () => {
+    const statsWide: CannonStats = { ...stats, splashRadius: 50 };
+
+    it('マシン背面側の敵は splash 範囲内でもヒットしない', () => {
+      // マシン (50, 50)、着弾点を x=60 に取らせる
+      //   TARGET(60, 50): 着弾点 (最寄り) → ヒット (半円判定: 10×10=100>0)
+      //   BEHIND(40, 50): マシン背面側
+      //     距離: (40-60)=20 ≤ 50 → 範囲内
+      //     半円判定: (40-50)×(60-50) + 0×0 = -10×10 = -100 ≤ 0 → カット
+      const target = makeEnemy('TARGET', 60, 50);
+      const behind = makeEnemy('BEHIND', 40, 50);
+
+      const result = cannonNormalAttack(machine, statsWide, [target, behind], rngFixed);
+      expect(result.blastX).toBe(60);
+      const hitIds = result.hits.map((h) => h.enemyId);
+      expect(hitIds).toContain('TARGET');
+      expect(hitIds).not.toContain('BEHIND');
+    });
+
+    it('マシン側 (着弾点と同じ前方) の敵は splash 範囲内ならヒットする', () => {
+      // マシン (50, 50)
+      //   TARGET(60, 50): 最寄り → 着弾点
+      //   FRONT(70, 50): 距離 (70-60)=10 ≤ 50 → 範囲内
+      //     半円判定: (70-50)×(60-50) + 0×0 = 20×10 = 200 > 0 → ヒット
+      const target = makeEnemy('TARGET', 60, 50);
+      const front = makeEnemy('FRONT', 70, 50);
+
+      const result = cannonNormalAttack(machine, statsWide, [target, front], rngFixed);
+      const hitIds = result.hits.map((h) => h.enemyId);
+      expect(hitIds).toContain('TARGET');
+      expect(hitIds).toContain('FRONT');
+    });
+
+    it('着弾点ぴったり (敵が着弾点と同じ位置、マシンより前) はヒットする', () => {
+      // 着弾点 = TARGET(60, 50)
+      //   TARGET(60, 50): 距離 0、半円判定 (60-50)×(60-50)=100 > 0 → ヒット
+      const target = makeEnemy('TARGET', 60, 50);
+
+      const result = cannonNormalAttack(machine, statsWide, [target], rngFixed);
+      expect(result.hits).toHaveLength(1);
+      expect(result.hits[0]!.enemyId).toBe('TARGET');
+    });
+
+    it('斜め方向の背面カット (内積が負の象限はカット)', () => {
+      // マシン (50, 50)
+      //   TARGET(60, 60): 最寄り、着弾点（マシン右上方向）
+      //   SIDE(40, 40): 着弾点から (40-60, 40-60)=(-20,-20)、距離 √800≈28.3 ≤ 50 → 範囲内
+      //     半円判定: (40-50)×(60-50) + (40-50)×(60-50) = -100 + -100 = -200 ≤ 0 → カット
+      const target = makeEnemy('TARGET', 60, 60);
+      const side = makeEnemy('SIDE', 40, 40);
+
+      const result = cannonNormalAttack(machine, statsWide, [target, side], rngFixed);
+      const hitIds = result.hits.map((h) => h.enemyId);
+      expect(hitIds).toContain('TARGET');
+      expect(hitIds).not.toContain('SIDE');
+    });
   });
 });
 
@@ -233,7 +305,7 @@ describe('cannonNormalAttack', () => {
 
 describe('cannonVolley', () => {
   const machine = defaultMachine();
-  const stats = cannonStats(0); // Lv 0: volleyShots=5, volleyDamageMul=20
+  const stats = cannonStats(0); // Lv 0: volleyShots=5, volleyDamageMul=10
 
   it('敵が 0 体でも 5 shot を生成する', () => {
     const result = cannonVolley(machine, stats, []);
@@ -245,7 +317,7 @@ describe('cannonVolley', () => {
   });
 
   it('5 発撃つ (volleyShots=5)', () => {
-    const enemies = [makeEnemy('A', 50, 50)];
+    const enemies = [makeEnemy('A', 60, 50)];
     const result = cannonVolley(machine, stats, enemies);
     expect(result.shots).toHaveLength(stats.volleyShots);
     expect(result.shots).toHaveLength(5);
@@ -282,9 +354,10 @@ describe('cannonVolley', () => {
     // baseDeg は最近の敵 CLOSE(x=60,y=50) の方向 = 0°
     // shot[0] 方向 cos(0°)=1, sin(0°)=0
     //   各敵の射影 = (ex - 50) × 1 + (ey - 50) × 0 = ex - 50
-    //   CLOSE 射影 = 10、FAR 射影 = 40（最大）→ shot[0] 着弾点 = FAR
-    //   EXTRA(x=55, y=50): 射影 = 5 < 40。
+    //   CLOSE 射影 = 10、FAR 射影 = 40（最大）→ shot[0] 着弾点 = FAR(90, 50)
+    //   EXTRA(x=55, y=50): 射影 = 5 < 40
     //     FAR(x=90, y=50) から EXTRA(x=55, y=50) の距離 = 35 > 30（通常外）、≤ 90（Volley 内）
+    //     半円判定: (55-50)×(90-50) + 0 = 200 > 0 → 前方 OK → ヒット
     const statsLv0 = cannonStats(0); // splashRadius=30
 
     const close = makeEnemy('CLOSE', 60, 50); // 最近の敵 → baseDeg=0°
@@ -300,7 +373,7 @@ describe('cannonVolley', () => {
   });
 
   it('Volley ダメージは通常攻撃の damageMul × volleyDamageMul 倍になっている', () => {
-    // baseAttack=100, Lv0: damageMul=CANNON_BASE_DAMAGE_MUL, volleyDamageMul=20
+    // baseAttack=100, Lv0: damageMul=CANNON_BASE_DAMAGE_MUL(=3), volleyDamageMul=10
     // 敵をマシン (50,50) から離して baseDeg / 射影 が決定するようにする
     const enemy = makeEnemy('A', 70, 50);
     const result = cannonVolley(machine, stats, [enemy]);
@@ -308,8 +381,8 @@ describe('cannonVolley', () => {
     const shot0 = result.shots[0]!;
     expect(shot0.hits.length).toBeGreaterThan(0);
 
-    // 100 × CANNON_BASE_DAMAGE_MUL × 20
-    const expectedDmg = BigNum.fromNumber(100 * CANNON_BASE_DAMAGE_MUL * 20);
+    // 100 × CANNON_BASE_DAMAGE_MUL × 10
+    const expectedDmg = BigNum.fromNumber(100 * CANNON_BASE_DAMAGE_MUL * 10);
     expect(shot0.hits[0]!.damage.eq(expectedDmg)).toBe(true);
   });
 
@@ -332,6 +405,47 @@ describe('cannonVolley', () => {
     result.shots.forEach((s) => {
       expect(s.blastX).toBeCloseTo(first.blastX, 5);
       expect(s.blastY).toBeCloseTo(first.blastY, 5);
+    });
+  });
+
+  // ---------------------------------------------------------------------------
+  // Volley の半円カット（v1.1 新仕様）
+  // ---------------------------------------------------------------------------
+
+  describe('Volley の半円カット (各 shot にも適用)', () => {
+    it('shot 着弾点のマシン背面側の敵はヒットしない', () => {
+      // splashRadius=30、Volley splashRadius=90
+      // マシン (50, 50)
+      //   TARGET(70, 50): 唯一の敵 → 最近の敵 → baseDeg = 0°
+      //   shot[0] は方向 (1, 0)、TARGET の射影 = 20 → shot[0] 着弾点 = TARGET(70, 50)
+      // ここで仮想の BEHIND を追加する: shot[0] の着弾点(70,50) から
+      //   半径 90 内に入ってもマシン背面側ならカットされることを確認したい
+      //   BEHIND(20, 50): 距離 (70-20)=50 ≤ 90 → 範囲内
+      //     半円判定: (20-50)×(70-50) + 0 = -30×20 = -600 ≤ 0 → カット
+      const target = makeEnemy('TARGET', 70, 50);
+      const behind = makeEnemy('BEHIND', 20, 50);
+      const result = cannonVolley(machine, stats, [target, behind]);
+
+      const shot0 = result.shots[0]!;
+      expect(shot0.targetEnemyId).toBe('TARGET');
+      const hitIds = shot0.hits.map((h) => h.enemyId);
+      expect(hitIds).toContain('TARGET');
+      expect(hitIds).not.toContain('BEHIND');
+    });
+
+    it('shot 着弾点のマシン前方の敵は Volley 半径内ならヒットする', () => {
+      // マシン (50, 50)
+      //   TARGET(70, 50): baseDeg = 0°、shot[0] 着弾点
+      //   FRONT(85, 50): TARGET(70,50) から距離 15 ≤ 90 → 範囲内
+      //     半円判定: (85-50)×(70-50) + 0 = 35×20 = 700 > 0 → ヒット
+      const target = makeEnemy('TARGET', 70, 50);
+      const front = makeEnemy('FRONT', 85, 50);
+      const result = cannonVolley(machine, stats, [target, front]);
+
+      const shot0 = result.shots[0]!;
+      const hitIds = shot0.hits.map((h) => h.enemyId);
+      expect(hitIds).toContain('TARGET');
+      expect(hitIds).toContain('FRONT');
     });
   });
 });
