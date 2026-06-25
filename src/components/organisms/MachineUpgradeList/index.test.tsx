@@ -120,10 +120,16 @@ describe('calcEffectValue', () => {
     expect(calcEffectValue(item, 0)).toBe(150);
   });
 
-  test('range_asymptotic: Lv 100 は約 275 px', () => {
+  test('range_asymptotic: Lv 100 (maxLv) は 300 px (v1.1 で max=450 に調整)', () => {
     const item = MACHINE_UPGRADE_ITEMS.find((i) => i.key === 'range')!;
-    // r = 0.01 × 100 = 1, 150 + 250 × (1 - 0.5) = 150 + 125 = 275
-    expect(calcEffectValue(item, 100)).toBe(275);
+    // r = 0.01 × 100 = 1, 150 + 300 × (1 - 0.5) = 150 + 150 = 300
+    expect(calcEffectValue(item, 100)).toBe(300);
+  });
+
+  test('range_asymptotic: Lv 100 超は maxLv で固定 (画面外飛び出し防止のハードキャップ)', () => {
+    const item = MACHINE_UPGRADE_ITEMS.find((i) => i.key === 'range')!;
+    expect(calcEffectValue(item, 200)).toBe(300);
+    expect(calcEffectValue(item, 1000)).toBe(300);
   });
 
   test('fixed_step: patchSlots Lv 0 = 1', () => {
