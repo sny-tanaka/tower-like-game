@@ -57,23 +57,22 @@ export function calcMachineAttackSpeed(attackSpeedLv: number): number {
 }
 
 /**
- * 武器ごとの実効射程 (m) を算出 (= machine.range × WEAPON_RANGE_PCT[weapon] / 100)。
+ * 武器ごとの実効射程 (m) を算出 = 中心からの **半径** (最大攻撃距離) をメートル換算。
  *
- * useBattleLoop 内の射程フィルタは「フィールド % 座標」で動くので
- * 内部値は WEAPON_RANGE_PCT[weapon] × (machine.range / 150) (= %) を使うが、
- * UI 表示はゲーム世界の距離感を保ちたいので machine.range (= m) を基準にした
- * メートル換算 (machineRange × weaponPct / 100) で出す。
+ * WEAPON_RANGE_PCT は **直径 %** のため、半径換算で /2 する:
+ *   machineRange × WEAPON_RANGE_PCT[weapon] / 100 / 2
  *
+ * v1.1.1 縮小後の値:
  *   Lv 0 (machineRange=150m):
- *     Cutter 14%  → 21.0m   Laser/Thunder 35% → 52.5m   Cannon 45% → 67.5m
+ *     Cutter 10.89% → 8.2m   Laser/Thunder 27.22% → 20.4m   Cannon 35% → 26.3m
  *   Lv 100 (machineRange=300m, MAX):
- *     Cutter      → 42.0m   Laser/Thunder     → 105.0m  Cannon     → 135.0m
+ *     Cutter        → 16.3m  Laser/Thunder        → 40.8m   Cannon    → 52.5m
  */
 export function calcEffectiveRange(
   weapon: 'laser' | 'cannon' | 'thunder' | 'cutter',
   machineRange: number
 ): number {
-  return (machineRange * WEAPON_RANGE_PCT[weapon]) / 100;
+  return (machineRange * WEAPON_RANGE_PCT[weapon]) / 100 / 2;
 }
 
 // ---------------------------------------------------------------------------
@@ -114,7 +113,7 @@ export function calcCutterOverdriveDurationSec(weaponLv: number): number {
  *
  * 連射速度と射程はマシン強化を反映 (どちらもマシン強化に直接掛け算):
  *   - 連射速度 = weapon.attackPerSec × machine.attackSpeed (倍率)
- *   - 射程     = machine.range × WEAPON_RANGE_PCT[weapon] / 100 [m]
+ *   - 射程     = machine.range × WEAPON_RANGE_PCT[weapon] / 100 / 2 [m] (= 半径)
  */
 
 export function buildLaserStats(

@@ -23,8 +23,12 @@ export type EnemyStatus = 'normal' | 'frozen' | 'burning';
 export interface EnemyProps {
   /** 敵タイプ (見た目とサイズのプリセットを内包) */
   type: EnemyVisualType;
-  /** 直径 px。 未指定なら type ごとの既定値 */
-  size?: number;
+  /**
+   * 直径。 number なら px、 string ならそのまま CSS 値 (例: '5cqmin', '3em')。
+   * 未指定なら type ごとの既定値 (px)。 BattleField からは cqmin 文字列で渡してフィールド
+   * 比例サイジングする (端末間で見た目大きさを揃える)。
+   */
+  size?: number | string;
   /** HP 残量 0-1 (showHp=true のとき HP バー描画に使う) */
   hp?: number;
   /** HP バー表示。 未指定なら elite/miniboss/boss は自動 ON、 通常敵は OFF */
@@ -365,7 +369,9 @@ export function spawnedEnemyToVisualType(
  */
 function EnemyImpl({ type, size, hp, showHp, facing = 0, status = 'normal' }: EnemyProps) {
   const preset = TYPE_PRESETS[type];
-  const finalSize = size ?? preset.size;
+  const finalSize: number | string = size ?? preset.size;
+  // CSS 値 (length) として両対応: number → px、 string → そのまま
+  const sizeCss = typeof finalSize === 'number' ? `${finalSize}px` : finalSize;
   const ShapeFn = SHAPE_BY_TYPE[type];
   const renderHp = showHp ?? preset.defaultHp;
   const facingDeg = ROTATABLE[type] ? `${(facing * 180) / Math.PI}deg` : '0deg';
@@ -374,21 +380,21 @@ function EnemyImpl({ type, size, hp, showHp, facing = 0, status = 'normal' }: En
   // glow の太さ・色は CSS variable で渡し、 filter 値は CSS 側 (data-status セレクタ) に
   // 閉じ込めることで位置変化のたびに filter ラスタライズが再実行されないようにする (Issue #79 M-1)。
   const wrapperStyle: CSSProperties = {
-    width: finalSize,
-    height: finalSize,
+    width: sizeCss,
+    height: sizeCss,
     ['--enemy-glow-px' as string]: `${dropShadowPx}px`,
     ['--enemy-glow-color' as string]: preset.glow,
   };
 
   const shapeStyle: CSSProperties = {
-    width: finalSize,
-    height: finalSize,
+    width: sizeCss,
+    height: sizeCss,
     color: preset.color,
     transform: `rotate(${facingDeg})`,
   };
 
   const hpBarStyle: CSSProperties = {
-    width: finalSize + 4,
+    width: `calc(${sizeCss} + 4px)`,
     height: type === 'boss' ? 4 : 3,
   };
 

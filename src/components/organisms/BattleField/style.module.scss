@@ -15,21 +15,25 @@
   container-type: size;
 }
 
-/* ===== 内部座標系（長辺基準の正方形） =====
+/* ===== 内部座標系（コンテナ短辺基準の正方形） =====
  * 敵 position (0-100%) や攻撃範囲円、ヒット判定はすべて「正方形空間の %」で扱う。
- * .root より大きい場合は overflow: hidden で画面外にはみ出し、その分は描画されない
- * （画面外にも敵は存在する、という設計）。
+ *
+ * v1.1.1: 高さをスマホ縦サイズから割り出さず、コンテナ短辺基準 (cqmin) で一律同じ
+ * 大きさの正方形を描く。.root (Top / Bottom HUD を除いた領域) の中央に配置する。
  */
 .field {
   position: absolute;
   left: 50%;
   top: 50%;
-  /* 100cqmax = 親 .root の長辺の 100%。短辺方向は画面外にはみ出す */
-  width: 100cqmax;
-  height: 100cqmax;
+  width: 140cqmin;
+  height: 140cqmin;
   transform: translate(-50%, -50%);
   pointer-events: none;
+  /* v1.1.1: field だけ拡大して、内部のマシン / 敵は root cqmin (= 端末短辺) 比例のまま
+     固定する設計。 これで field サイズを変えても要素サイズは追従せず、 単純に「より広い
+     プレイエリア」 として機能する。 */
 }
+
 
 /* ===== 索敵円（.field 基準の真円） =====
  * width/height ともに .field の % を使うことで、敵 position の距離判定と完全に一致する真円。
@@ -49,18 +53,32 @@
   z-index: var(--z-base);
 }
 
-/* ===== マシン (三角 + 単一リング) ===== */
+/* ===== マシン (三角 + 単一リング) =====
+ * v1.1.1: px 固定 → cqmin (コンテナ短辺 = フィールド短辺 比例) に切替 + 16cqmin → 9.6cqmin (60%) に縮小。
+ * 端末間で「マシンが field のどれくらいの割合か」 を一定にする。
+ * 内部の Icon (SVG) は CSS で 100% に伸ばし、 size={22} prop を無視させる。
+ */
 .machine {
   position: absolute;
   transform: translate(-50%, -50%);
   z-index: 10;
   pointer-events: none;
-  width: 64px;
-  height: 64px;
+  width: 9.6cqmin;
+  height: 9.6cqmin;
   display: flex;
   align-items: center;
   justify-content: center;
   filter: drop-shadow(var(--glow-cyan-sm));
+
+  /* Icon (tower SVG) を .machine 全体に伸ばす。 旧実装は <Icon size={22} /> で 22px 固定
+     だったが、 .machine が cqmin スケールするので Icon も追従する必要がある。
+     `tower` Icon は <svg> として render されるのでそれだけを対象にする。
+     .machineRingOuter は <span> なので除外。
+     .machine の 56% (旧 22/64) を踏襲してリングとのバランスを保つ。 */
+  & > svg {
+    width: 56%;
+    height: 56%;
+  }
 }
 
 .machineRingOuter {
