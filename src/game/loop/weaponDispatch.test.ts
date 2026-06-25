@@ -44,10 +44,12 @@ describe('getAttackPerSec', () => {
     expect(getAttackPerSec('cutter', 0)).toBeGreaterThan(0);
   });
 
-  test('Lv が上がると attackPerSec が増える (laser)', () => {
+  test('v1.1.1: Lv が上がっても attackPerSec は固定 (laser)', () => {
     const lv0 = getAttackPerSec('laser', 0);
     const lv10 = getAttackPerSec('laser', 10);
-    expect(lv10).toBeGreaterThan(lv0);
+    const lv100 = getAttackPerSec('laser', 100);
+    expect(lv10).toBe(lv0);
+    expect(lv100).toBe(lv0);
   });
 });
 
@@ -90,12 +92,15 @@ describe('fireWeapon: RunWorkshop attackMul の反映', () => {
     expect(boostedDmg.toString()).toBe(expectedBoosted.toString());
   });
 
-  test('attackMul=1.0 と attackMul=2.0 でダメージが 2 倍になる (cannon)', () => {
+  test('attackMul=1.0 と attackMul=2.0 で cannon の damageMul が 2 倍になる (v1.1.2: hits は着弾時計算なので shell.damageMul を比較)', () => {
+    // v1.1.2: cannon は発射時に hits を返さず、 cannonShell に damageMul を載せる。
+    // attackMul は damageMul に乗算されるので、 そこが 2 倍になっていれば OK。
+    const cannonEnemy = makeEnemy('c1', 70, 50);
     const baseResult = fireWeapon({
       weapon: 'cannon',
       weaponLv: 0,
       machine,
-      enemiesInRange: [enemy],
+      enemiesInRange: [cannonEnemy],
       rng: () => 0.99,
       attackMul: 1.0,
     });
@@ -103,15 +108,16 @@ describe('fireWeapon: RunWorkshop attackMul の反映', () => {
       weapon: 'cannon',
       weaponLv: 0,
       machine,
-      enemiesInRange: [enemy],
+      enemiesInRange: [cannonEnemy],
       rng: () => 0.99,
       attackMul: 2.0,
     });
-    expect(baseResult.hits.length).toBeGreaterThan(0);
-    const baseDmg = baseResult.hits[0].damage;
-    const boostedDmg = boostedResult.hits[0].damage;
-    const expectedBoosted = baseDmg.mulNumber(2);
-    expect(boostedDmg.toString()).toBe(expectedBoosted.toString());
+    expect(baseResult.cannonShell).toBeDefined();
+    expect(boostedResult.cannonShell).toBeDefined();
+    expect(boostedResult.cannonShell!.damageMul).toBeCloseTo(
+      baseResult.cannonShell!.damageMul * 2,
+      6
+    );
   });
 
   test('射程内に敵がいないと hits[] は空', () => {

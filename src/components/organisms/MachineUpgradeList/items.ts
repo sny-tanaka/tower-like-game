@@ -146,9 +146,14 @@ export const MACHINE_UPGRADE_ITEMS: readonly MachineUpgradeItem[] = [
     key: 'range',
     title: '索敵距離',
     category: 'offense',
-    baseValue: 150, // base=150, max=400, α=0.01 の索敵漸近
+    // v1.1 リバランス: WEAPON_RANGE_PCT × (range / 150) で武器射程を伸ばす倍率の基準。
+    // base=150 / 漸近 max=450 (旧 400) / α=0.01 / maxLv=100。
+    // Lv 100 で range=300px (倍率 2.0) → Cannon の base 45% が実効 90% に到達して打ち止め。
+    // 画面外（実効射程 100% 以上）に飛び出さないハードキャップを兼ねる。
+    baseValue: 150,
     growthFactor: 0.01,
     growthType: 'range_asymptotic',
+    maxLv: 100,
     baseCost: 100,
     costGrowth: 1.1,
     unit: 'px',
@@ -156,7 +161,7 @@ export const MACHINE_UPGRADE_ITEMS: readonly MachineUpgradeItem[] = [
   },
   {
     key: 'critRate',
-    title: 'クリ率',
+    title: 'Critical率',
     category: 'offense',
     // v1.0.0 リバランス: 漸近 (100% 不到達) → 線形 +0.5%/Lv MAX Lv 160 = 0→80%
     // The Tower の Critical Chance Workshop MAX (80%) と同等の上限を採用。
@@ -171,7 +176,7 @@ export const MACHINE_UPGRADE_ITEMS: readonly MachineUpgradeItem[] = [
   },
   {
     key: 'critMultiplier',
-    title: 'クリ倍率',
+    title: 'Critical倍率',
     category: 'offense',
     baseValue: 1.5,
     growthFactor: 0.05, // 線形 +0.05 / Lv
@@ -336,8 +341,9 @@ export function calcEffectValue(item: MachineUpgradeItem, lv: number): number {
     }
     case 'range_asymptotic': {
       const base = 150;
-      const max = 400;
-      const r = item.growthFactor * lv;
+      const max = 450; // v1.1: 400→450 で Lv 100 (maxLv) ちょうど 300px に到達するよう調整
+      const cappedLv = item.maxLv != null ? Math.min(lv, item.maxLv) : lv;
+      const r = item.growthFactor * cappedLv;
       return Math.ceil(base + (max - base) * (1 - 1 / (1 + r)));
     }
     default:

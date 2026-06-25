@@ -72,105 +72,60 @@ describe('calcMaxLevels', () => {
   });
 });
 
-describe('buildStatsImpact', () => {
-  it('baseAttackLv=0 と baseAttackLv=10 でビフォーDMG が異なる', () => {
-    const a = buildStatsImpact(0, 0, 0);
-    const b = buildStatsImpact(0, 10, 0);
-    expect(a[0]!.before).not.toBe(b[0]!.before);
-  });
-
-  it('LASER DMG は weaponLv+1 で上昇する', () => {
-    // weaponLv=100, baseAttackLv=100 で before/after の差が BigNum 切り上げを上回ることを確認
-    const items = buildStatsImpact(100, 100, 0);
-    const item = items.find((i) => i.label === 'LASER DMG')!;
-    // v1.0.1: DMG 表記は BigNum.toDisplay() 由来 ("12.34A" 等)。 parseFloat で先頭数値を取って大小比較。
-    // 桁数が変わる場合は接尾文字 (A/B/C/...) で順序判定する必要があるが、
-    // weaponLv+1 の差はわずかなので同じ桁内に収まる前提。
-    expect(parseFloat(item.after)).toBeGreaterThan(parseFloat(item.before));
-  });
-
-  it('LASER DMG が旧ハードコード値 120 と一致しない（実値を使っている）', () => {
-    // baseAttackLv=0, weaponLv=0 のとき baseAttack=1, damageMul=0.4 → DMG=1
-    const items = buildStatsImpact(0, 0, 0);
-    const laser = items.find((i) => i.label === 'LASER DMG')!;
-    expect(laser.before).not.toBe('120');
-  });
-
-  // -------------------------------------------------------------------------
-  // 追加テスト (#68 カバレッジ充実)
-  // -------------------------------------------------------------------------
-
-  it('返り値は LASER / CANNON / THUNDER / CUTTER DMG の 4 行を持つ', () => {
+describe('buildStatsImpact (v1.1.1: Lv 軸プレビュー)', () => {
+  it('返り値は 4 軸 (LASER Critical倍率 / CANNON 爆発半径 / THUNDER HP 回復率 / CUTTER Overdrive 持続) を持つ', () => {
     const items = buildStatsImpact(0, 0, 0);
     const labels = items.map((i) => i.label);
-    expect(labels).toContain('LASER DMG');
-    expect(labels).toContain('CANNON DMG');
-    expect(labels).toContain('THUNDER DMG');
-    expect(labels).toContain('CUTTER DMG');
+    expect(labels).toContain('LASER Critical倍率ボーナス');
+    expect(labels).toContain('CANNON 爆発半径');
+    expect(labels).toContain('THUNDER HP 回復率');
+    expect(labels).toContain('CUTTER Overdrive 持続');
     expect(items).toHaveLength(4);
   });
 
-  it('CANNON DMG が旧ハードコード値 480 と一致しない（実値を使っている）', () => {
-    // baseAttackLv=0 のとき baseAttack=1, CANNON_BASE_DAMAGE_MUL=2.0 → DMG=2（旧=480 と乖離）
+  it('LASER Critical倍率ボーナスが weaponLv+1 で +1% 上昇する (% 表記)', () => {
+    const items = buildStatsImpact(10, 0, 0);
+    const item = items.find((i) => i.label === 'LASER Critical倍率ボーナス')!;
+    expect(item.before).toBe('+10%');
+    expect(item.after).toBe('+11%');
+  });
+
+  it('CANNON 爆発半径が weaponLv+1 で +0.5m 上昇する', () => {
+    const items = buildStatsImpact(10, 0, 0);
+    const item = items.find((i) => i.label === 'CANNON 爆発半径')!;
+    expect(item.before).toBe('35.0m');
+    expect(item.after).toBe('35.5m');
+  });
+
+  it('THUNDER HP 回復率が weaponLv+1 で +0.1% 上昇する', () => {
+    const items = buildStatsImpact(10, 0, 0);
+    const item = items.find((i) => i.label === 'THUNDER HP 回復率')!;
+    expect(item.before).toBe('1.0%');
+    expect(item.after).toBe('1.1%');
+  });
+
+  it('CUTTER Overdrive 持続が weaponLv+1 で +0.1s 延びる', () => {
+    const items = buildStatsImpact(10, 0, 0);
+    const item = items.find((i) => i.label === 'CUTTER Overdrive 持続')!;
+    expect(item.before).toBe('9.0s');
+    expect(item.after).toBe('9.1s');
+  });
+
+  it('Lv 0 で各軸が底値を返す', () => {
     const items = buildStatsImpact(0, 0, 0);
-    const cannon = items.find((i) => i.label === 'CANNON DMG')!;
-    expect(cannon.before).not.toBe('480');
+    const find = (l: string) => items.find((i) => i.label === l)!;
+    expect(find('LASER Critical倍率ボーナス').before).toBe('+0%');
+    expect(find('CANNON 爆発半径').before).toBe('30.0m');
+    expect(find('THUNDER HP 回復率').before).toBe('0.0%');
+    expect(find('CUTTER Overdrive 持続').before).toBe('8.0s');
   });
 
-  it('THUNDER DMG が旧ハードコード値 84 と一致しない（実値を使っている）', () => {
-    // baseAttackLv=0 のとき baseAttack=1, THUNDER_BASE_DAMAGE_MUL=0.18 → DMG=1（旧=84 と乖離）
-    const items = buildStatsImpact(0, 0, 0);
-    const thunder = items.find((i) => i.label === 'THUNDER DMG')!;
-    expect(thunder.before).not.toBe('84');
-  });
-
-  it('CUTTER DMG が旧ハードコード値 62 と一致しない（実値を使っている）', () => {
-    // baseAttackLv=0 のとき baseAttack=1, CUTTER_BASE_DAMAGE_MUL=1.2 → DMG=2（旧=62 と乖離）
-    const items = buildStatsImpact(0, 0, 0);
-    const cutter = items.find((i) => i.label === 'CUTTER DMG')!;
-    expect(cutter.before).not.toBe('62');
-  });
-
-  it('weaponLv=0 境界: 全 4 武器の before は "0" でなく実値を返す', () => {
-    const items = buildStatsImpact(0, 0, 0);
-    for (const item of items) {
-      expect(item.before).not.toBe('0');
-    }
-  });
-
-  it('CANNON DMG は weaponLv+1 で上昇する', () => {
-    const items = buildStatsImpact(100, 100, 0);
-    const cannon = items.find((i) => i.label === 'CANNON DMG')!;
-    // v1.0.1: DMG は BigNum.toDisplay() ("xx.yyA") → parseFloat で先頭値を抽出
-    expect(parseFloat(cannon.after)).toBeGreaterThan(parseFloat(cannon.before));
-  });
-
-  it('THUNDER DMG は weaponLv+1 で上昇する', () => {
-    const items = buildStatsImpact(100, 100, 0);
-    const thunder = items.find((i) => i.label === 'THUNDER DMG')!;
-    expect(parseFloat(thunder.after)).toBeGreaterThan(parseFloat(thunder.before));
-  });
-
-  it('CUTTER DMG は weaponLv+1 で上昇する', () => {
-    const items = buildStatsImpact(100, 100, 0);
-    const cutter = items.find((i) => i.label === 'CUTTER DMG')!;
-    expect(parseFloat(cutter.after)).toBeGreaterThan(parseFloat(cutter.before));
-  });
-
-  it('rangeLv は LASER DMG に影響しない（射程変化はダメージ計算に関与しない）', () => {
-    const atRangeZero = buildStatsImpact(10, 10, 0);
-    const atRangeHigh = buildStatsImpact(10, 10, 100);
-    const laserZero = atRangeZero.find((i) => i.label === 'LASER DMG')!;
-    const laserHigh = atRangeHigh.find((i) => i.label === 'LASER DMG')!;
-    expect(laserZero.before).toBe(laserHigh.before);
-    expect(laserZero.after).toBe(laserHigh.after);
-  });
-
-  it('baseAttackLv が高いほど全武器の DMG が大きい', () => {
-    const low = buildStatsImpact(10, 0, 0);
-    const high = buildStatsImpact(10, 50, 0);
-    for (let i = 0; i < low.length; i++) {
-      expect(Number(high[i]!.before)).toBeGreaterThan(Number(low[i]!.before));
+  it('baseAttackLv / rangeLv はプレビューに影響しない (Lv 軸とは無関係)', () => {
+    const a = buildStatsImpact(10, 0, 0);
+    const b = buildStatsImpact(10, 100, 100);
+    for (let i = 0; i < a.length; i++) {
+      expect(a[i]!.before).toBe(b[i]!.before);
+      expect(a[i]!.after).toBe(b[i]!.after);
     }
   });
 });

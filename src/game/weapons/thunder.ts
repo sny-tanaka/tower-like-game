@@ -10,59 +10,51 @@ import { BigNum } from '@/lib/bignum/BigNum';
 export interface ThunderStats {
   /** 攻撃速度 (attacks/sec) */
   attackPerSec: number;
-  /** 通常攻撃の最大同時ターゲット数 (仕様: 最大 3 体) */
+  /** 通常攻撃の最大同時ターゲット数 (仕様: 最大 3 体、Lv で伸びない) */
   chainCount: number;
-  /** 連鎖ごとのダメ減衰倍率 (0-1, e.g. 0.9 = 10%減衰) */
-  chainFalloff: number;
   /** 武器ダメージ倍率 (Lv スケール: 1.02^Lv) */
   damageMul: number;
-  /** Plasma Discharge CD (秒) */
-  plasmaCdSec: number;
-  /** Plasma Discharge 1体目の威力倍率 (アクティブ底威力: ×15) */
+  /** Plasma Discharge 1 体あたりの威力倍率 (アクティブ底威力: ×10) */
   plasmaDamageMul: number;
-  /** Plasma Discharge の連鎖上限 (Lv0=7、+0.1/Lv、切り捨て) */
-  plasmaChainCount: number;
+  /** 攻撃時 HP 回復率 (与ダメ × hpLifestealPct を machineHp に加算) */
+  hpLifestealPct: number;
 }
 
 /**
  * Thunder 武器レベルから ThunderStats を算出する。
  *
- * スケール仕様（05-weapons.md より）:
- * - damageMul: 1.02 ^ Lv
- * - attackPerSec: 0.7 × (1 + 0.03 × Lv)  ← 上限 10
- * - chainCount: floor(3 + 0.1 × Lv)  ← Lv0=3 は通常ターゲット上限
- *   ※ アクティブ連鎖数: Lv0=7、+0.1/Lv → plasmaDamageMul スケールに反映
- * - plasmaDamageMul: 15 × (1 + 0.05 × Lv)
- * - chainFalloff: 固定 0.9 (10%減衰)
+ * スケール仕様 (14-weapons-rebalance-v1.1.md):
+ * - damageMul: THUNDER_BASE_DAMAGE_MUL × 1.02^Lv
+ * - attackPerSec: THUNDER_BASE_AS × (1 + 0.03 × Lv)  ← 上限 10
+ * - chainCount: 固定 3 (Lv で伸びない、通常攻撃の独立落雷上限)
+ * - plasmaDamageMul: 10 × (1 + 0.05 × Lv)
+ * - hpLifestealPct: 0.001 × Lv (Lv 0 で 0、Lv 60 で 0.06、Lv 100 で 0.10)
  */
 /** Thunder 通常攻撃の同時ターゲット数 (武器 Lv で伸びない仕様固定値) */
 export const THUNDER_BASE_CHAIN_COUNT = 3;
-/** Thunder 連鎖ごとの減衰率 (固定 0.9 = 10% 減衰) */
-export const THUNDER_CHAIN_FALLOFF = 0.9;
-/** Thunder アクティブ (Plasma) のクールダウン秒 */
-export const THUNDER_PLASMA_CD_SEC = 30;
 
-/** Thunder 底値 武器ダメージ倍率 (低ダメ。 3 体同時で総 DPS を稼ぐ。 AS 2.5/s × 0.18 = 0.45) */
-export const THUNDER_BASE_DAMAGE_MUL = 0.18;
-/** Thunder 底値 attacks/sec (Laser と同等の標準テンポ) */
-export const THUNDER_BASE_AS = 2.5;
+/** Thunder 底値 武器ダメージ倍率 (AS 2.0/s × 0.45 = 0.9 DPS / 3 体時 2.7) */
+export const THUNDER_BASE_DAMAGE_MUL = 0.45;
+/** Thunder 底値 attacks/sec (Cutter 圏外 3 体散開での標準テンポ) */
+export const THUNDER_BASE_AS = 2.0;
 
 export function thunderStats(weaponLv: number): ThunderStats {
   const lv = Math.max(0, weaponLv);
 
-  const damageMul = THUNDER_BASE_DAMAGE_MUL * Math.pow(1.02, lv);
-  const attackPerSec = Math.min(10, THUNDER_BASE_AS * (1 + 0.03 * lv));
-  const plasmaDamageMul = 15 * (1 + 0.05 * lv);
-  const plasmaChainCount = Math.floor(7 + 0.1 * lv);
+  // v1.1.1: damageMul / attackPerSec / plasmaDamageMul は武器Lv 不問の固定底値
+  const damageMul = THUNDER_BASE_DAMAGE_MUL;
+  const attackPerSec = THUNDER_BASE_AS;
+  const plasmaDamageMul = 10;
+
+  // Thunder の Lv 軸: 攻撃時 HP 回復率 (0.001 × Lv = 0.1%/Lv)
+  const hpLifestealPct = 0.001 * lv;
 
   return {
     attackPerSec,
     chainCount: THUNDER_BASE_CHAIN_COUNT,
-    chainFalloff: THUNDER_CHAIN_FALLOFF,
     damageMul,
-    plasmaCdSec: THUNDER_PLASMA_CD_SEC,
     plasmaDamageMul,
-    plasmaChainCount,
+    hpLifestealPct,
   };
 }
 
@@ -78,9 +70,8 @@ export interface ThunderAttackResult {
 }
 
 /**
- * Thunder 通常攻撃: 索敵範囲内の最大 chainCount 体に同時ヒット。
- * 最初のターゲット（最寄り）を始点に、次の敵へ順次連鎖し、
- * 連鎖ごとに chainFalloff でダメ減衰する。
+ * Thunder 通常攻撃: 索敵範囲内の最大 chainCount 体に同時独立ヒット。
+ * 連鎖ではなく「同時 3 体に独立落雷」。減衰なしで全員に同ダメージ。
  *
  * @param machine        マシン本体ステータス
  * @param stats          Thunder 武器ステータス
@@ -103,8 +94,7 @@ export function thunderNormalAttack(
   const hits: ThunderAttackResult['hits'] = [];
   const path: ThunderAttackResult['path'] = [];
 
-  // 仕様: 連鎖ではなく「同時 3 体に独立落雷」。 chainFalloff は通常攻撃には適用しない
-  // (Plasma アクティブのみ chainFalloff を使う)。
+  // 仕様: 同時 3 体に独立落雷。減衰なしで全員同ダメ。
   for (const enemy of targets) {
     const isCrit = rollCrit(machine.critRate, rng);
     const result = calcOutgoingDamage(
@@ -129,18 +119,16 @@ export interface PlasmaResult {
 }
 
 /**
- * Plasma Discharge アクティブ: 索敵範囲外含む全敵への連鎖ダメージ。
- * 1 体目に plasmaDamageMul、以降 chainFalloff (=0.9) ずつ減衰。
+ * Plasma Discharge アクティブ: 射程無限の全体攻撃。
+ * 引数で渡された全敵に均一ダメージ（連鎖・減衰・上限なし）。
  * クリ判定なし（アクティブスキル固定倍率）。
  *
- * 仕様（05-weapons.md）:
- *   1 体目: 通常攻撃 ×15 (plasmaDamageMul)
- *   以降:   10% ずつ減衰 (chainFalloff=0.9)
- *   ヒット順は敵リストの順序に従う
+ * 仕様（14-weapons-rebalance-v1.1.md）:
+ *   全敵 1 ヒット = damageMul × plasmaDamageMul (減衰なし、均一)
  *
  * @param machine  マシン本体ステータス
  * @param stats    Thunder 武器ステータス
- * @param enemies  全敵リスト（索敵範囲外含む）
+ * @param enemies  全敵リスト（射程外含む）
  */
 export function thunderPlasmaDischarge(
   machine: MachineStats,
@@ -153,15 +141,10 @@ export function thunderPlasmaDischarge(
 
   const hits: PlasmaResult['hits'] = [];
 
-  // 連鎖上限でスライス（仕様: Lv0=7、+0.1/Lv）
-  const targets = enemies.slice(0, stats.plasmaChainCount);
+  // 全敵に均一ダメージ（連鎖・上限・減衰なし）
+  const effectiveDamageMul = stats.damageMul * stats.plasmaDamageMul;
 
-  for (let i = 0; i < targets.length; i++) {
-    const enemy = targets[i]!;
-    // 1体目: plasmaDamageMul × 1.0, 2体目: × 0.9, 3体目: × 0.81, ...
-    const falloffMul = Math.pow(stats.chainFalloff, i);
-    const effectiveDamageMul = stats.damageMul * stats.plasmaDamageMul * falloffMul;
-
+  for (const enemy of enemies) {
     // Plasma Discharge はクリなし
     const result = calcOutgoingDamage(
       { machine, weapon: { damageMultiplier: effectiveDamageMul }, isCrit: false },

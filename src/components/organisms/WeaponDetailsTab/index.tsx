@@ -9,6 +9,7 @@ import {
 import { cannonStats } from '@/game/weapons/cannon';
 import { cutterStats } from '@/game/weapons/cutter';
 import { laserStats } from '@/game/weapons/laser';
+import { WEAPON_RANGE_PCT } from '@/game/weapons/range';
 import { thunderStats } from '@/game/weapons/thunder';
 import { BigNum } from '@/lib/bignum';
 import { useStore } from '@/store';
@@ -43,65 +44,157 @@ export function calcMachineBaseAttack(baseAttackLv: number): number {
   return item != null ? calcEffectValue(item, baseAttackLv) : 1;
 }
 
-/** machine の索敵距離 (機体共通の射程) を Lv から算出 */
+/** machine の索敵距離 (機体共通の射程) を Lv から算出 (range_asymptotic: 150→450px、maxLv 100) */
 export function calcMachineRange(rangeLv: number): number {
   const item = MACHINE_UPGRADE_ITEMS.find((i) => i.key === 'range');
   return item != null ? calcEffectValue(item, rangeLv) : 150;
+}
+
+/** machine の攻撃速度倍率を Lv から算出 (linear: 1.0 + 0.05/Lv、maxLv 99) */
+export function calcMachineAttackSpeed(attackSpeedLv: number): number {
+  const item = MACHINE_UPGRADE_ITEMS.find((i) => i.key === 'attackSpeed');
+  return item != null ? calcEffectValue(item, attackSpeedLv) : 1;
+}
+
+/**
+ * 武器ごとの実効射程 (m) を算出 (= machine.range × WEAPON_RANGE_PCT[weapon] / 100)。
+ *
+ * useBattleLoop 内の射程フィルタは「フィールド % 座標」で動くので
+ * 内部値は WEAPON_RANGE_PCT[weapon] × (machine.range / 150) (= %) を使うが、
+ * UI 表示はゲーム世界の距離感を保ちたいので machine.range (= m) を基準にした
+ * メートル換算 (machineRange × weaponPct / 100) で出す。
+ *
+ *   Lv 0 (machineRange=150m):
+ *     Cutter 14%  → 21.0m   Laser/Thunder 35% → 52.5m   Cannon 45% → 67.5m
+ *   Lv 100 (machineRange=300m, MAX):
+ *     Cutter      → 42.0m   Laser/Thunder     → 105.0m  Cannon     → 135.0m
+ */
+export function calcEffectiveRange(
+  weapon: 'laser' | 'cannon' | 'thunder' | 'cutter',
+  machineRange: number
+): number {
+  return (machineRange * WEAPON_RANGE_PCT[weapon]) / 100;
 }
 
 // ---------------------------------------------------------------------------
 // 各武器のステ配列生成
 // ---------------------------------------------------------------------------
 
+// ---------------------------------------------------------------------------
+// 武器固有 Lv 強化軸の計算ユーティリティ (v1.1.1 で各武器 1 軸だけ Lv で伸びる)
+// ---------------------------------------------------------------------------
+
+/** Laser Critical倍率ボーナス: +0.01 × Lv (Lv 100 で +1.0) */
+export function calcLaserCritBonus(weaponLv: number): number {
+  return Math.max(0, weaponLv) * 0.01;
+}
+
+/** Cannon splash 半径: 30 + 0.5 × Lv (px) */
+export function calcCannonSplashRadius(weaponLv: number): number {
+  return 30 + Math.max(0, weaponLv) * 0.5;
+}
+
+/** Thunder 攻撃時 HP 回復率 (%): 0.1% × Lv */
+export function calcThunderHpRegenPct(weaponLv: number): number {
+  return Math.max(0, weaponLv) * 0.1;
+}
+
+/** Cutter Overdrive 持続秒: 8 + 0.1 × Lv */
+export function calcCutterOverdriveDurationSec(weaponLv: number): number {
+  return 8 + Math.max(0, weaponLv) * 0.1;
+}
+
+// ---------------------------------------------------------------------------
+// 各武器の表示用ステ配列生成 (v1.1.1: 固定ステ + Lv 軸 1 つを分けて表示)
+// ---------------------------------------------------------------------------
+
+/**
+ * 武器カードは 4 ステ固定で表示する (v1.1.1):
+ *   DMG / 連射速度 (Cutter は回転速度) / 射程 / 武器固有 Lv 軸
+ *
+ * 連射速度と射程はマシン強化を反映 (どちらもマシン強化に直接掛け算):
+ *   - 連射速度 = weapon.attackPerSec × machine.attackSpeed (倍率)
+ *   - 射程     = machine.range × WEAPON_RANGE_PCT[weapon] / 100 [m]
+ */
+
 export function buildLaserStats(
   weaponLv: number,
   baseAttack: number,
-  machineRange: number
+  machineRange: number,
+  machineAttackSpeed: number
 ): WeaponStat[] {
   const s = laserStats(weaponLv);
+  const effAS = s.attackPerSec * machineAttackSpeed;
+  const effRange = calcEffectiveRange('laser', machineRange);
   return [
     { label: 'DMG', value: calcDisplayDamage(baseAttack, s.damageMul), accent: 'primary' },
-    { label: '貫通', value: s.pierce },
-    { label: '射程', value: machineRange, suffix: 'm' },
-    { label: '連射速度', value: round1(s.attackPerSec), suffix: '/s' },
+    { label: '連射速度', value: round1(effAS), suffix: '/s' },
+    { label: '射程', value: round1(effRange), suffix: 'm' },
+    {
+      label: 'Critical倍率ボーナス',
+      value: `+${(calcLaserCritBonus(weaponLv) * 100).toFixed(0)}%`,
+      accent: 'secondary',
+    },
   ];
 }
 
 export function buildCannonStats(
   weaponLv: number,
   baseAttack: number,
-  machineRange: number
+  machineRange: number,
+  machineAttackSpeed: number
 ): WeaponStat[] {
   const s = cannonStats(weaponLv);
+  const effAS = s.attackPerSec * machineAttackSpeed;
+  const effRange = calcEffectiveRange('cannon', machineRange);
   return [
     { label: 'DMG', value: calcDisplayDamage(baseAttack, s.damageMul), accent: 'primary' },
-    { label: '爆発半径', value: round1(s.splashRadius), suffix: 'm' },
-    { label: '射程', value: machineRange, suffix: 'm' },
-    { label: '連射速度', value: round1(s.attackPerSec), suffix: '/s' },
+    { label: '連射速度', value: round1(effAS), suffix: '/s' },
+    { label: '射程', value: round1(effRange), suffix: 'm' },
+    { label: '爆発半径', value: round1(s.splashRadius), suffix: 'm', accent: 'secondary' },
   ];
 }
 
 export function buildThunderStats(
   weaponLv: number,
   baseAttack: number,
-  machineRange: number
+  machineRange: number,
+  machineAttackSpeed: number
 ): WeaponStat[] {
   const s = thunderStats(weaponLv);
+  const effAS = s.attackPerSec * machineAttackSpeed;
+  const effRange = calcEffectiveRange('thunder', machineRange);
   return [
     { label: 'DMG', value: calcDisplayDamage(baseAttack, s.damageMul), accent: 'primary' },
-    { label: 'ターゲット数', value: s.chainCount },
-    { label: '射程', value: machineRange, suffix: 'm' },
-    { label: '連射速度', value: round1(s.attackPerSec), suffix: '/s' },
+    { label: '連射速度', value: round1(effAS), suffix: '/s' },
+    { label: '射程', value: round1(effRange), suffix: 'm' },
+    {
+      label: 'HP 回復率',
+      value: `${calcThunderHpRegenPct(weaponLv).toFixed(1)}%`,
+      accent: 'secondary',
+    },
   ];
 }
 
-export function buildCutterStats(weaponLv: number, baseAttack: number): WeaponStat[] {
+export function buildCutterStats(
+  weaponLv: number,
+  baseAttack: number,
+  machineRange: number,
+  machineAttackSpeed: number
+): WeaponStat[] {
   const s = cutterStats(weaponLv);
+  const effAS = s.attackPerSec * machineAttackSpeed;
+  const effRange = calcEffectiveRange('cutter', machineRange);
   return [
     { label: 'DMG', value: calcDisplayDamage(baseAttack, s.damageMul), accent: 'primary' },
-    { label: '回転半径', value: round1(s.orbitRadius), suffix: 'm' },
-    { label: '刃の数', value: s.simultaneousHits },
-    { label: '回転速度', value: round1(s.attackPerSec), suffix: '/s' },
+    { label: '回転速度', value: round1(effAS), suffix: '/s' },
+    { label: '射程', value: round1(effRange), suffix: 'm' },
+    {
+      label: 'Overdrive 持続',
+      value: round1(calcCutterOverdriveDurationSec(weaponLv)),
+      suffix: 's',
+      accent: 'secondary',
+    },
   ];
 }
 
@@ -109,37 +202,47 @@ export function buildCutterStats(weaponLv: number, baseAttack: number): WeaponSt
 // 武器固定メタデータ
 // ---------------------------------------------------------------------------
 
-interface WeaponMeta {
+export interface WeaponMeta {
   kind: 'laser' | 'cannon' | 'thunder' | 'cutter';
   name: string;
   description: string;
-  buildStats: (lv: number, baseAttack: number, machineRange: number) => WeaponStat[];
+  activeSkillDescription: string;
+  buildStats: (
+    lv: number,
+    baseAttack: number,
+    machineRange: number,
+    machineAttackSpeed: number
+  ) => WeaponStat[];
 }
 
-const WEAPON_META: WeaponMeta[] = [
+export const WEAPON_META: WeaponMeta[] = [
   {
     kind: 'laser',
     name: 'LASER',
-    description: '弾速が速く貫通する',
+    description: '単体特化の連射型レーザー',
+    activeSkillDescription: '直線上の敵を殲滅する高威力の極太ビームを放つ',
     buildStats: buildLaserStats,
   },
   {
     kind: 'cannon',
     name: 'CANNON',
-    description: '爆発時に範囲内にもダメージ',
+    description: '爆発範囲にも複数ヒットする',
+    activeSkillDescription: '周囲に5発の大きな砲撃を発射する',
     buildStats: buildCannonStats,
   },
   {
     kind: 'thunder',
     name: 'THUNDER',
-    description: '複数の敵を同時に攻撃',
+    description: '最大3体の敵に同時に雷を落とす',
+    activeSkillDescription: '射程無限の全範囲攻撃',
     buildStats: buildThunderStats,
   },
   {
     kind: 'cutter',
     name: 'CUTTER',
-    description: 'マシンの周辺を回転する刃で攻撃',
-    buildStats: (lv, baseAttack) => buildCutterStats(lv, baseAttack),
+    description: 'マシンの周囲を回転する2枚の刃',
+    activeSkillDescription: '一定時間回転速度と攻撃力が大幅に増加する',
+    buildStats: buildCutterStats,
   },
 ];
 
@@ -152,6 +255,7 @@ export function WeaponDetailsTab() {
   const machineLevels = useStore((s) => s.machineLevels);
   const baseAttack = calcMachineBaseAttack(machineLevels.baseAttack);
   const machineRange = calcMachineRange(machineLevels.range);
+  const machineAttackSpeed = calcMachineAttackSpeed(machineLevels.attackSpeed);
 
   return (
     <div
@@ -165,7 +269,8 @@ export function WeaponDetailsTab() {
           weapon={meta.kind}
           name={meta.name}
           description={meta.description}
-          stats={meta.buildStats(weaponLv, baseAttack, machineRange)}
+          activeSkillDescription={meta.activeSkillDescription}
+          stats={meta.buildStats(weaponLv, baseAttack, machineRange, machineAttackSpeed)}
           layout="wide"
         />
       ))}

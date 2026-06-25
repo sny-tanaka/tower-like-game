@@ -15,6 +15,12 @@ export interface UnifiedHit {
   enemyId: string;
   damage: BigNum;
   crit?: boolean;
+  /**
+   * Cutter 専用: sweep 内で刃が敵の角度に達するまでの進行率 (0〜1)。
+   * useBattleLoop は DamagePopFx の発火を `progressInSweep × intervalMs` だけ遅延させて
+   * 視覚と pop の同期を取る。 他武器では undefined。
+   */
+  progressInSweep?: number;
 }
 
 export interface UnifiedAttackResult {
@@ -31,6 +37,18 @@ export interface UnifiedAttackResult {
    * 次フレームの fire / 描画 (CutterOrbitFx) に反映する。
    */
   cutterAngle?: number;
+  /**
+   * Cannon 専用: 発射した砲弾の splash 着弾遅延情報 (v1.1.2)。
+   * 発射時には hits は空で、 useBattleLoop が pendingCannonShells に積んで
+   * 着弾時 (= flightSec 後) に cannonApplySplash で実ヒットを計算する。
+   * flightSec は射撃時の敵速度と shell 速度から予測した飛翔秒数。
+   */
+  cannonShell?: {
+    isCrit: boolean;
+    splashRadius: number;
+    damageMul: number;
+    flightSec: number;
+  };
 }
 
 // ---------------------------------------------------------------------------
@@ -68,6 +86,12 @@ export interface FireWeaponOpts {
   cutterAngleDeg?: number;
   /** RunWorkshop attackMul の倍率 (1.0 で素通し) */
   attackMul: number;
+  /**
+   * Cutter 専用: Overdrive 中のダメージ倍率 (default 1)。
+   * cutterStartOverdrive が返す OverdriveState.damageMul を渡す。
+   * Overdrive 非アクティブ時は 1。
+   */
+  cutterOverdriveDamageMul?: number;
 }
 
 export function fireWeapon({
@@ -78,6 +102,7 @@ export function fireWeapon({
   rng,
   cutterAngleDeg = 0,
   attackMul,
+  cutterOverdriveDamageMul = 1,
 }: FireWeaponOpts): UnifiedAttackResult {
   switch (weapon) {
     case 'laser': {
@@ -91,11 +116,19 @@ export function fireWeapon({
     case 'cannon': {
       const s = cannonStats(weaponLv);
       const boosted = { ...s, damageMul: s.damageMul * attackMul };
+      // v1.1.2: 発射時は着弾点 + クリ + splash メタデータだけ返す。
+      // 実 splash ヒットは着弾時に useBattleLoop が cannonApplySplash で計算する。
       const r = cannonNormalAttack(machine, boosted, enemiesInRange, rng);
       return {
-        hits: r.hits.map((h) => ({ enemyId: h.enemyId, damage: h.damage, crit: h.crit })),
+        hits: [],
         impactX: r.blastX,
         impactY: r.blastY,
+        cannonShell: {
+          isCrit: r.isCrit,
+          splashRadius: r.splashRadius,
+          damageMul: r.damageMul,
+          flightSec: r.flightSec,
+        },
       };
     }
     case 'thunder': {
@@ -108,10 +141,19 @@ export function fireWeapon({
     }
     case 'cutter': {
       const s = cutterStats(weaponLv);
-      const boosted = { ...s, damageMul: s.damageMul * attackMul };
+      // Cutter Overdrive 中は damageMul × overdriveDamageMul (= 3) を追加で乗算
+      const boosted = {
+        ...s,
+        damageMul: s.damageMul * attackMul * cutterOverdriveDamageMul,
+      };
       const r = cutterNormalAttack(machine, boosted, enemiesInRange, cutterAngleDeg, rng);
       return {
-        hits: r.hits.map((h) => ({ enemyId: h.enemyId, damage: h.damage, crit: h.crit })),
+        hits: r.hits.map((h) => ({
+          enemyId: h.enemyId,
+          damage: h.damage,
+          crit: h.crit,
+          progressInSweep: h.progressInSweep,
+        })),
         cutterAngle: r.angle,
       };
     }

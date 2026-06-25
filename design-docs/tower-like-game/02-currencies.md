@@ -88,7 +88,7 @@
 
 - 使い道: **マシン本体 16 項目**（→ [03-machine.md](./03-machine.md)）
   - Defensive: 最大 HP / HP リジェネ/秒 / 被ダメ軽減 / 防御力
-  - Offensive: 基礎攻撃力 / 攻撃速度 / 索敵距離 / クリ率 / クリ倍率
+  - Offensive: 基礎攻撃力 / 攻撃速度 / 索敵距離 / Critical率 / Critical倍率
   - Active: アクティブ威力 / アクティブ CD 減少
   - Economic: ネジ獲得倍率 / ボルト獲得倍率 / 超合金獲得倍率 / パッチドロップ率倍率
   - Slot: パッチスロット数（1 → 6）

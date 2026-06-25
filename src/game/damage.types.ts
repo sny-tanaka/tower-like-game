@@ -10,9 +10,9 @@ export interface MachineStats {
   defense: BigNum;
   /** 被ダメ軽減率 (#3)。0〜1 の比率（1.0 未満） */
   damageReduction: number;
-  /** クリ率 (#8)。0〜1 の確率 */
+  /** Critical率 (#8)。0〜1 の確率 */
   critRate: number;
-  /** クリ倍率 (#9)。例: 1.5, 2.0 */
+  /** Critical倍率 (#9)。例: 1.5, 2.0 */
   critMultiplier: number;
   /** 最大 HP (#1) */
   maxHp: BigNum;
@@ -24,6 +24,12 @@ export interface MachineStats {
   activePower: number;
   /** アクティブ CD 短縮率 (#11)。0〜0.5 の漸近値。Lv0 = 0 */
   activeCdReduction: number;
+  /**
+   * 索敵距離 (#7)。range_asymptotic: 150 → 400 (px) で漸近。
+   * useBattleLoop で WEAPON_RANGE_PCT[currentWeapon] × (range / 150) として
+   * 武器固定射程に対する乗算倍率の基準 (Lv 0 で 1.0 倍 = 武器射程そのまま)。
+   */
+  range: number;
 }
 
 /**

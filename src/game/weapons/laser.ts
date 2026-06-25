@@ -10,60 +10,56 @@ import { BigNum } from '@/lib/bignum/BigNum';
 /**
  * Laser 武器の固有ステ。laserStats(weaponLv) で取得する。
  *
- * スケール根拠（05-weapons.md より）:
- *   attackPerSec = 1.0 × (1 + 0.03 × Lv)          ← AS 底値 1.0
- *   pierce       = floor(1 + 0.1 × Lv)              ← 貫通数: Lv0=1, +0.1/Lv, 切り捨て
- *   damageMul    = 1.02 ^ Lv                         ← 武器ダメ倍率
- *   megaCdSec    = 20 (固定)                          ← Mega Beam CD
- *   megaDamageMul = (1 + 0.05 × Lv) × 10            ← アクティブ威力底値×10、+0.05×底値/Lv スケール
+ * スケール根拠（14-weapons-rebalance-v1.1.md より）:
+ *   attackPerSec        = LASER_BASE_AS × (1 + 0.03 × Lv)   ← AS 底値 2.5
+ *   pierce              = 1 (固定)                           ← Lv で増えない（v1.1 で固定化）
+ *   damageMul           = LASER_BASE_DAMAGE_MUL × 1.02^Lv    ← 武器ダメ倍率（底値 0.8）
+ *   megaDamageMul       = 50 × (1 + 0.05 × Lv)               ← Mega Beam ダメ倍率（base 50 に強化）
+ *   critMultiplierBonus = 0.01 × Lv                          ← Critical倍率ボーナス（Lv 60 で +0.6）
  *
- * NOTE: 仕様書に通常攻撃の「武器固有ダメ倍率」底値は明記なし。
- *       calcOutgoingDamage の weapon.damageMultiplier で damageMul を渡すため
- *       damageMul を 1.02^Lv として統一する。
+ * NOTE: critMultiplierBonus は通常攻撃のクリ時にのみ反映される。
+ *       Mega Beam は isCrit=false 固定なので影響しない。
  */
 export interface LaserStats {
   /** 通常攻撃連射数 (attacks/sec) */
   attackPerSec: number;
-  /** 貫通数（最大同時ヒット数、切り捨て整数） */
+  /** 貫通数（最大同時ヒット数。v1.1 で 1 固定） */
   pierce: number;
   /** 武器ダメージ倍率（weapon.damageMultiplier に渡す値） */
   damageMul: number;
-  /** Mega Beam クールダウン秒数（固定 20 秒） */
-  megaCdSec: number;
   /** Mega Beam ダメージ倍率（通常攻撃に対する乗数） */
   megaDamageMul: number;
+  /** クリティカル倍率ボーナス（machine.critMultiplier への加算値） */
+  critMultiplierBonus: number;
 }
 
-/** Laser 底値 attacks/sec (4 武器のテンポ基準) */
+/** Laser 底値 attacks/sec */
 export const LASER_BASE_AS = 2.5;
-/** Laser 底値 武器ダメージ倍率 (4 武器の DPS 基準: 2.5 × 0.4 = 1.0) */
-export const LASER_BASE_DAMAGE_MUL = 0.4;
+/** Laser 底値 武器ダメージ倍率（単体 DPS: 2.5 × 0.8 = 2.0） */
+export const LASER_BASE_DAMAGE_MUL = 0.8;
 
 /**
  * 武器強化 Lv から LaserStats を計算して返す。
+ *
+ * v1.1.1 で武器Lv は damageMul / attackPerSec / megaDamageMul を一切伸ばさない仕様に変更。
+ * Laser の Lv 軸は「critMultiplier ボーナス」1 軸のみ。
  *
  * @param weaponLv  武器強化 Lv（0 以上の整数）
  */
 export function laserStats(weaponLv: number): LaserStats {
   const lv = Math.max(0, weaponLv);
 
-  // AS: LASER_BASE_AS × (1 + 0.03 × Lv)
-  const attackPerSec = LASER_BASE_AS * (1 + 0.03 * lv);
+  // v1.1.1: attackPerSec / pierce / damageMul / megaDamageMul は武器Lv 不問の固定底値
+  const attackPerSec = LASER_BASE_AS;
+  const pierce = 1;
+  const damageMul = LASER_BASE_DAMAGE_MUL;
+  const megaDamageMul = 50;
 
-  // 貫通数: floor(1 + 0.1 × Lv)  ← 仕様: Lv0=1, +0.1/Lv, 切り捨て
-  const pierce = Math.floor(1 + 0.1 * lv);
+  // Laser の Lv 軸: critMultiplier ボーナス +0.01 × Lv (Lv 60 で +0.6, Lv 100 で +1.0)
+  const critMultiplierBonus = 0.01 * lv;
 
-  // 武器ダメ倍率: LASER_BASE_DAMAGE_MUL × 1.02^Lv
-  const damageMul = LASER_BASE_DAMAGE_MUL * Math.pow(1.02, lv);
-
-  // Mega Beam 威力: アクティブ底値 10 × (1 + 0.05 × Lv)
-  const megaDamageMul = 10 * (1 + 0.05 * lv);
-
-  return { attackPerSec, pierce, damageMul, megaCdSec: LASER_MEGA_CD_SEC, megaDamageMul };
+  return { attackPerSec, pierce, damageMul, megaDamageMul, critMultiplierBonus };
 }
-
-/** Laser アクティブ (Mega Beam) のクールダウン秒 (固定) */
-export const LASER_MEGA_CD_SEC = 20;
 
 // ---------------------------------------------------------------------------
 // Laser 通常攻撃
@@ -96,6 +92,9 @@ export interface LaserAttackResult {
  *   - enemiesInRange は呼び出し元が距離昇順でソート済みと仮定する。
  *   - beamX/Y は最も遠い敵（= ヒット対象の末尾）の position を返す。
  *
+ * critMultiplier ボーナス:
+ *   - stats.critMultiplierBonus を machine.critMultiplier に加算した値を使って計算する。
+ *
  * @param machine        マシン本体ステ
  * @param stats          Laser 固有ステ
  * @param enemiesInRange 索敵距離内の敵リスト（距離昇順）
@@ -114,10 +113,16 @@ export function laserNormalAttack(
   // pierce 体まで選択（距離昇順の先頭から）
   const targets = enemiesInRange.slice(0, stats.pierce);
 
+  // critMultiplier ボーナスを machine に加算した一時的なステを作る
+  const machineWithCritBonus: MachineStats = {
+    ...machine,
+    critMultiplier: machine.critMultiplier + stats.critMultiplierBonus,
+  };
+
   const hits: LaserHit[] = targets.map((enemy) => {
     const isCrit = rollCrit(machine.critRate, rng);
     const result = calcOutgoingDamage(
-      { machine, weapon: { damageMultiplier: stats.damageMul }, isCrit },
+      { machine: machineWithCritBonus, weapon: { damageMultiplier: stats.damageMul }, isCrit },
       BigNum.ZERO, // 敵の防御・軽減は BattleField 側で管理する想定（純粋計算層では 0 渡し）
       0
     );
@@ -148,10 +153,10 @@ export interface MegaBeamResult {
 }
 
 /**
- * Mega Beam の幅 (パーセント)。 仕様 (05-weapons.md): 「幅 30 px の太いビーム」を
- * BattleField 座標系 (短辺 0-100%) に概算 ≈ 6%。 export して調整可能に。
+ * Mega Beam の幅 (パーセント)。 v1.1 で 6% → 12% に強化。
+ * BattleField 座標系 (短辺 0-100%) における太いビームの幅。
  */
-export const LASER_MEGA_BEAM_WIDTH_PCT = 6;
+export const LASER_MEGA_BEAM_WIDTH_PCT = 12;
 
 /**
  * Mega Beam アクティブ。 マシン中心 (machineX, machineY) から angleDeg 方向に伸びる、

@@ -23,86 +23,91 @@ function expectDamage(baseAttack: number, damageMul: number): string {
 }
 
 // ---------------------------------------------------------------------------
-// テスト用ダミー値: baseAttack=100, range=200 を渡して計算結果を検証
+// テスト用ダミー値: baseAttack=100, machineRange=150 (=base, mul=1.0), machineAS=1.0
 // ---------------------------------------------------------------------------
 
 const BASE_ATTACK = 100;
-const RANGE = 200;
+const MACHINE_RANGE = 150; // Lv 0 (倍率 1.0)
+const MACHINE_AS = 1.0; // Lv 0 (倍率 1.0)
 
-describe('buildLaserStats', () => {
-  it('Lv 0 で貫通数 = 1', () => {
-    const stats = buildLaserStats(0, BASE_ATTACK, RANGE);
-    expect(stats.find((s) => s.label === '貫通')?.value).toBe(1);
-  });
-
-  it('Lv 10 で貫通数 = floor(1 + 0.1×10) = 2', () => {
-    const stats = buildLaserStats(10, BASE_ATTACK, RANGE);
-    expect(stats.find((s) => s.label === '貫通')?.value).toBe(2);
-  });
-
-  it('Lv 0 で DMG = baseAttack × LASER_BASE_DAMAGE_MUL (ゲーム実値の BigNum と一致)', () => {
-    const stats = buildLaserStats(0, BASE_ATTACK, RANGE);
+describe('buildLaserStats (v1.1.1: 4 ステ DMG / 連射速度 / 射程 / Critical倍率)', () => {
+  it('Lv 0 で DMG = baseAttack × LASER_BASE_DAMAGE_MUL', () => {
+    const stats = buildLaserStats(0, BASE_ATTACK, MACHINE_RANGE, MACHINE_AS);
     expect(stats.find((s) => s.label === 'DMG')?.value).toBe(
       expectDamage(BASE_ATTACK, LASER_BASE_DAMAGE_MUL)
     );
   });
 
-  it('射程は machineRange を suffix m で表示', () => {
-    const stats = buildLaserStats(0, BASE_ATTACK, RANGE);
+  it('表示ステは DMG / 連射速度 / 射程 / Critical倍率ボーナス の 4 つだけ', () => {
+    const stats = buildLaserStats(0, BASE_ATTACK, MACHINE_RANGE, MACHINE_AS);
+    const labels = stats.map((s) => s.label);
+    expect(labels).toEqual(['DMG', '連射速度', '射程', 'Critical倍率ボーナス']);
+  });
+
+  it('射程 = machineRange × WEAPON_RANGE_PCT.laser / 100 で m 表示', () => {
+    // machineRange=300m × 35/100 = 105m
+    const stats = buildLaserStats(0, BASE_ATTACK, 300, MACHINE_AS);
     const range = stats.find((s) => s.label === '射程');
-    expect(range?.value).toBe(RANGE);
+    expect(range?.value).toBe(105);
     expect(range?.suffix).toBe('m');
+  });
+
+  it('連射速度 = weapon.AS × machine.attackSpeed', () => {
+    const stats = buildLaserStats(0, BASE_ATTACK, MACHINE_RANGE, 2.0); // machineAS=2.0
+    const as = stats.find((s) => s.label === '連射速度');
+    expect(as?.value).toBe(5.0); // 2.5 × 2.0
+    expect(as?.suffix).toBe('/s');
   });
 });
 
-describe('buildCannonStats', () => {
-  it('Lv 0 で爆発半径 = 30', () => {
-    const stats = buildCannonStats(0, BASE_ATTACK, RANGE);
-    expect(stats.find((s) => s.label === '爆発半径')?.value).toBe(30);
-  });
-
+describe('buildCannonStats (v1.1.1: 4 ステ)', () => {
   it('Lv 0 で DMG = baseAttack × CANNON_BASE_DAMAGE_MUL', () => {
-    const stats = buildCannonStats(0, BASE_ATTACK, RANGE);
+    const stats = buildCannonStats(0, BASE_ATTACK, MACHINE_RANGE, MACHINE_AS);
     expect(stats.find((s) => s.label === 'DMG')?.value).toBe(
       expectDamage(BASE_ATTACK, CANNON_BASE_DAMAGE_MUL)
     );
   });
-});
 
-describe('buildThunderStats', () => {
-  it('Lv 0 でターゲット数 = 3 (chainCount 固定値)', () => {
-    const stats = buildThunderStats(0, BASE_ATTACK, RANGE);
-    expect(stats.find((s) => s.label === 'ターゲット数')?.value).toBe(3);
+  it('表示ステは DMG / 連射速度 / 射程 / 爆発半径 の 4 つだけ', () => {
+    const stats = buildCannonStats(0, BASE_ATTACK, MACHINE_RANGE, MACHINE_AS);
+    expect(stats.map((s) => s.label)).toEqual(['DMG', '連射速度', '射程', '爆発半径']);
   });
 
+  it('Lv 0 で爆発半径 = 30 (Lv 軸が伸びる)', () => {
+    const stats = buildCannonStats(0, BASE_ATTACK, MACHINE_RANGE, MACHINE_AS);
+    expect(stats.find((s) => s.label === '爆発半径')?.value).toBe(30);
+  });
+});
+
+describe('buildThunderStats (v1.1.1: 4 ステ)', () => {
   it('Lv 0 で DMG = baseAttack × THUNDER_BASE_DAMAGE_MUL', () => {
-    const stats = buildThunderStats(0, BASE_ATTACK, RANGE);
+    const stats = buildThunderStats(0, BASE_ATTACK, MACHINE_RANGE, MACHINE_AS);
     expect(stats.find((s) => s.label === 'DMG')?.value).toBe(
       expectDamage(BASE_ATTACK, THUNDER_BASE_DAMAGE_MUL)
     );
   });
+
+  it('表示ステは DMG / 連射速度 / 射程 / HP 回復率 の 4 つだけ', () => {
+    const stats = buildThunderStats(0, BASE_ATTACK, MACHINE_RANGE, MACHINE_AS);
+    expect(stats.map((s) => s.label)).toEqual(['DMG', '連射速度', '射程', 'HP 回復率']);
+  });
 });
 
-describe('buildCutterStats', () => {
-  it('Lv 0 で回転半径 = 80', () => {
-    const stats = buildCutterStats(0, BASE_ATTACK);
-    expect(stats.find((s) => s.label === '回転半径')?.value).toBe(80);
-  });
-
-  it('Lv 0 で刃の数 = 1', () => {
-    const stats = buildCutterStats(0, BASE_ATTACK);
-    expect(stats.find((s) => s.label === '刃の数')?.value).toBe(1);
-  });
-
+describe('buildCutterStats (v1.1.1: 4 ステ)', () => {
   it('Lv 0 で DMG = baseAttack × CUTTER_BASE_DAMAGE_MUL', () => {
-    const stats = buildCutterStats(0, BASE_ATTACK);
+    const stats = buildCutterStats(0, BASE_ATTACK, MACHINE_RANGE, MACHINE_AS);
     expect(stats.find((s) => s.label === 'DMG')?.value).toBe(
       expectDamage(BASE_ATTACK, CUTTER_BASE_DAMAGE_MUL)
     );
   });
 
+  it('表示ステは DMG / 回転速度 / 射程 / Overdrive 持続 の 4 つだけ', () => {
+    const stats = buildCutterStats(0, BASE_ATTACK, MACHINE_RANGE, MACHINE_AS);
+    expect(stats.map((s) => s.label)).toEqual(['DMG', '回転速度', '射程', 'Overdrive 持続']);
+  });
+
   it('Cutter の連射速度ラベルは「回転速度」(他武器の「連射速度」と区別)', () => {
-    const stats = buildCutterStats(0, BASE_ATTACK);
+    const stats = buildCutterStats(0, BASE_ATTACK, MACHINE_RANGE, MACHINE_AS);
     expect(stats.find((s) => s.label === '回転速度')).toBeDefined();
     expect(stats.find((s) => s.label === '連射速度')).toBeUndefined();
   });

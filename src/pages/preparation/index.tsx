@@ -77,9 +77,15 @@ export function Page(props: PreparationPageProps) {
     const maxHpItem = MACHINE_UPGRADE_ITEMS.find((i) => i.key === 'maxHp');
     const baseMaxHpNum =
       maxHpItem != null ? calcEffectValue(maxHpItem, machineLevels.maxHp) : 10000;
+    const activeCdReductionItem = MACHINE_UPGRADE_ITEMS.find((i) => i.key === 'activeCdReduction');
+    const activeCdReduction =
+      activeCdReductionItem != null
+        ? calcEffectValue(activeCdReductionItem, machineLevels.activeCdReduction)
+        : 0;
     startRun({
       initialWeapon,
       baseMachineMaxHp: BigNum.fromNumber(baseMaxHpNum),
+      activeCdReduction,
       initialTier: selectedTier,
     });
     soundEngine.play('launch');
@@ -95,6 +101,11 @@ export function Page(props: PreparationPageProps) {
     const maxHpItem = MACHINE_UPGRADE_ITEMS.find((i) => i.key === 'maxHp');
     const baseMaxHpNum =
       maxHpItem != null ? calcEffectValue(maxHpItem, machineLevels.maxHp) : 10000;
+    const activeCdReductionItem = MACHINE_UPGRADE_ITEMS.find((i) => i.key === 'activeCdReduction');
+    const activeCdReduction =
+      activeCdReductionItem != null
+        ? calcEffectValue(activeCdReductionItem, machineLevels.activeCdReduction)
+        : 0;
     const huge = BigNum.fromNumber(1e9);
     const state = useStore.getState();
     // ボルト / 超合金は currencies slice (startRun でリセットされない) なので先に加算 OK
@@ -103,6 +114,7 @@ export function Page(props: PreparationPageProps) {
     startRun({
       initialWeapon,
       baseMachineMaxHp: BigNum.fromNumber(baseMaxHpNum),
+      activeCdReduction,
       initialTier: selectedTier,
       initialWave: 28,
     });

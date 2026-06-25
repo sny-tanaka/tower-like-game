@@ -22,6 +22,8 @@ export interface WeaponPreviewProps {
   weapon: WeaponType;
   name: string;
   description?: string;
+  /** アクティブスキルの説明文（カード末尾に「ACTIVE」ラベル付きで表示） */
+  activeSkillDescription?: string;
   stats: ReadonlyArray<WeaponStat>;
   /** tall (出撃準備 — 縦カード) / wide (武器庫詳細 — 横カード) */
   layout?: WeaponPreviewLayout;
@@ -50,6 +52,7 @@ export function WeaponPreview({
   weapon,
   name,
   description,
+  activeSkillDescription,
   stats,
   layout = 'tall',
   active = false,
@@ -135,6 +138,14 @@ export function WeaponPreview({
                   </div>
                 );
               })}
+            </div>
+          )}
+
+          {/* アクティブスキル説明 (locked 中は非表示) */}
+          {!locked && activeSkillDescription != null && activeSkillDescription.length > 0 && (
+            <div className={styles.activeSkill}>
+              <span className={styles.activeSkillLabel}>ACTIVE</span>
+              <span className={styles.activeSkillText}>{activeSkillDescription}</span>
             </div>
           )}
 

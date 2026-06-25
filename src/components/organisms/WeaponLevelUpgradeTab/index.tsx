@@ -4,14 +4,11 @@ import { Card } from '@/components/atoms/Card';
 import { CurrencyAmount } from '@/components/atoms/CurrencyAmount';
 import { Text } from '@/components/atoms/Text';
 import { UpgradeCard } from '@/components/molecules/UpgradeCard';
-import type { WeaponStat } from '@/components/molecules/WeaponPreview';
 import {
-  buildLaserStats,
-  buildCannonStats,
-  buildThunderStats,
-  buildCutterStats,
-  calcMachineBaseAttack,
-  calcMachineRange,
+  calcLaserCritBonus,
+  calcCannonSplashRadius,
+  calcThunderHpRegenPct,
+  calcCutterOverdriveDurationSec,
 } from '@/components/organisms/WeaponDetailsTab';
 import { soundEngine } from '@/lib/audio';
 import { BigNum } from '@/lib/bignum/BigNum';
@@ -68,39 +65,48 @@ export interface StatsImpactItem {
   label: string;
   before: string;
   after: string;
-  suffix?: string;
 }
 
 /**
- * weaponLv → weaponLv+1 の主要ステ変化プレビューを生成
- * baseAttackLv / rangeLv は store の machineLevels から渡す。
+ * weaponLv → weaponLv+1 の主要ステ変化プレビューを生成。
+ *
+ * v1.1.1 で武器Lv は damageMul / attackPerSec を一切伸ばさないため、
+ * プレビューは「各武器の Lv 軸 1 つ」だけを表示する:
+ *   - Laser: Critical倍率ボーナス +0.01/Lv
+ *   - Cannon: 爆発半径 +0.5/Lv (px)
+ *   - Thunder: HP 回復率 +0.1%/Lv
+ *   - Cutter: Overdrive 持続秒 +0.1/Lv
+ *
+ * baseAttackLv / rangeLv はマシン強化由来なのでこの軸とは無関係。
+ * インターフェース互換のため引数だけ残してある（呼び出し側のリファクタを最小化）。
  */
 export function buildStatsImpact(
   lv: number,
-  baseAttackLv: number,
-  rangeLv: number
+  _baseAttackLv: number,
+  _rangeLv: number
 ): StatsImpactItem[] {
-  const baseAttack = calcMachineBaseAttack(baseAttackLv);
-  const machineRange = calcMachineRange(rangeLv);
   const nextLv = lv + 1;
-
-  const laserBefore = buildLaserStats(lv, baseAttack, machineRange);
-  const laserAfter = buildLaserStats(nextLv, baseAttack, machineRange);
-  const cannonBefore = buildCannonStats(lv, baseAttack, machineRange);
-  const cannonAfter = buildCannonStats(nextLv, baseAttack, machineRange);
-  const thunderBefore = buildThunderStats(lv, baseAttack, machineRange);
-  const thunderAfter = buildThunderStats(nextLv, baseAttack, machineRange);
-  const cutterBefore = buildCutterStats(lv, baseAttack);
-  const cutterAfter = buildCutterStats(nextLv, baseAttack);
-
-  /** buildXStats が返す配列の DMG 値（index 0、label='DMG'）を文字列で取り出す */
-  const dmg = (stats: WeaponStat[]) => String(stats[0]!.value);
-
   return [
-    { label: 'LASER DMG', before: dmg(laserBefore), after: dmg(laserAfter) },
-    { label: 'CANNON DMG', before: dmg(cannonBefore), after: dmg(cannonAfter) },
-    { label: 'THUNDER DMG', before: dmg(thunderBefore), after: dmg(thunderAfter) },
-    { label: 'CUTTER DMG', before: dmg(cutterBefore), after: dmg(cutterAfter) },
+    {
+      label: 'LASER Critical倍率ボーナス',
+      before: `+${(calcLaserCritBonus(lv) * 100).toFixed(0)}%`,
+      after: `+${(calcLaserCritBonus(nextLv) * 100).toFixed(0)}%`,
+    },
+    {
+      label: 'CANNON 爆発半径',
+      before: `${calcCannonSplashRadius(lv).toFixed(1)}m`,
+      after: `${calcCannonSplashRadius(nextLv).toFixed(1)}m`,
+    },
+    {
+      label: 'THUNDER HP 回復率',
+      before: `${calcThunderHpRegenPct(lv).toFixed(1)}%`,
+      after: `${calcThunderHpRegenPct(nextLv).toFixed(1)}%`,
+    },
+    {
+      label: 'CUTTER Overdrive 持続',
+      before: `${calcCutterOverdriveDurationSec(lv).toFixed(1)}s`,
+      after: `${calcCutterOverdriveDurationSec(nextLv).toFixed(1)}s`,
+    },
   ];
 }
 
@@ -229,7 +235,6 @@ export function WeaponLevelUpgradeTab() {
                   className={styles.impactValue}
                 >
                   {item.before}
-                  {item.suffix != null ? item.suffix : ''}
                 </Text>
                 <span className={styles.arrow}>→</span>
                 <Text
@@ -238,7 +243,6 @@ export function WeaponLevelUpgradeTab() {
                   className={styles.impactValue}
                 >
                   {item.after}
-                  {item.suffix != null ? item.suffix : ''}
                 </Text>
               </span>
             </div>

@@ -49,5 +49,7 @@ export function buildMachineStats({
     attackSpeed: effect('attackSpeed', machineLevels.attackSpeed, 1),
     activePower: effect('activePower', machineLevels.activePower, 1),
     activeCdReduction: effect('activeCdReduction', machineLevels.activeCdReduction, 0),
+    // 索敵距離 (range_asymptotic): Lv 0 = 150、漸近上限 400 (px)
+    range: effect('range', machineLevels.range, 150),
   };
 }

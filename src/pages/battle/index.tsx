@@ -11,6 +11,10 @@ import type { HitEvent } from '@/components/organisms/BattleField';
 import { BattleHudBottom } from '@/components/organisms/BattleHudBottom';
 import { BattleHudTop } from '@/components/organisms/BattleHudTop';
 import { BattleMenuOverlay } from '@/components/organisms/BattleMenuOverlay';
+import {
+  MACHINE_UPGRADE_ITEMS,
+  calcEffectValue,
+} from '@/components/organisms/MachineUpgradeList/items';
 import { ResultDialog } from '@/components/organisms/ResultDialog';
 import type { ResultStatus } from '@/components/organisms/ResultDialog';
 import { RunWorkshopBottomSheet } from '@/components/organisms/RunWorkshopBottomSheet';
@@ -25,6 +29,7 @@ import {
   calcCutterRotateMs,
   cutterStats,
 } from '@/game/weapons/cutter';
+import { WEAPON_RANGE_PCT } from '@/game/weapons/range';
 import { ATTACK_PER_SEC_CAP, DEFAULT_ACTIVE_MAX_SEC, useBattleLoop } from '@/hooks/useBattleLoop';
 import { soundEngine } from '@/lib/audio';
 import { BigNum } from '@/lib/bignum/BigNum';
@@ -37,8 +42,7 @@ import { flushAfterRun } from '@/store/sync';
 // デフォルト値
 // ---------------------------------------------------------------------------
 
-/** 索敵半径（パーセント） */
-const DEFAULT_RANGE = 30;
+// 索敵半径は武器別に WEAPON_RANGE_PCT で管理 (currentWeapon に応じて切替)
 
 /**
  * BattleField の hitEvents 用の空配列定数。
@@ -94,6 +98,7 @@ export function Page() {
   const currentWave = useStore((s) => s.currentWave);
   const currentWeapon = useStore((s) => s.currentWeapon);
   const weaponLv = useStore((s) => s.weaponLv);
+  const machineLevels = useStore((s) => s.machineLevels);
   const activeCdSec = useStore((s) => s.activeCdSec);
   const isAutoActive = useStore((s) => s.isAutoActive);
   const isPaused = useStore((s) => s.isPaused);
@@ -218,7 +223,6 @@ export function Page() {
     tierCleared,
     onTierClearedAck,
   } = useBattleLoop({
-    range: DEFAULT_RANGE,
     paused: isResultOpen,
   });
 
@@ -255,6 +259,38 @@ export function Page() {
 
   // HitEvent (EnemyHitFx) は別途配線予定。 当面はモジュール定数の空配列を使い回す (H2-4)
   const hitEvents = EMPTY_HIT_EVENTS;
+
+  // マシン索敵距離 (range_asymptotic: 150 → 400 px)。
+  // 索敵円描画と useBattleLoop 内の effectiveRange は WEAPON_RANGE_PCT × (range / 150) で同期。
+  // useBattleLoop 側は machineTick.range を読むので二重に計算しているが、
+  // 描画用にここでも machineLevels.range から導出する。
+  const machineRangePx = useMemo(() => {
+    const item = MACHINE_UPGRADE_ITEMS.find((i) => i.key === 'range');
+    if (item == null) return 150;
+    return calcEffectValue(item, machineLevels.range);
+  }, [machineLevels.range]);
+
+  // マシン強化「攻撃速度」倍率 (linear: 1.0 + 0.05/Lv, maxLv 99)。
+  // useBattleLoop の effectivePerSec が machineTick.attackSpeed を乗算しているので、
+  // Cutter の rotateMs も同じ倍率を含めて視覚と当たり判定を同期する。
+  const machineAttackSpeedMul = useMemo(() => {
+    const item = MACHINE_UPGRADE_ITEMS.find((i) => i.key === 'attackSpeed');
+    if (item == null) return 1;
+    return calcEffectValue(item, machineLevels.attackSpeed);
+  }, [machineLevels.attackSpeed]);
+
+  // マシン強化「アクティブ CD 短縮率」 (0〜0.5)。 CD ゲージ最大値も短縮率に応じて縮め、
+  // 「ゲージが満タンになるまでの時間 = 60s × (1 - reduction)」 とすることで、
+  // 「最初から部分的に溜まった見た目」 ではなく「溜まる速度が上がった見た目」 にする。
+  const activeCdReduction = useMemo(() => {
+    const item = MACHINE_UPGRADE_ITEMS.find((i) => i.key === 'activeCdReduction');
+    if (item == null) return 0;
+    return calcEffectValue(item, machineLevels.activeCdReduction);
+  }, [machineLevels.activeCdReduction]);
+  const activeMaxSec = useMemo(
+    () => DEFAULT_ACTIVE_MAX_SEC * (1 - Math.max(0, Math.min(1, activeCdReduction))),
+    [activeCdReduction]
+  );
 
   // 武器切替 CD (仕様 05-weapons.md §武器切替: 3 秒)
   // 装備中の武器は常に 100 (= CD なし表示)、 他の武器は経過率 % を出す。
@@ -467,7 +503,7 @@ export function Page() {
               equippedWeapon={currentWeapon}
               weaponCds={weaponCds}
               activeCd={activeCdSec}
-              activeMax={DEFAULT_ACTIVE_MAX_SEC}
+              activeMax={activeMaxSec}
               isAutoActive={isAutoActive}
               onSwitchWeapon={handleSwitchWeapon}
               onActivate={handleManualActivate}
@@ -495,16 +531,18 @@ export function Page() {
           showOverdriveAura={isOverdriveActive && isRunActive && !isResultOpen}
           machineHitKey={machineHitKey}
           cutterRotateMs={calcCutterRotateMs(
-            // useBattleLoop の effectivePerSec と同じ式 (cutterStats × RW × Overdrive、 ATTACK_PER_SEC_CAP で頭打ち)
+            // useBattleLoop の effectivePerSec と同じ式
+            // (cutterStats × machineAS × RW × Overdrive、 ATTACK_PER_SEC_CAP で頭打ち)
             Math.min(
               ATTACK_PER_SEC_CAP,
               cutterStats(weaponLv).attackPerSec *
+                machineAttackSpeedMul *
                 calcRunWorkshopMultiplier(runWorkshopLevels.attackSpeedMul) *
                 (isOverdriveActive ? CUTTER_OVERDRIVE_ATTACK_SPEED_MUL : 1)
             ),
             CUTTER_BLADES
           )}
-          range={DEFAULT_RANGE}
+          range={WEAPON_RANGE_PCT[currentWeapon] * (machineRangePx / 150)}
         />
       </AppShell>
 

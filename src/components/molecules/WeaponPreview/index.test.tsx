@@ -25,6 +25,33 @@ describe('WeaponPreview', () => {
     expect(screen.getByText('高速直進ビーム。貫通でき、連発で削り続ける。')).toBeInTheDocument();
   });
 
+  test('activeSkillDescription が指定されると ACTIVE ラベル付きで描画される', () => {
+    render(
+      <WeaponPreview
+        {...defaultProps}
+        activeSkillDescription="直線上の敵を殲滅する高威力ビーム"
+      />
+    );
+    expect(screen.getByText('ACTIVE')).toBeInTheDocument();
+    expect(screen.getByText('直線上の敵を殲滅する高威力ビーム')).toBeInTheDocument();
+  });
+
+  test('activeSkillDescription 未指定なら ACTIVE ラベルは描画されない', () => {
+    render(<WeaponPreview {...defaultProps} />);
+    expect(screen.queryByText('ACTIVE')).not.toBeInTheDocument();
+  });
+
+  test('locked=true のとき activeSkillDescription があっても描画されない', () => {
+    render(
+      <WeaponPreview
+        {...defaultProps}
+        activeSkillDescription="直線上の敵を殲滅"
+        locked={true}
+      />
+    );
+    expect(screen.queryByText('ACTIVE')).not.toBeInTheDocument();
+  });
+
   test('ステータスのラベルが描画される', () => {
     render(<WeaponPreview {...defaultProps} />);
     expect(screen.getByText('攻撃力')).toBeInTheDocument();

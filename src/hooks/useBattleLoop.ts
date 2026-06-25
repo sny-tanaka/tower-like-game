@@ -18,14 +18,15 @@ import type { PatchDrop } from '@/game/patches/drops';
 import type { EquippedPatch } from '@/game/patches.types';
 import type { SpawnedEnemy } from '@/game/types';
 import { buildTierWaves, getSpawnsAtTime } from '@/game/wave';
-import { CANNON_SHELL_MS, cannonStats, cannonVolley } from '@/game/weapons/cannon';
+import { cannonApplySplash, cannonStats, cannonVolley } from '@/game/weapons/cannon';
 import {
   cutterStartOverdrive,
   cutterStats,
   cutterTickOverdrive,
   type OverdriveState,
 } from '@/game/weapons/cutter';
-import { laserMegaBeam, laserStats } from '@/game/weapons/laser';
+import { LASER_MEGA_BEAM_WIDTH_PCT, laserMegaBeam, laserStats } from '@/game/weapons/laser';
+import { WEAPON_RANGE_PCT } from '@/game/weapons/range';
 import { thunderPlasmaDischarge, thunderStats } from '@/game/weapons/thunder';
 import { soundEngine } from '@/lib/audio';
 import type { SoundId } from '@/lib/audio';
@@ -216,12 +217,8 @@ export function calcIntervalTicks(
   return { ticks, nextAccumulatorMs };
 }
 
-/**
- * Cutter (回転刃武器) の当たり判定半径 (%)。
- * CutterOrbitFx の length=14vmin と合わせ、 視覚的な刃の範囲内の敵のみヒットする。
- * 通常の索敵半径 (DEFAULT_RANGE) より小さく設定 — cutter は近接武器の差別化。
- */
-export const CUTTER_ORBIT_RANGE_PCT = 14;
+// 射程は武器別マップ (WEAPON_RANGE_PCT) で管理。
+// Cutter の 14% は CutterOrbitFx の length=14vmin と一致 (視覚的な刃の範囲)。
 
 // ---------------------------------------------------------------------------
 // 武器 SoundId マッピング
@@ -246,8 +243,6 @@ const WEAPON_ACTIVE_SOUND: Record<WeaponType, SoundId> = {
 // ---------------------------------------------------------------------------
 
 export interface UseBattleLoopOpts {
-  /** 射程 (0-100%)。 マシン中心 (50,50) からこの距離以下の敵が射程内 */
-  range: number;
   /**
    * 外部からの強制停止フラグ。 ResultDialog 表示中 (撤退 / gameover) に true を渡し、
    * 敵移動 / 武器発射 / spawn / wave 進行などをすべて止める。
@@ -315,7 +310,7 @@ export interface UseBattleLoopResult {
 /** 通常敵が ボルト をドロップする確率 (02-currencies.md 仕様) */
 export const NORMAL_BOLT_DROP_CHANCE = 0.5;
 
-export function useBattleLoop({ range, paused = false }: UseBattleLoopOpts): UseBattleLoopResult {
+export function useBattleLoop({ paused = false }: UseBattleLoopOpts): UseBattleLoopResult {
   // paused は ref 経由で tick から最新値を読む (useEffect の再実行を避けるため)
   const pausedRef = useRef(paused);
   pausedRef.current = paused;
@@ -368,17 +363,42 @@ export function useBattleLoop({ range, paused = false }: UseBattleLoopOpts): Use
     damageMul: 1,
   });
   /**
-   * 着弾遅延 hit (Cannon 専用)。 砲弾の飛翔中はダメージを保留し、
-   * applyAtMs 到達時に敵 HP 減算 + DamageEvent / 状態異常付与を行う。
+   * 着弾遅延砲弾 (Cannon 専用、 v1.1.2)。 発射時には着弾点と splash メタデータだけを積み、
+   * applyAtMs 到達時 (= shellMs 後) に **その時点の** 敵分布に対して
+   * cannonApplySplash で距離減衰ダメ + 半円カット + onAttack パッチを評価する。
+   *
+   * v1.1.2 で「発射時点でヒット相手と damage を確定」 する旧仕様 (pendingCannonHits) から
+   * 「着弾時の敵分布で splash 判定」 に変更したため、 飛翔中に敵が splash 内に入れば
+   * ダメージを受け、 抜ければ受けない。
    */
-  const pendingCannonHitsRef = useRef<
+  const pendingCannonShellsRef = useRef<
     Array<{
-      enemyId: string;
-      damage: BigNum;
+      blastX: number;
+      blastY: number;
+      isCrit: boolean;
+      splashRadius: number;
+      damageMul: number;
+      applyAtMs: number;
+    }>
+  >([]);
+
+  /**
+   * Cutter 専用: ダメージ pop (DamagePopFx) の遅延発火キュー。
+   * Cutter は 1 fire = 半円 sweep で複数敵に同時ヒットするが、 物理的には刃が各敵の角度に
+   * 達した瞬間に当たるべき。 視覚 (CutterOrbitFx の回転刃) と pop 表示のズレを解消するため、
+   * fire 時に各 hit の progressInSweep (0〜1) を見て `applyAtMs = fireMs + progress × intervalMs`
+   * を計算し、 ここに積む。 tick 冒頭で applyAtMs を満たすものを setDamageEvents に流す。
+   *
+   * 敵 HP 減算 / onAttack / lifesteal は fire 時に即時実行 (シンプル化)。 遅延されるのは
+   * 「ダメージ pop の表示時刻」 だけ。
+   */
+  const pendingCutterPopsRef = useRef<
+    Array<{
+      id: string;
+      x: number;
+      y: number;
+      value: BigNum;
       crit: boolean;
-      freeze: boolean;
-      freezeSec?: number;
-      burnSec?: number;
       applyAtMs: number;
     }>
   >([]);
@@ -468,8 +488,9 @@ export function useBattleLoop({ range, paused = false }: UseBattleLoopOpts): Use
     if (reset.resetEnemies) {
       enemiesRef.current = [];
       setEnemies([]);
-      // 敵リスト全クリア時は pending hit も無効にする
-      pendingCannonHitsRef.current = [];
+      // 敵リスト全クリア時は飛翔中砲弾も Cutter の遅延 pop も無効にする
+      pendingCannonShellsRef.current = [];
+      pendingCutterPopsRef.current = [];
     }
   }, [currentTier, currentWave]);
 
@@ -580,19 +601,21 @@ export function useBattleLoop({ range, paused = false }: UseBattleLoopOpts): Use
           x: MACHINE_CENTER_X,
           y: MACHINE_CENTER_Y,
           angle: angleDeg,
+          widthPct: LASER_MEGA_BEAM_WIDTH_PCT,
         });
         break;
       }
       case 'cannon': {
         const s = cannonStats(state.weaponLv);
         const boosted = { ...s, damageMul: s.damageMul * attackMul * machine.activePower };
+        // v1.1.2: 着弾時にその時点の敵分布で splash 判定する (cannonApplySplash 経由)。
+        // ここでは 5 発分の予測着弾点 (砲弾 × 敵直線運動の交点) と飛翔秒数を決めて
+        // pendingCannonShells に積む。
         const r = cannonVolley(machine, boosted, enemiesRef.current);
-        // 通常攻撃と同じ shellMs (砲弾飛翔時間) を共有。 砲弾飛翔 + 着弾後爆発 +
-        // 着弾と同じタイミングで HP 減算するため pendingCannonHits に積む。
-        const shellMs = CANNON_SHELL_MS;
         const nowGameMs = runElapsedGameMsRef.current;
         for (const shot of r.shots) {
-          // 砲弾飛翔 (マシン → 着弾点)
+          const shellMs = Math.max(0, Math.round(shot.flightSec * 1000));
+          // 砲弾飛翔 (マシン → 予測着弾点)
           projectileEventIdRef.current += 1;
           newProjectileEvents.push({
             id: `pe-${projectileEventIdRef.current}`,
@@ -612,16 +635,15 @@ export function useBattleLoop({ range, paused = false }: UseBattleLoopOpts): Use
             y: shot.blastY,
             delayMs: shellMs,
           });
-          // shot.hits 全員のダメージを着弾遅延 hit として登録 (通常攻撃と同じ経路)
-          for (const hit of shot.hits) {
-            pendingCannonHitsRef.current.push({
-              enemyId: hit.enemyId,
-              damage: hit.damage,
-              crit: false,
-              freeze: false,
-              applyAtMs: nowGameMs + shellMs,
-            });
-          }
+          // 着弾遅延砲弾を pendingCannonShells に積む (着弾時に splash 計算)
+          pendingCannonShellsRef.current.push({
+            blastX: shot.blastX,
+            blastY: shot.blastY,
+            isCrit: false, // Volley はクリなし
+            splashRadius: r.splashRadius,
+            damageMul: r.damageMul,
+            applyAtMs: nowGameMs + shellMs,
+          });
         }
         break;
       }
@@ -629,23 +651,29 @@ export function useBattleLoop({ range, paused = false }: UseBattleLoopOpts): Use
         const s = thunderStats(state.weaponLv);
         const boosted = { ...s, damageMul: s.damageMul * attackMul * machine.activePower };
         const r = thunderPlasmaDischarge(machine, boosted, enemiesRef.current);
-        // 連鎖の視覚: マシン → hit 順に points を結ぶ
-        const points: { x: number; y: number }[] = [{ x: MACHINE_CENTER_X, y: MACHINE_CENTER_Y }];
+        // 全体攻撃の視覚: 対象全員に通常攻撃と同じ ThunderStrikeFx を落とす
+        // (v1.1 で連鎖 → 全体落雷に変更。 ChainBoltFx は廃止)
+        const strikeMs = 320;
         for (const hit of r.hits) {
           const enemy = enemiesRef.current.find((e) => e.id === hit.enemyId);
-          if (enemy != null) {
-            points.push({ x: enemy.position.x, y: enemy.position.y });
-          }
-        }
-        if (points.length > 1) {
+          if (enemy == null) continue;
           projectileEventIdRef.current += 1;
           newProjectileEvents.push({
             id: `pe-${projectileEventIdRef.current}`,
-            kind: 'chain',
-            points,
+            kind: 'thunderStrike',
+            x: enemy.position.x,
+            y: enemy.position.y,
+            durationMs: strikeMs,
           });
         }
         applyHits(r.hits);
+        // Thunder lifesteal: Plasma 与ダメージの hpLifestealPct を machineHp に回復
+        if (s.hpLifestealPct > 0 && r.hits.length > 0) {
+          const totalDmg = r.hits.reduce((acc, h) => acc.add(h.damage), BigNum.ZERO);
+          if (!totalDmg.isZero()) {
+            state.addMachineHp(totalDmg.mulNumber(s.hpLifestealPct));
+          }
+        }
         break;
       }
       case 'cutter': {
@@ -859,62 +887,120 @@ export function useBattleLoop({ range, paused = false }: UseBattleLoopOpts): Use
             return next;
           });
 
-          // ---- 着弾遅延 hit の消化 (Cannon 砲弾の着弾タイミングで HP 減算) ----
-          // applyAtMs <= nowGameMs の pending hit を抽出して敵 HP 減算 + DamageEvent 発火。
-          const expiredHits: typeof pendingCannonHitsRef.current = [];
-          pendingCannonHitsRef.current = pendingCannonHitsRef.current.filter((ph) => {
-            if (ph.applyAtMs <= nowGameMs) {
-              expiredHits.push(ph);
+          // ---- 着弾遅延砲弾の消化 (Cannon 砲弾の着弾タイミング、 v1.1.2) ----
+          // applyAtMs <= nowGameMs の pending 砲弾を抽出。 着弾位置で cannonApplySplash で
+          // 距離減衰 + 半円カット + 着弾時点の敵分布から実ヒットを計算する。
+          const expiredShells: typeof pendingCannonShellsRef.current = [];
+          pendingCannonShellsRef.current = pendingCannonShellsRef.current.filter((sh) => {
+            if (sh.applyAtMs <= nowGameMs) {
+              expiredShells.push(sh);
               return false;
             }
             return true;
           });
           const delayedDamageEvents: DamageEvent[] = [];
-          if (expiredHits.length > 0) {
-            // H2-2: 着弾後の DamageEvent 用に「敵 ID → 敵」 Map を作る (O(N) 1 回)。
-            // update 後の position も update 前と同じなので、 ここでの Map は update 前のもの
-            // を使い回しても OK (HP は新規だが position は不変)。
-            const enemiesById = new Map<string, SpawnedEnemy>(
-              enemiesRef.current.map((e) => [e.id, e])
-            );
-            const hitMap = new Map(expiredHits.map((h) => [h.enemyId, h]));
-            enemiesRef.current = enemiesRef.current.map((e) => {
-              const hit = hitMap.get(e.id);
-              if (hit == null) return e;
-              let updated: SpawnedEnemy = { ...e, hp: e.hp.sub(hit.damage) };
-              if (hit.freeze && hit.freezeSec != null && hit.freezeSec > 0) {
-                const newFrozenUntil = nowGameMs + hit.freezeSec * 1000;
-                updated = {
-                  ...updated,
-                  frozenUntilMs: Math.max(updated.frozenUntilMs ?? 0, newFrozenUntil),
-                };
-              }
-              if (hit.burnSec != null && hit.burnSec > 0) {
-                const newBurnUntil = nowGameMs + hit.burnSec * 1000;
-                const newBurnPerSec = hit.damage.mulNumber(0.3);
-                const prev = updated.burnPerSec;
-                const wasBurning = updated.burnUntilMs != null;
-                updated = {
-                  ...updated,
-                  burnUntilMs: Math.max(updated.burnUntilMs ?? 0, newBurnUntil),
-                  burnPerSec: prev != null && prev.gt(newBurnPerSec) ? prev : newBurnPerSec,
-                  // 新規燃焼開始時のみ accumulator を 0 リセット (継続中は維持して 1 秒境界を保つ)
-                  burnAccumulatorMs: wasBurning ? updated.burnAccumulatorMs : 0,
-                };
-              }
-              return updated;
-            });
-            for (const hit of expiredHits) {
-              // H2-2: O(N) find() → O(1) Map.get() に置換
-              const enemy = enemiesById.get(hit.enemyId);
-              damageEventIdRef.current += 1;
+
+          // ---- Cutter 遅延 pop の消化 ----
+          // applyAtMs <= nowGameMs の pop を取り出して delayedDamageEvents に積む。
+          // 視覚的な刃通過タイミング (= progressInSweep × intervalMs) で pop が出る。
+          pendingCutterPopsRef.current = pendingCutterPopsRef.current.filter((pop) => {
+            if (pop.applyAtMs <= nowGameMs) {
               delayedDamageEvents.push({
-                id: `de-${damageEventIdRef.current}`,
-                x: enemy?.position.x ?? 50,
-                y: enemy?.position.y ?? 50,
-                value: hit.damage,
-                crit: hit.crit,
+                id: pop.id,
+                x: pop.x,
+                y: pop.y,
+                value: pop.value,
+                crit: pop.crit,
               });
+              return false;
+            }
+            return true;
+          });
+
+          if (expiredShells.length > 0) {
+            const machineImpact = machineStatsRef.current;
+            for (const shell of expiredShells) {
+              const rawHits = cannonApplySplash(
+                machineImpact,
+                enemiesRef.current,
+                shell.blastX,
+                shell.blastY,
+                shell.splashRadius,
+                shell.damageMul,
+                shell.isCrit
+              );
+              if (rawHits.length === 0) continue;
+
+              const enemiesById = new Map<string, SpawnedEnemy>(
+                enemiesRef.current.map((e) => [e.id, e])
+              );
+              // 着弾時に onAttack パッチを評価 (敵種別・ rng は着弾時点で確定)
+              const augmentedHits = rawHits.map((hit) => {
+                const target = enemiesById.get(hit.enemyId);
+                let damage = hit.damage;
+                let freeze = false;
+                let freezeSec: number | undefined;
+                let burnSec: number | undefined;
+                if (target != null) {
+                  const effect = evaluatePatches(
+                    equippedPatchesArr,
+                    { type: 'onAttack', enemyKind: target.kind },
+                    Math.random
+                  );
+                  if (effect.damageMultiplier != null && effect.damageMultiplier !== 1) {
+                    damage = damage.mulNumber(effect.damageMultiplier);
+                  }
+                  if (effect.extraShot) {
+                    damage = damage.add(hit.damage);
+                  }
+                  if (effect.instantKill) {
+                    damage = target.hp;
+                  }
+                  freeze = effect.freeze === true;
+                  freezeSec = effect.freezeSec;
+                  burnSec = effect.burnSec;
+                }
+                return { ...hit, damage, freeze, freezeSec, burnSec };
+              });
+
+              const augmentedById = new Map(augmentedHits.map((h) => [h.enemyId, h]));
+              enemiesRef.current = enemiesRef.current.map((e) => {
+                const hit = augmentedById.get(e.id);
+                if (hit == null) return e;
+                let updated: SpawnedEnemy = { ...e, hp: e.hp.sub(hit.damage) };
+                if (hit.freeze && hit.freezeSec != null && hit.freezeSec > 0) {
+                  const newFrozenUntil = nowGameMs + hit.freezeSec * 1000;
+                  updated = {
+                    ...updated,
+                    frozenUntilMs: Math.max(updated.frozenUntilMs ?? 0, newFrozenUntil),
+                  };
+                }
+                if (hit.burnSec != null && hit.burnSec > 0) {
+                  const newBurnUntil = nowGameMs + hit.burnSec * 1000;
+                  const newBurnPerSec = hit.damage.mulNumber(0.3);
+                  const prev = updated.burnPerSec;
+                  const wasBurning = updated.burnUntilMs != null;
+                  updated = {
+                    ...updated,
+                    burnUntilMs: Math.max(updated.burnUntilMs ?? 0, newBurnUntil),
+                    burnPerSec: prev != null && prev.gt(newBurnPerSec) ? prev : newBurnPerSec,
+                    burnAccumulatorMs: wasBurning ? updated.burnAccumulatorMs : 0,
+                  };
+                }
+                return updated;
+              });
+
+              for (const hit of augmentedHits) {
+                const enemy = enemiesById.get(hit.enemyId);
+                damageEventIdRef.current += 1;
+                delayedDamageEvents.push({
+                  id: `de-${damageEventIdRef.current}`,
+                  x: enemy?.position.x ?? 50,
+                  y: enemy?.position.y ?? 50,
+                  value: hit.damage,
+                  crit: hit.crit,
+                });
+              }
             }
           }
 
@@ -951,10 +1037,12 @@ export function useBattleLoop({ range, paused = false }: UseBattleLoopOpts): Use
           // accumulator が閾値未満で 1 発も発射されないフレームでは丸ごとスキップする
           // (低 fire rate 武器で「毎フレーム sortedInRange 計算」 になる退化を防ぐ)。
           if (fireAccumulatorMsRef.current >= intervalMs) {
-            // 当たり判定半径: cutter は CutterOrbitFx の刃の長さに合わせて短く、
-            // それ以外は通常の索敵範囲 (range)
-            const effectiveRange =
-              state.currentWeapon === 'cutter' ? CUTTER_ORBIT_RANGE_PCT : range;
+            // 当たり判定半径: 武器別マップ WEAPON_RANGE_PCT × マシン索敵距離倍率
+            // - 武器固定射程 (cutter 14 / laser/thunder 35 / cannon 45)
+            // - マシン本体「索敵距離」強化で漸近的に拡大
+            //   (range_asymptotic: 150→400px、 倍率は range/150 で Lv 0 のとき 1.0)
+            const machineRangeMul = machineTick.range / 150;
+            const effectiveRange = WEAPON_RANGE_PCT[state.currentWeapon] * machineRangeMul;
             const sortedInRange = enemiesRef.current
               .map((enemy) => ({ enemy, dist: distanceFromMachine(enemy.position) }))
               .filter(({ dist }) => dist <= effectiveRange)
@@ -983,10 +1071,50 @@ export function useBattleLoop({ range, paused = false }: UseBattleLoopOpts): Use
                   rng: Math.random,
                   cutterAngleDeg: cutterAngleDegRef.current,
                   attackMul,
+                  // Cutter Overdrive 中は damageMul を 3 倍にする
+                  cutterOverdriveDamageMul: overdriveStateRef.current.active
+                    ? overdriveStateRef.current.damageMul
+                    : 1,
                 });
                 // Cutter は刃の角度を 1 ヒットあたり前進。 次フレームの fire / 描画に反映
                 if (result.cutterAngle != null) {
                   cutterAngleDegRef.current = result.cutterAngle;
+                }
+
+                // ---- Cannon 通常攻撃: 着弾遅延砲弾を pendingCannonShells に積み、
+                //      砲弾飛翔 / 着弾爆発の Fx を発火する (v1.1.2)。 result.hits は常に空。
+                if (
+                  result.cannonShell != null &&
+                  result.impactX != null &&
+                  result.impactY != null
+                ) {
+                  const shellMs = Math.max(0, Math.round(result.cannonShell.flightSec * 1000));
+                  pendingCannonShellsRef.current.push({
+                    blastX: result.impactX,
+                    blastY: result.impactY,
+                    isCrit: result.cannonShell.isCrit,
+                    splashRadius: result.cannonShell.splashRadius,
+                    damageMul: result.cannonShell.damageMul,
+                    applyAtMs: nowGameMs + shellMs,
+                  });
+                  projectileEventIdRef.current += 1;
+                  newProjectileEvents.push({
+                    id: `pj-${projectileEventIdRef.current}`,
+                    kind: 'cannonShell',
+                    x1: MACHINE_CENTER_X,
+                    y1: MACHINE_CENTER_Y,
+                    x2: result.impactX,
+                    y2: result.impactY,
+                    durationMs: shellMs,
+                  });
+                  projectileEventIdRef.current += 1;
+                  newProjectileEvents.push({
+                    id: `pj-${projectileEventIdRef.current}`,
+                    kind: 'blast',
+                    x: result.impactX,
+                    y: result.impactY,
+                    delayMs: shellMs,
+                  });
                 }
 
                 // 敵 HP 減算 (immutable に置換) + onAttack パッチ適用
@@ -1035,21 +1163,9 @@ export function useBattleLoop({ range, paused = false }: UseBattleLoopOpts): Use
                     };
                   });
 
-                  // Cannon は砲弾飛翔中なので、 hit 適用を着弾まで遅延する。
-                  // それ以外の武器は即時 HP 減算 + DamageEvent 発火。
-                  if (state.currentWeapon === 'cannon') {
-                    for (const hit of augmentedHits) {
-                      pendingCannonHitsRef.current.push({
-                        enemyId: hit.enemyId,
-                        damage: hit.damage,
-                        crit: hit.crit ?? false,
-                        freeze: hit.freeze,
-                        freezeSec: hit.freezeSec,
-                        burnSec: hit.burnSec,
-                        applyAtMs: nowGameMs + CANNON_SHELL_MS,
-                      });
-                    }
-                  } else {
+                  // v1.1.2: cannon は result.hits が空で別途 pendingCannonShells に積むため、
+                  // ここでは非 cannon 武器のみ即時 HP 減算 + DamageEvent 発火する。
+                  {
                     const hitMap = new Map(augmentedHits.map((h) => [h.enemyId, h]));
                     enemiesRef.current = enemiesRef.current.map((e) => {
                       const hit = hitMap.get(e.id);
@@ -1083,18 +1199,51 @@ export function useBattleLoop({ range, paused = false }: UseBattleLoopOpts): Use
                       return updated;
                     });
 
-                    // DamageEvent 発火 — augmented damage を表示に使う
+                    // DamageEvent 発火 — augmented damage を表示に使う。
+                    // Cutter は刃が物理的に各敵の角度に達した瞬間に pop すべきなので、
+                    // progressInSweep × intervalMs ぶん遅延キュー (pendingCutterPopsRef) に積む。
+                    // 他武器は即時発火 (newDamageEvents)。
                     for (const hit of augmentedHits) {
                       // H2-2: O(N) find() → O(1) Map.get()
                       const enemy = enemiesById.get(hit.enemyId);
                       damageEventIdRef.current += 1;
-                      newDamageEvents.push({
-                        id: `de-${damageEventIdRef.current}`,
-                        x: enemy?.position.x ?? 50,
-                        y: enemy?.position.y ?? 50,
-                        value: hit.damage,
-                        crit: hit.crit,
-                      });
+                      const popId = `de-${damageEventIdRef.current}`;
+                      const popX = enemy?.position.x ?? 50;
+                      const popY = enemy?.position.y ?? 50;
+                      if (state.currentWeapon === 'cutter' && hit.progressInSweep != null) {
+                        const delayMs = hit.progressInSweep * intervalMs;
+                        pendingCutterPopsRef.current.push({
+                          id: popId,
+                          x: popX,
+                          y: popY,
+                          value: hit.damage,
+                          crit: hit.crit ?? false,
+                          applyAtMs: nowGameMs + delayMs,
+                        });
+                      } else {
+                        newDamageEvents.push({
+                          id: popId,
+                          x: popX,
+                          y: popY,
+                          value: hit.damage,
+                          crit: hit.crit,
+                        });
+                      }
+                    }
+
+                    // Thunder lifesteal: 与ダメージの hpLifestealPct を machineHp に回復
+                    // (0.1% × weaponLv、Lv 0 で 0)
+                    if (state.currentWeapon === 'thunder') {
+                      const lifestealPct = thunderStats(state.weaponLv).hpLifestealPct;
+                      if (lifestealPct > 0) {
+                        const totalDmg = augmentedHits.reduce(
+                          (acc, h) => acc.add(h.damage),
+                          BigNum.ZERO
+                        );
+                        if (!totalDmg.isZero()) {
+                          state.addMachineHp(totalDmg.mulNumber(lifestealPct));
+                        }
+                      }
                     }
                   }
 
@@ -1119,32 +1268,6 @@ export function useBattleLoop({ range, paused = false }: UseBattleLoopOpts): Use
                         y1: MACHINE_CENTER_Y,
                         x2: pos.x,
                         y2: pos.y,
-                      });
-                    }
-                  } else if (state.currentWeapon === 'cannon') {
-                    // 1 ショット = 1 砲弾 + 1 爆発。 splash 内の複数敵にダメージが入っても
-                    // 物理的に飛翔する砲弾は 1 個 (result.impactX/Y = cannonNormalAttack の blastX/Y)。
-                    const shellMs = CANNON_SHELL_MS;
-                    const impactX = result.impactX;
-                    const impactY = result.impactY;
-                    if (impactX != null && impactY != null) {
-                      projectileEventIdRef.current += 1;
-                      newProjectileEvents.push({
-                        id: `pj-${projectileEventIdRef.current}`,
-                        kind: 'cannonShell',
-                        x1: MACHINE_CENTER_X,
-                        y1: MACHINE_CENTER_Y,
-                        x2: impactX,
-                        y2: impactY,
-                        durationMs: shellMs,
-                      });
-                      projectileEventIdRef.current += 1;
-                      newProjectileEvents.push({
-                        id: `pj-${projectileEventIdRef.current}`,
-                        kind: 'blast',
-                        x: impactX,
-                        y: impactY,
-                        delayMs: shellMs,
                       });
                     }
                   } else if (state.currentWeapon === 'thunder' && hitPositions.length > 0) {
@@ -1464,7 +1587,7 @@ export function useBattleLoop({ range, paused = false }: UseBattleLoopOpts): Use
         rafIdRef.current = null;
       }
     };
-  }, [isRunActive, tierWaves, range, fireActive]);
+  }, [isRunActive, tierWaves, fireActive]);
 
   return {
     enemies,
