@@ -41,9 +41,12 @@ export const THUNDER_BASE_AS = 2.0;
 export function thunderStats(weaponLv: number): ThunderStats {
   const lv = Math.max(0, weaponLv);
 
-  const damageMul = THUNDER_BASE_DAMAGE_MUL * Math.pow(1.02, lv);
-  const attackPerSec = Math.min(10, THUNDER_BASE_AS * (1 + 0.03 * lv));
-  const plasmaDamageMul = 10 * (1 + 0.05 * lv);
+  // v1.1.1: damageMul / attackPerSec / plasmaDamageMul は武器Lv 不問の固定底値
+  const damageMul = THUNDER_BASE_DAMAGE_MUL;
+  const attackPerSec = THUNDER_BASE_AS;
+  const plasmaDamageMul = 10;
+
+  // Thunder の Lv 軸: 攻撃時 HP 回復率 (0.001 × Lv = 0.1%/Lv)
   const hpLifestealPct = 0.001 * lv;
 
   return {

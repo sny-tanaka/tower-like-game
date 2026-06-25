@@ -1,7 +1,32 @@
-# 14. 武器バランス再設計 v1.1
+# 14. 武器バランス再設計 v1.1（v1.1.1 改訂含む）
 
 本章は、v1.0.2 までの武器バランスを再設計し、4 武器それぞれに **明確なロール（最適場面）** を与える仕様変更をまとめる。
 本書は [05-weapons.md](./05-weapons.md) の v1.1 改訂版差分仕様であり、実装完了後に 05 章本体へ反映する。
+
+## v1.1.1 改訂サマリ（最重要）
+
+> **武器Lv はマシン強化のように damageMul / attackPerSec / アクティブダメ倍率を一切伸ばさない**。
+> 武器Lv が影響するのは「武器固有 Lv 強化軸」の **1 軸だけ**。
+> ダメージ / AS のスケーリングは全てマシン本体強化（baseAttack / attackSpeed）に集約。
+
+| 武器 | **Lv で伸びる唯一の軸** | 式 |
+|---|---|---|
+| Laser | critMultiplier ボーナス | `+0.01 × Lv` |
+| Cutter | Overdrive 持続秒 | `8 + 0.1 × Lv` |
+| Thunder | 攻撃時 HP 回復率 | `0.001 × Lv` (= 0.1%/Lv) |
+| Cannon | splash 半径 (px) | `30 + 0.5 × Lv` |
+
+固定化される値（武器Lv 不問）:
+- damageMul: 各武器の `*_BASE_DAMAGE_MUL` 固定
+- attackPerSec: 各武器の `*_BASE_AS` 固定（10 attacks/sec 上限クランプも撤去）
+- megaDamageMul (Laser): **50 固定**
+- volleyDamageMul (Cannon): **10 固定**
+- plasmaDamageMul (Thunder): **10 固定**
+- pierce (Laser): 1 固定
+- blades (Cutter): 2 固定
+- chainCount (Thunder): 3 固定
+- orbitRadius (Cutter): 80 px 固定
+- overdriveDamageMul (Cutter): 3 固定
 
 ## 目的
 
@@ -34,12 +59,15 @@
 | **Cannon** | 45 | 0.5 | 3.0 | 1.5 | splash 半径 30 px（後述の半円カット適用） |
 | **Laser** | 35 | 2.5 | 0.8 | 2.0 | pierce 固定 1 |
 
-### 共通 Lv スケール
+### 共通 Lv スケール（v1.1.1 で撤去）
 
-| 要素 | 式 | 上限 |
+> **v1.1.1: 武器Lv による damageMul / attackPerSec のスケーリングは撤去された。**
+> 全て武器底値で固定。ダメージ / AS の伸びはマシン本体強化（baseAttack / attackSpeed）に集約。
+
+| 要素 | v1.1（旧式） | v1.1.1（現行） |
 |---|---|---|
-| damageMul | `底値 × 1.02^Lv` | なし |
-| attackPerSec | `底値 × (1 + 0.03×Lv)` | 10 attacks/sec |
+| damageMul | `底値 × 1.02^Lv` | 底値で固定 |
+| attackPerSec | `底値 × (1 + 0.03×Lv)`（上限 10） | 底値で固定 |
 
 ### 武器固有 Lv 強化軸
 

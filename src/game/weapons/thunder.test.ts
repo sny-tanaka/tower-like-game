@@ -72,24 +72,21 @@ describe('thunderStats', () => {
     expect(stats.hpLifestealPct).toBe(0);
   });
 
-  it('Lv10: damageMul = THUNDER_BASE_DAMAGE_MUL × 1.02^10', () => {
+  it('v1.1.1: Lv 10 でも damageMul / attackPerSec / plasmaDamageMul は固定底値', () => {
     const stats = thunderStats(10);
-    expect(stats.damageMul).toBeCloseTo(THUNDER_BASE_DAMAGE_MUL * Math.pow(1.02, 10), 5);
+    expect(stats.damageMul).toBeCloseTo(THUNDER_BASE_DAMAGE_MUL);
+    expect(stats.attackPerSec).toBeCloseTo(THUNDER_BASE_AS);
+    expect(stats.plasmaDamageMul).toBeCloseTo(10);
   });
 
-  it('Lv10: attackPerSec = THUNDER_BASE_AS × (1 + 0.03 × 10)', () => {
-    const stats = thunderStats(10);
-    expect(stats.attackPerSec).toBeCloseTo(THUNDER_BASE_AS * 1.3, 5);
-  });
-
-  it('Lv20: plasmaDamageMul = 10 × (1 + 0.05 × 20) = 20', () => {
+  it('v1.1.1: Lv 20 でも plasmaDamageMul は固定 10', () => {
     const stats = thunderStats(20);
-    expect(stats.plasmaDamageMul).toBeCloseTo(20);
+    expect(stats.plasmaDamageMul).toBeCloseTo(10);
   });
 
-  it('高 Lv でも attackPerSec は 10 を超えない', () => {
+  it('v1.1.1: Lv 1000 でも attackPerSec は THUNDER_BASE_AS で固定', () => {
     const stats = thunderStats(1000);
-    expect(stats.attackPerSec).toBeLessThanOrEqual(10);
+    expect(stats.attackPerSec).toBe(THUNDER_BASE_AS);
   });
 
   it('負 Lv は 0 として扱う', () => {
@@ -250,7 +247,7 @@ describe('thunderPlasmaDischarge', () => {
     }
   });
 
-  it('Lv が上がるとダメージが増加する', () => {
+  it('v1.1.1: Plasma ダメは Lv で増えない (damageMul / plasmaDamageMul 固定)', () => {
     const machine = makeMachine({ baseAttack: BigNum.fromNumber(100) });
     const statsLv0 = thunderStats(0);
     const statsLv10 = thunderStats(10);
@@ -261,7 +258,7 @@ describe('thunderPlasmaDischarge', () => {
 
     const dmg0 = parseInt(resultLv0.hits[0]!.damage.toString(), 10);
     const dmg10 = parseInt(resultLv10.hits[0]!.damage.toString(), 10);
-    expect(dmg10).toBeGreaterThan(dmg0);
+    expect(dmg10).toBe(dmg0);
   });
 
   it('全体攻撃: 大量 (100 体) でも全員ヒット、上限なし', () => {

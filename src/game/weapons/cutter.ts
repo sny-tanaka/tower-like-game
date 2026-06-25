@@ -31,12 +31,14 @@ export interface CutterStats {
 /**
  * 武器強化 Lv から Cutter の各ステータスを計算する。
  *
- * 仕様 (14-weapons-rebalance-v1.1.md):
- *   - 攻撃速度底値: 1.0 attacks/sec、+0.03×1.0/Lv (描画見やすさ優先で減速)
- *   - 旋回半径: 80px 固定 (Lv で増えない)
- *   - 刃の枚数: 2 固定 (Lv で増えない)
- *   - ダメ倍率: 1.02^Lv (底値 1.2)
- *   - Overdrive: 持続 8 + 0.1×Lv 秒、AS×3、ダメ×3 (DPS 倍率 9)
+ * v1.1.1 で武器Lv は damageMul / attackPerSec を一切伸ばさない仕様に変更。
+ * Cutter の Lv 軸は「Overdrive 持続秒」1 軸のみ。
+ *
+ *   - 攻撃速度: 1.0 attacks/sec 固定
+ *   - 旋回半径: 80 px 固定
+ *   - 刃の枚数: 2 固定
+ *   - ダメ倍率: 1.2 固定
+ *   - Overdrive (Lv 軸): 持続 8 + 0.1×Lv 秒、AS×3 + ダメ×3 (DPS 倍率 9)
  */
 /** Cutter 底値 attacks/sec。 1 fire = 「視覚 1 周のうち 1 / blades 分」 を判定する周期 */
 export const CUTTER_BASE_AS = 1.0;
@@ -51,10 +53,12 @@ export const CUTTER_BLADES = 2;
 export const CUTTER_BASE_DAMAGE_MUL = 1.2;
 
 export function cutterStats(weaponLv: number): CutterStats {
-  const attackPerSec = CUTTER_BASE_AS * (1 + 0.03 * weaponLv);
+  // v1.1.1: attackPerSec / damageMul は武器Lv 不問の固定底値
+  const attackPerSec = CUTTER_BASE_AS;
   const orbitRadius = CUTTER_BASE_ORBIT_RADIUS;
   const blades = CUTTER_BLADES;
-  const damageMul = CUTTER_BASE_DAMAGE_MUL * Math.pow(1.02, weaponLv);
+  const damageMul = CUTTER_BASE_DAMAGE_MUL;
+  // Cutter の Lv 軸: Overdrive 持続秒 (8 + 0.1 × Lv)
   const overdriveDurationSec = CUTTER_OVERDRIVE_BASE_DURATION_SEC + 0.1 * weaponLv;
   const overdriveDamageMul = CUTTER_OVERDRIVE_DAMAGE_MUL;
 

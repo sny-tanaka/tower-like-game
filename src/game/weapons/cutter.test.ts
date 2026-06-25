@@ -90,34 +90,28 @@ describe('cutterStats', () => {
     expect(stats.overdriveDamageMul).toBe(3);
   });
 
-  it('Lv10 で AS / dmg がスケールし、 blades / orbitRadius は固定', () => {
+  it('v1.1.1: Lv 10 で attackPerSec / damageMul / blades / orbitRadius は固定、Overdrive 持続のみ伸びる', () => {
     const stats = cutterStats(10);
-    expect(stats.attackPerSec).toBeCloseTo(CUTTER_BASE_AS * 1.3);
+    expect(stats.attackPerSec).toBeCloseTo(CUTTER_BASE_AS); // 固定
+    expect(stats.damageMul).toBeCloseTo(CUTTER_BASE_DAMAGE_MUL); // 固定
     expect(stats.orbitRadius).toBe(80);
     expect(stats.blades).toBe(2);
-    expect(stats.damageMul).toBeCloseTo(CUTTER_BASE_DAMAGE_MUL * Math.pow(1.02, 10), 5);
+    expect(stats.overdriveDurationSec).toBeCloseTo(9); // 8 + 0.1×10
   });
 
-  it('Lv 60 で Overdrive 持続が 14s に延びる (8 + 0.1×60)', () => {
+  it('v1.1.1: Lv 60 で Overdrive 持続が 14s に延びる (8 + 0.1×60)、それ以外は固定', () => {
     const stats = cutterStats(60);
+    expect(stats.attackPerSec).toBeCloseTo(CUTTER_BASE_AS);
+    expect(stats.damageMul).toBeCloseTo(CUTTER_BASE_DAMAGE_MUL);
     expect(stats.overdriveDurationSec).toBeCloseTo(14);
   });
 
-  it('Lv50 で blades / orbitRadius は固定のまま', () => {
-    const stats = cutterStats(50);
-    expect(stats.attackPerSec).toBeCloseTo(CUTTER_BASE_AS * (1 + 0.03 * 50));
-    expect(stats.orbitRadius).toBe(80);
-    expect(stats.blades).toBe(2);
-    expect(stats.damageMul).toBeCloseTo(CUTTER_BASE_DAMAGE_MUL * Math.pow(1.02, 50), 5);
-    expect(stats.overdriveDurationSec).toBeCloseTo(13);
-  });
-
-  it('Lv100 で blades=2、 orbitRadius=80、 OD 持続=18s', () => {
+  it('v1.1.1: Lv 100 で blades=2、orbitRadius=80、OD 持続=18s、AS/dmg は固定', () => {
     const stats = cutterStats(100);
-    expect(stats.attackPerSec).toBeCloseTo(CUTTER_BASE_AS * (1 + 0.03 * 100));
+    expect(stats.attackPerSec).toBeCloseTo(CUTTER_BASE_AS);
+    expect(stats.damageMul).toBeCloseTo(CUTTER_BASE_DAMAGE_MUL);
     expect(stats.orbitRadius).toBe(80);
     expect(stats.blades).toBe(2);
-    expect(stats.damageMul).toBeCloseTo(CUTTER_BASE_DAMAGE_MUL * Math.pow(1.02, 100), 3);
     expect(stats.overdriveDurationSec).toBeCloseTo(18);
   });
 });

@@ -88,34 +88,33 @@ describe('cannonStats', () => {
     expect(s.volleyDamageMul).toBeCloseTo(10);
   });
 
-  it('Lv 10 のスケール: damageMul と attackPerSec が Lv で増加', () => {
+  it('v1.1.1: Lv 10 で damageMul / attackPerSec / volleyDamageMul は固定底値、splash 半径だけ Lv で伸びる', () => {
     const s = cannonStats(10);
-    // 武器ダメージ倍率: CANNON_BASE_DAMAGE_MUL × 1.02^10
-    expect(s.damageMul).toBeCloseTo(CANNON_BASE_DAMAGE_MUL * Math.pow(1.02, 10), 4);
-    // AS: CANNON_BASE_AS × (1 + 0.03 × 10)
-    expect(s.attackPerSec).toBeCloseTo(CANNON_BASE_AS * 1.3, 5);
-    // 爆発半径: 30 + 0.5 × 10 = 35
-    expect(s.splashRadius).toBeCloseTo(35, 5);
-    // Volley ダメ倍率: 10 × (1 + 0.05 × 10) = 15
-    expect(s.volleyDamageMul).toBeCloseTo(15, 5);
+    expect(s.damageMul).toBeCloseTo(CANNON_BASE_DAMAGE_MUL); // Lv 不問固定
+    expect(s.attackPerSec).toBeCloseTo(CANNON_BASE_AS); // Lv 不問固定
+    expect(s.volleyDamageMul).toBeCloseTo(10); // Lv 不問固定
+    expect(s.splashRadius).toBeCloseTo(35, 5); // Lv 軸: 30 + 0.5×10
   });
 
-  it('Lv 50 のスケール', () => {
+  it('v1.1.1: Lv 50 でも damageMul / attackPerSec / volleyDamageMul は固定、splash 半径のみ伸びる', () => {
     const s = cannonStats(50);
-    expect(s.damageMul).toBeCloseTo(CANNON_BASE_DAMAGE_MUL * Math.pow(1.02, 50), 4);
-    expect(s.attackPerSec).toBeCloseTo(CANNON_BASE_AS * (1 + 0.03 * 50), 5);
-    expect(s.splashRadius).toBeCloseTo(55, 5);
+    expect(s.damageMul).toBeCloseTo(CANNON_BASE_DAMAGE_MUL);
+    expect(s.attackPerSec).toBeCloseTo(CANNON_BASE_AS);
+    expect(s.volleyDamageMul).toBeCloseTo(10);
+    expect(s.splashRadius).toBeCloseTo(55, 5); // 30 + 0.5×50
   });
 
-  it('Lv 100 のスケール', () => {
+  it('v1.1.1: Lv 100 でも damageMul / attackPerSec / volleyDamageMul は固定、splash 半径のみ伸びる', () => {
     const s = cannonStats(100);
-    expect(s.attackPerSec).toBeCloseTo(CANNON_BASE_AS * (1 + 0.03 * 100), 5);
+    expect(s.damageMul).toBeCloseTo(CANNON_BASE_DAMAGE_MUL);
+    expect(s.attackPerSec).toBeCloseTo(CANNON_BASE_AS);
+    expect(s.volleyDamageMul).toBeCloseTo(10);
+    expect(s.splashRadius).toBeCloseTo(80, 5); // 30 + 0.5×100
   });
 
-  it('AS 上限 10 attacks/sec を超えない', () => {
-    // BASE_AS × (1 + 0.03 × Lv) = 10 を超える Lv で必ず 10 にクランプ
+  it('v1.1.1: Lv 9999 でも attackPerSec は CANNON_BASE_AS で固定（AS は伸びないため上限到達しない）', () => {
     const sHigh = cannonStats(9999);
-    expect(sHigh.attackPerSec).toBe(10);
+    expect(sHigh.attackPerSec).toBe(CANNON_BASE_AS);
   });
 
   it('負の Lv は Lv 0 として扱う', () => {
@@ -222,9 +221,7 @@ describe('cannonNormalAttack', () => {
     result.hits.forEach((h) => expect(h.crit).toBe(true));
   });
 
-  it('damageMul が正しくダメージに反映される', () => {
-    // Lv 0: damageMul=CANNON_BASE_DAMAGE_MUL, Lv 10: damageMul=CANNON_BASE_DAMAGE_MUL × 1.02^10
-    // マシン前方 (60,50) に置く
+  it('v1.1.1: damageMul は Lv 不問固定なので Lv 10 と Lv 0 で同ダメージ', () => {
     const statsLv10 = cannonStats(10);
     const enemy = makeEnemy('A', 60, 50);
 
@@ -233,8 +230,7 @@ describe('cannonNormalAttack', () => {
 
     expect(resultLv0.hits).toHaveLength(1);
     expect(resultLv10.hits).toHaveLength(1);
-    // Lv 10 の方がダメージが大きいはず
-    expect(resultLv10.hits[0]!.damage.compare(resultLv0.hits[0]!.damage)).toBe(1);
+    expect(resultLv10.hits[0]!.damage.compare(resultLv0.hits[0]!.damage)).toBe(0);
   });
 
   // ---------------------------------------------------------------------------

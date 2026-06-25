@@ -53,6 +53,34 @@ export function calcMachineRange(rangeLv: number): number {
 // 各武器のステ配列生成
 // ---------------------------------------------------------------------------
 
+// ---------------------------------------------------------------------------
+// 武器固有 Lv 強化軸の計算ユーティリティ (v1.1.1 で各武器 1 軸だけ Lv で伸びる)
+// ---------------------------------------------------------------------------
+
+/** Laser クリ倍率ボーナス: +0.01 × Lv (Lv 100 で +1.0) */
+export function calcLaserCritBonus(weaponLv: number): number {
+  return Math.max(0, weaponLv) * 0.01;
+}
+
+/** Cannon splash 半径: 30 + 0.5 × Lv (px) */
+export function calcCannonSplashRadius(weaponLv: number): number {
+  return 30 + Math.max(0, weaponLv) * 0.5;
+}
+
+/** Thunder 攻撃時 HP 回復率 (%): 0.1% × Lv */
+export function calcThunderHpRegenPct(weaponLv: number): number {
+  return Math.max(0, weaponLv) * 0.1;
+}
+
+/** Cutter Overdrive 持続秒: 8 + 0.1 × Lv */
+export function calcCutterOverdriveDurationSec(weaponLv: number): number {
+  return 8 + Math.max(0, weaponLv) * 0.1;
+}
+
+// ---------------------------------------------------------------------------
+// 各武器の表示用ステ配列生成 (v1.1.1: 固定ステ + Lv 軸 1 つを分けて表示)
+// ---------------------------------------------------------------------------
+
 export function buildLaserStats(
   weaponLv: number,
   baseAttack: number,
@@ -64,6 +92,11 @@ export function buildLaserStats(
     { label: '貫通', value: s.pierce },
     { label: '射程', value: machineRange, suffix: 'm' },
     { label: '連射速度', value: round1(s.attackPerSec), suffix: '/s' },
+    {
+      label: 'クリ倍率ボーナス',
+      value: `+${calcLaserCritBonus(weaponLv).toFixed(2)}`,
+      accent: 'secondary',
+    },
   ];
 }
 
@@ -75,9 +108,9 @@ export function buildCannonStats(
   const s = cannonStats(weaponLv);
   return [
     { label: 'DMG', value: calcDisplayDamage(baseAttack, s.damageMul), accent: 'primary' },
-    { label: '爆発半径', value: round1(s.splashRadius), suffix: 'm' },
     { label: '射程', value: machineRange, suffix: 'm' },
     { label: '連射速度', value: round1(s.attackPerSec), suffix: '/s' },
+    { label: '爆発半径', value: round1(s.splashRadius), suffix: 'm', accent: 'secondary' },
   ];
 }
 
@@ -92,6 +125,11 @@ export function buildThunderStats(
     { label: 'ターゲット数', value: s.chainCount },
     { label: '射程', value: machineRange, suffix: 'm' },
     { label: '連射速度', value: round1(s.attackPerSec), suffix: '/s' },
+    {
+      label: 'HP 回復率',
+      value: `${calcThunderHpRegenPct(weaponLv).toFixed(1)}%`,
+      accent: 'secondary',
+    },
   ];
 }
 
@@ -102,6 +140,12 @@ export function buildCutterStats(weaponLv: number, baseAttack: number): WeaponSt
     { label: '回転半径', value: round1(s.orbitRadius), suffix: 'm' },
     { label: '刃の数', value: s.blades },
     { label: '回転速度', value: round1(s.attackPerSec), suffix: '/s' },
+    {
+      label: 'Overdrive 持続',
+      value: round1(calcCutterOverdriveDurationSec(weaponLv)),
+      suffix: 's',
+      accent: 'secondary',
+    },
   ];
 }
 
@@ -120,25 +164,25 @@ const WEAPON_META: WeaponMeta[] = [
   {
     kind: 'laser',
     name: 'LASER',
-    description: '弾速が速く貫通する',
+    description: '中距離単体ぶち抜き。Lv でクリ倍率が伸びる',
     buildStats: buildLaserStats,
   },
   {
     kind: 'cannon',
     name: 'CANNON',
-    description: '爆発時に範囲内にもダメージ',
+    description: '遠距離 splash 爆発（マシン背面はカット）。Lv で爆発半径が伸びる',
     buildStats: buildCannonStats,
   },
   {
     kind: 'thunder',
     name: 'THUNDER',
-    description: '複数の敵を同時に攻撃',
+    description: '中距離 3 体同時落雷 + 攻撃時 HP 回復。Lv で回復率が伸びる',
     buildStats: buildThunderStats,
   },
   {
     kind: 'cutter',
     name: 'CUTTER',
-    description: 'マシンの周辺を回転する刃で攻撃',
+    description: '近接 2 枚刃旋回。Lv で Overdrive 持続が伸びる',
     buildStats: (lv, baseAttack) => buildCutterStats(lv, baseAttack),
   },
 ];

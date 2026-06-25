@@ -44,10 +44,12 @@ describe('getAttackPerSec', () => {
     expect(getAttackPerSec('cutter', 0)).toBeGreaterThan(0);
   });
 
-  test('Lv が上がると attackPerSec が増える (laser)', () => {
+  test('v1.1.1: Lv が上がっても attackPerSec は固定 (laser)', () => {
     const lv0 = getAttackPerSec('laser', 0);
     const lv10 = getAttackPerSec('laser', 10);
-    expect(lv10).toBeGreaterThan(lv0);
+    const lv100 = getAttackPerSec('laser', 100);
+    expect(lv10).toBe(lv0);
+    expect(lv100).toBe(lv0);
   });
 });
 

@@ -72,27 +72,25 @@ export interface CannonStats {
 /**
  * 武器強化 Lv から CannonStats を計算する。
  *
- * Lv スケール（14-weapons-rebalance-v1.1.md）:
- *   - 武器ダメージ倍率: CANNON_BASE_DAMAGE_MUL × 1.02^Lv
- *   - 攻撃速度: BASE_AS × (1 + 0.03 × Lv)、上限 10
- *   - 爆発半径 (固有ステ): 30 + 0.5 × Lv (px)
- *   - Volley ダメージ倍率: VOLLEY_DAMAGE_MUL × (1 + 0.05 × Lv)
+ * v1.1.1 で武器Lv はマシン強化のように damageMul / attackPerSec / volleyDamageMul を
+ * 一切伸ばさない仕様に変更。Cannon の Lv 軸は「splash 半径」 1 軸のみ。
+ *
+ *   - 武器ダメージ倍率: CANNON_BASE_DAMAGE_MUL (固定)
+ *   - 攻撃速度: CANNON_BASE_AS (固定)
+ *   - 爆発半径 (Lv 軸): 30 + 0.5 × Lv (px)
+ *   - Volley ダメージ倍率: VOLLEY_DAMAGE_MUL (固定)
  *   - Volley 発射数: 5 発（固定）
  */
 export function cannonStats(weaponLv: number): CannonStats {
   const lv = Math.max(0, Math.floor(weaponLv));
 
-  // 武器ダメージ倍率: CANNON_BASE_DAMAGE_MUL × 1.02^Lv
-  const damageMul = CANNON_BASE_DAMAGE_MUL * Math.pow(1.02, lv);
+  // v1.1.1: damageMul / attackPerSec / volleyDamageMul は武器Lv 不問の固定底値
+  const damageMul = CANNON_BASE_DAMAGE_MUL;
+  const attackPerSec = CANNON_BASE_AS;
+  const volleyDamageMul = VOLLEY_DAMAGE_MUL;
 
-  // 攻撃速度: CANNON_BASE_AS × (1 + 0.03 × Lv)、上限 10
-  const attackPerSec = Math.min(10, CANNON_BASE_AS * (1 + 0.03 * lv));
-
-  // 爆発半径: 30 + 0.5 × Lv (px)
+  // Cannon の Lv 軸: splash 半径 (30 + 0.5 × Lv) px
   const splashRadius = BASE_SPLASH_RADIUS_PX + 0.5 * lv;
-
-  // Volley 1 発ダメ倍率: VOLLEY_DAMAGE_MUL × (1 + 0.05 × Lv)
-  const volleyDamageMul = VOLLEY_DAMAGE_MUL * (1 + 0.05 * lv);
 
   return {
     attackPerSec,

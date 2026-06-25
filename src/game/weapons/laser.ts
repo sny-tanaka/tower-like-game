@@ -41,24 +41,21 @@ export const LASER_BASE_DAMAGE_MUL = 0.8;
 /**
  * 武器強化 Lv から LaserStats を計算して返す。
  *
+ * v1.1.1 で武器Lv は damageMul / attackPerSec / megaDamageMul を一切伸ばさない仕様に変更。
+ * Laser の Lv 軸は「critMultiplier ボーナス」1 軸のみ。
+ *
  * @param weaponLv  武器強化 Lv（0 以上の整数）
  */
 export function laserStats(weaponLv: number): LaserStats {
   const lv = Math.max(0, weaponLv);
 
-  // AS: LASER_BASE_AS × (1 + 0.03 × Lv)
-  const attackPerSec = LASER_BASE_AS * (1 + 0.03 * lv);
-
-  // 貫通数: v1.1 で 1 固定（Lv で増えない）
+  // v1.1.1: attackPerSec / pierce / damageMul / megaDamageMul は武器Lv 不問の固定底値
+  const attackPerSec = LASER_BASE_AS;
   const pierce = 1;
+  const damageMul = LASER_BASE_DAMAGE_MUL;
+  const megaDamageMul = 50;
 
-  // 武器ダメ倍率: LASER_BASE_DAMAGE_MUL × 1.02^Lv
-  const damageMul = LASER_BASE_DAMAGE_MUL * Math.pow(1.02, lv);
-
-  // Mega Beam 威力: アクティブ底値 50 × (1 + 0.05 × Lv)
-  const megaDamageMul = 50 * (1 + 0.05 * lv);
-
-  // critMultiplier ボーナス: +0.01 × Lv (Lv 60 で +0.6, Lv 100 で +1.0)
+  // Laser の Lv 軸: critMultiplier ボーナス +0.01 × Lv (Lv 60 で +0.6, Lv 100 で +1.0)
   const critMultiplierBonus = 0.01 * lv;
 
   return { attackPerSec, pierce, damageMul, megaDamageMul, critMultiplierBonus };
