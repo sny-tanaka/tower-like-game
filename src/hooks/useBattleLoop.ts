@@ -954,9 +954,12 @@ export function useBattleLoop({ paused = false }: UseBattleLoopOpts): UseBattleL
           // accumulator が閾値未満で 1 発も発射されないフレームでは丸ごとスキップする
           // (低 fire rate 武器で「毎フレーム sortedInRange 計算」 になる退化を防ぐ)。
           if (fireAccumulatorMsRef.current >= intervalMs) {
-            // 当たり判定半径: 武器別マップ WEAPON_RANGE_PCT から取得
-            // (cutter は近接 14% / laser/thunder 35% / cannon 遠方 45%)
-            const effectiveRange = WEAPON_RANGE_PCT[state.currentWeapon];
+            // 当たり判定半径: 武器別マップ WEAPON_RANGE_PCT × マシン索敵距離倍率
+            // - 武器固定射程 (cutter 14 / laser/thunder 35 / cannon 45)
+            // - マシン本体「索敵距離」強化で漸近的に拡大
+            //   (range_asymptotic: 150→400px、 倍率は range/150 で Lv 0 のとき 1.0)
+            const machineRangeMul = machineTick.range / 150;
+            const effectiveRange = WEAPON_RANGE_PCT[state.currentWeapon] * machineRangeMul;
             const sortedInRange = enemiesRef.current
               .map((enemy) => ({ enemy, dist: distanceFromMachine(enemy.position) }))
               .filter(({ dist }) => dist <= effectiveRange)

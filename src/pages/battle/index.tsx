@@ -11,6 +11,10 @@ import type { HitEvent } from '@/components/organisms/BattleField';
 import { BattleHudBottom } from '@/components/organisms/BattleHudBottom';
 import { BattleHudTop } from '@/components/organisms/BattleHudTop';
 import { BattleMenuOverlay } from '@/components/organisms/BattleMenuOverlay';
+import {
+  MACHINE_UPGRADE_ITEMS,
+  calcEffectValue,
+} from '@/components/organisms/MachineUpgradeList/items';
 import { ResultDialog } from '@/components/organisms/ResultDialog';
 import type { ResultStatus } from '@/components/organisms/ResultDialog';
 import { RunWorkshopBottomSheet } from '@/components/organisms/RunWorkshopBottomSheet';
@@ -94,6 +98,7 @@ export function Page() {
   const currentWave = useStore((s) => s.currentWave);
   const currentWeapon = useStore((s) => s.currentWeapon);
   const weaponLv = useStore((s) => s.weaponLv);
+  const machineLevels = useStore((s) => s.machineLevels);
   const activeCdSec = useStore((s) => s.activeCdSec);
   const isAutoActive = useStore((s) => s.isAutoActive);
   const isPaused = useStore((s) => s.isPaused);
@@ -254,6 +259,16 @@ export function Page() {
 
   // HitEvent (EnemyHitFx) は別途配線予定。 当面はモジュール定数の空配列を使い回す (H2-4)
   const hitEvents = EMPTY_HIT_EVENTS;
+
+  // マシン索敵距離 (range_asymptotic: 150 → 400 px)。
+  // 索敵円描画と useBattleLoop 内の effectiveRange は WEAPON_RANGE_PCT × (range / 150) で同期。
+  // useBattleLoop 側は machineTick.range を読むので二重に計算しているが、
+  // 描画用にここでも machineLevels.range から導出する。
+  const machineRangePx = useMemo(() => {
+    const item = MACHINE_UPGRADE_ITEMS.find((i) => i.key === 'range');
+    if (item == null) return 150;
+    return calcEffectValue(item, machineLevels.range);
+  }, [machineLevels.range]);
 
   // 武器切替 CD (仕様 05-weapons.md §武器切替: 3 秒)
   // 装備中の武器は常に 100 (= CD なし表示)、 他の武器は経過率 % を出す。
@@ -503,7 +518,7 @@ export function Page() {
             ),
             CUTTER_BLADES
           )}
-          range={WEAPON_RANGE_PCT[currentWeapon]}
+          range={WEAPON_RANGE_PCT[currentWeapon] * (machineRangePx / 150)}
         />
       </AppShell>
 

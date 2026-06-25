@@ -52,6 +52,7 @@ function defaultMachine(overrides?: Partial<MachineStats>): MachineStats {
     attackSpeed: 1,
     activePower: 1,
     activeCdReduction: 0,
+    range: 150,
     ...overrides,
   };
 }
