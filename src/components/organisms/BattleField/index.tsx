@@ -77,7 +77,7 @@ export type ProjectileEvent =
   | { id: string; kind: 'blast'; x: number; y: number; delayMs?: number }
   | { id: string; kind: 'thunderStrike'; x: number; y: number; durationMs: number }
   | { id: string; kind: 'chain'; points: { x: number; y: number }[]; delayMs?: number }
-  | { id: string; kind: 'megaBeam'; x: number; y: number; angle: number };
+  | { id: string; kind: 'megaBeam'; x: number; y: number; angle: number; widthPct?: number };
 
 /**
  * 視覚的なダミーピン (敵 spawn ロジックと無関係の静的飾り)
@@ -419,6 +419,7 @@ export function BattleField({
                   x={evt.x}
                   y={evt.y}
                   angle={evt.angle}
+                  widthPct={evt.widthPct}
                   onDone={() => onProjectileDone?.(evt.id)}
                 />
               );

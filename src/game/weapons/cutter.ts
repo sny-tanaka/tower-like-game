@@ -101,7 +101,18 @@ export function calcCutterRotateMs(attackPerSec: number, blades: number): number
 // ---------------------------------------------------------------------------
 
 export interface CutterAttackResult {
-  hits: Array<{ enemyId: string; damage: BigNum; crit: boolean }>;
+  hits: Array<{
+    enemyId: string;
+    damage: BigNum;
+    crit: boolean;
+    /**
+     * sweep 内で刃が敵の角度に達するまでの進行率 (0〜1)。
+     * useBattleLoop が DamagePopFx の発火を `progressInSweep × intervalMs` だけ遅延させ、
+     * 視覚上の刃通過タイミングと pop 表示タイミングを一致させる。
+     * 0 = sweep 開始時にいる敵 (即 pop), 1 = sweep 終端にいる敵 (intervalMs 後 pop)。
+     */
+    progressInSweep: number;
+  }>;
   /** 旋回した角度（度）。描画用 */
   angle: number;
 }
@@ -173,15 +184,26 @@ export function cutterNormalAttack(
     bladeStarts.push(currentAngleDeg + i * sweepDeg);
   }
 
-  // 敵がいずれかの刃の sweep 範囲に入っていればヒット (v1.1.2 で上限撤廃 — 刃が触れた敵全員)
-  const targets = enemiesInRange.filter((enemy) => {
+  // 敵がいずれかの刃の sweep 範囲に入っていればヒット (v1.1.2 で上限撤廃 — 刃が触れた敵全員)。
+  // 各敵について「最も早く通過する刃」 の progressInSweep (0〜1) を求める。
+  // 視覚と pop タイミングを一致させるため useBattleLoop で applyAtMs に反映する。
+  const norm = (v: number) => ((v % 360) + 360) % 360;
+  const targets: Array<{ enemy: SpawnedEnemy; progressInSweep: number }> = [];
+  for (const enemy of enemiesInRange) {
     const dx = enemy.position.x - machineX;
     const dy = enemy.position.y - machineY;
     const enemyAngle = (Math.atan2(dy, dx) * 180) / Math.PI;
-    return bladeStarts.some((start) => isAngleInRange(enemyAngle, start, sweepDeg));
-  });
+    let best: number | null = null;
+    for (const start of bladeStarts) {
+      if (!isAngleInRange(enemyAngle, start, sweepDeg)) continue;
+      const progress = norm(enemyAngle - start) / sweepDeg;
+      if (best == null || progress < best) best = progress;
+    }
+    if (best == null) continue;
+    targets.push({ enemy, progressInSweep: Math.max(0, Math.min(1, best)) });
+  }
 
-  const hits = targets.map((enemy) => {
+  const hits = targets.map(({ enemy, progressInSweep }) => {
     const isCrit = rollCrit(machine.critRate, rng);
     const result = calcOutgoingDamage(
       { machine, weapon: { damageMultiplier: stats.damageMul }, isCrit },
@@ -192,6 +214,7 @@ export function cutterNormalAttack(
       enemyId: enemy.id,
       damage: result.finalDmg,
       crit: isCrit,
+      progressInSweep,
     };
   });
 

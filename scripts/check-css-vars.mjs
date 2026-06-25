@@ -42,7 +42,7 @@ const BLESSED = new Set([
   'death-x', 'death-y', 'death-duration', 'death-color', 'death-flash-color', 'death-shard-angle', // EnemyDeathFx
   'blast-x', 'blast-y', 'blast-size', 'blast-color', 'blast-color-aa', 'blast-color-66', 'blast-duration', 'blast-flash-duration', 'blast-delay', // BlastFx
   'beam-x', 'beam-y', 'beam-length', 'beam-angle', 'beam-color', 'beam-duration', // LaserBeamFx
-  'mb-x', 'mb-y', 'mb-angle', 'mb-color', 'mb-duration', // MegaBeamFx
+  'mb-x', 'mb-y', 'mb-angle', 'mb-color', 'mb-duration', 'mb-width', // MegaBeamFx
   'thn-x', 'thn-y', 'thn-color', 'thn-strike-duration', 'thn-flash-duration', // ThunderStrikeFx
   'chn-duration', 'chn-delay', // ChainBoltFx
   'mhf-x', 'mhf-y', 'mhf-duration', // MachineHitFx

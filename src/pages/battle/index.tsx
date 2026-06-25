@@ -279,6 +279,19 @@ export function Page() {
     return calcEffectValue(item, machineLevels.attackSpeed);
   }, [machineLevels.attackSpeed]);
 
+  // マシン強化「アクティブ CD 短縮率」 (0〜0.5)。 CD ゲージ最大値も短縮率に応じて縮め、
+  // 「ゲージが満タンになるまでの時間 = 60s × (1 - reduction)」 とすることで、
+  // 「最初から部分的に溜まった見た目」 ではなく「溜まる速度が上がった見た目」 にする。
+  const activeCdReduction = useMemo(() => {
+    const item = MACHINE_UPGRADE_ITEMS.find((i) => i.key === 'activeCdReduction');
+    if (item == null) return 0;
+    return calcEffectValue(item, machineLevels.activeCdReduction);
+  }, [machineLevels.activeCdReduction]);
+  const activeMaxSec = useMemo(
+    () => DEFAULT_ACTIVE_MAX_SEC * (1 - Math.max(0, Math.min(1, activeCdReduction))),
+    [activeCdReduction]
+  );
+
   // 武器切替 CD (仕様 05-weapons.md §武器切替: 3 秒)
   // 装備中の武器は常に 100 (= CD なし表示)、 他の武器は経過率 % を出す。
   // (H2-4: weaponCds は同じ値の組み合わせなら参照を安定化させて BattleHudBottom の memo を活かす)
@@ -490,7 +503,7 @@ export function Page() {
               equippedWeapon={currentWeapon}
               weaponCds={weaponCds}
               activeCd={activeCdSec}
-              activeMax={DEFAULT_ACTIVE_MAX_SEC}
+              activeMax={activeMaxSec}
               isAutoActive={isAutoActive}
               onSwitchWeapon={handleSwitchWeapon}
               onActivate={handleManualActivate}

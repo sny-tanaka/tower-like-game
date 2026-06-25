@@ -43,7 +43,10 @@
   left: var(--blast-x);
   top: var(--blast-y);
   pointer-events: none;
-  z-index: var(--z-fx-field);
+  /* 爆風はマシン (.machine z-index: 10) より下のレイヤーに描き、 マシン本体を貫通しないようにする。
+     敵 (.enemy z-index: 5) より上に出る必要があるので、 6〜9 のレンジ内で 9 を採用。
+     他の Fx は --z-fx-field (50) のままマシンより上 (砲弾の飛翔 / レーザービーム / Mega Beam 等)。 */
+  z-index: 9;
 }
 
 .ring {

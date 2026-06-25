@@ -25,7 +25,7 @@ import {
   cutterTickOverdrive,
   type OverdriveState,
 } from '@/game/weapons/cutter';
-import { laserMegaBeam, laserStats } from '@/game/weapons/laser';
+import { LASER_MEGA_BEAM_WIDTH_PCT, laserMegaBeam, laserStats } from '@/game/weapons/laser';
 import { WEAPON_RANGE_PCT } from '@/game/weapons/range';
 import { thunderPlasmaDischarge, thunderStats } from '@/game/weapons/thunder';
 import { soundEngine } from '@/lib/audio';
@@ -383,6 +383,27 @@ export function useBattleLoop({ paused = false }: UseBattleLoopOpts): UseBattleL
   >([]);
 
   /**
+   * Cutter 専用: ダメージ pop (DamagePopFx) の遅延発火キュー。
+   * Cutter は 1 fire = 半円 sweep で複数敵に同時ヒットするが、 物理的には刃が各敵の角度に
+   * 達した瞬間に当たるべき。 視覚 (CutterOrbitFx の回転刃) と pop 表示のズレを解消するため、
+   * fire 時に各 hit の progressInSweep (0〜1) を見て `applyAtMs = fireMs + progress × intervalMs`
+   * を計算し、 ここに積む。 tick 冒頭で applyAtMs を満たすものを setDamageEvents に流す。
+   *
+   * 敵 HP 減算 / onAttack / lifesteal は fire 時に即時実行 (シンプル化)。 遅延されるのは
+   * 「ダメージ pop の表示時刻」 だけ。
+   */
+  const pendingCutterPopsRef = useRef<
+    Array<{
+      id: string;
+      x: number;
+      y: number;
+      value: BigNum;
+      crit: boolean;
+      applyAtMs: number;
+    }>
+  >([]);
+
+  /**
    * Fx 完了通知のバッファ (H2-3)。 onDamageDone / onDeathDone / onProjectileDone /
    * onAppearanceDone は Fx 演出完了時に複数同時に呼ばれることがあり、 各々で setState
    * (filter で配列再生成) を呼ぶと BattleField 全体が連鎖 re-render する。
@@ -467,8 +488,9 @@ export function useBattleLoop({ paused = false }: UseBattleLoopOpts): UseBattleL
     if (reset.resetEnemies) {
       enemiesRef.current = [];
       setEnemies([]);
-      // 敵リスト全クリア時は飛翔中砲弾も無効にする
+      // 敵リスト全クリア時は飛翔中砲弾も Cutter の遅延 pop も無効にする
       pendingCannonShellsRef.current = [];
+      pendingCutterPopsRef.current = [];
     }
   }, [currentTier, currentWave]);
 
@@ -579,6 +601,7 @@ export function useBattleLoop({ paused = false }: UseBattleLoopOpts): UseBattleL
           x: MACHINE_CENTER_X,
           y: MACHINE_CENTER_Y,
           angle: angleDeg,
+          widthPct: LASER_MEGA_BEAM_WIDTH_PCT,
         });
         break;
       }
@@ -628,21 +651,19 @@ export function useBattleLoop({ paused = false }: UseBattleLoopOpts): UseBattleL
         const s = thunderStats(state.weaponLv);
         const boosted = { ...s, damageMul: s.damageMul * attackMul * machine.activePower };
         const r = thunderPlasmaDischarge(machine, boosted, enemiesRef.current);
-        // 全体攻撃の視覚: マシン → 全 hit 敵を順に結ぶ (v1.1 で連鎖→全体になったが、
-        // 演出は引き続き chain points で全体への雷を表現)
-        const points: { x: number; y: number }[] = [{ x: MACHINE_CENTER_X, y: MACHINE_CENTER_Y }];
+        // 全体攻撃の視覚: 対象全員に通常攻撃と同じ ThunderStrikeFx を落とす
+        // (v1.1 で連鎖 → 全体落雷に変更。 ChainBoltFx は廃止)
+        const strikeMs = 320;
         for (const hit of r.hits) {
           const enemy = enemiesRef.current.find((e) => e.id === hit.enemyId);
-          if (enemy != null) {
-            points.push({ x: enemy.position.x, y: enemy.position.y });
-          }
-        }
-        if (points.length > 1) {
+          if (enemy == null) continue;
           projectileEventIdRef.current += 1;
           newProjectileEvents.push({
             id: `pe-${projectileEventIdRef.current}`,
-            kind: 'chain',
-            points,
+            kind: 'thunderStrike',
+            x: enemy.position.x,
+            y: enemy.position.y,
+            durationMs: strikeMs,
           });
         }
         applyHits(r.hits);
@@ -878,6 +899,24 @@ export function useBattleLoop({ paused = false }: UseBattleLoopOpts): UseBattleL
             return true;
           });
           const delayedDamageEvents: DamageEvent[] = [];
+
+          // ---- Cutter 遅延 pop の消化 ----
+          // applyAtMs <= nowGameMs の pop を取り出して delayedDamageEvents に積む。
+          // 視覚的な刃通過タイミング (= progressInSweep × intervalMs) で pop が出る。
+          pendingCutterPopsRef.current = pendingCutterPopsRef.current.filter((pop) => {
+            if (pop.applyAtMs <= nowGameMs) {
+              delayedDamageEvents.push({
+                id: pop.id,
+                x: pop.x,
+                y: pop.y,
+                value: pop.value,
+                crit: pop.crit,
+              });
+              return false;
+            }
+            return true;
+          });
+
           if (expiredShells.length > 0) {
             const machineImpact = machineStatsRef.current;
             for (const shell of expiredShells) {
@@ -1160,18 +1199,36 @@ export function useBattleLoop({ paused = false }: UseBattleLoopOpts): UseBattleL
                       return updated;
                     });
 
-                    // DamageEvent 発火 — augmented damage を表示に使う
+                    // DamageEvent 発火 — augmented damage を表示に使う。
+                    // Cutter は刃が物理的に各敵の角度に達した瞬間に pop すべきなので、
+                    // progressInSweep × intervalMs ぶん遅延キュー (pendingCutterPopsRef) に積む。
+                    // 他武器は即時発火 (newDamageEvents)。
                     for (const hit of augmentedHits) {
                       // H2-2: O(N) find() → O(1) Map.get()
                       const enemy = enemiesById.get(hit.enemyId);
                       damageEventIdRef.current += 1;
-                      newDamageEvents.push({
-                        id: `de-${damageEventIdRef.current}`,
-                        x: enemy?.position.x ?? 50,
-                        y: enemy?.position.y ?? 50,
-                        value: hit.damage,
-                        crit: hit.crit,
-                      });
+                      const popId = `de-${damageEventIdRef.current}`;
+                      const popX = enemy?.position.x ?? 50;
+                      const popY = enemy?.position.y ?? 50;
+                      if (state.currentWeapon === 'cutter' && hit.progressInSweep != null) {
+                        const delayMs = hit.progressInSweep * intervalMs;
+                        pendingCutterPopsRef.current.push({
+                          id: popId,
+                          x: popX,
+                          y: popY,
+                          value: hit.damage,
+                          crit: hit.crit ?? false,
+                          applyAtMs: nowGameMs + delayMs,
+                        });
+                      } else {
+                        newDamageEvents.push({
+                          id: popId,
+                          x: popX,
+                          y: popY,
+                          value: hit.damage,
+                          crit: hit.crit,
+                        });
+                      }
                     }
 
                     // Thunder lifesteal: 与ダメージの hpLifestealPct を machineHp に回復

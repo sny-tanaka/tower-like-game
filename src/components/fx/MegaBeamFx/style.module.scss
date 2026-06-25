@@ -26,7 +26,10 @@
   left: var(--mb-x);
   top: var(--mb-y);
   width: 150%;
-  height: 12px;
+  /* 太さは親 .field の % 基準。 LASER_MEGA_BEAM_WIDTH_PCT (= 12%) と揃えて
+     ヒット判定 (laser.ts) と視覚を完全一致させる。 中央線にしたいので translateY(-50%)。 */
+  height: var(--mb-width, 12%);
+  margin-top: calc(var(--mb-width, 12%) / -2);
   background: linear-gradient(90deg, var(--mb-color), transparent 95%);
   box-shadow:
     0 0 18px var(--mb-color),

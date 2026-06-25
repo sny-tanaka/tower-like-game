@@ -227,6 +227,49 @@ describe('cutterNormalAttack', () => {
     const result = cutterNormalAttack(machine, stats, [], 270, rngNever);
     expect(result.angle).toBeCloseTo(90);
   });
+
+  // progressInSweep: 視覚と pop タイミング同期のためのフィールド
+  describe('progressInSweep', () => {
+    it('sweep 開始角度 (currentAngleDeg) と同じ位置にいる敵は progress ≈ 0', () => {
+      const stats = cutterStats(0);
+      // currentAngleDeg=0 → blade A の sweep は 0°〜180°、 0°の敵 (右真横) は progress=0
+      const result = cutterNormalAttack(machine, stats, [inRange('e1', 70, 50)], 0, rngNever);
+      const hit = result.hits.find((h) => h.enemyId === 'e1');
+      expect(hit?.progressInSweep).toBeCloseTo(0, 2);
+    });
+
+    it('sweep 中央 (start + sweepDeg/2) にいる敵は progress ≈ 0.5', () => {
+      const stats = cutterStats(0);
+      // blade A の sweep は 0°〜180°、 90° (下) の敵は progress=0.5
+      const result = cutterNormalAttack(machine, stats, [inRange('down', 50, 70)], 0, rngNever);
+      const hit = result.hits.find((h) => h.enemyId === 'down');
+      expect(hit?.progressInSweep).toBeCloseTo(0.5, 2);
+    });
+
+    it('sweep 終端 (start + sweepDeg) にいる敵は progress ≈ 1 / または別 blade で 0', () => {
+      const stats = cutterStats(0);
+      // blade A: 0°〜180° の終端 = 180°、 ただし blade B (180°〜360°) の開始でもあるので progress=0
+      const result = cutterNormalAttack(machine, stats, [inRange('left', 30, 50)], 0, rngNever);
+      const hit = result.hits.find((h) => h.enemyId === 'left');
+      // 「最も早く通過する刃」 を選ぶ仕様: blade B の始点として 0 を返す
+      expect(hit?.progressInSweep).toBeCloseTo(0, 2);
+    });
+
+    it('全 progressInSweep は 0〜1 の範囲に収まる', () => {
+      const stats = cutterStats(0);
+      const enemies = [
+        inRange('right', 70, 50),
+        inRange('down', 50, 70),
+        inRange('left', 30, 50),
+        inRange('up', 50, 30),
+      ];
+      const result = cutterNormalAttack(machine, stats, enemies, 0, rngNever);
+      for (const hit of result.hits) {
+        expect(hit.progressInSweep).toBeGreaterThanOrEqual(0);
+        expect(hit.progressInSweep).toBeLessThanOrEqual(1);
+      }
+    });
+  });
 });
 
 // ---------------------------------------------------------------------------

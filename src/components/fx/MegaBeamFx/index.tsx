@@ -13,6 +13,12 @@ export interface MegaBeamFxProps {
   duration?: number;
   /** ビーム色 (default: var(--c-primary-hi)) */
   color?: string;
+  /**
+   * ビームの太さ (親 = .field の % 単位)。
+   * laser.ts の LASER_MEGA_BEAM_WIDTH_PCT (= 12) と揃えてヒット判定と視覚を一致させる。
+   * default: 12
+   */
+  widthPct?: number;
   /** アニメ完了時に親へ通知 */
   onDone?: () => void;
 }
@@ -30,6 +36,7 @@ export function MegaBeamFx({
   angle = 0,
   duration = 600,
   color = 'var(--c-primary-hi)',
+  widthPct = 12,
   onDone,
 }: MegaBeamFxProps) {
   const beamStyle: CSSProperties = {
@@ -38,6 +45,7 @@ export function MegaBeamFx({
     ['--mb-angle' as string]: `${angle}deg`,
     ['--mb-color' as string]: color,
     ['--mb-duration' as string]: `${duration}ms`,
+    ['--mb-width' as string]: `${widthPct}%`,
   };
 
   return (

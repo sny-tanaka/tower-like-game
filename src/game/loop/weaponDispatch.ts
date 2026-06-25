@@ -15,6 +15,12 @@ export interface UnifiedHit {
   enemyId: string;
   damage: BigNum;
   crit?: boolean;
+  /**
+   * Cutter 専用: sweep 内で刃が敵の角度に達するまでの進行率 (0〜1)。
+   * useBattleLoop は DamagePopFx の発火を `progressInSweep × intervalMs` だけ遅延させて
+   * 視覚と pop の同期を取る。 他武器では undefined。
+   */
+  progressInSweep?: number;
 }
 
 export interface UnifiedAttackResult {
@@ -142,7 +148,12 @@ export function fireWeapon({
       };
       const r = cutterNormalAttack(machine, boosted, enemiesInRange, cutterAngleDeg, rng);
       return {
-        hits: r.hits.map((h) => ({ enemyId: h.enemyId, damage: h.damage, crit: h.crit })),
+        hits: r.hits.map((h) => ({
+          enemyId: h.enemyId,
+          damage: h.damage,
+          crit: h.crit,
+          progressInSweep: h.progressInSweep,
+        })),
         cutterAngle: r.angle,
       };
     }
