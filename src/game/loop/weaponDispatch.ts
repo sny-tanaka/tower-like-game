@@ -31,6 +31,18 @@ export interface UnifiedAttackResult {
    * 次フレームの fire / 描画 (CutterOrbitFx) に反映する。
    */
   cutterAngle?: number;
+  /**
+   * Cannon 専用: 発射した砲弾の splash 着弾遅延情報 (v1.1.2)。
+   * 発射時には hits は空で、 useBattleLoop が pendingCannonShells に積んで
+   * 着弾時 (= flightSec 後) に cannonApplySplash で実ヒットを計算する。
+   * flightSec は射撃時の敵速度と shell 速度から予測した飛翔秒数。
+   */
+  cannonShell?: {
+    isCrit: boolean;
+    splashRadius: number;
+    damageMul: number;
+    flightSec: number;
+  };
 }
 
 // ---------------------------------------------------------------------------
@@ -98,11 +110,19 @@ export function fireWeapon({
     case 'cannon': {
       const s = cannonStats(weaponLv);
       const boosted = { ...s, damageMul: s.damageMul * attackMul };
+      // v1.1.2: 発射時は着弾点 + クリ + splash メタデータだけ返す。
+      // 実 splash ヒットは着弾時に useBattleLoop が cannonApplySplash で計算する。
       const r = cannonNormalAttack(machine, boosted, enemiesInRange, rng);
       return {
-        hits: r.hits.map((h) => ({ enemyId: h.enemyId, damage: h.damage, crit: h.crit })),
+        hits: [],
         impactX: r.blastX,
         impactY: r.blastY,
+        cannonShell: {
+          isCrit: r.isCrit,
+          splashRadius: r.splashRadius,
+          damageMul: r.damageMul,
+          flightSec: r.flightSec,
+        },
       };
     }
     case 'thunder': {

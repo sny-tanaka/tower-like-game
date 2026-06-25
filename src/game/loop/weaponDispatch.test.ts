@@ -92,9 +92,9 @@ describe('fireWeapon: RunWorkshop attackMul の反映', () => {
     expect(boostedDmg.toString()).toBe(expectedBoosted.toString());
   });
 
-  test('attackMul=1.0 と attackMul=2.0 でダメージが 2 倍になる (cannon)', () => {
-    // v1.1 splash 半円カットの仕様上、敵がマシン中心 (50,50) と同位置だと
-    // 内積判定で除外されるため、マシンより前方に置く
+  test('attackMul=1.0 と attackMul=2.0 で cannon の damageMul が 2 倍になる (v1.1.2: hits は着弾時計算なので shell.damageMul を比較)', () => {
+    // v1.1.2: cannon は発射時に hits を返さず、 cannonShell に damageMul を載せる。
+    // attackMul は damageMul に乗算されるので、 そこが 2 倍になっていれば OK。
     const cannonEnemy = makeEnemy('c1', 70, 50);
     const baseResult = fireWeapon({
       weapon: 'cannon',
@@ -112,11 +112,12 @@ describe('fireWeapon: RunWorkshop attackMul の反映', () => {
       rng: () => 0.99,
       attackMul: 2.0,
     });
-    expect(baseResult.hits.length).toBeGreaterThan(0);
-    const baseDmg = baseResult.hits[0].damage;
-    const boostedDmg = boostedResult.hits[0].damage;
-    const expectedBoosted = baseDmg.mulNumber(2);
-    expect(boostedDmg.toString()).toBe(expectedBoosted.toString());
+    expect(baseResult.cannonShell).toBeDefined();
+    expect(boostedResult.cannonShell).toBeDefined();
+    expect(boostedResult.cannonShell!.damageMul).toBeCloseTo(
+      baseResult.cannonShell!.damageMul * 2,
+      6
+    );
   });
 
   test('射程内に敵がいないと hits[] は空', () => {

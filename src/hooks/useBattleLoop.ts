@@ -18,7 +18,7 @@ import type { PatchDrop } from '@/game/patches/drops';
 import type { EquippedPatch } from '@/game/patches.types';
 import type { SpawnedEnemy } from '@/game/types';
 import { buildTierWaves, getSpawnsAtTime } from '@/game/wave';
-import { CANNON_SHELL_MS, cannonStats, cannonVolley } from '@/game/weapons/cannon';
+import { cannonApplySplash, cannonStats, cannonVolley } from '@/game/weapons/cannon';
 import {
   cutterStartOverdrive,
   cutterStats,
@@ -363,17 +363,21 @@ export function useBattleLoop({ paused = false }: UseBattleLoopOpts): UseBattleL
     damageMul: 1,
   });
   /**
-   * 着弾遅延 hit (Cannon 専用)。 砲弾の飛翔中はダメージを保留し、
-   * applyAtMs 到達時に敵 HP 減算 + DamageEvent / 状態異常付与を行う。
+   * 着弾遅延砲弾 (Cannon 専用、 v1.1.2)。 発射時には着弾点と splash メタデータだけを積み、
+   * applyAtMs 到達時 (= shellMs 後) に **その時点の** 敵分布に対して
+   * cannonApplySplash で距離減衰ダメ + 半円カット + onAttack パッチを評価する。
+   *
+   * v1.1.2 で「発射時点でヒット相手と damage を確定」 する旧仕様 (pendingCannonHits) から
+   * 「着弾時の敵分布で splash 判定」 に変更したため、 飛翔中に敵が splash 内に入れば
+   * ダメージを受け、 抜ければ受けない。
    */
-  const pendingCannonHitsRef = useRef<
+  const pendingCannonShellsRef = useRef<
     Array<{
-      enemyId: string;
-      damage: BigNum;
-      crit: boolean;
-      freeze: boolean;
-      freezeSec?: number;
-      burnSec?: number;
+      blastX: number;
+      blastY: number;
+      isCrit: boolean;
+      splashRadius: number;
+      damageMul: number;
       applyAtMs: number;
     }>
   >([]);
@@ -463,8 +467,8 @@ export function useBattleLoop({ paused = false }: UseBattleLoopOpts): UseBattleL
     if (reset.resetEnemies) {
       enemiesRef.current = [];
       setEnemies([]);
-      // 敵リスト全クリア時は pending hit も無効にする
-      pendingCannonHitsRef.current = [];
+      // 敵リスト全クリア時は飛翔中砲弾も無効にする
+      pendingCannonShellsRef.current = [];
     }
   }, [currentTier, currentWave]);
 
@@ -581,13 +585,14 @@ export function useBattleLoop({ paused = false }: UseBattleLoopOpts): UseBattleL
       case 'cannon': {
         const s = cannonStats(state.weaponLv);
         const boosted = { ...s, damageMul: s.damageMul * attackMul * machine.activePower };
+        // v1.1.2: 着弾時にその時点の敵分布で splash 判定する (cannonApplySplash 経由)。
+        // ここでは 5 発分の予測着弾点 (砲弾 × 敵直線運動の交点) と飛翔秒数を決めて
+        // pendingCannonShells に積む。
         const r = cannonVolley(machine, boosted, enemiesRef.current);
-        // 通常攻撃と同じ shellMs (砲弾飛翔時間) を共有。 砲弾飛翔 + 着弾後爆発 +
-        // 着弾と同じタイミングで HP 減算するため pendingCannonHits に積む。
-        const shellMs = CANNON_SHELL_MS;
         const nowGameMs = runElapsedGameMsRef.current;
         for (const shot of r.shots) {
-          // 砲弾飛翔 (マシン → 着弾点)
+          const shellMs = Math.max(0, Math.round(shot.flightSec * 1000));
+          // 砲弾飛翔 (マシン → 予測着弾点)
           projectileEventIdRef.current += 1;
           newProjectileEvents.push({
             id: `pe-${projectileEventIdRef.current}`,
@@ -607,16 +612,15 @@ export function useBattleLoop({ paused = false }: UseBattleLoopOpts): UseBattleL
             y: shot.blastY,
             delayMs: shellMs,
           });
-          // shot.hits 全員のダメージを着弾遅延 hit として登録 (通常攻撃と同じ経路)
-          for (const hit of shot.hits) {
-            pendingCannonHitsRef.current.push({
-              enemyId: hit.enemyId,
-              damage: hit.damage,
-              crit: false,
-              freeze: false,
-              applyAtMs: nowGameMs + shellMs,
-            });
-          }
+          // 着弾遅延砲弾を pendingCannonShells に積む (着弾時に splash 計算)
+          pendingCannonShellsRef.current.push({
+            blastX: shot.blastX,
+            blastY: shot.blastY,
+            isCrit: false, // Volley はクリなし
+            splashRadius: r.splashRadius,
+            damageMul: r.damageMul,
+            applyAtMs: nowGameMs + shellMs,
+          });
         }
         break;
       }
@@ -862,62 +866,102 @@ export function useBattleLoop({ paused = false }: UseBattleLoopOpts): UseBattleL
             return next;
           });
 
-          // ---- 着弾遅延 hit の消化 (Cannon 砲弾の着弾タイミングで HP 減算) ----
-          // applyAtMs <= nowGameMs の pending hit を抽出して敵 HP 減算 + DamageEvent 発火。
-          const expiredHits: typeof pendingCannonHitsRef.current = [];
-          pendingCannonHitsRef.current = pendingCannonHitsRef.current.filter((ph) => {
-            if (ph.applyAtMs <= nowGameMs) {
-              expiredHits.push(ph);
+          // ---- 着弾遅延砲弾の消化 (Cannon 砲弾の着弾タイミング、 v1.1.2) ----
+          // applyAtMs <= nowGameMs の pending 砲弾を抽出。 着弾位置で cannonApplySplash で
+          // 距離減衰 + 半円カット + 着弾時点の敵分布から実ヒットを計算する。
+          const expiredShells: typeof pendingCannonShellsRef.current = [];
+          pendingCannonShellsRef.current = pendingCannonShellsRef.current.filter((sh) => {
+            if (sh.applyAtMs <= nowGameMs) {
+              expiredShells.push(sh);
               return false;
             }
             return true;
           });
           const delayedDamageEvents: DamageEvent[] = [];
-          if (expiredHits.length > 0) {
-            // H2-2: 着弾後の DamageEvent 用に「敵 ID → 敵」 Map を作る (O(N) 1 回)。
-            // update 後の position も update 前と同じなので、 ここでの Map は update 前のもの
-            // を使い回しても OK (HP は新規だが position は不変)。
-            const enemiesById = new Map<string, SpawnedEnemy>(
-              enemiesRef.current.map((e) => [e.id, e])
-            );
-            const hitMap = new Map(expiredHits.map((h) => [h.enemyId, h]));
-            enemiesRef.current = enemiesRef.current.map((e) => {
-              const hit = hitMap.get(e.id);
-              if (hit == null) return e;
-              let updated: SpawnedEnemy = { ...e, hp: e.hp.sub(hit.damage) };
-              if (hit.freeze && hit.freezeSec != null && hit.freezeSec > 0) {
-                const newFrozenUntil = nowGameMs + hit.freezeSec * 1000;
-                updated = {
-                  ...updated,
-                  frozenUntilMs: Math.max(updated.frozenUntilMs ?? 0, newFrozenUntil),
-                };
-              }
-              if (hit.burnSec != null && hit.burnSec > 0) {
-                const newBurnUntil = nowGameMs + hit.burnSec * 1000;
-                const newBurnPerSec = hit.damage.mulNumber(0.3);
-                const prev = updated.burnPerSec;
-                const wasBurning = updated.burnUntilMs != null;
-                updated = {
-                  ...updated,
-                  burnUntilMs: Math.max(updated.burnUntilMs ?? 0, newBurnUntil),
-                  burnPerSec: prev != null && prev.gt(newBurnPerSec) ? prev : newBurnPerSec,
-                  // 新規燃焼開始時のみ accumulator を 0 リセット (継続中は維持して 1 秒境界を保つ)
-                  burnAccumulatorMs: wasBurning ? updated.burnAccumulatorMs : 0,
-                };
-              }
-              return updated;
-            });
-            for (const hit of expiredHits) {
-              // H2-2: O(N) find() → O(1) Map.get() に置換
-              const enemy = enemiesById.get(hit.enemyId);
-              damageEventIdRef.current += 1;
-              delayedDamageEvents.push({
-                id: `de-${damageEventIdRef.current}`,
-                x: enemy?.position.x ?? 50,
-                y: enemy?.position.y ?? 50,
-                value: hit.damage,
-                crit: hit.crit,
+          if (expiredShells.length > 0) {
+            const machineImpact = machineStatsRef.current;
+            for (const shell of expiredShells) {
+              const rawHits = cannonApplySplash(
+                machineImpact,
+                enemiesRef.current,
+                shell.blastX,
+                shell.blastY,
+                shell.splashRadius,
+                shell.damageMul,
+                shell.isCrit
+              );
+              if (rawHits.length === 0) continue;
+
+              const enemiesById = new Map<string, SpawnedEnemy>(
+                enemiesRef.current.map((e) => [e.id, e])
+              );
+              // 着弾時に onAttack パッチを評価 (敵種別・ rng は着弾時点で確定)
+              const augmentedHits = rawHits.map((hit) => {
+                const target = enemiesById.get(hit.enemyId);
+                let damage = hit.damage;
+                let freeze = false;
+                let freezeSec: number | undefined;
+                let burnSec: number | undefined;
+                if (target != null) {
+                  const effect = evaluatePatches(
+                    equippedPatchesArr,
+                    { type: 'onAttack', enemyKind: target.kind },
+                    Math.random
+                  );
+                  if (effect.damageMultiplier != null && effect.damageMultiplier !== 1) {
+                    damage = damage.mulNumber(effect.damageMultiplier);
+                  }
+                  if (effect.extraShot) {
+                    damage = damage.add(hit.damage);
+                  }
+                  if (effect.instantKill) {
+                    damage = target.hp;
+                  }
+                  freeze = effect.freeze === true;
+                  freezeSec = effect.freezeSec;
+                  burnSec = effect.burnSec;
+                }
+                return { ...hit, damage, freeze, freezeSec, burnSec };
               });
+
+              const augmentedById = new Map(augmentedHits.map((h) => [h.enemyId, h]));
+              enemiesRef.current = enemiesRef.current.map((e) => {
+                const hit = augmentedById.get(e.id);
+                if (hit == null) return e;
+                let updated: SpawnedEnemy = { ...e, hp: e.hp.sub(hit.damage) };
+                if (hit.freeze && hit.freezeSec != null && hit.freezeSec > 0) {
+                  const newFrozenUntil = nowGameMs + hit.freezeSec * 1000;
+                  updated = {
+                    ...updated,
+                    frozenUntilMs: Math.max(updated.frozenUntilMs ?? 0, newFrozenUntil),
+                  };
+                }
+                if (hit.burnSec != null && hit.burnSec > 0) {
+                  const newBurnUntil = nowGameMs + hit.burnSec * 1000;
+                  const newBurnPerSec = hit.damage.mulNumber(0.3);
+                  const prev = updated.burnPerSec;
+                  const wasBurning = updated.burnUntilMs != null;
+                  updated = {
+                    ...updated,
+                    burnUntilMs: Math.max(updated.burnUntilMs ?? 0, newBurnUntil),
+                    burnPerSec: prev != null && prev.gt(newBurnPerSec) ? prev : newBurnPerSec,
+                    burnAccumulatorMs: wasBurning ? updated.burnAccumulatorMs : 0,
+                  };
+                }
+                return updated;
+              });
+
+              for (const hit of augmentedHits) {
+                const enemy = enemiesById.get(hit.enemyId);
+                damageEventIdRef.current += 1;
+                delayedDamageEvents.push({
+                  id: `de-${damageEventIdRef.current}`,
+                  x: enemy?.position.x ?? 50,
+                  y: enemy?.position.y ?? 50,
+                  value: hit.damage,
+                  crit: hit.crit,
+                });
+              }
             }
           }
 
@@ -998,6 +1042,42 @@ export function useBattleLoop({ paused = false }: UseBattleLoopOpts): UseBattleL
                   cutterAngleDegRef.current = result.cutterAngle;
                 }
 
+                // ---- Cannon 通常攻撃: 着弾遅延砲弾を pendingCannonShells に積み、
+                //      砲弾飛翔 / 着弾爆発の Fx を発火する (v1.1.2)。 result.hits は常に空。
+                if (
+                  result.cannonShell != null &&
+                  result.impactX != null &&
+                  result.impactY != null
+                ) {
+                  const shellMs = Math.max(0, Math.round(result.cannonShell.flightSec * 1000));
+                  pendingCannonShellsRef.current.push({
+                    blastX: result.impactX,
+                    blastY: result.impactY,
+                    isCrit: result.cannonShell.isCrit,
+                    splashRadius: result.cannonShell.splashRadius,
+                    damageMul: result.cannonShell.damageMul,
+                    applyAtMs: nowGameMs + shellMs,
+                  });
+                  projectileEventIdRef.current += 1;
+                  newProjectileEvents.push({
+                    id: `pj-${projectileEventIdRef.current}`,
+                    kind: 'cannonShell',
+                    x1: MACHINE_CENTER_X,
+                    y1: MACHINE_CENTER_Y,
+                    x2: result.impactX,
+                    y2: result.impactY,
+                    durationMs: shellMs,
+                  });
+                  projectileEventIdRef.current += 1;
+                  newProjectileEvents.push({
+                    id: `pj-${projectileEventIdRef.current}`,
+                    kind: 'blast',
+                    x: result.impactX,
+                    y: result.impactY,
+                    delayMs: shellMs,
+                  });
+                }
+
                 // 敵 HP 減算 (immutable に置換) + onAttack パッチ適用
                 if (result.hits.length > 0) {
                   // H2-2: hit ごとの enemiesRef.current.find() (O(N)) を避けるため、
@@ -1044,21 +1124,9 @@ export function useBattleLoop({ paused = false }: UseBattleLoopOpts): UseBattleL
                     };
                   });
 
-                  // Cannon は砲弾飛翔中なので、 hit 適用を着弾まで遅延する。
-                  // それ以外の武器は即時 HP 減算 + DamageEvent 発火。
-                  if (state.currentWeapon === 'cannon') {
-                    for (const hit of augmentedHits) {
-                      pendingCannonHitsRef.current.push({
-                        enemyId: hit.enemyId,
-                        damage: hit.damage,
-                        crit: hit.crit ?? false,
-                        freeze: hit.freeze,
-                        freezeSec: hit.freezeSec,
-                        burnSec: hit.burnSec,
-                        applyAtMs: nowGameMs + CANNON_SHELL_MS,
-                      });
-                    }
-                  } else {
+                  // v1.1.2: cannon は result.hits が空で別途 pendingCannonShells に積むため、
+                  // ここでは非 cannon 武器のみ即時 HP 減算 + DamageEvent 発火する。
+                  {
                     const hitMap = new Map(augmentedHits.map((h) => [h.enemyId, h]));
                     enemiesRef.current = enemiesRef.current.map((e) => {
                       const hit = hitMap.get(e.id);
@@ -1143,32 +1211,6 @@ export function useBattleLoop({ paused = false }: UseBattleLoopOpts): UseBattleL
                         y1: MACHINE_CENTER_Y,
                         x2: pos.x,
                         y2: pos.y,
-                      });
-                    }
-                  } else if (state.currentWeapon === 'cannon') {
-                    // 1 ショット = 1 砲弾 + 1 爆発。 splash 内の複数敵にダメージが入っても
-                    // 物理的に飛翔する砲弾は 1 個 (result.impactX/Y = cannonNormalAttack の blastX/Y)。
-                    const shellMs = CANNON_SHELL_MS;
-                    const impactX = result.impactX;
-                    const impactY = result.impactY;
-                    if (impactX != null && impactY != null) {
-                      projectileEventIdRef.current += 1;
-                      newProjectileEvents.push({
-                        id: `pj-${projectileEventIdRef.current}`,
-                        kind: 'cannonShell',
-                        x1: MACHINE_CENTER_X,
-                        y1: MACHINE_CENTER_Y,
-                        x2: impactX,
-                        y2: impactY,
-                        durationMs: shellMs,
-                      });
-                      projectileEventIdRef.current += 1;
-                      newProjectileEvents.push({
-                        id: `pj-${projectileEventIdRef.current}`,
-                        kind: 'blast',
-                        x: impactX,
-                        y: impactY,
-                        delayMs: shellMs,
                       });
                     }
                   } else if (state.currentWeapon === 'thunder' && hitPositions.length > 0) {
