@@ -25,6 +25,7 @@ import {
   calcCutterRotateMs,
   cutterStats,
 } from '@/game/weapons/cutter';
+import { WEAPON_RANGE_PCT } from '@/game/weapons/range';
 import { ATTACK_PER_SEC_CAP, DEFAULT_ACTIVE_MAX_SEC, useBattleLoop } from '@/hooks/useBattleLoop';
 import { soundEngine } from '@/lib/audio';
 import { BigNum } from '@/lib/bignum/BigNum';
@@ -37,8 +38,7 @@ import { flushAfterRun } from '@/store/sync';
 // デフォルト値
 // ---------------------------------------------------------------------------
 
-/** 索敵半径（パーセント） */
-const DEFAULT_RANGE = 30;
+// 索敵半径は武器別に WEAPON_RANGE_PCT で管理 (currentWeapon に応じて切替)
 
 /**
  * BattleField の hitEvents 用の空配列定数。
@@ -218,7 +218,6 @@ export function Page() {
     tierCleared,
     onTierClearedAck,
   } = useBattleLoop({
-    range: DEFAULT_RANGE,
     paused: isResultOpen,
   });
 
@@ -504,7 +503,7 @@ export function Page() {
             ),
             CUTTER_BLADES
           )}
-          range={DEFAULT_RANGE}
+          range={WEAPON_RANGE_PCT[currentWeapon]}
         />
       </AppShell>
 

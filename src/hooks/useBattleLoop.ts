@@ -26,6 +26,7 @@ import {
   type OverdriveState,
 } from '@/game/weapons/cutter';
 import { laserMegaBeam, laserStats } from '@/game/weapons/laser';
+import { WEAPON_RANGE_PCT } from '@/game/weapons/range';
 import { thunderPlasmaDischarge, thunderStats } from '@/game/weapons/thunder';
 import { soundEngine } from '@/lib/audio';
 import type { SoundId } from '@/lib/audio';
@@ -216,12 +217,8 @@ export function calcIntervalTicks(
   return { ticks, nextAccumulatorMs };
 }
 
-/**
- * Cutter (回転刃武器) の当たり判定半径 (%)。
- * CutterOrbitFx の length=14vmin と合わせ、 視覚的な刃の範囲内の敵のみヒットする。
- * 通常の索敵半径 (DEFAULT_RANGE) より小さく設定 — cutter は近接武器の差別化。
- */
-export const CUTTER_ORBIT_RANGE_PCT = 14;
+// 射程は武器別マップ (WEAPON_RANGE_PCT) で管理。
+// Cutter の 14% は CutterOrbitFx の length=14vmin と一致 (視覚的な刃の範囲)。
 
 // ---------------------------------------------------------------------------
 // 武器 SoundId マッピング
@@ -246,8 +243,6 @@ const WEAPON_ACTIVE_SOUND: Record<WeaponType, SoundId> = {
 // ---------------------------------------------------------------------------
 
 export interface UseBattleLoopOpts {
-  /** 射程 (0-100%)。 マシン中心 (50,50) からこの距離以下の敵が射程内 */
-  range: number;
   /**
    * 外部からの強制停止フラグ。 ResultDialog 表示中 (撤退 / gameover) に true を渡し、
    * 敵移動 / 武器発射 / spawn / wave 進行などをすべて止める。
@@ -315,7 +310,7 @@ export interface UseBattleLoopResult {
 /** 通常敵が ボルト をドロップする確率 (02-currencies.md 仕様) */
 export const NORMAL_BOLT_DROP_CHANCE = 0.5;
 
-export function useBattleLoop({ range, paused = false }: UseBattleLoopOpts): UseBattleLoopResult {
+export function useBattleLoop({ paused = false }: UseBattleLoopOpts): UseBattleLoopResult {
   // paused は ref 経由で tick から最新値を読む (useEffect の再実行を避けるため)
   const pausedRef = useRef(paused);
   pausedRef.current = paused;
@@ -951,10 +946,9 @@ export function useBattleLoop({ range, paused = false }: UseBattleLoopOpts): Use
           // accumulator が閾値未満で 1 発も発射されないフレームでは丸ごとスキップする
           // (低 fire rate 武器で「毎フレーム sortedInRange 計算」 になる退化を防ぐ)。
           if (fireAccumulatorMsRef.current >= intervalMs) {
-            // 当たり判定半径: cutter は CutterOrbitFx の刃の長さに合わせて短く、
-            // それ以外は通常の索敵範囲 (range)
-            const effectiveRange =
-              state.currentWeapon === 'cutter' ? CUTTER_ORBIT_RANGE_PCT : range;
+            // 当たり判定半径: 武器別マップ WEAPON_RANGE_PCT から取得
+            // (cutter は近接 14% / laser/thunder 35% / cannon 遠方 45%)
+            const effectiveRange = WEAPON_RANGE_PCT[state.currentWeapon];
             const sortedInRange = enemiesRef.current
               .map((enemy) => ({ enemy, dist: distanceFromMachine(enemy.position) }))
               .filter(({ dist }) => dist <= effectiveRange)
@@ -1464,7 +1458,7 @@ export function useBattleLoop({ range, paused = false }: UseBattleLoopOpts): Use
         rafIdRef.current = null;
       }
     };
-  }, [isRunActive, tierWaves, range, fireActive]);
+  }, [isRunActive, tierWaves, fireActive]);
 
   return {
     enemies,
