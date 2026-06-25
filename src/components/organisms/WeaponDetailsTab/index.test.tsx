@@ -35,9 +35,9 @@ describe('buildLaserStats', () => {
     expect(stats.find((s) => s.label === '貫通')?.value).toBe(1);
   });
 
-  it('Lv 10 で貫通数 = floor(1 + 0.1×10) = 2', () => {
-    const stats = buildLaserStats(10, BASE_ATTACK, RANGE);
-    expect(stats.find((s) => s.label === '貫通')?.value).toBe(2);
+  it('Lv 100 でも貫通数は固定 1 (v1.1 で Lv スケール廃止、単体特化ロール)', () => {
+    const stats = buildLaserStats(100, BASE_ATTACK, RANGE);
+    expect(stats.find((s) => s.label === '貫通')?.value).toBe(1);
   });
 
   it('Lv 0 で DMG = baseAttack × LASER_BASE_DAMAGE_MUL (ゲーム実値の BigNum と一致)', () => {

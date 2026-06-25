@@ -91,11 +91,14 @@ describe('fireWeapon: RunWorkshop attackMul の反映', () => {
   });
 
   test('attackMul=1.0 と attackMul=2.0 でダメージが 2 倍になる (cannon)', () => {
+    // v1.1 splash 半円カットの仕様上、敵がマシン中心 (50,50) と同位置だと
+    // 内積判定で除外されるため、マシンより前方に置く
+    const cannonEnemy = makeEnemy('c1', 70, 50);
     const baseResult = fireWeapon({
       weapon: 'cannon',
       weaponLv: 0,
       machine,
-      enemiesInRange: [enemy],
+      enemiesInRange: [cannonEnemy],
       rng: () => 0.99,
       attackMul: 1.0,
     });
@@ -103,7 +106,7 @@ describe('fireWeapon: RunWorkshop attackMul の反映', () => {
       weapon: 'cannon',
       weaponLv: 0,
       machine,
-      enemiesInRange: [enemy],
+      enemiesInRange: [cannonEnemy],
       rng: () => 0.99,
       attackMul: 2.0,
     });

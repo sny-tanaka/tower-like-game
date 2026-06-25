@@ -68,6 +68,12 @@ export interface FireWeaponOpts {
   cutterAngleDeg?: number;
   /** RunWorkshop attackMul の倍率 (1.0 で素通し) */
   attackMul: number;
+  /**
+   * Cutter 専用: Overdrive 中のダメージ倍率 (default 1)。
+   * cutterStartOverdrive が返す OverdriveState.damageMul を渡す。
+   * Overdrive 非アクティブ時は 1。
+   */
+  cutterOverdriveDamageMul?: number;
 }
 
 export function fireWeapon({
@@ -78,6 +84,7 @@ export function fireWeapon({
   rng,
   cutterAngleDeg = 0,
   attackMul,
+  cutterOverdriveDamageMul = 1,
 }: FireWeaponOpts): UnifiedAttackResult {
   switch (weapon) {
     case 'laser': {
@@ -108,7 +115,11 @@ export function fireWeapon({
     }
     case 'cutter': {
       const s = cutterStats(weaponLv);
-      const boosted = { ...s, damageMul: s.damageMul * attackMul };
+      // Cutter Overdrive 中は damageMul × overdriveDamageMul (= 3) を追加で乗算
+      const boosted = {
+        ...s,
+        damageMul: s.damageMul * attackMul * cutterOverdriveDamageMul,
+      };
       const r = cutterNormalAttack(machine, boosted, enemiesInRange, cutterAngleDeg, rng);
       return {
         hits: r.hits.map((h) => ({ enemyId: h.enemyId, damage: h.damage, crit: h.crit })),

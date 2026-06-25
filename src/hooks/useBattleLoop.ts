@@ -624,7 +624,8 @@ export function useBattleLoop({ paused = false }: UseBattleLoopOpts): UseBattleL
         const s = thunderStats(state.weaponLv);
         const boosted = { ...s, damageMul: s.damageMul * attackMul * machine.activePower };
         const r = thunderPlasmaDischarge(machine, boosted, enemiesRef.current);
-        // 連鎖の視覚: マシン → hit 順に points を結ぶ
+        // 全体攻撃の視覚: マシン → 全 hit 敵を順に結ぶ (v1.1 で連鎖→全体になったが、
+        // 演出は引き続き chain points で全体への雷を表現)
         const points: { x: number; y: number }[] = [{ x: MACHINE_CENTER_X, y: MACHINE_CENTER_Y }];
         for (const hit of r.hits) {
           const enemy = enemiesRef.current.find((e) => e.id === hit.enemyId);
@@ -641,6 +642,13 @@ export function useBattleLoop({ paused = false }: UseBattleLoopOpts): UseBattleL
           });
         }
         applyHits(r.hits);
+        // Thunder lifesteal: Plasma 与ダメージの hpLifestealPct を machineHp に回復
+        if (s.hpLifestealPct > 0 && r.hits.length > 0) {
+          const totalDmg = r.hits.reduce((acc, h) => acc.add(h.damage), BigNum.ZERO);
+          if (!totalDmg.isZero()) {
+            state.addMachineHp(totalDmg.mulNumber(s.hpLifestealPct));
+          }
+        }
         break;
       }
       case 'cutter': {
@@ -977,6 +985,10 @@ export function useBattleLoop({ paused = false }: UseBattleLoopOpts): UseBattleL
                   rng: Math.random,
                   cutterAngleDeg: cutterAngleDegRef.current,
                   attackMul,
+                  // Cutter Overdrive 中は damageMul を 3 倍にする
+                  cutterOverdriveDamageMul: overdriveStateRef.current.active
+                    ? overdriveStateRef.current.damageMul
+                    : 1,
                 });
                 // Cutter は刃の角度を 1 ヒットあたり前進。 次フレームの fire / 描画に反映
                 if (result.cutterAngle != null) {
@@ -1089,6 +1101,21 @@ export function useBattleLoop({ paused = false }: UseBattleLoopOpts): UseBattleL
                         value: hit.damage,
                         crit: hit.crit,
                       });
+                    }
+
+                    // Thunder lifesteal: 与ダメージの hpLifestealPct を machineHp に回復
+                    // (0.1% × weaponLv、Lv 0 で 0)
+                    if (state.currentWeapon === 'thunder') {
+                      const lifestealPct = thunderStats(state.weaponLv).hpLifestealPct;
+                      if (lifestealPct > 0) {
+                        const totalDmg = augmentedHits.reduce(
+                          (acc, h) => acc.add(h.damage),
+                          BigNum.ZERO
+                        );
+                        if (!totalDmg.isZero()) {
+                          state.addMachineHp(totalDmg.mulNumber(lifestealPct));
+                        }
+                      }
                     }
                   }
 
