@@ -83,11 +83,11 @@ describe('buildStatsImpact (v1.1.1: Lv 軸プレビュー)', () => {
     expect(items).toHaveLength(4);
   });
 
-  it('LASER クリ倍率ボーナスが weaponLv+1 で +0.01 上昇する', () => {
+  it('LASER クリ倍率ボーナスが weaponLv+1 で +1% 上昇する (% 表記)', () => {
     const items = buildStatsImpact(10, 0, 0);
     const item = items.find((i) => i.label === 'LASER クリ倍率ボーナス')!;
-    expect(item.before).toBe('+0.10');
-    expect(item.after).toBe('+0.11');
+    expect(item.before).toBe('+10%');
+    expect(item.after).toBe('+11%');
   });
 
   it('CANNON 爆発半径が weaponLv+1 で +0.5m 上昇する', () => {
@@ -114,7 +114,7 @@ describe('buildStatsImpact (v1.1.1: Lv 軸プレビュー)', () => {
   it('Lv 0 で各軸が底値を返す', () => {
     const items = buildStatsImpact(0, 0, 0);
     const find = (l: string) => items.find((i) => i.label === l)!;
-    expect(find('LASER クリ倍率ボーナス').before).toBe('+0.00');
+    expect(find('LASER クリ倍率ボーナス').before).toBe('+0%');
     expect(find('CANNON 爆発半径').before).toBe('30.0m');
     expect(find('THUNDER HP 回復率').before).toBe('0.0%');
     expect(find('CUTTER Overdrive 持続').before).toBe('8.0s');

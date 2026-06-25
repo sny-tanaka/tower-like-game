@@ -124,7 +124,7 @@ export function buildLaserStats(
     { label: '射程', value: round1(effRange), suffix: '%' },
     {
       label: 'クリ倍率ボーナス',
-      value: `+${calcLaserCritBonus(weaponLv).toFixed(2)}`,
+      value: `+${(calcLaserCritBonus(weaponLv) * 100).toFixed(0)}%`,
       accent: 'secondary',
     },
   ];

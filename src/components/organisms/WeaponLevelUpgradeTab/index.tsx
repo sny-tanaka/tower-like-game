@@ -89,8 +89,8 @@ export function buildStatsImpact(
   return [
     {
       label: 'LASER クリ倍率ボーナス',
-      before: `+${calcLaserCritBonus(lv).toFixed(2)}`,
-      after: `+${calcLaserCritBonus(nextLv).toFixed(2)}`,
+      before: `+${(calcLaserCritBonus(lv) * 100).toFixed(0)}%`,
+      after: `+${(calcLaserCritBonus(nextLv) * 100).toFixed(0)}%`,
     },
     {
       label: 'CANNON 爆発半径',
