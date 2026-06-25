@@ -75,7 +75,18 @@ export type ProjectileEvent =
       y2: number;
       durationMs: number;
     }
-  | { id: string; kind: 'blast'; x: number; y: number; delayMs?: number }
+  | {
+      id: string;
+      kind: 'blast';
+      x: number;
+      y: number;
+      /**
+       * 爆発半径 (フィールド % 半径)。 BlastFx にそのまま流して見た目 = ダメージ判定半径を同期させる。
+       * 未指定なら BlastFx のデフォルト (8) になる。
+       */
+      radius?: number;
+      delayMs?: number;
+    }
   | { id: string; kind: 'thunderStrike'; x: number; y: number; durationMs: number }
   | { id: string; kind: 'chain'; points: { x: number; y: number }[]; delayMs?: number }
   | { id: string; kind: 'megaBeam'; x: number; y: number; angle: number; widthPct?: number };
@@ -413,6 +424,7 @@ export function BattleField({
                   key={evt.id}
                   x={evt.x}
                   y={evt.y}
+                  radius={evt.radius}
                   delayMs={evt.delayMs}
                   onDone={() => onProjectileDone?.(evt.id)}
                 />

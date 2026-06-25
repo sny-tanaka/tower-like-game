@@ -75,9 +75,9 @@ describe('buildCannonStats (v1.1.1: 4 ステ)', () => {
     expect(stats.map((s) => s.label)).toEqual(['DMG', '連射速度', '射程', '爆発半径']);
   });
 
-  it('Lv 0 で爆発半径 = 30 (Lv 軸が伸びる)', () => {
+  it('v1.1.2: Lv 0 で爆発半径 = 8 (フィールド % 半径 = ダメージ判定 = 見た目)', () => {
     const stats = buildCannonStats(0, BASE_ATTACK, MACHINE_RANGE, MACHINE_AS);
-    expect(stats.find((s) => s.label === '爆発半径')?.value).toBe(30);
+    expect(stats.find((s) => s.label === '爆発半径')?.value).toBe(8);
   });
 });
 

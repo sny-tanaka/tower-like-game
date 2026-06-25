@@ -1,12 +1,16 @@
 /* BlastFx — 静的 @keyframes (Issue #87 ext)
  * インスタンス固有値は CSS 変数で渡す:
- *   --blast-x / --blast-y       : 位置 (%、 JSX inline)
- *   --blast-size                : 直径 (vmin、 = radius*2、 JSX inline)
+ *   --blast-x / --blast-y       : 着弾点 (% — 親 = .field の % 座標、 JSX inline)
+ *   --blast-size                : 直径 (% — 親 = .field の % サイズ、 = radius*2、 JSX inline)
  *   --blast-color               : 爆発色 (JSX inline)
  *   --blast-color-aa / -66      : color の透明度違い (JSX inline、 box-shadow 用)
  *   --blast-duration            : ring アニメ時間 (ms、 JSX inline)
  *   --blast-flash-duration      : flash アニメ時間 (ms、 = duration*0.5、 JSX inline)
  *   --blast-delay               : アニメ開始遅延 (ms、 JSX inline)
+ *
+ * 設計: .wrap で親 (.field) 全体を覆い、 .ring / .flash を絶対配置する。
+ * width/height の % は親 (.field) サイズに対する % になるため、 敵 position (% 座標) と
+ * 同じ系で「フィールド % 半径」 として動作する。 (= ダメージ判定半径と完全同期する)
  */
 
 @keyframes ring {
@@ -40,8 +44,7 @@
 
 .wrap {
   position: absolute;
-  left: var(--blast-x);
-  top: var(--blast-y);
+  inset: 0;
   pointer-events: none;
   /* 爆風はマシン (.machine z-index: 10) より下のレイヤーに描き、 マシン本体を貫通しないようにする。
      敵 (.enemy z-index: 5) より上に出る必要があるので、 6〜9 のレンジ内で 9 を採用。
@@ -51,8 +54,8 @@
 
 .ring {
   position: absolute;
-  left: 0;
-  top: 0;
+  left: var(--blast-x);
+  top: var(--blast-y);
   width: var(--blast-size);
   height: var(--blast-size);
   border-radius: 50%;
@@ -65,8 +68,8 @@
 
 .flash {
   position: absolute;
-  left: 0;
-  top: 0;
+  left: var(--blast-x);
+  top: var(--blast-y);
   width: var(--blast-size);
   height: var(--blast-size);
   border-radius: 50%;

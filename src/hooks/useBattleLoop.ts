@@ -627,12 +627,15 @@ export function useBattleLoop({ paused = false }: UseBattleLoopOpts): UseBattleL
             durationMs: shellMs,
           });
           // 着弾後爆発 (delayMs で砲弾着弾と同期)
+          // radius にダメージ判定半径 (r.splashRadius、 フィールド % 半径) をそのまま流して
+          // 「見た目 = 当たり判定」 を保証する
           projectileEventIdRef.current += 1;
           newProjectileEvents.push({
             id: `pe-${projectileEventIdRef.current}`,
             kind: 'blast',
             x: shot.blastX,
             y: shot.blastY,
+            radius: r.splashRadius,
             delayMs: shellMs,
           });
           // 着弾遅延砲弾を pendingCannonShells に積む (着弾時に splash 計算)
@@ -1109,12 +1112,15 @@ export function useBattleLoop({ paused = false }: UseBattleLoopOpts): UseBattleL
                     y2: result.impactY,
                     durationMs: shellMs,
                   });
+                  // radius にダメージ判定半径 (splashRadius、 フィールド % 半径) をそのまま流して
+                  // 「見た目 = 当たり判定」 を保証する
                   projectileEventIdRef.current += 1;
                   newProjectileEvents.push({
                     id: `pj-${projectileEventIdRef.current}`,
                     kind: 'blast',
                     x: result.impactX,
                     y: result.impactY,
+                    radius: result.cannonShell.splashRadius,
                     delayMs: shellMs,
                   });
                 }
