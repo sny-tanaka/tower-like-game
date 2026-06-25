@@ -57,15 +57,23 @@ export function calcMachineAttackSpeed(attackSpeedLv: number): number {
 }
 
 /**
- * 武器ごとの実効射程 (%) を算出。
- * effectiveRange = WEAPON_RANGE_PCT[weapon] × (machine.range / 150)
- * useBattleLoop 内の射程フィルタと完全一致 (mapping: 14/35/35/45 + range 倍率)。
+ * 武器ごとの実効射程 (m) を算出 (= machine.range × WEAPON_RANGE_PCT[weapon] / 100)。
+ *
+ * useBattleLoop 内の射程フィルタは「フィールド % 座標」で動くので
+ * 内部値は WEAPON_RANGE_PCT[weapon] × (machine.range / 150) (= %) を使うが、
+ * UI 表示はゲーム世界の距離感を保ちたいので machine.range (= m) を基準にした
+ * メートル換算 (machineRange × weaponPct / 100) で出す。
+ *
+ *   Lv 0 (machineRange=150m):
+ *     Cutter 14%  → 21.0m   Laser/Thunder 35% → 52.5m   Cannon 45% → 67.5m
+ *   Lv 100 (machineRange=300m, MAX):
+ *     Cutter      → 42.0m   Laser/Thunder     → 105.0m  Cannon     → 135.0m
  */
-export function calcEffectiveRangePct(
+export function calcEffectiveRange(
   weapon: 'laser' | 'cannon' | 'thunder' | 'cutter',
   machineRange: number
 ): number {
-  return WEAPON_RANGE_PCT[weapon] * (machineRange / 150);
+  return (machineRange * WEAPON_RANGE_PCT[weapon]) / 100;
 }
 
 // ---------------------------------------------------------------------------
@@ -104,9 +112,9 @@ export function calcCutterOverdriveDurationSec(weaponLv: number): number {
  * 武器カードは 4 ステ固定で表示する (v1.1.1):
  *   DMG / 連射速度 (Cutter は回転速度) / 射程 / 武器固有 Lv 軸
  *
- * 連射速度と射程はマシン強化を反映:
+ * 連射速度と射程はマシン強化を反映 (どちらもマシン強化に直接掛け算):
  *   - 連射速度 = weapon.attackPerSec × machine.attackSpeed (倍率)
- *   - 射程     = WEAPON_RANGE_PCT[weapon] × (machine.range / 150)
+ *   - 射程     = machine.range × WEAPON_RANGE_PCT[weapon] / 100 [m]
  */
 
 export function buildLaserStats(
@@ -117,11 +125,11 @@ export function buildLaserStats(
 ): WeaponStat[] {
   const s = laserStats(weaponLv);
   const effAS = s.attackPerSec * machineAttackSpeed;
-  const effRange = calcEffectiveRangePct('laser', machineRange);
+  const effRange = calcEffectiveRange('laser', machineRange);
   return [
     { label: 'DMG', value: calcDisplayDamage(baseAttack, s.damageMul), accent: 'primary' },
     { label: '連射速度', value: round1(effAS), suffix: '/s' },
-    { label: '射程', value: round1(effRange), suffix: '%' },
+    { label: '射程', value: round1(effRange), suffix: 'm' },
     {
       label: 'クリ倍率ボーナス',
       value: `+${(calcLaserCritBonus(weaponLv) * 100).toFixed(0)}%`,
@@ -138,11 +146,11 @@ export function buildCannonStats(
 ): WeaponStat[] {
   const s = cannonStats(weaponLv);
   const effAS = s.attackPerSec * machineAttackSpeed;
-  const effRange = calcEffectiveRangePct('cannon', machineRange);
+  const effRange = calcEffectiveRange('cannon', machineRange);
   return [
     { label: 'DMG', value: calcDisplayDamage(baseAttack, s.damageMul), accent: 'primary' },
     { label: '連射速度', value: round1(effAS), suffix: '/s' },
-    { label: '射程', value: round1(effRange), suffix: '%' },
+    { label: '射程', value: round1(effRange), suffix: 'm' },
     { label: '爆発半径', value: round1(s.splashRadius), suffix: 'm', accent: 'secondary' },
   ];
 }
@@ -155,11 +163,11 @@ export function buildThunderStats(
 ): WeaponStat[] {
   const s = thunderStats(weaponLv);
   const effAS = s.attackPerSec * machineAttackSpeed;
-  const effRange = calcEffectiveRangePct('thunder', machineRange);
+  const effRange = calcEffectiveRange('thunder', machineRange);
   return [
     { label: 'DMG', value: calcDisplayDamage(baseAttack, s.damageMul), accent: 'primary' },
     { label: '連射速度', value: round1(effAS), suffix: '/s' },
-    { label: '射程', value: round1(effRange), suffix: '%' },
+    { label: '射程', value: round1(effRange), suffix: 'm' },
     {
       label: 'HP 回復率',
       value: `${calcThunderHpRegenPct(weaponLv).toFixed(1)}%`,
@@ -176,11 +184,11 @@ export function buildCutterStats(
 ): WeaponStat[] {
   const s = cutterStats(weaponLv);
   const effAS = s.attackPerSec * machineAttackSpeed;
-  const effRange = calcEffectiveRangePct('cutter', machineRange);
+  const effRange = calcEffectiveRange('cutter', machineRange);
   return [
     { label: 'DMG', value: calcDisplayDamage(baseAttack, s.damageMul), accent: 'primary' },
     { label: '回転速度', value: round1(effAS), suffix: '/s' },
-    { label: '射程', value: round1(effRange), suffix: '%' },
+    { label: '射程', value: round1(effRange), suffix: 'm' },
     {
       label: 'Overdrive 持続',
       value: round1(calcCutterOverdriveDurationSec(weaponLv)),

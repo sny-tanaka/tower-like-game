@@ -44,11 +44,12 @@ describe('buildLaserStats (v1.1.1: 4 ステ DMG / 連射速度 / 射程 / クリ
     expect(labels).toEqual(['DMG', '連射速度', '射程', 'クリ倍率ボーナス']);
   });
 
-  it('射程 = WEAPON_RANGE_PCT.laser × (machineRange / 150) で % 表示', () => {
-    const stats = buildLaserStats(0, BASE_ATTACK, 300, MACHINE_AS); // mul = 2.0
+  it('射程 = machineRange × WEAPON_RANGE_PCT.laser / 100 で m 表示', () => {
+    // machineRange=300m × 35/100 = 105m
+    const stats = buildLaserStats(0, BASE_ATTACK, 300, MACHINE_AS);
     const range = stats.find((s) => s.label === '射程');
-    expect(range?.value).toBe(70); // 35 × 2.0
-    expect(range?.suffix).toBe('%');
+    expect(range?.value).toBe(105);
+    expect(range?.suffix).toBe('m');
   });
 
   it('連射速度 = weapon.AS × machine.attackSpeed', () => {
