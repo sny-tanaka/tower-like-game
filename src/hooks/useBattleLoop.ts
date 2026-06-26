@@ -1336,7 +1336,8 @@ export function useBattleLoop({ paused = false }: UseBattleLoopOpts): UseBattleL
                       });
                     }
                   } else if (state.currentWeapon === 'thunder' && hitPositions.length > 0) {
-                    // 3 体に同時落雷 (連鎖は仕様変更で廃止、 各 hit に独立して雷が降る)
+                    // 各 hit (= 最大 THUNDER_BASE_CHAIN_COUNT 体) に独立して雷が降る
+                    // (連鎖は仕様変更で廃止)。 hitPositions.length は実際にヒットした数。
                     const strikeMs = 320;
                     for (const pos of hitPositions) {
                       projectileEventIdRef.current += 1;
