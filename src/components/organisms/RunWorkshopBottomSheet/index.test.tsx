@@ -260,4 +260,75 @@ describe('RunWorkshopBottomSheet', () => {
     await userEvent.click(closeBtn);
     expect(onClose).toHaveBeenCalled();
   });
+
+  test('onToggleAuto 未指定なら AUTO トグルは描画されない', () => {
+    render(
+      <RunWorkshopBottomSheet
+        open={true}
+        screw={BigNum.fromNumber(0)}
+        levels={defaultLevels}
+        onUpgrade={() => undefined}
+      />
+    );
+    expect(screen.queryAllByRole('button', { name: /AUTO/ })).toHaveLength(0);
+  });
+
+  test('onToggleAuto 指定で 4 つの AUTO トグルが描画される', () => {
+    render(
+      <RunWorkshopBottomSheet
+        open={true}
+        screw={BigNum.fromNumber(0)}
+        levels={defaultLevels}
+        onUpgrade={() => undefined}
+        onToggleAuto={() => undefined}
+      />
+    );
+    expect(screen.getAllByRole('button', { name: /AUTO/ })).toHaveLength(4);
+  });
+
+  test('autoEnabled の各 key の値が各カードに伝播する', () => {
+    render(
+      <RunWorkshopBottomSheet
+        open={true}
+        screw={BigNum.fromNumber(0)}
+        levels={defaultLevels}
+        autoEnabled={{
+          attackMul: true,
+          attackSpeedMul: false,
+          hpMul: true,
+          screwGainMul: false,
+        }}
+        onUpgrade={() => undefined}
+        onToggleAuto={() => undefined}
+      />
+    );
+    const autoBtns = screen.getAllByRole('button', { name: /AUTO/ });
+    // RUN_WORKSHOP_ITEMS の順: attackMul, attackSpeedMul, hpMul, screwGainMul
+    expect(autoBtns[0]).toHaveAttribute('aria-pressed', 'true');
+    expect(autoBtns[1]).toHaveAttribute('aria-pressed', 'false');
+    expect(autoBtns[2]).toHaveAttribute('aria-pressed', 'true');
+    expect(autoBtns[3]).toHaveAttribute('aria-pressed', 'false');
+  });
+
+  test('AUTO トグルクリックで onToggleAuto が (key, next) で呼ばれる', async () => {
+    const onToggleAuto = vi.fn();
+    render(
+      <RunWorkshopBottomSheet
+        open={true}
+        screw={BigNum.fromNumber(0)}
+        levels={defaultLevels}
+        autoEnabled={{
+          attackMul: false,
+          attackSpeedMul: false,
+          hpMul: false,
+          screwGainMul: false,
+        }}
+        onUpgrade={() => undefined}
+        onToggleAuto={onToggleAuto}
+      />
+    );
+    const autoBtns = screen.getAllByRole('button', { name: /AUTO/ });
+    await userEvent.click(autoBtns[0]); // attackMul
+    expect(onToggleAuto).toHaveBeenCalledWith('attackMul', true);
+  });
 });

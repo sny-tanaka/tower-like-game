@@ -1,4 +1,5 @@
 import type { Meta, StoryObj } from '@storybook/react';
+import type { ReactNode } from 'react';
 import { useState } from 'react';
 
 import type { RunWorkshopKey } from './items';
@@ -66,6 +67,69 @@ export const SomeLeveled: Story = {
     levels: { attackMul: 5, attackSpeedMul: 3, hpMul: 2, screwGainMul: 1 },
     onUpgrade: () => undefined,
   },
+};
+
+// ---------------------------------------------------------------------------
+// AUTO トグル: 一部 ON / 全 ON のビジュアル確認
+// ---------------------------------------------------------------------------
+
+function PreviewWrapper({ children }: { children: ReactNode }) {
+  return (
+    <div
+      style={{
+        background: 'var(--c-bg-deep)',
+        minHeight: '100vh',
+        position: 'relative',
+        display: 'flex',
+        flexDirection: 'column',
+        justifyContent: 'flex-end',
+      }}
+    >
+      <div style={{ position: 'relative', minHeight: 80 }}>{children}</div>
+    </div>
+  );
+}
+
+export const WithAutoPartialOn: Story = {
+  name: 'AUTO トグル (攻撃 + HP のみ ON)',
+  render: () => (
+    <PreviewWrapper>
+      <RunWorkshopBottomSheet
+        open={true}
+        screw={BigNum.fromNumber(1_000)}
+        levels={{ attackMul: 2, attackSpeedMul: 0, hpMul: 1, screwGainMul: 0 }}
+        autoEnabled={{
+          attackMul: true,
+          attackSpeedMul: false,
+          hpMul: true,
+          screwGainMul: false,
+        }}
+        onUpgrade={() => undefined}
+        onToggleAuto={() => undefined}
+      />
+    </PreviewWrapper>
+  ),
+};
+
+export const WithAutoAllOn: Story = {
+  name: 'AUTO トグル (全 ON)',
+  render: () => (
+    <PreviewWrapper>
+      <RunWorkshopBottomSheet
+        open={true}
+        screw={BigNum.fromNumber(1_000)}
+        levels={{ attackMul: 5, attackSpeedMul: 5, hpMul: 5, screwGainMul: 2 }}
+        autoEnabled={{
+          attackMul: true,
+          attackSpeedMul: true,
+          hpMul: true,
+          screwGainMul: true,
+        }}
+        onUpgrade={() => undefined}
+        onToggleAuto={() => undefined}
+      />
+    </PreviewWrapper>
+  ),
 };
 
 // ---------------------------------------------------------------------------

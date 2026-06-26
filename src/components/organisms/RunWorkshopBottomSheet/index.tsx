@@ -13,6 +13,7 @@ import { IconButton } from '@/components/atoms/IconButton';
 import { Text } from '@/components/atoms/Text';
 import { UpgradeCard } from '@/components/molecules/UpgradeCard';
 import { BigNum } from '@/lib/bignum/BigNum';
+import type { RunWorkshopAutoEnabled } from '@/store/slices/runWorkshop';
 
 // ---------------------------------------------------------------------------
 // 型定義
@@ -33,6 +34,10 @@ export interface RunWorkshopBottomSheetProps {
    * delta: 1 | 5 | 'max'
    */
   onUpgrade: (key: RunWorkshopKey, delta: 1 | 5 | 'max') => void;
+  /** AUTO ON/OFF の現在状態 (省略時は全 OFF として描画) */
+  autoEnabled?: RunWorkshopAutoEnabled;
+  /** AUTO トグルのクリックハンドラ。指定時のみカード右上にトグルが表示される */
+  onToggleAuto?: (key: RunWorkshopKey, enabled: boolean) => void;
   /** シートを閉じるコールバック */
   onClose?: () => void;
 }
@@ -53,6 +58,8 @@ export function RunWorkshopBottomSheet({
   screw,
   levels,
   onUpgrade,
+  autoEnabled,
+  onToggleAuto,
   onClose,
 }: RunWorkshopBottomSheetProps) {
   if (!open) return null;
@@ -120,6 +127,10 @@ export function RunWorkshopBottomSheet({
             const canAfford5 = screw.gte(cost5Bn);
             const canAffordMax = maxLvDelta > 0;
 
+            const cardAutoEnabled = autoEnabled?.[item.key] ?? false;
+            const cardOnToggleAuto =
+              onToggleAuto != null ? (next: boolean) => onToggleAuto(item.key, next) : undefined;
+
             return (
               <UpgradeCard
                 key={item.key}
@@ -131,6 +142,8 @@ export function RunWorkshopBottomSheet({
                 beforeSuffix="×"
                 currency="screw"
                 accent="warning"
+                autoEnabled={cardAutoEnabled}
+                onToggleAuto={cardOnToggleAuto}
                 options={[
                   {
                     amount: '+1',

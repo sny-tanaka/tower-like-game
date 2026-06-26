@@ -202,7 +202,12 @@ export const createBattleSlice: StateCreator<RootStore, [], [], BattleSlice> = (
     get().resetRunWorkshop();
   },
 
-  addScrew: (amount) => set((s) => ({ screw: s.screw.add(amount) })),
+  addScrew: (amount) => {
+    set((s) => ({ screw: s.screw.add(amount) }));
+    // RunWorkshop の AUTO が ON の項目を優先順位順に自動強化する。
+    // AUTO が全 OFF の場合は処理側で即 return される (ホットパス: 毎フレームの敵撃破で呼ばれる)。
+    get().processRunWorkshopAuto();
+  },
 
   spendScrew: (amount) => {
     const cur = get().screw;

@@ -2,6 +2,7 @@ import { memo } from 'react';
 
 import styles from './style.module.scss';
 
+import { AutoToggle } from '@/components/atoms/AutoToggle';
 import { Badge } from '@/components/atoms/Badge';
 import { CircularProgress } from '@/components/atoms/CircularProgress';
 import { CurrencyAmount } from '@/components/atoms/CurrencyAmount';
@@ -145,22 +146,16 @@ function BattleHudBottomImpl({
             </CircularProgress>
           </button>
 
-          {/* MANUAL / AUTO 切替ボタン (pill 形・click で toggle) */}
-          <button
-            type="button"
-            className={[styles.modeToggle, isAutoActive ? styles.modeToggleOn : '']
-              .filter(Boolean)
-              .join(' ')}
-            onClick={() => onToggleAuto(!isAutoActive)}
-            aria-pressed={isAutoActive}
-            aria-label={
+          {/* AUTO 切替トグル (共通 atom)。 非活性時も MANUAL ではなく "AUTO" 表記のまま色だけ変わる */}
+          <AutoToggle
+            enabled={isAutoActive}
+            onToggle={onToggleAuto}
+            ariaLabel={
               isAutoActive
                 ? 'アクティブスキルを手動モードに切り替え'
                 : 'アクティブスキルを自動モードに切り替え'
             }
-          >
-            {isAutoActive ? 'AUTO' : 'MANUAL'}
-          </button>
+          />
         </div>
       </div>
 

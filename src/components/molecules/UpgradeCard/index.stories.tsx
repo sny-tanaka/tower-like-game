@@ -102,6 +102,50 @@ export const RunFireRateScrew: Story = {
   },
 };
 
+export const RunWithAutoOff: Story = {
+  name: 'Run WS — AUTO トグル (OFF)',
+  args: {
+    title: '攻撃力倍率',
+    iconName: 'laser',
+    iconColor: 'var(--c-warning)',
+    currentLabel: 'Lv 3',
+    before: 1.3,
+    after: 1.4,
+    beforeSuffix: '×',
+    currency: 'screw',
+    accent: 'warning',
+    autoEnabled: false,
+    onToggleAuto: () => undefined,
+    options: [
+      { amount: '+1', cost: 22 },
+      { amount: '+5', cost: 130 },
+      { amount: 'MAX', cost: 410 },
+    ],
+  },
+};
+
+export const RunWithAutoOn: Story = {
+  name: 'Run WS — AUTO トグル (ON)',
+  args: {
+    title: '攻撃力倍率',
+    iconName: 'laser',
+    iconColor: 'var(--c-warning)',
+    currentLabel: 'Lv 3',
+    before: 1.3,
+    after: 1.4,
+    beforeSuffix: '×',
+    currency: 'screw',
+    accent: 'warning',
+    autoEnabled: true,
+    onToggleAuto: () => undefined,
+    options: [
+      { amount: '+1', cost: 22 },
+      { amount: '+5', cost: 130 },
+      { amount: 'MAX', cost: 410 },
+    ],
+  },
+};
+
 export const RunAllDisabled: Story = {
   name: 'Run WS — all disabled',
   args: {
