@@ -21,6 +21,11 @@ export interface UnifiedHit {
    * 視覚と pop の同期を取る。 他武器では undefined。
    */
   progressInSweep?: number;
+  /**
+   * Thunder 専用: このヒット後に書き戻すべきスタック数 (1〜THUNDER_STACK_MAX)。
+   * useBattleLoop が enemy.thunderStacks に反映する。 他武器では undefined。
+   */
+  thunderStackAfter?: number;
 }
 
 export interface UnifiedAttackResult {
@@ -136,7 +141,12 @@ export function fireWeapon({
       const boosted = { ...s, damageMul: s.damageMul * attackMul };
       const r = thunderNormalAttack(machine, boosted, enemiesInRange, rng);
       return {
-        hits: r.hits.map((h) => ({ enemyId: h.enemyId, damage: h.damage, crit: h.crit })),
+        hits: r.hits.map((h) => ({
+          enemyId: h.enemyId,
+          damage: h.damage,
+          crit: h.crit,
+          thunderStackAfter: h.stackAfter,
+        })),
       };
     }
     case 'cutter': {

@@ -31,12 +31,28 @@ export interface ThunderStats {
  * - hpLifestealPct: 0.001 × Lv (Lv 0 で 0、Lv 60 で 0.06、Lv 100 で 0.10)
  */
 /** Thunder 通常攻撃の同時ターゲット数 (武器 Lv で伸びない仕様固定値) */
-export const THUNDER_BASE_CHAIN_COUNT = 3;
+export const THUNDER_BASE_CHAIN_COUNT = 4;
 
-/** Thunder 底値 武器ダメージ倍率 (AS 2.0/s × 0.45 = 0.9 DPS / 3 体時 2.7) */
+/** Thunder 底値 武器ダメージ倍率 (AS 2.0/s × 0.45 = 0.9 DPS / 4 体時 3.6) */
 export const THUNDER_BASE_DAMAGE_MUL = 0.45;
-/** Thunder 底値 attacks/sec (Cutter 圏外 3 体散開での標準テンポ) */
+/** Thunder 底値 attacks/sec (Cutter 圏外 4 体散開での標準テンポ) */
 export const THUNDER_BASE_AS = 2.0;
+
+/**
+ * Thunder スタックシステム (v1.2.0):
+ * 同じ敵に Thunder が命中するたびにスタック +1。 ダメ計算時に
+ * `1 + THUNDER_STACK_DMG_PER_STACK × stack` 倍率が乗る。
+ * 上限 THUNDER_STACK_MAX に達すると以降は増えない (= ずっと最大倍率)。
+ * 敵が消滅 (撃破/wave 跨ぎ) すると自動でリセット。
+ */
+export const THUNDER_STACK_MAX = 5;
+export const THUNDER_STACK_DMG_PER_STACK = 0.2;
+
+/** スタック数 → ダメ倍率。 0 → 1.0、 5 → 2.0 */
+export function thunderStackMultiplier(stack: number): number {
+  const clamped = Math.max(0, Math.min(THUNDER_STACK_MAX, Math.floor(stack)));
+  return 1 + THUNDER_STACK_DMG_PER_STACK * clamped;
+}
 
 export function thunderStats(weaponLv: number): ThunderStats {
   const lv = Math.max(0, weaponLv);
@@ -64,7 +80,15 @@ export function thunderStats(weaponLv: number): ThunderStats {
 
 export interface ThunderAttackResult {
   /** ヒット順 (始点 → 連鎖先) */
-  hits: Array<{ enemyId: string; damage: BigNum; crit: boolean }>;
+  hits: Array<{
+    enemyId: string;
+    damage: BigNum;
+    crit: boolean;
+    /** ヒット直前のスタック数 (このヒットで参照した倍率の元値) */
+    stackBefore: number;
+    /** ヒット直後のスタック数 (= min(stackBefore + 1, THUNDER_STACK_MAX)) */
+    stackAfter: number;
+  }>;
   /** 連鎖の軌跡 [start, ...chained] */
   path: Array<{ x: number; y: number }>;
 }
@@ -94,16 +118,30 @@ export function thunderNormalAttack(
   const hits: ThunderAttackResult['hits'] = [];
   const path: ThunderAttackResult['path'] = [];
 
-  // 仕様: 同時 3 体に独立落雷。減衰なしで全員同ダメ。
+  // 仕様: 同時 chainCount 体に独立落雷。減衰なしで全員同ダメ。
+  // スタックシステム: 各敵の thunderStacks (初期 0、 上限 THUNDER_STACK_MAX) を読んで
+  // 「1 + 0.2 × stack」 倍率を damageMul に乗算。 ヒット後に stack を +1 して敵側に書き戻す。
   for (const enemy of targets) {
     const isCrit = rollCrit(machine.critRate, rng);
+    const stackBefore = Math.max(
+      0,
+      Math.min(THUNDER_STACK_MAX, Math.floor(enemy.thunderStacks ?? 0))
+    );
+    const stackMul = thunderStackMultiplier(stackBefore);
     const result = calcOutgoingDamage(
-      { machine, weapon: { damageMultiplier: stats.damageMul }, isCrit },
+      { machine, weapon: { damageMultiplier: stats.damageMul * stackMul }, isCrit },
       BigNum.ZERO,
       0
     );
 
-    hits.push({ enemyId: enemy.id, damage: result.finalDmg, crit: isCrit });
+    const stackAfter = Math.min(THUNDER_STACK_MAX, stackBefore + 1);
+    hits.push({
+      enemyId: enemy.id,
+      damage: result.finalDmg,
+      crit: isCrit,
+      stackBefore,
+      stackAfter,
+    });
     path.push({ x: enemy.position.x, y: enemy.position.y });
   }
 

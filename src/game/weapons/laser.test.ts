@@ -4,6 +4,7 @@ import {
   LASER_BASE_AS,
   LASER_BASE_DAMAGE_MUL,
   LASER_MEGA_BEAM_WIDTH_PCT,
+  LASER_UPPER_ENEMY_BONUS,
   laserMegaBeam,
   laserNormalAttack,
   laserStats,
@@ -67,6 +68,10 @@ describe('LASER_BASE_* 定数', () => {
 
   it('LASER_MEGA_BEAM_WIDTH_PCT = 12（v1.1 で 6 → 12）', () => {
     expect(LASER_MEGA_BEAM_WIDTH_PCT).toBe(12);
+  });
+
+  it('LASER_UPPER_ENEMY_BONUS = 2.0（v1.2.0 で追加: 上位敵に最終ダメ ×2）', () => {
+    expect(LASER_UPPER_ENEMY_BONUS).toBe(2.0);
   });
 });
 
