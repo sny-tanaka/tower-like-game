@@ -19,14 +19,14 @@ describe('rollPatchDrop', () => {
     expect(rollPatchDrop('normal', 100, () => 0)).toBe(false);
   });
 
-  it('エリート base 1%: rng=0 で true、 rng=0.01 で false (境界)', () => {
-    expect(rollPatchDrop('elite', 1, () => 0)).toBe(true);
-    expect(rollPatchDrop('elite', 1, () => 0.011)).toBe(false);
+  it('エリートは 0% (ドロップなし) — どんな rng でも false', () => {
+    expect(rollPatchDrop('elite', 1, () => 0)).toBe(false);
+    expect(rollPatchDrop('elite', 100, () => 0)).toBe(false);
   });
 
-  it('ミニボス base 5%: rng=0.04 で true、 rng=0.06 で false', () => {
-    expect(rollPatchDrop('miniboss', 1, () => 0.04)).toBe(true);
-    expect(rollPatchDrop('miniboss', 1, () => 0.06)).toBe(false);
+  it('ミニボスは 0% (ドロップなし) — どんな rng でも false', () => {
+    expect(rollPatchDrop('miniboss', 1, () => 0)).toBe(false);
+    expect(rollPatchDrop('miniboss', 100, () => 0)).toBe(false);
   });
 
   it('Tier ボス base 20%: rng=0.15 で true、 rng=0.25 で false', () => {
@@ -43,10 +43,10 @@ describe('rollPatchDrop', () => {
     expect(rollPatchDrop('boss', 100, () => 0.99)).toBe(true);
   });
 
-  it('PATCH_BASE_DROP_RATE が仕様通り', () => {
+  it('PATCH_BASE_DROP_RATE が仕様通り (ボスのみ 20%、 他は 0%)', () => {
     expect(PATCH_BASE_DROP_RATE.normal).toBe(0);
-    expect(PATCH_BASE_DROP_RATE.elite).toBeCloseTo(0.01);
-    expect(PATCH_BASE_DROP_RATE.miniboss).toBeCloseTo(0.05);
+    expect(PATCH_BASE_DROP_RATE.elite).toBe(0);
+    expect(PATCH_BASE_DROP_RATE.miniboss).toBe(0);
     expect(PATCH_BASE_DROP_RATE.boss).toBeCloseTo(0.2);
   });
 });
@@ -129,11 +129,16 @@ describe('dropPatch', () => {
     expect(dropPatch('normal', 5, 100, () => 0)).toBeNull();
   });
 
-  it('ドロップ失敗時は null', () => {
-    expect(dropPatch('elite', 5, 1, () => 0.5)).toBeNull(); // 1% < 50%
+  it('エリート / ミニボスは常に null (ドロップしない)', () => {
+    expect(dropPatch('elite', 5, 100, () => 0)).toBeNull();
+    expect(dropPatch('miniboss', 5, 100, () => 0)).toBeNull();
   });
 
-  it('ドロップ成功時は { name, tier } を返す', () => {
+  it('ボスでドロップ失敗時は null', () => {
+    expect(dropPatch('boss', 5, 1, () => 0.5)).toBeNull(); // 20% < 50%
+  });
+
+  it('ボスでドロップ成功時は { name, tier } を返す', () => {
     const result = dropPatch('boss', 5, 1, () => 0); // boss 20%、 rng=0 で必ず成立
     expect(result).not.toBeNull();
     expect(result!.tier).toBeGreaterThanOrEqual(1);

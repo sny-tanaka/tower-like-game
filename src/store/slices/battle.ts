@@ -45,6 +45,12 @@ export interface BattleState {
   runStartBolt: BigNum;
   /** ラン開始時点の alloy 残高 (同上) */
   runStartAlloy: BigNum;
+  /**
+   * このランで既にパッチがドロップしたか。 仕様 (06-patches.md): パッチドロップは
+   * 1 ラン中最大 1 個。 true の間は dropPatch の判定をスキップする。
+   * ラン開始時に false にリセットされる。
+   */
+  runPatchDropped: boolean;
 }
 
 // ---------------------------------------------------------------------------
@@ -74,6 +80,11 @@ export interface BattleActions {
   }) => void;
   endRun: () => void;
   addScrew: (amount: BigNum) => void;
+  /**
+   * ラン中にパッチがドロップしたことを記録する。
+   * 以降の dropPatch 判定をスキップさせて 1 ラン 1 個ルールを担保する。
+   */
+  markRunPatchDropped: () => void;
   spendScrew: (amount: BigNum) => boolean;
   setMachineHp: (hp: BigNum) => void;
   damageHp: (amount: BigNum) => void;
@@ -140,6 +151,7 @@ export const defaultBattleState: BattleState = {
   isPaused: false,
   runStartBolt: BigNum.ZERO,
   runStartAlloy: BigNum.ZERO,
+  runPatchDropped: false,
 };
 
 // ---------------------------------------------------------------------------
@@ -194,6 +206,8 @@ export const createBattleSlice: StateCreator<RootStore, [], [], BattleSlice> = (
       // ラン開始時の bolt/alloy 残高をスナップショット (リザルト獲得量算出用)
       runStartBolt: currentState.bolt,
       runStartAlloy: currentState.alloy,
+      // ラン中パッチドロップフラグをリセット (1 ラン 1 個ルール)
+      runPatchDropped: false,
     });
   },
 
@@ -208,6 +222,8 @@ export const createBattleSlice: StateCreator<RootStore, [], [], BattleSlice> = (
     // AUTO が全 OFF の場合は処理側で即 return される (ホットパス: 毎フレームの敵撃破で呼ばれる)。
     get().processRunWorkshopAuto();
   },
+
+  markRunPatchDropped: () => set({ runPatchDropped: true }),
 
   spendScrew: (amount) => {
     const cur = get().screw;

@@ -1418,20 +1418,18 @@ export function useBattleLoop({ paused = false }: UseBattleLoopOpts): UseBattleL
                 );
               }
 
-              // --- ボルト (bolt): 通常敵は 50% 確率、 上位敵は 100% + boltGainMul + dropMul ---
+              // --- ボルト (bolt): 通常敵は 50% 確率、 上位敵は 100% + boltGainMul ---
               const baseBolt = enemy.reward.bolt;
               if (baseBolt > 0) {
                 const boltDropRoll =
                   enemy.kind === 'normal' ? Math.random() < NORMAL_BOLT_DROP_CHANCE : true;
                 if (boltDropRoll) {
                   const scaledBolt = scaledReward(baseBolt, state.currentTier);
-                  earnedBolt = earnedBolt.add(
-                    BigNum.fromNumber(scaledBolt * boltGainMul * dropMul)
-                  );
+                  earnedBolt = earnedBolt.add(BigNum.fromNumber(scaledBolt * boltGainMul));
                 }
               }
 
-              // --- 超合金 (alloy): reward.alloyChance で reward.alloyAmount を獲得 + alloyGainMul + dropMul ---
+              // --- 超合金 (alloy): reward.alloyChance で reward.alloyAmount を獲得 + alloyGainMul ---
               if (enemy.reward.alloyChance > 0 && enemy.reward.alloyAmount > 0) {
                 if (Math.random() < enemy.reward.alloyChance) {
                   const scaledAlloyAmount = scaledReward(
@@ -1439,23 +1437,25 @@ export function useBattleLoop({ paused = false }: UseBattleLoopOpts): UseBattleL
                     state.currentTier
                   );
                   earnedAlloy = earnedAlloy.add(
-                    BigNum.fromNumber(scaledAlloyAmount * alloyGainMul * dropMul)
+                    BigNum.fromNumber(scaledAlloyAmount * alloyGainMul)
                   );
                 }
               }
 
-              // --- パッチドロップ (06-patches.md): elite/miniboss/boss のみ ---
-              // patchDropRate = machine 強化 (linear、 ループ外でキャッシュ) × bonusDrop パッチの dropMultiplier
-              const patchDropRateMul = patchDropRateMulMachine * dropMul;
-              const dropped = dropPatch(
-                enemy.kind,
-                state.currentTier,
-                patchDropRateMul,
-                Math.random
-              );
-              if (dropped != null) {
-                state.addPatch(dropped.name, dropped.tier, 1);
-                setDroppedPatches((prev) => [...prev, dropped]);
+              // --- パッチドロップ (06-patches.md): ボス撃破時のみ。 ラン中 1 個まで。 ---
+              // bonusDrop は「ネジのみ ×2」 なのでパッチドロップ率には影響しない。
+              if (!state.runPatchDropped) {
+                const dropped = dropPatch(
+                  enemy.kind,
+                  state.currentTier,
+                  patchDropRateMulMachine,
+                  Math.random
+                );
+                if (dropped != null) {
+                  state.addPatch(dropped.name, dropped.tier, 1);
+                  setDroppedPatches((prev) => [...prev, dropped]);
+                  state.markRunPatchDropped();
+                }
               }
 
               // 撃破 SE: boss/miniboss は bossKill、 それ以外は enemyKill

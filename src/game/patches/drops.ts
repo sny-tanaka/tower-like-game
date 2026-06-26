@@ -7,15 +7,14 @@ import type { EnemyKind } from '@/game/types';
 
 /**
  * 敵種別ごとの基礎ドロップ確率 (× マシン「patchDropRate」 倍率)。
- * - 通常敵: 0%
- * - エリート: 1%
- * - ミニボス: 5%
+ * 仕様 (06-patches.md): パッチドロップは Tier ボス撃破のみ。 1 ラン最大 1 個。
+ * - 通常敵 / エリート / ミニボス: 0%
  * - Tier ボス: 20%
  */
 export const PATCH_BASE_DROP_RATE: Record<EnemyKind, number> = {
   normal: 0,
-  elite: 0.01,
-  miniboss: 0.05,
+  elite: 0,
+  miniboss: 0,
   boss: 0.2,
 };
 
