@@ -10,6 +10,8 @@ import {
   decideTransitionReset,
   decideWaveAdvance,
   distanceFromMachine,
+  frameIntervalMs,
+  shouldDrawFrame,
 } from './useBattleLoop';
 
 import { scaledReward } from '@/game/enemies';
@@ -33,6 +35,43 @@ describe('calcFrameGameSec', () => {
 
   test('elapsedMs が負 (異常値) なら 0 にクランプ', () => {
     expect(calcFrameGameSec(-100, false)).toBe(0);
+  });
+});
+
+describe('frameIntervalMs / shouldDrawFrame (FPS キャップ)', () => {
+  test('frameIntervalMs: 30/45/60 → 1000/fps', () => {
+    expect(frameIntervalMs(30)).toBeCloseTo(1000 / 30);
+    expect(frameIntervalMs(45)).toBeCloseTo(1000 / 45);
+    expect(frameIntervalMs(60)).toBeCloseTo(1000 / 60);
+  });
+
+  test('targetFps=30: 閾値 (~33.33ms) を境にスキップ/描画', () => {
+    expect(shouldDrawFrame(0, 30)).toBe(false);
+    expect(shouldDrawFrame(16, 30)).toBe(false); // 60Hz 1 フレーム相当: スキップ
+    expect(shouldDrawFrame(33.3, 30)).toBe(false);
+    expect(shouldDrawFrame(33.34, 30)).toBe(true);
+    expect(shouldDrawFrame(100, 30)).toBe(true);
+  });
+
+  test('targetFps=45: 閾値 (~22.22ms) を境にスキップ/描画', () => {
+    expect(shouldDrawFrame(16, 45)).toBe(false); // 60Hz 1 フレーム: スキップ (45fps なので 22ms 待つ)
+    expect(shouldDrawFrame(22.2, 45)).toBe(false);
+    expect(shouldDrawFrame(22.3, 45)).toBe(true);
+    expect(shouldDrawFrame(33.4, 45)).toBe(true);
+  });
+
+  test('targetFps=60: 閾値 (~16.67ms) を境にスキップ/描画', () => {
+    expect(shouldDrawFrame(0, 60)).toBe(false);
+    expect(shouldDrawFrame(16, 60)).toBe(false);
+    expect(shouldDrawFrame(16.67, 60)).toBe(true);
+    expect(shouldDrawFrame(33.4, 60)).toBe(true);
+  });
+
+  test('タブ復帰直後のような巨大 elapsedMs はどの fps でも描画する (= 即 catch-up)', () => {
+    // この後 calcFrameGameSec が MAX_FRAME_GAME_SEC でクランプして暴走を防ぐ
+    expect(shouldDrawFrame(60_000, 30)).toBe(true);
+    expect(shouldDrawFrame(60_000, 45)).toBe(true);
+    expect(shouldDrawFrame(60_000, 60)).toBe(true);
   });
 });
 

@@ -62,6 +62,7 @@ beforeEach(async () => {
     seVolume: 0.8,
     vibrationEnabled: true,
     muted: false,
+    targetFps: 60,
   });
 
   // DB を開いてシードデータを投入
@@ -193,6 +194,16 @@ describe('sync: settings round-trip', () => {
     await hydrateStore();
 
     expect(useStore.getState().muted).toBe(false);
+  });
+
+  it('settings の targetFps を書いて読み直すと同じ値になる', async () => {
+    useStore.getState().setTargetFps(30);
+    await syncSettings();
+
+    useStore.setState({ targetFps: 60 });
+    await hydrateStore();
+
+    expect(useStore.getState().targetFps).toBe(30);
   });
 });
 

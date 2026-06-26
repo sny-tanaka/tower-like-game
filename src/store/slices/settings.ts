@@ -1,5 +1,6 @@
 import type { StateCreator } from 'zustand';
 
+import { TARGET_FPS_OPTIONS, type TargetFps } from '@/data/schema';
 import type { RootStore } from '@/store/index';
 
 // ---------------------------------------------------------------------------
@@ -11,6 +12,8 @@ export interface SettingsState {
   seVolume: number; // 0.0 〜 1.0
   vibrationEnabled: boolean;
   muted: boolean;
+  /** 描画 fps の上限。 30 / 45 / 60 から選択 (発熱対策) */
+  targetFps: TargetFps;
 }
 
 // ---------------------------------------------------------------------------
@@ -22,6 +25,7 @@ export interface SettingsActions {
   setSeVolume: (volume: number) => void;
   setVibrationEnabled: (enabled: boolean) => void;
   setMuted: (muted: boolean) => void;
+  setTargetFps: (fps: TargetFps) => void;
   resetSettings: () => void;
 }
 
@@ -36,6 +40,7 @@ export const defaultSettingsState: SettingsState = {
   seVolume: 0.8,
   vibrationEnabled: true,
   muted: false,
+  targetFps: 60,
 };
 
 // ---------------------------------------------------------------------------
@@ -52,6 +57,12 @@ export const createSettingsSlice: StateCreator<RootStore, [], [], SettingsSlice>
   setVibrationEnabled: (enabled) => set({ vibrationEnabled: enabled }),
 
   setMuted: (muted) => set({ muted }),
+
+  setTargetFps: (fps) => {
+    // 想定外の値が来た場合は無視 (型ガード)
+    if (!TARGET_FPS_OPTIONS.includes(fps)) return;
+    set({ targetFps: fps });
+  },
 
   resetSettings: () => set(defaultSettingsState),
 });

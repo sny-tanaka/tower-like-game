@@ -116,12 +116,20 @@ export type EquippedPatchRecord = {
   tier: number;
 };
 
+/**
+ * 描画 fps の選択肢。 モバイル発熱対策で 30 / 45 / 60 から選べる。
+ * 既存ユーザー (フィールド未保存) は hydration 時に DEFAULT_SETTINGS.targetFps へフォールバック。
+ */
+export type TargetFps = 30 | 45 | 60;
+export const TARGET_FPS_OPTIONS: readonly TargetFps[] = [30, 45, 60];
+
 export type SettingsRecord = {
   id: 'singleton';
   bgmVolume: number; // 0.0 〜 1.0
   seVolume: number; // 0.0 〜 1.0
   vibrationEnabled: boolean;
   muted: boolean;
+  targetFps?: TargetFps; // 未保存の旧データは DEFAULT_SETTINGS.targetFps で補完
 };
 
 // --- SaveState: 全ストアをまとめた型 ---
@@ -168,4 +176,5 @@ export const DEFAULT_SETTINGS: SettingsRecord = {
   seVolume: 0.8,
   vibrationEnabled: true,
   muted: false,
+  targetFps: 60,
 };

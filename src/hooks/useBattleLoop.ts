@@ -49,6 +49,20 @@ export function calcFrameGameSec(elapsedMs: number, isPaused: boolean): number {
   return Math.min(MAX_FRAME_GAME_SEC, Math.max(0, gameTimeSec));
 }
 
+/**
+ * 描画 fps の上限から 1 フレーム間隔 (ms) を計算する。
+ * モバイル発熱対策で 30 / 45 / 60 を切り替えられるようにしているため引数で受け取る。
+ * (可変 timestep なのでゲーム挙動は壊れない)
+ */
+export function frameIntervalMs(targetFps: number): number {
+  return 1000 / targetFps;
+}
+
+/** 前回描画からの経過 ms が targetFps の閾値を満たすか。 満たさない場合は rAF だけ再予約してスキップ */
+export function shouldDrawFrame(elapsedMs: number, targetFps: number): boolean {
+  return elapsedMs >= frameIntervalMs(targetFps);
+}
+
 // ---------------------------------------------------------------------------
 // 純粋関数: Wave 終了判定
 // ---------------------------------------------------------------------------
@@ -702,6 +716,14 @@ export function useBattleLoop({ paused = false }: UseBattleLoopOpts): UseBattleL
 
     const tick = (nowMs: number) => {
       const elapsedMs = nowMs - lastFrameMsRef.current;
+
+      // 発熱対策: 描画 fps キャップ。 前回描画からの経過が targetFps の閾値未満なら
+      // 処理スキップで rAF だけ再予約。 ゲーム判定は可変 timestep なので fps を落としても壊れない。
+      // targetFps は設定 UI からプレイヤーが 30/45/60 を選択可能。
+      if (!shouldDrawFrame(elapsedMs, useStore.getState().targetFps)) {
+        rafIdRef.current = requestAnimationFrame(tick);
+        return;
+      }
       lastFrameMsRef.current = nowMs;
 
       // H2-3: Fx 完了通知をバッチフラッシュ。 同フレーム内に複数 Fx (DamagePopFx 等)
@@ -1586,14 +1608,33 @@ export function useBattleLoop({ paused = false }: UseBattleLoopOpts): UseBattleL
       rafIdRef.current = requestAnimationFrame(tick);
     };
 
-    lastFrameMsRef.current = performance.now();
-    rafIdRef.current = requestAnimationFrame(tick);
-
-    return () => {
+    // 発熱対策 (Step 1): タブ非可視中は rAF を完全停止し、 復帰時に lastFrameMs を
+    // 再初期化してから rAF を再開する。 AudioContext は SoundEngine 側で suspend 済み。
+    const startLoop = () => {
+      if (rafIdRef.current != null) return;
+      lastFrameMsRef.current = performance.now();
+      rafIdRef.current = requestAnimationFrame(tick);
+    };
+    const stopLoop = () => {
       if (rafIdRef.current != null) {
         cancelAnimationFrame(rafIdRef.current);
         rafIdRef.current = null;
       }
+    };
+    const handleVisibility = () => {
+      if (document.hidden) {
+        stopLoop();
+      } else {
+        startLoop();
+      }
+    };
+
+    if (!document.hidden) startLoop();
+    document.addEventListener('visibilitychange', handleVisibility);
+
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibility);
+      stopLoop();
     };
   }, [isRunActive, tierWaves, fireActive]);
 

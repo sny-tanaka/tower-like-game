@@ -23,9 +23,9 @@ describe('CutterOrbitFx', () => {
     expect(sweeps.length).toBe(2);
   });
 
-  test('orbit (円ガイド) が描画される', () => {
+  test('orbit (円ガイド) は描画しない (BattleField.rangeCircle と重なって視認できないため廃止)', () => {
     const { container } = render(<CutterOrbitFx />);
-    expect(container.querySelector('[class*="orbit"]')).not.toBeNull();
+    expect(container.querySelector('[class*="orbit"]')).toBeNull();
   });
 
   test('duration を指定すると指定 ms 後に onDone が呼ばれる', () => {
