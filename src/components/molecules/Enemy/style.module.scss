@@ -16,13 +16,10 @@
      facing 回転は移動と一体なので補間しなくても体感はほぼ変わらず、 むしろ補間が
      ない方が方向感が鮮明になる。 */
   line-height: 0;
-  /* filter は CSS 側に閉じ込めて type/status による値ぶれを防ぐ (Issue #79 M-1)。
-     glow の太さ・色は JS から CSS variable で渡す (静的)。 status による色変化は
-     data-status 属性セレクタで drop-shadow の色だけ差し替える (Issue #88)。
-     旧実装は drop-shadow + hue-rotate + saturate + brightness の 4 段フィルタチェーン
-     で GPU が複数フィルタの中間テクスチャを連鎖生成 → 敵 30 体同時状態異常で発熱寄与。
-     新実装は drop-shadow 1 段のまま色だけ切替で軽量化。 */
-  filter: drop-shadow(0 0 var(--enemy-glow-px, 4px) var(--enemy-glow-color, #ffffff));
+  /* H2-8: 通常時の drop-shadow を撤去。 敵 30〜40 体に常時 GPU フィルタが当たり続け
+     発熱寄与が大きかったため、 状態異常 (frozen / burning) のときだけ drop-shadow を ON
+     にする。 通常敵は SVG 自体の色で十分識別可能 (rangeCircle や machine と被ったときも
+     視認できる)。 status による色切替は引き続き data-status 属性セレクタで行う。 */
 }
 
 .root[data-status='frozen'] .shape {

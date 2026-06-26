@@ -3,7 +3,6 @@
  *   --ct-cx / --ct-cy           : タワー中心 (%、 JSX inline)
  *   --ct-size                   : hub サイズ = length*2 (%、 JSX inline)
  *   --ct-rotate-ms              : 1 周時間 (ms、 JSX inline)
- *   --ct-trail-ms               : trail-pulse の周期 = rotate*0.7 (ms、 JSX inline)
  *   --ct-blade-height           : blade 高さ (%、 JSX inline)
  *   --ct-blade-margin           : blade 縦オフセット (%、 JSX inline)
  *   --ct-color                  : 刃の色 (JSX inline)
@@ -20,19 +19,6 @@
 @keyframes spinCcw {
   to {
     transform: translate(-50%, -50%) rotate(-360deg);
-  }
-}
-
-@keyframes trailPulse {
-  /* H2-5: 振幅を 0.18-0.36 → 0.22-0.30 に縮小 (中央値 0.26 維持)。
-     さらに JSX 側で周期を rotateMs*0.7 → *1.4 に倍化することで GPU の opacity
-     合成頻度を半減。 視覚的にはほぼ気づかない範囲で常時負荷を削減。 */
-  0%,
-  100% {
-    opacity: 0.22;
-  }
-  50% {
-    opacity: 0.3;
   }
 }
 
@@ -53,18 +39,6 @@
 
 .hubCcw {
   animation: spinCcw var(--ct-rotate-ms, 1300ms) linear infinite;
-}
-
-.orbit {
-  position: absolute;
-  inset: 0;
-  border-radius: 50%;
-  border: 1px dashed var(--ct-color);
-  opacity: 0.22;
-  /* H2-5: opacity 専用変化なので will-change で GPU に明示。 layer 化により
-     親要素 (.hub) の transform: rotate と独立合成され、 hub 回転の影響を受けない */
-  will-change: opacity;
-  animation: trailPulse var(--ct-trail-ms, 1820ms) ease-in-out infinite;
 }
 
 .blade {
@@ -97,10 +71,9 @@
   /* H2-7: 旧実装は animation-duration: 30s で「ゆっくり回す」 にしていたが、
      iteration-count: infinite が残るため reduced-motion 設定 ON のユーザーで
      GPU 合成レイヤーが永遠に更新され続け発熱寄与していた。 完全停止 + 静止表示に。
-     Cutter の刃と軌道リングは静止状態でも武器の存在は示せる。 */
+     Cutter の刃は静止状態でも武器の存在は示せる。 */
   .hubCw,
-  .hubCcw,
-  .orbit {
+  .hubCcw {
     animation: none;
   }
 }

@@ -39,6 +39,10 @@
   }
 }
 
+/* H2-8: filter: drop-shadow を撤去。 内部の NumericDisplay が既に glow={true}
+   で text-shadow による発光を当てているため二重がけ状態だった。 SVG GPU フィルタは
+   撃破ラッシュ時に数十個並列で動くと発熱寄与が大きい (text-shadow は GPU フィルタを
+   通らず軽い)。 見た目は NumericDisplay の glow がそのまま残るためほぼ変化なし。 */
 .root {
   position: absolute;
   left: var(--pop-x);
@@ -46,12 +50,10 @@
   pointer-events: none;
   z-index: var(--z-fx-field);
   animation: pop var(--pop-duration, 800ms) var(--ease-out) both;
-  filter: drop-shadow(0 0 4px rgba(255, 255, 255, 0.45));
 }
 
 .crit {
   animation-name: popCrit;
-  filter: drop-shadow(0 0 4px rgba(246, 185, 74, 0.7));
 }
 
 @media (prefers-reduced-motion: reduce) {

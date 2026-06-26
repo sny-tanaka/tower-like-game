@@ -420,12 +420,31 @@ describe('equippedPatches slice', () => {
 // ---------------------------------------------------------------------------
 
 describe('settings slice', () => {
-  it('初期値: bgmVolume=0.8, seVolume=0.8, vibration=true, muted=false', () => {
+  it('初期値: bgmVolume=0.8, seVolume=0.8, vibration=true, muted=false, targetFps=60', () => {
     const s = makeStore().getState();
     expect(s.bgmVolume).toBe(0.8);
     expect(s.seVolume).toBe(0.8);
     expect(s.vibrationEnabled).toBe(true);
     expect(s.muted).toBe(false);
+    expect(s.targetFps).toBe(60);
+  });
+
+  it('setTargetFps: 30/45/60 のいずれにも切り替えられる', () => {
+    const store = makeStore();
+    store.getState().setTargetFps(30);
+    expect(store.getState().targetFps).toBe(30);
+    store.getState().setTargetFps(45);
+    expect(store.getState().targetFps).toBe(45);
+    store.getState().setTargetFps(60);
+    expect(store.getState().targetFps).toBe(60);
+  });
+
+  it('setTargetFps: 想定外の値は無視 (型ガード)', () => {
+    const store = makeStore();
+    store.getState().setTargetFps(45);
+    // @ts-expect-error 型外の値を渡す
+    store.getState().setTargetFps(120);
+    expect(store.getState().targetFps).toBe(45);
   });
 
   it('setBgmVolume: 0〜1 にクランプされる', () => {
@@ -487,17 +506,19 @@ describe('settings slice', () => {
     expect(store.getState().muted).toBe(false);
   });
 
-  it('resetSettings: muted リセット後も bgmVolume / seVolume / vibrationEnabled がデフォルト値になる', () => {
+  it('resetSettings: muted リセット後も bgmVolume / seVolume / vibrationEnabled / targetFps がデフォルト値になる', () => {
     const store = makeStore();
     store.getState().setMuted(true);
     store.getState().setBgmVolume(0.1);
     store.getState().setSeVolume(0.2);
     store.getState().setVibrationEnabled(false);
+    store.getState().setTargetFps(30);
     store.getState().resetSettings();
     expect(store.getState().muted).toBe(false);
     expect(store.getState().bgmVolume).toBe(0.8);
     expect(store.getState().seVolume).toBe(0.8);
     expect(store.getState().vibrationEnabled).toBe(true);
+    expect(store.getState().targetFps).toBe(60);
   });
 });
 
