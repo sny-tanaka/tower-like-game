@@ -39,6 +39,13 @@ export const LASER_BASE_AS = 2.5;
 export const LASER_BASE_DAMAGE_MUL = 0.8;
 
 /**
+ * Laser 上位敵 (elite/miniboss/boss) ヒット時のダメ倍率 (v1.2.0)。
+ * 武器特性として最終ダメに乗算 (パッチや crit とは別レイヤー)。
+ * = ボス wave で Laser を選ぶ強い理由になる。
+ */
+export const LASER_UPPER_ENEMY_BONUS = 2.0;
+
+/**
  * 武器強化 Lv から LaserStats を計算して返す。
  *
  * v1.1.1 で武器Lv は damageMul / attackPerSec / megaDamageMul を一切伸ばさない仕様に変更。

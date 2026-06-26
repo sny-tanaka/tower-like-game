@@ -182,6 +182,7 @@ export function spawnEnemy(
     spawnedAtMs,
     position: { x, y },
     maxHp: template.hp,
+    thunderStacks: 0,
   };
 }
 

@@ -25,7 +25,12 @@ import {
   cutterTickOverdrive,
   type OverdriveState,
 } from '@/game/weapons/cutter';
-import { LASER_MEGA_BEAM_WIDTH_PCT, laserMegaBeam, laserStats } from '@/game/weapons/laser';
+import {
+  LASER_MEGA_BEAM_WIDTH_PCT,
+  LASER_UPPER_ENEMY_BONUS,
+  laserMegaBeam,
+  laserStats,
+} from '@/game/weapons/laser';
 import { WEAPON_RANGE_PCT } from '@/game/weapons/range';
 import { thunderPlasmaDischarge, thunderStats } from '@/game/weapons/thunder';
 import { soundEngine } from '@/lib/audio';
@@ -1203,6 +1208,12 @@ export function useBattleLoop({ paused = false }: UseBattleLoopOpts): UseBattleL
                       // 雑魚を即死させる: 敵 HP 以上のダメージで上書き
                       finalDamage = targetEnemy.hp;
                     }
+                    // Laser 上位敵バフ (v1.2.0): 装備武器が Laser かつ ターゲットが
+                    // elite/miniboss/boss なら、 最終ダメに LASER_UPPER_ENEMY_BONUS (= ×2.0)。
+                    // パッチや crit とは独立の武器特性レイヤー。
+                    if (state.currentWeapon === 'laser' && targetEnemy.kind !== 'normal') {
+                      finalDamage = finalDamage.mulNumber(LASER_UPPER_ENEMY_BONUS);
+                    }
                     return {
                       ...hit,
                       damage: finalDamage,
@@ -1220,6 +1231,11 @@ export function useBattleLoop({ paused = false }: UseBattleLoopOpts): UseBattleL
                       const hit = hitMap.get(e.id);
                       if (hit == null) return e;
                       let updated: SpawnedEnemy = { ...e, hp: e.hp.sub(hit.damage) };
+                      // Thunder スタック反映 (v1.2.0): hit.thunderStackAfter があれば
+                      // 敵オブジェクトに書き戻す。 thunderNormalAttack 内で計算済み (上限 5)。
+                      if (hit.thunderStackAfter != null) {
+                        updated = { ...updated, thunderStacks: hit.thunderStackAfter };
+                      }
                       // 凍結付与: 既存があれば長い方を採用
                       if (hit.freeze && hit.freezeSec != null && hit.freezeSec > 0) {
                         const newFrozenUntil = nowGameMs + hit.freezeSec * 1000;

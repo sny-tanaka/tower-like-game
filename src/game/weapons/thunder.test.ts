@@ -4,8 +4,11 @@ import {
   THUNDER_BASE_AS,
   THUNDER_BASE_CHAIN_COUNT,
   THUNDER_BASE_DAMAGE_MUL,
+  THUNDER_STACK_DMG_PER_STACK,
+  THUNDER_STACK_MAX,
   thunderNormalAttack,
   thunderPlasmaDischarge,
+  thunderStackMultiplier,
   thunderStats,
 } from './thunder';
 
@@ -63,7 +66,8 @@ describe('thunderStats', () => {
     expect(stats.attackPerSec).toBeCloseTo(THUNDER_BASE_AS);
     expect(THUNDER_BASE_AS).toBe(2.0);
     expect(stats.chainCount).toBe(THUNDER_BASE_CHAIN_COUNT);
-    expect(THUNDER_BASE_CHAIN_COUNT).toBe(3);
+    // v1.2.0: chainCount を 3 → 4 に増加 (中距離散布敵処理の役割強化)
+    expect(THUNDER_BASE_CHAIN_COUNT).toBe(4);
     expect(stats.damageMul).toBeCloseTo(THUNDER_BASE_DAMAGE_MUL);
     expect(THUNDER_BASE_DAMAGE_MUL).toBeCloseTo(0.45);
     // Lv0: plasmaDamageMul = 10 × (1 + 0) = 10
@@ -142,25 +146,26 @@ describe('thunderNormalAttack', () => {
     expect(result.path).toHaveLength(1);
   });
 
-  it('chainCount=3 のとき最大 3 体まで同時ヒット', () => {
+  it('chainCount=4 のとき最大 4 体まで同時ヒット (v1.2.0)', () => {
     const machine = makeMachine();
-    const stats = thunderStats(0); // chainCount=3
+    const stats = thunderStats(0); // chainCount=4
     const enemies = [
       makeEnemy('e1', 10, 10),
       makeEnemy('e2', 20, 20),
       makeEnemy('e3', 30, 30),
-      makeEnemy('e4', 40, 40), // 4体目は対象外
+      makeEnemy('e4', 40, 40),
+      makeEnemy('e5', 50, 50), // 5 体目は対象外
     ];
     const result = thunderNormalAttack(machine, stats, enemies, rngNoCrit);
-    expect(result.hits).toHaveLength(3);
-    expect(result.hits.map((h) => h.enemyId)).toEqual(['e1', 'e2', 'e3']);
+    expect(result.hits).toHaveLength(4);
+    expect(result.hits.map((h) => h.enemyId)).toEqual(['e1', 'e2', 'e3', 'e4']);
   });
 
-  it('3 体同時ヒットでダメージは全員同じ (通常攻撃の連鎖減衰は適用されない)', () => {
+  it('4 体同時ヒットでダメージは全員同じ (通常攻撃の連鎖減衰は適用されない)', () => {
     const baseAttack = 1000;
     const machine = makeMachine({ baseAttack: BigNum.fromNumber(baseAttack) });
     const stats = thunderStats(0); // damageMul = THUNDER_BASE_DAMAGE_MUL
-    const enemies = [makeEnemy('e1'), makeEnemy('e2'), makeEnemy('e3')];
+    const enemies = [makeEnemy('e1'), makeEnemy('e2'), makeEnemy('e3'), makeEnemy('e4')];
     const result = thunderNormalAttack(machine, stats, enemies, rngNoCrit);
 
     // 全員 baseAttack × THUNDER_BASE_DAMAGE_MUL ダメージ (chainFalloff は通常攻撃には適用されない)
@@ -168,6 +173,7 @@ describe('thunderNormalAttack', () => {
     expect(result.hits[0]!.damage.toString()).toBe(expected);
     expect(result.hits[1]!.damage.toString()).toBe(expected);
     expect(result.hits[2]!.damage.toString()).toBe(expected);
+    expect(result.hits[3]!.damage.toString()).toBe(expected);
   });
 
   it('クリ判定が反映される（rng=0 で常にクリ）', () => {
@@ -193,6 +199,115 @@ describe('thunderNormalAttack', () => {
     const result = thunderNormalAttack(machine, stats, enemies, rngNoCrit);
     expect(result.path[0]).toEqual({ x: 10, y: 20 });
     expect(result.path[1]).toEqual({ x: 30, y: 40 });
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Thunder スタックシステム (v1.2.0)
+// ---------------------------------------------------------------------------
+
+describe('thunderStackMultiplier (v1.2.0)', () => {
+  it('スタック 0 で倍率 1.0', () => {
+    expect(thunderStackMultiplier(0)).toBeCloseTo(1.0);
+  });
+
+  it('スタック 1 で倍率 1.2 (+20%)', () => {
+    expect(thunderStackMultiplier(1)).toBeCloseTo(1.2);
+  });
+
+  it('スタック 2 で倍率 1.4', () => {
+    expect(thunderStackMultiplier(2)).toBeCloseTo(1.4);
+  });
+
+  it('スタック 5 (= 上限) で倍率 2.0', () => {
+    expect(thunderStackMultiplier(5)).toBeCloseTo(2.0);
+  });
+
+  it('上限を超える値も倍率 2.0 でキャップ (= ずっと最大倍率)', () => {
+    expect(thunderStackMultiplier(6)).toBeCloseTo(2.0);
+    expect(thunderStackMultiplier(100)).toBeCloseTo(2.0);
+  });
+
+  it('負値や小数は 0 / floor で扱う', () => {
+    expect(thunderStackMultiplier(-3)).toBeCloseTo(1.0);
+    expect(thunderStackMultiplier(1.9)).toBeCloseTo(1.2); // floor(1.9) = 1
+  });
+
+  it('定数の確認: 上限 5、 stack あたり +20%', () => {
+    expect(THUNDER_STACK_MAX).toBe(5);
+    expect(THUNDER_STACK_DMG_PER_STACK).toBeCloseTo(0.2);
+  });
+});
+
+describe('thunderNormalAttack — スタック反映 (v1.2.0)', () => {
+  function makeEnemyWithStacks(id: string, stacks: number): SpawnedEnemy {
+    return { ...makeEnemy(id), thunderStacks: stacks };
+  }
+
+  it('スタック 0 の敵にヒットすると stackAfter=1', () => {
+    const machine = makeMachine();
+    const stats = thunderStats(0);
+    const enemies = [makeEnemy('e1')];
+    const result = thunderNormalAttack(machine, stats, enemies, rngNoCrit);
+    expect(result.hits[0]!.stackBefore).toBe(0);
+    expect(result.hits[0]!.stackAfter).toBe(1);
+  });
+
+  it('スタック 4 の敵にヒットすると stackAfter=5 (上限到達)', () => {
+    const machine = makeMachine();
+    const stats = thunderStats(0);
+    const enemies = [makeEnemyWithStacks('e1', 4)];
+    const result = thunderNormalAttack(machine, stats, enemies, rngNoCrit);
+    expect(result.hits[0]!.stackBefore).toBe(4);
+    expect(result.hits[0]!.stackAfter).toBe(5);
+  });
+
+  it('スタック 5 (上限) の敵にヒットしても stackAfter=5 のまま (減らない / 増えない)', () => {
+    const machine = makeMachine();
+    const stats = thunderStats(0);
+    const enemies = [makeEnemyWithStacks('e1', 5)];
+    const result = thunderNormalAttack(machine, stats, enemies, rngNoCrit);
+    expect(result.hits[0]!.stackBefore).toBe(5);
+    expect(result.hits[0]!.stackAfter).toBe(5);
+  });
+
+  it('スタック 0 のダメは底値 × 1.0、 スタック 5 のダメは底値 × 2.0', () => {
+    const baseAttack = 1000;
+    const machine = makeMachine({ baseAttack: BigNum.fromNumber(baseAttack) });
+    const stats = thunderStats(0);
+    const enemies = [makeEnemy('e1'), makeEnemyWithStacks('e2', 5)];
+    const result = thunderNormalAttack(machine, stats, enemies, rngNoCrit);
+    const baseDmg = Math.floor(baseAttack * THUNDER_BASE_DAMAGE_MUL);
+    expect(result.hits[0]!.damage.toString()).toBe(String(baseDmg));
+    expect(result.hits[1]!.damage.toString()).toBe(String(baseDmg * 2));
+  });
+
+  it('スタック 2 の敵には 1.4 倍ダメージ', () => {
+    const baseAttack = 1000;
+    const machine = makeMachine({ baseAttack: BigNum.fromNumber(baseAttack) });
+    const stats = thunderStats(0);
+    const enemies = [makeEnemyWithStacks('e1', 2)];
+    const result = thunderNormalAttack(machine, stats, enemies, rngNoCrit);
+    // 1000 × 0.45 × 1.4 = 630
+    const expected = Math.floor(baseAttack * THUNDER_BASE_DAMAGE_MUL * 1.4);
+    expect(result.hits[0]!.damage.toString()).toBe(String(expected));
+  });
+
+  it('複数体に同時ヒットしたとき、 各敵のスタックは独立に評価される', () => {
+    const baseAttack = 1000;
+    const machine = makeMachine({ baseAttack: BigNum.fromNumber(baseAttack) });
+    const stats = thunderStats(0);
+    const enemies = [
+      makeEnemy('e1'), // stack 0 → x1.0
+      makeEnemyWithStacks('e2', 1), // stack 1 → x1.2
+      makeEnemyWithStacks('e3', 5), // stack 5 → x2.0
+    ];
+    const result = thunderNormalAttack(machine, stats, enemies, rngNoCrit);
+    const baseDmg = baseAttack * THUNDER_BASE_DAMAGE_MUL;
+    expect(result.hits[0]!.damage.toString()).toBe(String(Math.floor(baseDmg)));
+    expect(result.hits[1]!.damage.toString()).toBe(String(Math.floor(baseDmg * 1.2)));
+    expect(result.hits[2]!.damage.toString()).toBe(String(Math.floor(baseDmg * 2.0)));
+    expect(result.hits.map((h) => h.stackAfter)).toEqual([1, 2, 5]);
   });
 });
 

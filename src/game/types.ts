@@ -71,6 +71,12 @@ export interface SpawnedEnemy extends EnemyTemplate {
    * する累積カウンタを敵ごとに持つ。 burn 付与時に 0 リセット、 期限切れで undefined。
    */
   burnAccumulatorMs?: number;
+  /**
+   * Thunder 命中回数 (= スタック数)。 0〜THUNDER_STACK_MAX (5) で頭打ち。
+   * ヒットごとに +1、 ダメ計算時に `1 + THUNDER_STACK_DMG_PER_STACK × stack` 倍率が乗る。
+   * 敵が撃破/消滅すれば自動で消える (新規 spawn で 0 から)。
+   */
+  thunderStacks?: number;
 }
 
 // ---------------------------------------------------------------------------
