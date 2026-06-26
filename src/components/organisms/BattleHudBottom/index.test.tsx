@@ -91,14 +91,15 @@ describe('BattleHudBottom', () => {
   });
 
   describe('手動/自動トグル', () => {
-    it('isAutoActive=false のとき MANUAL ラベルの切替ボタンは未押下状態', () => {
+    it('isAutoActive=false のとき切替ボタンは未押下状態 (ラベルは常に AUTO)', () => {
       render(<BattleHudBottom {...makeProps({ isAutoActive: false })} />);
       const toggle = screen.getByRole('button', { name: /自動モードに切り替え/ });
       expect(toggle).toHaveAttribute('aria-pressed', 'false');
-      expect(toggle).toHaveTextContent('MANUAL');
+      expect(toggle).toHaveTextContent('AUTO');
+      expect(toggle).not.toHaveTextContent('MANUAL');
     });
 
-    it('isAutoActive=true のとき AUTO ラベルの切替ボタンは押下状態', () => {
+    it('isAutoActive=true のとき切替ボタンは押下状態 (ラベルは常に AUTO)', () => {
       render(<BattleHudBottom {...makeProps({ isAutoActive: true })} />);
       const toggle = screen.getByRole('button', { name: /手動モードに切り替え/ });
       expect(toggle).toHaveAttribute('aria-pressed', 'true');

@@ -103,6 +103,8 @@ export function Page() {
   const isAutoActive = useStore((s) => s.isAutoActive);
   const isPaused = useStore((s) => s.isPaused);
   const runWorkshopLevels = useStore((s) => s.runWorkshopLevels);
+  const runWorkshopAutoEnabled = useStore((s) => s.runWorkshopAutoEnabled);
+  const setRunWorkshopAuto = useStore((s) => s.setRunWorkshopAuto);
 
   // settings slice
   const bgmVolume = useStore((s) => s.bgmVolume);
@@ -407,6 +409,18 @@ export function Page() {
     [upgradeRunWorkshop]
   );
 
+  const handleToggleWorkshopAuto = useCallback(
+    (key: RunWorkshopKey, enabled: boolean) => {
+      setRunWorkshopAuto(key, enabled);
+      // AUTO を ON にした瞬間にも、 既に貯まっているネジで強化可能なら即時消費する
+      // (addScrew からの自動発火を待たずに UX を即応させる)。
+      if (enabled) {
+        useStore.getState().processRunWorkshopAuto();
+      }
+    },
+    [setRunWorkshopAuto]
+  );
+
   const handleSwitchWeapon = useCallback(
     (weapon: typeof currentWeapon) => {
       switchWeapon(weapon);
@@ -494,7 +508,9 @@ export function Page() {
               open={isWorkshopOpen}
               screw={screw}
               levels={runWorkshopLevels}
+              autoEnabled={runWorkshopAutoEnabled}
               onUpgrade={handleWorkshopUpgrade}
+              onToggleAuto={handleToggleWorkshopAuto}
               onClose={handleCloseWorkshop}
             />
             <BattleHudBottom

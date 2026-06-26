@@ -16,9 +16,16 @@ import type { RootStore } from '@/store/index';
 // State
 // ---------------------------------------------------------------------------
 
+/** RunWorkshop 4 項目の AUTO ON/OFF マップ */
+export type RunWorkshopAutoEnabled = {
+  [K in RunWorkshopKey]: boolean;
+};
+
 export interface RunWorkshopState {
   /** ラン中ワークショップ 4 項目の現在 Lv */
   runWorkshopLevels: RunWorkshopLevels;
+  /** ラン中ワークショップ 4 項目の AUTO ON/OFF。 ラン開始時に全 false にリセットされる */
+  runWorkshopAutoEnabled: RunWorkshopAutoEnabled;
 }
 
 // ---------------------------------------------------------------------------
@@ -33,8 +40,18 @@ export interface RunWorkshopActions {
    *   - false: ネジ不足 / 未知の key / 'max' で買える Lv がない場合
    */
   upgradeRunWorkshop: (key: RunWorkshopKey, delta: 1 | 5 | 'max') => boolean;
-  /** ラン開始 / 終了時に全 Lv を 0 に戻す */
+  /** ラン開始 / 終了時に全 Lv を 0 に戻す。AUTO ON/OFF も全 false に戻す */
   resetRunWorkshop: () => void;
+  /** 指定項目の AUTO ON/OFF を切り替える */
+  setRunWorkshopAuto: (key: RunWorkshopKey, enabled: boolean) => void;
+  /**
+   * AUTO が ON の項目に対して、 優先順位 (攻撃 > 速度 > HP > ネジ) の順で
+   * `upgradeRunWorkshop(key, 'max')` を試行する。
+   * 上位項目がネジ不足で買えなくても、 下位の ON 項目があれば残ネジで購入を試みる
+   * (フォールスルー)。
+   * 主に battle slice の addScrew から呼ばれ、 ネジが貯まったら即時自動強化される。
+   */
+  processRunWorkshopAuto: () => void;
 }
 
 export type RunWorkshopSlice = RunWorkshopState & RunWorkshopActions;
@@ -50,9 +67,28 @@ export const defaultRunWorkshopLevels: RunWorkshopLevels = {
   screwGainMul: 0,
 };
 
+export const defaultRunWorkshopAutoEnabled: RunWorkshopAutoEnabled = {
+  attackMul: false,
+  attackSpeedMul: false,
+  hpMul: false,
+  screwGainMul: false,
+};
+
 export const defaultRunWorkshopState: RunWorkshopState = {
   runWorkshopLevels: defaultRunWorkshopLevels,
+  runWorkshopAutoEnabled: defaultRunWorkshopAutoEnabled,
 };
+
+/**
+ * AUTO 自動強化の優先順位 (上位ほど優先)。
+ * 仕様: 攻撃 > 速度 > HP > ネジ。
+ */
+export const RUN_WORKSHOP_AUTO_PRIORITY: readonly RunWorkshopKey[] = [
+  'attackMul',
+  'attackSpeedMul',
+  'hpMul',
+  'screwGainMul',
+];
 
 // ---------------------------------------------------------------------------
 // Factory
@@ -102,5 +138,38 @@ export const createRunWorkshopSlice: StateCreator<RootStore, [], [], RunWorkshop
     return true;
   },
 
-  resetRunWorkshop: () => set({ runWorkshopLevels: defaultRunWorkshopLevels }),
+  resetRunWorkshop: () =>
+    set({
+      runWorkshopLevels: defaultRunWorkshopLevels,
+      runWorkshopAutoEnabled: defaultRunWorkshopAutoEnabled,
+    }),
+
+  setRunWorkshopAuto: (key, enabled) =>
+    set((s) => ({
+      runWorkshopAutoEnabled: {
+        ...s.runWorkshopAutoEnabled,
+        [key]: enabled,
+      },
+    })),
+
+  processRunWorkshopAuto: () => {
+    // AUTO が 1 つも ON でなければ即 return (ホットパス最適化: addScrew から毎回呼ばれる)
+    const autoEnabled = get().runWorkshopAutoEnabled;
+    let anyOn = false;
+    for (const k of RUN_WORKSHOP_AUTO_PRIORITY) {
+      if (autoEnabled[k]) {
+        anyOn = true;
+        break;
+      }
+    }
+    if (!anyOn) return;
+
+    // 優先順位順に MAX 強化を試みる (フォールスルー: 上位がネジ不足でも下位の ON 項目を試す)
+    for (const key of RUN_WORKSHOP_AUTO_PRIORITY) {
+      if (!get().runWorkshopAutoEnabled[key]) continue;
+      // upgradeRunWorkshop('max') は内部で「現在のネジで買える最大段数」を計算し
+      // 全部一括購入する。 ネジ 0 / 1 段も買えないなら false を返して state 無変更。
+      get().upgradeRunWorkshop(key, 'max');
+    }
+  },
 });

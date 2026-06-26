@@ -1,5 +1,6 @@
 import styles from './style.module.scss';
 
+import { AutoToggle } from '@/components/atoms/AutoToggle';
 import { Icon } from '@/components/atoms/Icon';
 import type { IconName } from '@/components/atoms/Icon';
 import { Text } from '@/components/atoms/Text';
@@ -47,6 +48,16 @@ export interface UpgradeCardProps {
   maxed?: boolean;
   /** ボタンクリック時のコールバック。option の amount が渡される */
   onUpgrade?: (amount: string) => void;
+  /**
+   * AUTO 自動強化トグルの ON/OFF 状態。
+   * onToggleAuto が指定されているときだけ右上にトグルを表示する。
+   */
+  autoEnabled?: boolean;
+  /**
+   * AUTO トグルのクリックハンドラ。 指定されたときだけ AUTO トグルが表示される。
+   * 現状は RunWorkshopBottomSheet 専用 (machine 強化など他用途では指定しない)。
+   */
+  onToggleAuto?: (next: boolean) => void;
 }
 
 // ---------------------------------------------------------------------------
@@ -110,6 +121,8 @@ export function UpgradeCard({
   options = [],
   maxed = false,
   onUpgrade,
+  autoEnabled = false,
+  onToggleAuto,
 }: UpgradeCardProps) {
   const resolvedAccent = accent ?? CURRENCY_TO_ACCENT[currency];
   const accentColor = ACCENT_COLOR[resolvedAccent];
@@ -168,27 +181,35 @@ export function UpgradeCard({
         </Text>
       )}
 
-      {/* 効果値行: before → after */}
+      {/* 効果値行: before → after (左) と AUTO トグル (右) を space-between で配置 */}
       {before != null && (
         <div className={styles.valueRow}>
-          <span className={styles.valueBefore}>
-            {formatNumber(before)}
-            {beforeSuffix}
-          </span>
-          {after != null && !maxed && (
-            <>
-              <span className={styles.arrow}>→</span>
-              <span
-                className={styles.valueAfter}
-                style={{
-                  color: accentColor,
-                  textShadow: `0 0 5px ${afterGlow}`,
-                }}
-              >
-                {formatNumber(after)}
-                {beforeSuffix}
-              </span>
-            </>
+          <div className={styles.valueGroup}>
+            <span className={styles.valueBefore}>
+              {formatNumber(before)}
+              {beforeSuffix}
+            </span>
+            {after != null && !maxed && (
+              <>
+                <span className={styles.arrow}>→</span>
+                <span
+                  className={styles.valueAfter}
+                  style={{
+                    color: accentColor,
+                    textShadow: `0 0 5px ${afterGlow}`,
+                  }}
+                >
+                  {formatNumber(after)}
+                  {beforeSuffix}
+                </span>
+              </>
+            )}
+          </div>
+          {onToggleAuto != null && !maxed && (
+            <AutoToggle
+              enabled={autoEnabled}
+              onToggle={onToggleAuto}
+            />
           )}
         </div>
       )}

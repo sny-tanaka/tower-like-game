@@ -105,3 +105,154 @@ describe('RunWorkshop slice', () => {
     expect(useStore.getState().runWorkshopLevels.hpMul).toBe(0);
   });
 });
+
+// ---------------------------------------------------------------------------
+// AUTO 自動強化機能
+// ---------------------------------------------------------------------------
+
+describe('RunWorkshop AUTO', () => {
+  test('初期 state は全 AUTO OFF', () => {
+    expect(useStore.getState().runWorkshopAutoEnabled).toEqual({
+      attackMul: false,
+      attackSpeedMul: false,
+      hpMul: false,
+      screwGainMul: false,
+    });
+  });
+
+  test('setRunWorkshopAuto(key, true) で該当 key のみ ON になる', () => {
+    useStore.getState().setRunWorkshopAuto('attackMul', true);
+    expect(useStore.getState().runWorkshopAutoEnabled).toEqual({
+      attackMul: true,
+      attackSpeedMul: false,
+      hpMul: false,
+      screwGainMul: false,
+    });
+  });
+
+  test('setRunWorkshopAuto(key, false) で OFF に戻せる', () => {
+    useStore.getState().setRunWorkshopAuto('attackMul', true);
+    useStore.getState().setRunWorkshopAuto('attackMul', false);
+    expect(useStore.getState().runWorkshopAutoEnabled.attackMul).toBe(false);
+  });
+
+  test('processRunWorkshopAuto: AUTO 全 OFF なら何もしない', () => {
+    useStore.setState({ screw: BigNum.fromNumber(1000) });
+    useStore.getState().processRunWorkshopAuto();
+    expect(useStore.getState().runWorkshopLevels.attackMul).toBe(0);
+    expect(useStore.getState().screw.eq(BigNum.fromNumber(1000))).toBe(true);
+  });
+
+  test('processRunWorkshopAuto: 攻撃 AUTO ON & ネジ十分なら attackMul が買えるだけ上がる', () => {
+    useStore.getState().setRunWorkshopAuto('attackMul', true);
+    // attackMul Lv 0→1=10, 1→2=13, 2→3=17 (合計 40), 残 20 では次の 22 が買えない
+    useStore.setState({ screw: BigNum.fromNumber(60) });
+    useStore.getState().processRunWorkshopAuto();
+    expect(useStore.getState().runWorkshopLevels.attackMul).toBe(3);
+    expect(useStore.getState().screw.eq(BigNum.fromNumber(20))).toBe(true);
+  });
+
+  test('processRunWorkshopAuto: 優先順位順 (攻撃 > 速度 > HP > ネジ) で消費される', () => {
+    useStore.getState().setRunWorkshopAuto('attackMul', true);
+    useStore.getState().setRunWorkshopAuto('attackSpeedMul', true);
+    // attackMul Lv 0→1=10 のみ買えるネジ 10 を与える
+    useStore.setState({ screw: BigNum.fromNumber(10) });
+    useStore.getState().processRunWorkshopAuto();
+    // 攻撃が優先消費 → 攻撃のみ +1、 速度は据え置き
+    expect(useStore.getState().runWorkshopLevels.attackMul).toBe(1);
+    expect(useStore.getState().runWorkshopLevels.attackSpeedMul).toBe(0);
+    expect(useStore.getState().screw.isZero()).toBe(true);
+  });
+
+  test('processRunWorkshopAuto: 攻撃と速度 AUTO ON、 ネジ十分なら両方買えるだけ上がる', () => {
+    useStore.getState().setRunWorkshopAuto('attackMul', true);
+    useStore.getState().setRunWorkshopAuto('attackSpeedMul', true);
+    // attackMul Lv 0→3 (40 消費) → 残 20 では次が買えない (22)
+    // attackSpeedMul Lv 0→1 (10 消費) → 残 10 では次が買えない (13)
+    useStore.setState({ screw: BigNum.fromNumber(60) });
+    useStore.getState().processRunWorkshopAuto();
+    expect(useStore.getState().runWorkshopLevels.attackMul).toBe(3);
+    expect(useStore.getState().runWorkshopLevels.attackSpeedMul).toBe(1);
+    expect(useStore.getState().screw.eq(BigNum.fromNumber(10))).toBe(true);
+  });
+
+  test('processRunWorkshopAuto: 上位がネジ不足でも下位の AUTO ON 項目があれば残ネジで購入する (フォールスルー)', () => {
+    // 攻撃 AUTO ON: 1 段 cost=10 → ネジ 5 では買えない
+    // 速度 AUTO ON: 1 段 cost=10 → ネジ 5 では買えない
+    // HP AUTO ON: 1 段 cost=10 → ネジ 5 では買えない
+    // → 何も買わない
+    // 別ケース: 攻撃 AUTO ON & 速度 AUTO ON、 攻撃が買えないが速度は買える状況を作る。
+    //   攻撃 Lv を事前に上げてコストを跳ね上げる: Lv 50 で cost = ceil(10 * 1.3^50) ≈ 4.97e6
+    //   速度 Lv 0 で cost = 10、 ネジ 10 を与えると攻撃は買えず速度のみ買える。
+    useStore.setState({
+      runWorkshopLevels: { attackMul: 50, attackSpeedMul: 0, hpMul: 0, screwGainMul: 0 },
+      screw: BigNum.fromNumber(10),
+    });
+    useStore.getState().setRunWorkshopAuto('attackMul', true);
+    useStore.getState().setRunWorkshopAuto('attackSpeedMul', true);
+    useStore.getState().processRunWorkshopAuto();
+    expect(useStore.getState().runWorkshopLevels.attackMul).toBe(50); // 据え置き
+    expect(useStore.getState().runWorkshopLevels.attackSpeedMul).toBe(1); // 上がる
+    expect(useStore.getState().screw.isZero()).toBe(true);
+  });
+
+  test('processRunWorkshopAuto: 全項目ネジ不足なら何も買わずネジは保持される', () => {
+    useStore.getState().setRunWorkshopAuto('attackMul', true);
+    useStore.getState().setRunWorkshopAuto('attackSpeedMul', true);
+    useStore.setState({ screw: BigNum.fromNumber(9) }); // 最安 attackMul Lv 0→1=10 にも届かない
+    useStore.getState().processRunWorkshopAuto();
+    expect(useStore.getState().runWorkshopLevels.attackMul).toBe(0);
+    expect(useStore.getState().runWorkshopLevels.attackSpeedMul).toBe(0);
+    expect(useStore.getState().screw.eq(BigNum.fromNumber(9))).toBe(true);
+  });
+
+  test('addScrew がトリガーになって AUTO が発火する', () => {
+    useStore.getState().setRunWorkshopAuto('attackMul', true);
+    // addScrew(10) で attackMul Lv 0→1 が即時自動購入される (ネジは 0 に)
+    useStore.getState().addScrew(BigNum.fromNumber(10));
+    expect(useStore.getState().runWorkshopLevels.attackMul).toBe(1);
+    expect(useStore.getState().screw.isZero()).toBe(true);
+  });
+
+  test('addScrew で AUTO が ON なら優先順位順に消費される', () => {
+    useStore.getState().setRunWorkshopAuto('attackMul', true);
+    useStore.getState().setRunWorkshopAuto('hpMul', true);
+    // addScrew(10): 攻撃が優先で買われる、 HP は据え置き
+    useStore.getState().addScrew(BigNum.fromNumber(10));
+    expect(useStore.getState().runWorkshopLevels.attackMul).toBe(1);
+    expect(useStore.getState().runWorkshopLevels.hpMul).toBe(0);
+  });
+
+  test('resetRunWorkshop: AUTO 状態も全 false に戻る', () => {
+    useStore.getState().setRunWorkshopAuto('attackMul', true);
+    useStore.getState().setRunWorkshopAuto('hpMul', true);
+    useStore.getState().resetRunWorkshop();
+    expect(useStore.getState().runWorkshopAutoEnabled).toEqual({
+      attackMul: false,
+      attackSpeedMul: false,
+      hpMul: false,
+      screwGainMul: false,
+    });
+  });
+
+  test('startRun: AUTO 状態も全 false にリセットされる', () => {
+    useStore.getState().setRunWorkshopAuto('attackMul', true);
+    useStore
+      .getState()
+      .startRun({ initialWeapon: 'laser', baseMachineMaxHp: BigNum.fromNumber(100) });
+    expect(useStore.getState().runWorkshopAutoEnabled.attackMul).toBe(false);
+  });
+
+  test('hpMul AUTO ON: 自動強化でも machineMaxHp が再計算される (recalc 発火)', () => {
+    useStore
+      .getState()
+      .startRun({ initialWeapon: 'laser', baseMachineMaxHp: BigNum.fromNumber(100) });
+    const beforeMax = useStore.getState().machineMaxHp;
+    useStore.getState().setRunWorkshopAuto('hpMul', true);
+    // hpMul Lv 0→1=10 のみ買うネジ
+    useStore.getState().addScrew(BigNum.fromNumber(10));
+    expect(useStore.getState().runWorkshopLevels.hpMul).toBe(1);
+    // multiplier 1.0 → 1.1 で machineMaxHp が増える
+    expect(useStore.getState().machineMaxHp.gt(beforeMax)).toBe(true);
+  });
+});

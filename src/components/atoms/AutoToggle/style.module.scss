@@ -1,0 +1,40 @@
+/* AutoToggle — 紫 pill 形の AUTO ON/OFF トグル
+   BattleHudBottom (アクティブスキル) と UpgradeCard (ラン中ワークショップ) で共用。 */
+
+.root {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 18px;
+  padding: 0 8px;
+  font-family: var(--ff-display);
+  font-size: 9.5px;
+  font-weight: var(--fw-semibold);
+  letter-spacing: var(--ls-loose);
+  text-transform: uppercase;
+  background: var(--c-bg-base);
+  border: 1px solid var(--c-border-faint);
+  border-radius: var(--r-pill);
+  color: var(--c-text-dim);
+  white-space: nowrap;
+  cursor: pointer;
+  transition: background var(--mo-fast) var(--ease-default),
+    border-color var(--mo-fast) var(--ease-default),
+    color var(--mo-fast) var(--ease-default);
+}
+
+.root:hover {
+  border-color: var(--c-border);
+}
+
+.on {
+  background: var(--c-secondary-bg);
+  border-color: var(--c-secondary);
+  color: var(--c-secondary);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .root {
+    transition: none;
+  }
+}

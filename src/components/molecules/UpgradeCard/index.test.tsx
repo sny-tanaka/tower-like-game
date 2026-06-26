@@ -143,4 +143,75 @@ describe('UpgradeCard', () => {
     );
     expect(screen.queryByRole('button')).toBeNull();
   });
+
+  // -------------------------------------------------------------------------
+  // AUTO トグル
+  // -------------------------------------------------------------------------
+
+  test('onToggleAuto 未指定なら AUTO トグルは描画されない', () => {
+    render(<UpgradeCard {...defaultProps} />);
+    expect(screen.queryByRole('button', { name: /AUTO/ })).toBeNull();
+  });
+
+  test('onToggleAuto 指定で AUTO トグルが描画される (デフォルト OFF = aria-pressed=false)', () => {
+    render(
+      <UpgradeCard
+        {...defaultProps}
+        onToggleAuto={() => undefined}
+      />
+    );
+    const btn = screen.getByRole('button', { name: /AUTO/ });
+    expect(btn).toBeInTheDocument();
+    expect(btn).toHaveAttribute('aria-pressed', 'false');
+  });
+
+  test('autoEnabled=true で aria-pressed=true', () => {
+    render(
+      <UpgradeCard
+        {...defaultProps}
+        autoEnabled={true}
+        onToggleAuto={() => undefined}
+      />
+    );
+    const btn = screen.getByRole('button', { name: /AUTO/ });
+    expect(btn).toHaveAttribute('aria-pressed', 'true');
+  });
+
+  test('AUTO トグルクリックで onToggleAuto(true) が呼ばれる (OFF → ON)', async () => {
+    const onToggleAuto = vi.fn();
+    render(
+      <UpgradeCard
+        {...defaultProps}
+        autoEnabled={false}
+        onToggleAuto={onToggleAuto}
+      />
+    );
+    await userEvent.click(screen.getByRole('button', { name: /AUTO/ }));
+    expect(onToggleAuto).toHaveBeenCalledWith(true);
+  });
+
+  test('AUTO トグルクリックで onToggleAuto(false) が呼ばれる (ON → OFF)', async () => {
+    const onToggleAuto = vi.fn();
+    render(
+      <UpgradeCard
+        {...defaultProps}
+        autoEnabled={true}
+        onToggleAuto={onToggleAuto}
+      />
+    );
+    await userEvent.click(screen.getByRole('button', { name: /AUTO/ }));
+    expect(onToggleAuto).toHaveBeenCalledWith(false);
+  });
+
+  test('maxed=true のとき AUTO トグルは描画されない', () => {
+    render(
+      <UpgradeCard
+        {...defaultProps}
+        maxed={true}
+        options={[]}
+        onToggleAuto={() => undefined}
+      />
+    );
+    expect(screen.queryByRole('button', { name: /AUTO/ })).toBeNull();
+  });
 });
