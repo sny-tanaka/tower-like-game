@@ -6,6 +6,8 @@ import { Button } from '@/components/atoms/Button';
 import { Stepper } from '@/components/atoms/Stepper';
 import { Text } from '@/components/atoms/Text';
 import { PatchCard } from '@/components/molecules/PatchCard';
+import type { PatchName } from '@/data/schema';
+import { getPatchDisplayInfo } from '@/game/patches/displayInfo';
 import { soundEngine } from '@/lib/audio';
 import { useStore } from '@/store';
 import type { PatchEntry } from '@/store/slices/patches';
@@ -18,7 +20,6 @@ export interface MergeableEntry {
   name: string;
   tier: number;
   count: number;
-  iconName: string;
 }
 
 export interface PatchMergeTabProps {
@@ -29,19 +30,6 @@ export interface PatchMergeTabProps {
 // ---------------------------------------------------------------------------
 // 合成ロジック
 // ---------------------------------------------------------------------------
-
-const PATCH_ICON_MAP: Record<string, string> = {
-  instantKill: 'skull',
-  bossKiller: 'skull',
-  doubleShot: 'lightning',
-  damageImmune: 'shield',
-  killHeal: 'heart',
-  shieldRegen: 'shield',
-  bonusDrop: 'star',
-  boltCast: 'lightning',
-  freezeHit: 'ice',
-  burnHit: 'flame',
-};
 
 /**
  * patches Map から Tier <= maxTierLimit で合成可能なエントリを抽出する。
@@ -58,7 +46,6 @@ export function calcMergeable(
         name: entry.name,
         tier: entry.tier,
         count: entry.count,
-        iconName: PATCH_ICON_MAP[entry.name] ?? 'spark',
       });
     }
   }
@@ -193,20 +180,23 @@ export function PatchMergeTab({ overridePatches }: PatchMergeTabProps) {
       {canMerge ? (
         <>
           <div className={styles.mergeList}>
-            {mergeable.map((entry) => (
-              <PatchCard
-                key={`${entry.name}#${entry.tier}`}
-                patchId={`${entry.name}#${entry.tier}`}
-                name={entry.name}
-                iconName={entry.iconName as Parameters<typeof PatchCard>[0]['iconName']}
-                tier={entry.tier}
-                count={entry.count}
-                trigger="-"
-                effect="-"
-                merging
-                size="md"
-              />
-            ))}
+            {mergeable.map((entry) => {
+              const info = getPatchDisplayInfo(entry.name as PatchName, entry.tier);
+              return (
+                <PatchCard
+                  key={`${entry.name}#${entry.tier}`}
+                  patchId={`${entry.name}#${entry.tier}`}
+                  name={info.name}
+                  iconName={info.iconName}
+                  tier={entry.tier}
+                  count={entry.count}
+                  trigger={info.trigger}
+                  effect={info.effect}
+                  merging
+                  size="md"
+                />
+              );
+            })}
           </div>
           <Button
             label={`一括合成 (${mergeable.length} 種類)`}

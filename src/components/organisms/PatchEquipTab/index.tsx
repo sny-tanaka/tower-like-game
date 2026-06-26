@@ -9,6 +9,8 @@ import { Text } from '@/components/atoms/Text';
 import { PatchCard } from '@/components/molecules/PatchCard';
 import { PatchSlot } from '@/components/molecules/PatchSlot';
 import type { PatchInfo } from '@/components/molecules/PatchSlot';
+import type { PatchName } from '@/data/schema';
+import { getPatchDisplayInfo } from '@/game/patches/displayInfo';
 import { soundEngine } from '@/lib/audio';
 import { useStore } from '@/store';
 import { MAX_PATCH_SLOTS } from '@/store/slices/equippedPatches';
@@ -21,7 +23,7 @@ import type { PatchEntry } from '@/store/slices/patches';
 export interface PatchEquipTabProps {
   /** ストーリー / テスト用オーバーライド (省略時はstoreから取得) */
   overridePatches?: Map<string, PatchEntry>;
-  overrideEquipped?: Map<number, { name: string; tier: number }>;
+  overrideEquipped?: Map<number, { name: PatchName; tier: number }>;
   overridePatchSlotsLv?: number;
 }
 
@@ -33,46 +35,6 @@ export interface PatchEquipTabProps {
 function calcUnlockedSlots(patchSlotsLv: number): number {
   return Math.min(1 + patchSlotsLv, MAX_PATCH_SLOTS);
 }
-
-// パッチ名からアイコン名の簡易マップ（PatchName → IconName）
-const PATCH_ICON_MAP: Record<string, string> = {
-  instantKill: 'skull',
-  bossKiller: 'skull',
-  doubleShot: 'lightning',
-  damageImmune: 'shield',
-  killHeal: 'heart',
-  shieldRegen: 'shield',
-  bonusDrop: 'star',
-  boltCast: 'lightning',
-  freezeHit: 'ice',
-  burnHit: 'flame',
-};
-
-const PATCH_TRIGGER_MAP: Record<string, string> = {
-  instantKill: 'HP25%↓',
-  bossKiller: 'ボス時',
-  doubleShot: '射撃時',
-  damageImmune: '常時',
-  killHeal: '撃破時',
-  shieldRegen: '常時',
-  bonusDrop: '撃破時',
-  boltCast: '射撃時',
-  freezeHit: 'クリ時',
-  burnHit: '貫通時',
-};
-
-const PATCH_EFFECT_MAP: Record<string, string> = {
-  instantKill: '即死',
-  bossKiller: '攻撃+50%',
-  doubleShot: '2連射',
-  damageImmune: '被ダメ-5%',
-  killHeal: 'HP+1',
-  shieldRegen: 'シールド再生',
-  bonusDrop: 'ドロップ+',
-  boltCast: 'ボルト獲得',
-  freezeHit: '2秒凍結',
-  burnHit: '周囲焼夷',
-};
 
 // ---------------------------------------------------------------------------
 // コンポーネント
@@ -103,13 +65,14 @@ export function PatchEquipTab({
     if (!entry) return null;
     const key = `${entry.name}#${entry.tier}`;
     const invEntry = patches.get(key);
+    const info = getPatchDisplayInfo(entry.name, entry.tier);
     return {
       patchId: key,
-      name: entry.name,
-      iconName: (PATCH_ICON_MAP[entry.name] ?? 'spark') as PatchInfo['iconName'],
+      name: info.name,
+      iconName: info.iconName,
       tier: entry.tier,
-      trigger: PATCH_TRIGGER_MAP[entry.name] ?? '常時',
-      effect: PATCH_EFFECT_MAP[entry.name] ?? '-',
+      trigger: info.trigger,
+      effect: info.effect,
       count: invEntry?.count ?? 0,
     };
   };
@@ -230,20 +193,17 @@ export function PatchEquipTab({
                 <div className={styles.pickerGrid}>
                   {candidates.map((entry) => {
                     const key = `${entry.name}#${entry.tier}`;
+                    const info = getPatchDisplayInfo(entry.name, entry.tier);
                     return (
                       <PatchCard
                         key={key}
                         patchId={key}
-                        name={entry.name}
-                        iconName={
-                          (PATCH_ICON_MAP[entry.name] ?? 'spark') as Parameters<
-                            typeof PatchCard
-                          >[0]['iconName']
-                        }
+                        name={info.name}
+                        iconName={info.iconName}
                         tier={entry.tier}
                         count={entry.count}
-                        trigger={PATCH_TRIGGER_MAP[entry.name] ?? '常時'}
-                        effect={PATCH_EFFECT_MAP[entry.name] ?? '-'}
+                        trigger={info.trigger}
+                        effect={info.effect}
                         onClick={() => handlePickPatch(entry.name, entry.tier)}
                       />
                     );

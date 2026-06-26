@@ -258,12 +258,14 @@ export const MACHINE_UPGRADE_ITEMS: readonly MachineUpgradeItem[] = [
     title: 'パッチドロップ率',
     category: 'economy',
     baseValue: 1.0,
-    growthFactor: 0.03, // 線形 +0.03 / Lv（乗算でベースドロップ確率に掛かる）
+    growthFactor: 0.08, // 線形 +0.08 / Lv（乗算でベースドロップ確率に掛かる）
     growthType: 'linear',
     baseCost: 200, // 経済系 base=200
     costGrowth: 1.15,
     unit: '×',
     iconName: 'spark',
+    // Lv 50 で 1.0 + 0.08×50 = 5.0 倍 → ボス素 20% × 5.0 = 100% (確定ドロップ)
+    maxLv: 50,
   },
 
   // --- スロット系 (1 項目) ---

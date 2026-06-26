@@ -2,6 +2,8 @@ import styles from './style.module.scss';
 
 import { Text } from '@/components/atoms/Text';
 import { PatchCard } from '@/components/molecules/PatchCard';
+import type { PatchName } from '@/data/schema';
+import { getPatchDisplayInfo } from '@/game/patches/displayInfo';
 import { useStore } from '@/store';
 import type { PatchEntry } from '@/store/slices/patches';
 
@@ -12,53 +14,10 @@ import type { PatchEntry } from '@/store/slices/patches';
 export interface PatchInventoryTabProps {
   /** ストーリー / テスト用オーバーライド */
   overridePatches?: Map<string, PatchEntry>;
-  overrideEquipped?: Map<number, { name: string; tier: number }>;
+  overrideEquipped?: Map<number, { name: PatchName; tier: number }>;
   selectedId?: string | null;
   onSelect?: (patchKey: string | null) => void;
 }
-
-// ---------------------------------------------------------------------------
-// パッチ名→アイコン/トリガー/エフェクト マッピング
-// ---------------------------------------------------------------------------
-
-const PATCH_ICON_MAP: Record<string, string> = {
-  instantKill: 'skull',
-  bossKiller: 'skull',
-  doubleShot: 'lightning',
-  damageImmune: 'shield',
-  killHeal: 'heart',
-  shieldRegen: 'shield',
-  bonusDrop: 'star',
-  boltCast: 'lightning',
-  freezeHit: 'ice',
-  burnHit: 'flame',
-};
-
-const PATCH_TRIGGER_MAP: Record<string, string> = {
-  instantKill: 'HP25%↓',
-  bossKiller: 'ボス時',
-  doubleShot: '射撃時',
-  damageImmune: '常時',
-  killHeal: '撃破時',
-  shieldRegen: '常時',
-  bonusDrop: '撃破時',
-  boltCast: '射撃時',
-  freezeHit: 'クリ時',
-  burnHit: '貫通時',
-};
-
-const PATCH_EFFECT_MAP: Record<string, string> = {
-  instantKill: '即死',
-  bossKiller: '攻撃+50%',
-  doubleShot: '2連射',
-  damageImmune: '被ダメ-5%',
-  killHeal: 'HP+1',
-  shieldRegen: 'シールド再生',
-  bonusDrop: 'ドロップ+',
-  boltCast: 'ボルト獲得',
-  freezeHit: '2秒凍結',
-  burnHit: '周囲焼夷',
-};
 
 // ---------------------------------------------------------------------------
 // コンポーネント
@@ -111,20 +70,17 @@ export function PatchInventoryTab({
         {entries.map((entry) => {
           const key = `${entry.name}#${entry.tier}`;
           const isEquipped = equippedNames.has(entry.name);
+          const info = getPatchDisplayInfo(entry.name, entry.tier);
           return (
             <PatchCard
               key={key}
               patchId={key}
-              name={entry.name}
-              iconName={
-                (PATCH_ICON_MAP[entry.name] ?? 'spark') as Parameters<
-                  typeof PatchCard
-                >[0]['iconName']
-              }
+              name={info.name}
+              iconName={info.iconName}
               tier={entry.tier}
               count={entry.count}
-              trigger={PATCH_TRIGGER_MAP[entry.name] ?? '常時'}
-              effect={PATCH_EFFECT_MAP[entry.name] ?? '-'}
+              trigger={info.trigger}
+              effect={info.effect}
               selected={selectedId === key}
               locked={isEquipped}
               onClick={onSelect ? () => onSelect(selectedId === key ? null : key) : undefined}
