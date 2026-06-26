@@ -6,7 +6,7 @@
  *
  *   - cutter:  近接（旋回刃の視覚的長さに合わせた極短射程）
  *   - laser:   中（単体高 DPS、貫通 1 体）
- *   - thunder: 中（同時 3 体に独立落雷）
+ *   - thunder: 中（同時 THUNDER_BASE_CHAIN_COUNT 体に独立落雷）
  *   - cannon:  遠（splash 範囲爆発、遠距離砲）
  *
  * 設計仕様: Cannon 最大強化 (machine.range Lv 100、 multiplier 2.0) で

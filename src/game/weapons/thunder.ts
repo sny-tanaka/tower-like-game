@@ -10,7 +10,7 @@ import { BigNum } from '@/lib/bignum/BigNum';
 export interface ThunderStats {
   /** 攻撃速度 (attacks/sec) */
   attackPerSec: number;
-  /** 通常攻撃の最大同時ターゲット数 (仕様: 最大 3 体、Lv で伸びない) */
+  /** 通常攻撃の最大同時ターゲット数 (仕様: THUNDER_BASE_CHAIN_COUNT 体、 Lv で伸びない) */
   chainCount: number;
   /** 武器ダメージ倍率 (Lv スケール: 1.02^Lv) */
   damageMul: number;
@@ -26,7 +26,7 @@ export interface ThunderStats {
  * スケール仕様 (14-weapons-rebalance-v1.1.md):
  * - damageMul: THUNDER_BASE_DAMAGE_MUL × 1.02^Lv
  * - attackPerSec: THUNDER_BASE_AS × (1 + 0.03 × Lv)  ← 上限 10
- * - chainCount: 固定 3 (Lv で伸びない、通常攻撃の独立落雷上限)
+ * - chainCount: THUNDER_BASE_CHAIN_COUNT (Lv で伸びない、 通常攻撃の独立落雷上限)
  * - plasmaDamageMul: 10 × (1 + 0.05 × Lv)
  * - hpLifestealPct: 0.001 × Lv (Lv 0 で 0、Lv 60 で 0.06、Lv 100 で 0.10)
  */
@@ -94,8 +94,9 @@ export interface ThunderAttackResult {
 }
 
 /**
- * Thunder 通常攻撃: 索敵範囲内の最大 chainCount 体に同時独立ヒット。
- * 連鎖ではなく「同時 3 体に独立落雷」。減衰なしで全員に同ダメージ。
+ * Thunder 通常攻撃: 索敵範囲内の最大 chainCount (= THUNDER_BASE_CHAIN_COUNT) 体に
+ * 同時独立ヒット。 連鎖ではなく「同時 chainCount 体に独立落雷」 で減衰なし全員同ダメ。
+ * 各敵には Thunder スタックが個別に貯まり、 ダメに `1 + 0.2 × stack` 倍率が乗る。
  *
  * @param machine        マシン本体ステータス
  * @param stats          Thunder 武器ステータス

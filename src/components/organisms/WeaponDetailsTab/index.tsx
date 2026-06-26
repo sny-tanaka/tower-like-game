@@ -7,10 +7,15 @@ import {
   calcEffectValue,
 } from '@/components/organisms/MachineUpgradeList/items';
 import { cannonStats } from '@/game/weapons/cannon';
-import { cutterStats } from '@/game/weapons/cutter';
-import { laserStats } from '@/game/weapons/laser';
+import { CUTTER_BLADES, cutterStats } from '@/game/weapons/cutter';
+import { LASER_UPPER_ENEMY_BONUS, laserStats } from '@/game/weapons/laser';
 import { WEAPON_RANGE_PCT } from '@/game/weapons/range';
-import { thunderStats } from '@/game/weapons/thunder';
+import {
+  THUNDER_BASE_CHAIN_COUNT,
+  THUNDER_STACK_DMG_PER_STACK,
+  THUNDER_STACK_MAX,
+  thunderStats,
+} from '@/game/weapons/thunder';
 import { BigNum } from '@/lib/bignum';
 import { useStore } from '@/store';
 
@@ -214,11 +219,17 @@ export interface WeaponMeta {
   ) => WeaponStat[];
 }
 
+// description は実装定数を参照したテンプレートリテラルで構築する。
+// 武器の固定値 (Thunder chainCount、 Cutter blades、 Laser 上位敵バフ倍率) が
+// 将来変更されても、 ここの文面が自動で正しい値を指す = 取り残し防止。
+const LASER_UPPER_ENEMY_BONUS_PCT = Math.round((LASER_UPPER_ENEMY_BONUS - 1) * 100);
+const THUNDER_STACK_MAX_MUL_PCT = Math.round(THUNDER_STACK_DMG_PER_STACK * THUNDER_STACK_MAX * 100);
+
 export const WEAPON_META: WeaponMeta[] = [
   {
     kind: 'laser',
     name: 'LASER',
-    description: '単体特化の連射型レーザー',
+    description: `単体特化の連射型レーザー (上位敵に +${LASER_UPPER_ENEMY_BONUS_PCT}% ダメ)`,
     activeSkillDescription: '直線上の敵を殲滅する高威力の極太ビームを放つ',
     buildStats: buildLaserStats,
   },
@@ -232,14 +243,14 @@ export const WEAPON_META: WeaponMeta[] = [
   {
     kind: 'thunder',
     name: 'THUNDER',
-    description: '最大3体の敵に同時に雷を落とす',
+    description: `最大${THUNDER_BASE_CHAIN_COUNT}体に同時落雷 (同じ敵への連続ヒットで最大 +${THUNDER_STACK_MAX_MUL_PCT}%)`,
     activeSkillDescription: '射程無限の全範囲攻撃',
     buildStats: buildThunderStats,
   },
   {
     kind: 'cutter',
     name: 'CUTTER',
-    description: 'マシンの周囲を回転する2枚の刃',
+    description: `マシンの周囲を回転する${CUTTER_BLADES}枚の刃`,
     activeSkillDescription: '一定時間回転速度と攻撃力が大幅に増加する',
     buildStats: buildCutterStats,
   },
