@@ -135,12 +135,12 @@ describe('createEnemyTemplate: miniboss', () => {
     expect(t.speed).toBe(TIER_BASE.SPD * UPPER_SPD_MULT.miniboss);
   });
 
-  it('T=1 W=10 miniboss の HP は elite の 5 倍以上', () => {
+  it('T=1 W=10 miniboss の HP は elite の 3 倍 (UPPER_HP_MULT 30/10)', () => {
     const elite = createEnemyTemplate(1, 10, 'elite');
     const miniboss = createEnemyTemplate(1, 10, 'miniboss');
-    // UPPER_HP_MULT: elite=10, miniboss=50 → 5 倍
-    const eliteFive = elite.hp.mulInt(4);
-    expect(miniboss.hp.gt(eliteFive)).toBe(true);
+    // UPPER_HP_MULT: elite=10, miniboss=30 → ちょうど 3 倍 (誤差考慮で 2 倍以上)
+    const eliteTwo = elite.hp.mulInt(2);
+    expect(miniboss.hp.gt(eliteTwo)).toBe(true);
   });
 
   it('報酬の alloyChance が UPPER_REWARD.miniboss.alloyChance と一致', () => {
@@ -160,10 +160,10 @@ describe('createEnemyTemplate: boss', () => {
     expect(t.speed).toBe(TIER_BASE.SPD * UPPER_SPD_MULT.boss);
   });
 
-  it('T=1 W=30 boss の HP が最大', () => {
+  it('T=1 W=30 boss の HP が最大 (UPPER_HP_MULT.boss = 60)', () => {
     const normal = createEnemyTemplate(1, 30, 'normal', 'standard');
     const boss = createEnemyTemplate(1, 30, 'boss');
-    // boss HP mult = 250、normal の 250 倍
+    // boss HP mult = 60、normal の 60 倍
     expect(boss.hp.gt(normal.hp)).toBe(true);
   });
 

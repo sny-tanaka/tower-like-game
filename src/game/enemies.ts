@@ -41,8 +41,8 @@ export const NORMAL_SPD_MULT: Record<NormalSubtype, number> = {
 /** 上位敵の HP 倍率（Standard を ×1 として） */
 export const UPPER_HP_MULT: Record<Exclude<EnemyKind, 'normal'>, number> = {
   elite: 10,
-  miniboss: 50,
-  boss: 150,
+  miniboss: 30,
+  boss: 60,
 };
 
 /** 上位敵の ATK 倍率 */
