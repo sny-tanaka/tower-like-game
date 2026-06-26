@@ -17,6 +17,7 @@ import {
   scheduleHihat,
   scheduleNote,
   createDeterministicNoiseBuffer,
+  disconnectChainOnEnded,
 } from './helpers';
 import type { BgmTrack } from './types';
 
@@ -79,6 +80,9 @@ function scheduleSnare(
   gain.gain.exponentialRampToValueAtTime(0.0001, startTime + 0.13);
   noiseSrc.connect(bpf).connect(gain).connect(dest);
   noiseSrc.start(startTime);
+  // v1.1.4: stop + disconnect (旧実装はリーク)
+  noiseSrc.stop(startTime + 0.2);
+  disconnectChainOnEnded(noiseSrc, gain, bpf);
   outNodes.push(noiseSrc);
   // tone body
   scheduleNote(ctx, dest, 'triangle', 200, startTime, 0.08, peakGain * 0.4, undefined, outNodes);
@@ -158,6 +162,7 @@ function scheduleLoop(
     osc.connect(lpf).connect(gain).connect(dest);
     osc.start(loopStart);
     osc.stop(loopStart + LOOP_SEC + 0.05);
+    disconnectChainOnEnded(osc, gain, lpf);
     scheduledNodes.push(osc);
   }
 }

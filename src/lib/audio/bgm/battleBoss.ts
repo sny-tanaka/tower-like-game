@@ -17,6 +17,7 @@ import {
   scheduleKick,
   scheduleNote,
   createDeterministicNoiseBuffer,
+  disconnectChainOnEnded,
   CHORD_BM5B,
 } from './helpers';
 import type { BgmTrack } from './types';
@@ -60,6 +61,9 @@ function scheduleHeavySnare(
   gain.gain.exponentialRampToValueAtTime(0.0001, startTime + 0.18);
   noiseSrc.connect(bpf).connect(gain).connect(dest);
   noiseSrc.start(startTime);
+  // v1.1.4: stop + disconnect (旧実装はリーク)
+  noiseSrc.stop(startTime + 0.25);
+  disconnectChainOnEnded(noiseSrc, gain, bpf);
   outNodes.push(noiseSrc);
   scheduleNote(ctx, dest, 'sine', 120, startTime, 0.12, peakGain * 0.5, 300, outNodes);
 }
@@ -87,6 +91,7 @@ function scheduleLoop(
     osc.connect(lpf).connect(gain).connect(dest);
     osc.start(loopStart);
     osc.stop(loopStart + LOOP_SEC + 0.05);
+    disconnectChainOnEnded(osc, gain, lpf);
     scheduledNodes.push(osc);
   }
 
@@ -147,6 +152,7 @@ function scheduleLoop(
     osc.connect(lpf).connect(gain).connect(dest);
     osc.start(loopStart);
     osc.stop(loopStart + LOOP_SEC + 0.05);
+    disconnectChainOnEnded(osc, gain, lpf);
     scheduledNodes.push(osc);
   }
 
@@ -177,6 +183,9 @@ function scheduleLoop(
     gain.gain.setValueAtTime(0.04, loopStart);
     noiseSrc.connect(lpf).connect(gain).connect(dest);
     noiseSrc.start(loopStart);
+    // v1.1.4: stop + disconnect (旧実装はバッファ自然終了に頼っており disconnect なし)
+    noiseSrc.stop(loopStart + LOOP_SEC + 0.1);
+    disconnectChainOnEnded(noiseSrc, gain, lpf);
     scheduledNodes.push(noiseSrc as unknown as { stop(t: number): void });
   }
 }

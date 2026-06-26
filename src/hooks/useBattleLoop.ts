@@ -508,7 +508,7 @@ export function useBattleLoop({ paused = false }: UseBattleLoopOpts): UseBattleL
     }
   }, [currentTier, currentWave]);
 
-  // ---- ラン開始時に統計 3 state + tierCleared フラグをリセット ----
+  // ---- ラン開始時に統計 3 state + tierCleared フラグ + ref 系をリセット ----
   // isRunActive が false → true になる瞬間のみリセット (wave/tier 切替では isRunActive は変わらない)
   useEffect(() => {
     if (isRunActive) {
@@ -519,6 +519,25 @@ export function useBattleLoop({ paused = false }: UseBattleLoopOpts): UseBattleL
       // 前ラン (Tier クリア) で立った tierCleared が残っていれば確実にリセット
       setTierCleared(false);
       tierClearedRef.current = false;
+      // v1.1.4: ラン跨ぎで累積していた ref 系をリセット。
+      // Event ID counter 4 個は number なので容量上の問題は無いが、 ラン間で連番が
+      // 引き継がれると id 重複の懸念があるため明示的にゼロから振り直す。
+      damageEventIdRef.current = 0;
+      deathEventIdRef.current = 0;
+      projectileEventIdRef.current = 0;
+      appearanceEventIdRef.current = 0;
+      enemyIdCounterRef.current = 0;
+      // 着弾遅延砲弾 / Cutter pop キューは前ラン途中の未着弾分が残るとロジック不整合の元
+      pendingCannonShellsRef.current = [];
+      pendingCutterPopsRef.current = [];
+      // Fx 完了通知バッファも念のため空に (前ラン終了で flush 済みのはずだが二重防御)
+      pendingDamageRemovalsRef.current = new Set();
+      pendingDeathRemovalsRef.current = new Set();
+      pendingProjectileRemovalsRef.current = new Set();
+      pendingAppearanceRemovalsRef.current = new Set();
+      // 浮動小数 accumulator も初期化して低 fps 時の累積誤差をリセット
+      fireAccumulatorMsRef.current = 0;
+      cutterAngleDegRef.current = 0;
     }
   }, [isRunActive]);
 

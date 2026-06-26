@@ -10,7 +10,15 @@
  * スケジューラ: setInterval 100ms 周期で残り2小節以下になったら先読み追加
  */
 
-import { CHORD_AM, CHORD_C, CHORD_EM, CHORD_G, noteHz, scheduleNote } from './helpers';
+import {
+  CHORD_AM,
+  CHORD_C,
+  CHORD_EM,
+  CHORD_G,
+  disconnectChainOnEnded,
+  noteHz,
+  scheduleNote,
+} from './helpers';
 import type { BgmTrack } from './types';
 
 const BPM = 80;
@@ -58,6 +66,7 @@ function scheduleLoop(
     osc.connect(lpf).connect(gain).connect(dest);
     osc.start(loopStart);
     osc.stop(loopStart + LOOP_SEC + 0.05);
+    disconnectChainOnEnded(osc, gain, lpf);
     scheduledNodes.push(osc);
   }
 
@@ -90,6 +99,8 @@ function scheduleLoop(
       osc.connect(delay).connect(lpf).connect(feedGain).connect(dest);
       osc.start(chordStart);
       osc.stop(chordStart + chordDur + 0.5);
+      // v1.1.4: gain / delay / feedGain / lpf も disconnect (旧実装は全てリーク)
+      disconnectChainOnEnded(osc, gain, delay, feedGain, lpf);
       scheduledNodes.push(osc);
     }
   }
