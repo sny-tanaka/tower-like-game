@@ -46,6 +46,20 @@ export function tone(
   osc.connect(gain).connect(dest);
   osc.start(now);
   osc.stop(now + attackSec + releaseSec + 0.02);
+  // v1.1.4: onended で disconnect。 旧実装は stop しても disconnect しないため、
+  // ノードが audio graph から強参照されて GC されず audio thread の負荷が累積していた。
+  osc.onended = () => {
+    try {
+      osc.disconnect();
+    } catch {
+      /* already disconnected */
+    }
+    try {
+      gain.disconnect();
+    } catch {
+      /* already disconnected */
+    }
+  };
 }
 
 export function noiseBurst(
@@ -59,15 +73,39 @@ export function noiseBurst(
   const src = ctx.createBufferSource();
   src.buffer = createNoiseBuffer(ctx, durationSec);
   const gain = ctx.createGain();
+  let filterNode: BiquadFilterNode | undefined;
   envelope(gain, now, peak, 0.002, durationSec);
   if (filter) {
-    const f = ctx.createBiquadFilter();
-    f.type = filter.type;
-    f.frequency.value = filter.frequency;
-    if (filter.q !== undefined) f.Q.value = filter.q;
-    src.connect(f).connect(gain).connect(dest);
+    filterNode = ctx.createBiquadFilter();
+    filterNode.type = filter.type;
+    filterNode.frequency.value = filter.frequency;
+    if (filter.q !== undefined) filterNode.Q.value = filter.q;
+    src.connect(filterNode).connect(gain).connect(dest);
   } else {
     src.connect(gain).connect(dest);
   }
   src.start(now);
+  // v1.1.4: 明示 stop + onended で disconnect。 旧実装は src.stop() を呼ばず、
+  // AudioBufferSourceNode が audio graph から強参照されて GC されないまま蓄積し、
+  // ラン跨ぎで audio thread 負荷増 → 発熱の主因になっていた。
+  src.stop(now + durationSec + 0.05);
+  src.onended = () => {
+    try {
+      src.disconnect();
+    } catch {
+      /* already disconnected */
+    }
+    try {
+      gain.disconnect();
+    } catch {
+      /* already disconnected */
+    }
+    if (filterNode) {
+      try {
+        filterNode.disconnect();
+      } catch {
+        /* already disconnected */
+      }
+    }
+  };
 }

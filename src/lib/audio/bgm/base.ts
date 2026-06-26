@@ -11,7 +11,7 @@
  * スケジューラ: setInterval 100ms 周期、残り2小節で先読み
  */
 
-import { noteHz, scheduleKick, scheduleNote } from './helpers';
+import { disconnectChainOnEnded, noteHz, scheduleKick, scheduleNote } from './helpers';
 import type { BgmTrack } from './types';
 
 const BPM = 100;
@@ -128,6 +128,9 @@ function scheduleLoop(
       osc.connect(gain).connect(dest);
       osc.start(chordStart);
       osc.stop(chordStart + chordDur + 0.05);
+      // v1.1.4: onended で gain も disconnect。 旧実装は gain が scheduledNodes に
+      // push されておらず audio graph に残留 → ループごとに 12 個ずつ蓄積していた。
+      disconnectChainOnEnded(osc, gain);
       scheduledNodes.push(osc);
     }
   }

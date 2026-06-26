@@ -136,6 +136,35 @@ export interface StoppableNode {
 }
 
 /**
+ * v1.1.4: 音源ノードの再生終了 (stop or buffer 終端) で、 ぶら下がる全ノードを
+ * audio graph から disconnect するヘルパー。
+ *
+ * Web Audio の重要な落とし穴: OscillatorNode / AudioBufferSourceNode は stop() しても
+ * dest に connect されたまま強参照され、 後段の gain / filter ノードと一緒に GC されない。
+ * BGM のように毎ループ大量にノードを生成する場合、 disconnect なしだと audio graph に
+ * 数百〜数千個のノードが蓄積し audio thread の負荷増 → 発熱の主因になる。
+ */
+export function disconnectChainOnEnded(
+  source: AudioScheduledSourceNode,
+  ...extras: { disconnect(): void }[]
+): void {
+  source.onended = () => {
+    try {
+      source.disconnect();
+    } catch {
+      /* already disconnected */
+    }
+    for (const node of extras) {
+      try {
+        node.disconnect();
+      } catch {
+        /* already disconnected */
+      }
+    }
+  };
+}
+
+/**
  * ローパスフィルタを経由した短いゲイン包絡線付きノート。
  * BGM アルペジオなど短尺ノート向け。
  *
@@ -155,6 +184,7 @@ export function scheduleNote(
 ): void {
   const osc = ctx.createOscillator();
   const gain = ctx.createGain();
+  let filter: BiquadFilterNode | undefined;
   osc.type = type;
   osc.frequency.setValueAtTime(freq, startTime);
 
@@ -166,7 +196,7 @@ export function scheduleNote(
   gain.gain.exponentialRampToValueAtTime(0.0001, startTime + duration);
 
   if (filterFreq !== undefined) {
-    const filter = ctx.createBiquadFilter();
+    filter = ctx.createBiquadFilter();
     filter.type = 'lowpass';
     filter.frequency.value = filterFreq;
     filter.Q.value = 0.8;
@@ -177,6 +207,9 @@ export function scheduleNote(
 
   osc.start(startTime);
   osc.stop(startTime + duration + 0.02);
+  // v1.1.4: onended で gain / filter も disconnect。 旧実装は osc.stop() のみで
+  // gain / filter が audio graph に残留 → BGM ループごとに蓄積 → 発熱寄与。
+  disconnectChainOnEnded(osc, gain, ...(filter ? [filter] : []));
   outNodes?.push(osc);
 }
 
@@ -222,9 +255,12 @@ export function scheduleKick(
   osc.connect(gain).connect(dest);
   osc.start(startTime);
   osc.stop(startTime + 0.22);
+  disconnectChainOnEnded(osc, gain);
   outNodes?.push(osc);
 
   // Click: 短いノイズバースト (highpass)
+  // v1.1.4: noiseSrc.stop() を明示。 旧実装は stop なしで AudioBufferSourceNode が
+  // audio graph に残留し続け、 4 拍 / 小節 × 8 小節ループの蓄積で発熱寄与していた。
   const noiseSrc = ctx.createBufferSource();
   noiseSrc.buffer = createDeterministicNoiseBuffer(ctx, 0.04);
   const noiseGain = ctx.createGain();
@@ -235,6 +271,8 @@ export function scheduleKick(
   noiseGain.gain.exponentialRampToValueAtTime(0.0001, startTime + 0.04);
   noiseSrc.connect(hpf).connect(noiseGain).connect(dest);
   noiseSrc.start(startTime);
+  noiseSrc.stop(startTime + 0.05);
+  disconnectChainOnEnded(noiseSrc, noiseGain, hpf);
   outNodes?.push(noiseSrc);
 }
 
@@ -259,5 +297,8 @@ export function scheduleHihat(
   gain.gain.exponentialRampToValueAtTime(0.0001, startTime + duration);
   noiseSrc.connect(hpf).connect(gain).connect(dest);
   noiseSrc.start(startTime);
+  // v1.1.4: stop + disconnectChainOnEnded で disconnect (旧実装はリーク)
+  noiseSrc.stop(startTime + duration + 0.05);
+  disconnectChainOnEnded(noiseSrc, gain, hpf);
   outNodes?.push(noiseSrc);
 }
