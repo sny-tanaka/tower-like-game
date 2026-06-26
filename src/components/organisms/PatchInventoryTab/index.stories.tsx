@@ -3,6 +3,7 @@ import { useState } from 'react';
 
 import { PatchInventoryTab } from './index';
 
+import type { PatchName } from '@/data/schema';
 import type { PatchEntry } from '@/store/slices/patches';
 
 const meta: Meta<typeof PatchInventoryTab> = {
@@ -44,7 +45,7 @@ function WithEquippedStory() {
     <PatchInventoryTab
       overridePatches={samplePatches}
       overrideEquipped={
-        new Map<number, { name: string; tier: number }>([
+        new Map<number, { name: PatchName; tier: number }>([
           [0, { name: 'damageImmune', tier: 1 }],
           [1, { name: 'freezeHit', tier: 2 }],
         ])

@@ -2,47 +2,12 @@ import styles from './style.module.scss';
 
 import { Button } from '@/components/atoms/Button';
 import { Icon } from '@/components/atoms/Icon';
-import type { IconName } from '@/components/atoms/Icon';
 import { Text } from '@/components/atoms/Text';
 import { PatchSlot } from '@/components/molecules/PatchSlot';
 import type { PatchInfo } from '@/components/molecules/PatchSlot';
-import type { PatchName } from '@/data/schema';
+import { getPatchDisplayInfo } from '@/game/patches/displayInfo';
 import { useStore } from '@/store';
 import { MAX_PATCH_SLOTS } from '@/store/slices/equippedPatches';
-
-// ---------------------------------------------------------------------------
-// パッチメタデータ（表示名・アイコン・trigger・effect）
-// ---------------------------------------------------------------------------
-
-interface PatchMeta {
-  name: string;
-  iconName: IconName;
-  trigger: string;
-  effect: string;
-}
-
-const PATCH_META: Record<PatchName, PatchMeta> = {
-  instantKill: { name: '瞬殺装甲', iconName: 'skull', trigger: 'HP25%↓', effect: '敵を即死' },
-  bossKiller: { name: 'ボスキラー', iconName: 'target', trigger: 'ボス出現', effect: 'DMG +80%' },
-  doubleShot: { name: 'ダブルショット', iconName: 'spark', trigger: '常時', effect: '2 回攻撃' },
-  damageImmune: { name: 'ダメージ無敵', iconName: 'shield', trigger: 'HP50%↓', effect: '3 秒無敵' },
-  killHeal: { name: 'キルヒール', iconName: 'heart', trigger: '敵撃破', effect: 'HP +2%' },
-  shieldRegen: { name: 'シールド再生', iconName: 'shield', trigger: '毎秒', effect: 'HP +0.5%' },
-  bonusDrop: {
-    name: 'ボーナスドロップ',
-    iconName: 'spark',
-    trigger: '撃破時',
-    effect: 'ドロップ +30%',
-  },
-  boltCast: {
-    name: 'ボルトキャスト',
-    iconName: 'lightning',
-    trigger: '攻撃時',
-    effect: 'ボルト獲得',
-  },
-  freezeHit: { name: '氷結トリガー', iconName: 'ice', trigger: 'クリ時', effect: '2 秒凍結' },
-  burnHit: { name: '連鎖燃焼', iconName: 'flame', trigger: '貫通時', effect: '周囲焼夷' },
-};
 
 // ---------------------------------------------------------------------------
 // 型定義
@@ -76,14 +41,14 @@ export function EquippedPatchesTab({ onOpenPatchScreen }: EquippedPatchesTabProp
   for (let i = 0; i < slotCount; i++) {
     const entry = equippedPatches.get(i);
     if (entry != null) {
-      const meta = PATCH_META[entry.name];
+      const info = getPatchDisplayInfo(entry.name, entry.tier);
       const patchInfo: PatchInfo = {
         patchId: `${entry.name}#${entry.tier}`,
-        name: meta.name,
-        iconName: meta.iconName,
+        name: info.name,
+        iconName: info.iconName,
         tier: entry.tier,
-        trigger: meta.trigger,
-        effect: meta.effect,
+        trigger: info.trigger,
+        effect: info.effect,
         count: 1,
       };
       slots.push({ kind: 'filled', patch: patchInfo, idx: i + 1 });

@@ -4,6 +4,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 import { PatchEquipTab } from './index';
 
+import type { PatchName } from '@/data/schema';
 import { soundEngine } from '@/lib/audio';
 import { useStore } from '@/store';
 import type { PatchEntry } from '@/store/slices/patches';
@@ -58,7 +59,7 @@ describe('PatchEquipTab', () => {
       equippedPatches: new Map([[0, { name: 'damageImmune', tier: 1 }]]),
     });
 
-    const equipped = new Map<number, { name: string; tier: number }>([
+    const equipped = new Map<number, { name: PatchName; tier: number }>([
       [0, { name: 'damageImmune', tier: 1 }],
     ]);
     const { rerender } = render(
@@ -70,7 +71,7 @@ describe('PatchEquipTab', () => {
     );
 
     // Slot 1 が filled でクリック可能
-    const slot1 = screen.getByLabelText(/Slot 1: damageImmune/i);
+    const slot1 = screen.getByLabelText(/Slot 1: ダメージ無効/);
     await user.click(slot1);
 
     // rerender after state update
@@ -118,7 +119,7 @@ describe('PatchEquipTab', () => {
     expect(screen.getByText(/スロット 1 に装着/)).toBeDefined();
 
     // 候補から freezeHit (Tier 2) を選択
-    const freezeCard = screen.getByRole('button', { name: /freezeHit/i });
+    const freezeCard = screen.getByRole('button', { name: /凍結ヒット/ });
     await user.click(freezeCard);
 
     // store に equip された
@@ -127,7 +128,7 @@ describe('PatchEquipTab', () => {
   });
 
   it('装着数カウントが正しく表示される', () => {
-    const equipped = new Map<number, { name: string; tier: number }>([
+    const equipped = new Map<number, { name: PatchName; tier: number }>([
       [0, { name: 'damageImmune', tier: 1 }],
       [1, { name: 'freezeHit', tier: 2 }],
     ]);
@@ -161,7 +162,7 @@ describe('PatchEquipTab', () => {
       render(<PatchEquipTab />);
 
       await user.click(screen.getByLabelText('Slot 1 (empty)'));
-      const freezeCard = screen.getByRole('button', { name: /freezeHit/i });
+      const freezeCard = screen.getByRole('button', { name: /凍結ヒット/ });
       await user.click(freezeCard);
 
       expect(soundEngine.play).toHaveBeenCalledWith('purchaseOk');

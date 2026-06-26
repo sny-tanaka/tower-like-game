@@ -2,6 +2,7 @@ import type { Meta, StoryObj } from '@storybook/react';
 
 import { PatchEquipTab } from './index';
 
+import type { PatchName } from '@/data/schema';
 import type { PatchEntry } from '@/store/slices/patches';
 
 const meta: Meta<typeof PatchEquipTab> = {
@@ -23,7 +24,7 @@ const samplePatches = new Map<string, PatchEntry>([
   ['burnHit#4', { name: 'burnHit', tier: 4, count: 1 }],
 ]);
 
-const sampleEquipped = new Map<number, { name: string; tier: number }>([
+const sampleEquipped = new Map<number, { name: PatchName; tier: number }>([
   [0, { name: 'damageImmune', tier: 1 }],
   [1, { name: 'freezeHit', tier: 2 }],
 ]);
@@ -59,7 +60,7 @@ export const InitialSlot: Story = {
 export const FullEquipped: Story = {
   args: {
     overridePatches: samplePatches,
-    overrideEquipped: new Map<number, { name: string; tier: number }>([
+    overrideEquipped: new Map<number, { name: PatchName; tier: number }>([
       [0, { name: 'damageImmune', tier: 1 }],
       [1, { name: 'freezeHit', tier: 2 }],
       [2, { name: 'instantKill', tier: 3 }],
