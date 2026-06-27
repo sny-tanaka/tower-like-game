@@ -1,3 +1,4 @@
+import { memo } from 'react';
 import type { CSSProperties } from 'react';
 
 import styles from './style.module.scss';
@@ -88,7 +89,7 @@ function DeltaPrefix({ delta, sizeClass }: DeltaPrefixProps) {
 // コンポーネント
 // ---------------------------------------------------------------------------
 
-export function CurrencyAmount({
+function CurrencyAmountImpl({
   currency,
   value,
   size = 'md',
@@ -179,3 +180,48 @@ export function CurrencyAmount({
     </span>
   );
 }
+
+// ---------------------------------------------------------------------------
+// memo + 数値同値比較 (v1.3.7 Phase 5: BigNum 表示量子化)
+// ---------------------------------------------------------------------------
+//
+// 親 (BattleHudBottom など) が `useStore((s) => s.screw)` で BigNum を購読すると、 同じ数値でも
+// addScrew 系のアクションを経由した結果 BigNum インスタンスが入れ替わる場合がある (= zustand の
+// Object.is 比較で differ 判定 → 親 component 再 render → 子 CurrencyAmount も毎回再 render)。
+//
+// CurrencyAmount は表示が `aria-label="screw 1.20A"` のような文字列単位で決まるため、 BigNum の
+// **数値が同値であれば描画結果は同じ** という性質がある。 React.memo + カスタム比較で
+// `prev.value.eq(next.value)` を取れば、 同値 BigNum はスキップでき、 整数桁が変わったとき
+// (= toDisplay() の結果が変わったとき) だけ再 render される。
+//
+// 他の props (currency / size / delta / showLabel / subtle / align / ranked) は primitives なので
+// Object.is で比較すれば十分。
+function areCurrencyAmountPropsEqual(
+  prev: CurrencyAmountProps,
+  next: CurrencyAmountProps
+): boolean {
+  if (
+    prev.currency !== next.currency ||
+    prev.size !== next.size ||
+    prev.delta !== next.delta ||
+    prev.showLabel !== next.showLabel ||
+    prev.subtle !== next.subtle ||
+    prev.align !== next.align ||
+    prev.ranked !== next.ranked
+  ) {
+    return false;
+  }
+  return bignumOrNumberEq(prev.value, next.value);
+}
+
+function bignumOrNumberEq(a: BigNum | number, b: BigNum | number): boolean {
+  // 1) 参照同値ならスキップ
+  if (a === b) return true;
+  // 2) 片方 number / 片方 BigNum の混在は数値同値で比較 (BigNum.fromNumber 経由)
+  const aBn = typeof a === 'number' ? BigNum.fromNumber(a) : a;
+  const bBn = typeof b === 'number' ? BigNum.fromNumber(b) : b;
+  return aBn.eq(bBn);
+}
+
+export const CurrencyAmount = memo(CurrencyAmountImpl, areCurrencyAmountPropsEqual);
+CurrencyAmount.displayName = 'CurrencyAmount';

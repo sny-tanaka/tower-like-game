@@ -8,6 +8,8 @@ import { ProgressBar } from '@/components/atoms/ProgressBar';
 import { Text } from '@/components/atoms/Text';
 import { WaveProgressBar } from '@/components/molecules/WaveProgressBar';
 import type { WaveMilestone } from '@/components/molecules/WaveProgressBar';
+import { useEntityStore } from '@/game/store/BattleEntityStoreContext';
+import { WAVE_DURATION_SEC } from '@/game/wave';
 import { BigNum } from '@/lib/bignum/BigNum';
 import { useStore } from '@/store/index';
 
@@ -17,10 +19,6 @@ export interface BattleHudTopProps {
   shieldMax?: BigNum;
   /** 総 Wave 数 */
   totalWaves: number;
-  /** ウェーブ残り秒数 */
-  secondsRemaining: number;
-  /** ウェーブ合計秒数 */
-  secondsTotal: number;
   /** ボスウェーブかどうか */
   isBossWave?: boolean;
   /** 次のマイルストーン */
@@ -45,13 +43,22 @@ export interface BattleHudTopProps {
  * を撤去し、 内部で `useStore` selector を直接購読する。 さらに `React.memo` でラップして、
  * 自身が subscribe している値が変化したフレーム + 親 props (secondsRemaining 等) が変化した
  * フレームだけ再 render するようにした (= Page の re-render が BattleHudTop に伝播しない)。
+ *
+ * v1.3.7 Phase 5: 親 (Page) から prop drilling していた `secondsRemaining` / `secondsTotal`
+ * を撤去し、 `useEntityStore()` で entityStore を取得 → 内部で
+ * `WAVE_DURATION_SEC - entityStore.getWaveElapsedSec()` を計算する。
+ *
+ * 注: WaveProgressBar 内の `AnimatedTimerBar` はマウント時の `secondsRemaining` だけを
+ * snapshot して以後は CSS animation で連続描画する設計のため、 BattleHudTop が毎フレーム
+ * 再 render する必要はない (= entityStore に `useSyncExternalStore` で reactive 購読する必要なし)。
+ * BattleHudTop は内部 selector (currentWave / isPaused / machineHp 等) が変化したフレームに
+ * 再 render され、 そのタイミングで最新の `entityStore.getWaveElapsedSec()` が
+ * AnimatedTimerBar の `key={waveNumber}` 再マウント時の初期値として渡る。
  */
 function BattleHudTopImpl({
   shieldCurrent,
   shieldMax,
   totalWaves,
-  secondsRemaining,
-  secondsTotal,
   isBossWave = false,
   nextMilestone,
   isResultOpen = false,
@@ -64,6 +71,15 @@ function BattleHudTopImpl({
   const currentTier = useStore((s) => s.currentTier);
   const currentWave = useStore((s) => s.currentWave);
   const isPaused = useStore((s) => s.isPaused);
+
+  // ── wave 残り秒数: entityStore から直接取得 (Page を経由しない、 reactive 購読もしない) ──
+  // AnimatedTimerBar はマウント時 (= 親 component が key={waveNumber} 切替で再マウント) の
+  // 初期値を CSS animation の起点として 1 度だけ参照する。 毎フレーム reactive に追従する
+  // 必要がないため、 useSyncExternalStore は使わない (= BattleHudTop の毎フレーム再 render を回避)。
+  const entityStore = useEntityStore();
+  const waveElapsedSec = entityStore.getWaveElapsedSec();
+  const secondsRemaining = Math.max(0, WAVE_DURATION_SEC - waveElapsedSec);
+  const secondsTotal = WAVE_DURATION_SEC;
 
   // machineMaxHp が 0 (ラン外) のときは 1 にクランプ (computeRatio の 0 除算回避)
   // (旧 Page 側 hpMaxBn useMemo の移譲)

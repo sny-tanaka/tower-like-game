@@ -1,3 +1,4 @@
+import { memo } from 'react';
 import type { CSSProperties } from 'react';
 
 import styles from './style.module.scss';
@@ -123,7 +124,7 @@ function resolveGlow(accentColor: Exclude<NumericDisplayAccentColor, 'scale'>): 
 // コンポーネント
 // ---------------------------------------------------------------------------
 
-export function NumericDisplay({
+function NumericDisplayImpl({
   value,
   size = 'md',
   accentColor = 'scale',
@@ -183,3 +184,54 @@ export function NumericDisplay({
     </span>
   );
 }
+
+// ---------------------------------------------------------------------------
+// memo + 数値同値比較 (v1.3.7 Phase 5: BigNum 表示量子化)
+// ---------------------------------------------------------------------------
+//
+// machineHp は被ダメごとに新 BigNum インスタンスで更新される。 BattleHudTop が React.memo で
+// ラップ済みでも、 内部 selector (= machineHp) が変化したフレームは BattleHudTop ごと再 render
+// する。 そのときの NumericDisplay も毎フレーム描画されるが、 表示文字列が同じなら出力 DOM は
+// 等価のはず → memo + 数値同値比較で「BigNum 同値ならスキップ」 する。
+//
+// `style` は CSSProperties (オブジェクト)。 親で useMemo していなければ毎 render 新参照になり
+// memo が効かないので、 ここではキー単位の浅い比較を行う。
+function areNumericDisplayPropsEqual(
+  prev: NumericDisplayProps,
+  next: NumericDisplayProps
+): boolean {
+  if (
+    prev.size !== next.size ||
+    prev.accentColor !== next.accentColor ||
+    prev.glow !== next.glow ||
+    prev.prefix !== next.prefix ||
+    prev.suffix !== next.suffix ||
+    prev.decimals !== next.decimals
+  ) {
+    return false;
+  }
+  if (!shallowStyleEq(prev.style, next.style)) return false;
+  return numericValueEq(prev.value, next.value);
+}
+
+function numericValueEq(a: BigNum | number, b: BigNum | number): boolean {
+  if (a === b) return true;
+  const aBn = typeof a === 'number' ? BigNum.fromNumber(a) : a;
+  const bBn = typeof b === 'number' ? BigNum.fromNumber(b) : b;
+  return aBn.eq(bBn);
+}
+
+function shallowStyleEq(a: CSSProperties | undefined, b: CSSProperties | undefined): boolean {
+  if (a === b) return true;
+  if (a == null || b == null) return false;
+  const aKeys = Object.keys(a);
+  const bKeys = Object.keys(b);
+  if (aKeys.length !== bKeys.length) return false;
+  for (const k of aKeys) {
+    if ((a as Record<string, unknown>)[k] !== (b as Record<string, unknown>)[k]) return false;
+  }
+  return true;
+}
+
+export const NumericDisplay = memo(NumericDisplayImpl, areNumericDisplayPropsEqual);
+NumericDisplay.displayName = 'NumericDisplay';

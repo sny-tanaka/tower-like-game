@@ -321,14 +321,6 @@ export type { AppearanceEvent } from '@/game/store/BattleEntityStore';
 
 export interface UseBattleLoopResult {
   /**
-   * 現在 wave 内の経過秒 (0 〜 WAVE_DURATION_SEC)
-   *
-   * v1.3.7 (Phase 2-C フォローアップ): enemies は廃止 (BattleField + useBossPhase が
-   * entityStore 経由で取得)。 waveElapsedSec は Page で WaveProgressBar 表示に使うため残置。
-   * Phase 4 で BattleHudTop に分散するときに整理予定。
-   */
-  waveElapsedSec: number;
-  /**
    * アクティブスキル発動。 store.triggerActive (CD セット + activeCdSec=max) を呼んだ上で、
    * 現在装備武器に応じて Mega Beam / Volley / Plasma Discharge / Overdrive を実行する。
    * 既存の triggerActive() を直接呼ぶ代わりにこの関数を使うと、 SE / 視覚 Fx / 敵 HP 減算
@@ -478,7 +470,11 @@ export function useBattleLoop({
   // v1.3.7 (Phase 2-C フォローアップ): const [enemies, setEnemies] を廃止。 戻り値の enemies は
   // Page で消費されなくなったため、 React state を維持する意味がない (entityStore.getEnemies()
   // で 4 layer が取得する)。 useBattleLoop 自体の毎フレーム re-render trigger が 1 本減る。
-  const [waveElapsedSec, setWaveElapsedSec] = useState<number>(0);
+  //
+  // v1.3.7 (Phase 5): waveElapsedSec の React state も廃止。 BattleHudTop が
+  // entityStore.getWaveElapsedSec() を直接購読するようになったため、 useBattleLoop で
+  // useState→setState する必要がない (= Page / useBattleLoop の毎フレーム再 render を切る)。
+  // tick 内では entityStore.setWaveElapsedSec(...) のみ呼び、 notifyFrame() で listener に通知する。
   const [isOverdriveActive, setIsOverdriveActive] = useState<boolean>(false);
 
   // v1.3.7 (Phase 2-A→C): events は ref + entityStore のみ。 React state (useState 4 本) は
@@ -532,11 +528,12 @@ export function useBattleLoop({
       entityStore.consumePendingRemovals('projectile');
       entityStore.consumePendingRemovals('appearance');
     } else {
-      setWaveElapsedSec(waveElapsedMsRef.current / 1000);
       // v1.3.7 (Phase 2-A→3-B): スクリーンセーバー解除時の sync。 Phase 3-B 以降は tick が
       // addEnemy / removeEnemy で随時 entityStore.enemies を最新化しているため、 ここで
       // `setEnemies(enemiesRef.current)` を呼び直す必要はなくなった (= 一括 sync 廃止)。
       // events は空のまま (= 残 Fx 復活させない)。 waveElapsedSec のみ sync + notifyFrame()。
+      // (Phase 5: setWaveElapsedSec の React state は廃止。 entityStore.setWaveElapsedSec で
+      //  listener に通知すれば BattleHudTop が再 render される)
       entityStore.setWaveElapsedSec(waveElapsedMsRef.current / 1000);
       entityStore.notifyFrame();
     }
@@ -621,7 +618,11 @@ export function useBattleLoop({
     if (reset.resetElapsed) {
       waveElapsedMsRef.current = 0;
       prevWaveElapsedMsRef.current = 0;
-      setWaveElapsedSec(0);
+      // v1.3.7 (Phase 5): React state 廃止に伴い entityStore に直接書き込む。
+      // notifyFrame は同 useEffect 末尾で呼ばれないため、 ここではブロードキャストせず
+      // 次フレームの tick 末尾の notifyFrame でまとめて配信される (= ラン開始直後は
+      // tick が即時に再 sync するので 1 フレームのラグも実害なし)。
+      entityStore.setWaveElapsedSec(0);
     }
     if (reset.resetEnemies) {
       enemiesRef.current = [];
@@ -1816,7 +1817,8 @@ export function useBattleLoop({
         // 「全体 listener (フレーム更新)」 + 「pending Set にたまった敵単位 mark の listener」
         // をまとめて呼ぶ。 復帰時 (suspendRendering=false 切替) は useEffect で 1 回 sync する。
         if (!suspendRenderingRef.current) {
-          setWaveElapsedSec(waveElapsedMsRef.current / 1000);
+          // v1.3.7 (Phase 5): React state (setWaveElapsedSec) は廃止。 entityStore に
+          // 直接書き込んで notifyFrame で BattleHudTop の useSyncExternalStore に通知する。
           entityStore.setWaveElapsedSec(waveElapsedMsRef.current / 1000);
           entityStore.setDamageEvents(damageEventsRef.current);
           entityStore.setDeathEvents(deathEventsRef.current);
@@ -1861,7 +1863,6 @@ export function useBattleLoop({
   }, [isRunActive, tierWaves, fireActive, entityStore]);
 
   return {
-    waveElapsedSec,
     fireActive,
     isOverdriveActive,
     killCount,

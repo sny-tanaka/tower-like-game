@@ -53,7 +53,6 @@ function makeUseBattleLoopReturn(
   overrides: Partial<UseBattleLoopResult> = {}
 ): UseBattleLoopResult {
   return {
-    waveElapsedSec: 0,
     fireActive: vi.fn().mockReturnValue(true),
     isOverdriveActive: false,
     killCount: 42,

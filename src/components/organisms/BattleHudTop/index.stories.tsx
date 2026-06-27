@@ -1,8 +1,11 @@
 import type { Meta, StoryObj } from '@storybook/react';
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 
 import { BattleHudTop } from './index';
 
+import { BattleEntityStore } from '@/game/store/BattleEntityStore';
+import { BattleEntityStoreProvider } from '@/game/store/BattleEntityStoreContext';
+import { WAVE_DURATION_SEC } from '@/game/wave';
 import { BigNum } from '@/lib/bignum/BigNum';
 import { resetBattleState, seedBattleState } from '@/test-utils/seedBattleState';
 
@@ -24,8 +27,12 @@ interface StoryArgs {
   tier: number;
   wave: number;
   totalWaves: number;
+  /**
+   * v1.3.7 Phase 5: BattleHudTop は内部で entityStore.getWaveElapsedSec() を呼ぶようになったため、
+   * secondsRemaining は entityStore.setWaveElapsedSec(WAVE_DURATION_SEC - secondsRemaining)
+   * で初期化される。
+   */
   secondsRemaining: number;
-  secondsTotal: number;
   isBossWave?: boolean;
   nextMilestoneKind?: 'elite' | 'boss' | 'tier-up';
   nextMilestoneWave?: number;
@@ -47,20 +54,30 @@ function StoryHarness(args: StoryArgs) {
     });
   }, [args.hp, args.hpMax, args.tier, args.wave, args.isPaused]);
 
+  // v1.3.7 Phase 5: BattleHudTop は内部で `useEntityStore()` を呼ぶため Provider が必須。
+  // secondsRemaining args は entityStore.setWaveElapsedSec(WAVE_DURATION_SEC - secondsRemaining)
+  // で再現する。
+  const entityStoreRef = useRef<BattleEntityStore | null>(null);
+  if (entityStoreRef.current === null) {
+    entityStoreRef.current = new BattleEntityStore();
+  }
+  const entityStore = entityStoreRef.current;
+  entityStore.setWaveElapsedSec(Math.max(0, WAVE_DURATION_SEC - args.secondsRemaining));
+
   const nextMilestone =
     args.nextMilestoneKind != null && args.nextMilestoneWave != null
       ? { wave: args.nextMilestoneWave, kind: args.nextMilestoneKind }
       : undefined;
 
   return (
-    <BattleHudTop
-      totalWaves={args.totalWaves}
-      secondsRemaining={args.secondsRemaining}
-      secondsTotal={args.secondsTotal}
-      isBossWave={args.isBossWave}
-      nextMilestone={nextMilestone}
-      isResultOpen={args.isResultOpen}
-    />
+    <BattleEntityStoreProvider store={entityStore}>
+      <BattleHudTop
+        totalWaves={args.totalWaves}
+        isBossWave={args.isBossWave}
+        nextMilestone={nextMilestone}
+        isResultOpen={args.isResultOpen}
+      />
+    </BattleEntityStoreProvider>
   );
 }
 
@@ -96,7 +113,6 @@ export const Default: Story = {
     wave: 5,
     totalWaves: 30,
     secondsRemaining: 18,
-    secondsTotal: 26,
     isBossWave: false,
   },
 };
@@ -114,7 +130,6 @@ export const LowHp: Story = {
     wave: 12,
     totalWaves: 30,
     secondsRemaining: 8,
-    secondsTotal: 26,
     isBossWave: false,
   },
 };
@@ -132,7 +147,6 @@ export const BossWave: Story = {
     wave: 30,
     totalWaves: 30,
     secondsRemaining: 3,
-    secondsTotal: 26,
     isBossWave: true,
     nextMilestoneKind: 'boss',
     nextMilestoneWave: 30,
@@ -152,7 +166,6 @@ export const EliteWave: Story = {
     wave: 9,
     totalWaves: 30,
     secondsRemaining: 20,
-    secondsTotal: 26,
     isBossWave: false,
     nextMilestoneKind: 'elite',
     nextMilestoneWave: 10,
@@ -172,7 +185,6 @@ export const HighTier: Story = {
     wave: 22,
     totalWaves: 30,
     secondsRemaining: 14,
-    secondsTotal: 26,
     isBossWave: false,
     nextMilestoneKind: 'tier-up',
     nextMilestoneWave: 30,

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 
 import styles from './style.module.scss';
 
@@ -13,10 +13,6 @@ import { AppearanceBannerLayer } from '@/components/organisms/BattleField/Appear
 import { BattleHudBottom } from '@/components/organisms/BattleHudBottom';
 import { BattleHudTop } from '@/components/organisms/BattleHudTop';
 import { BattleMenuOverlay } from '@/components/organisms/BattleMenuOverlay';
-import {
-  MACHINE_UPGRADE_ITEMS,
-  calcEffectValue,
-} from '@/components/organisms/MachineUpgradeList/items';
 import { ResultDialog } from '@/components/organisms/ResultDialog';
 import { RunWorkshopBottomSheet } from '@/components/organisms/RunWorkshopBottomSheet';
 import {
@@ -26,7 +22,6 @@ import {
 import { ScreenSaverDialog } from '@/components/organisms/ScreenSaverDialog';
 import type { PatchDrop } from '@/game/patches/drops';
 import { BattleEntityStoreProvider } from '@/game/store/BattleEntityStoreContext';
-import { WAVE_DURATION_SEC } from '@/game/wave';
 import {
   CUTTER_OVERDRIVE_ATTACK_SPEED_MUL,
   calcCutterRotateMs,
@@ -35,6 +30,7 @@ import {
 import { WEAPON_RANGE_PCT } from '@/game/weapons/range';
 import { ATTACK_PER_SEC_CAP, useBattleLoop } from '@/hooks/useBattleLoop';
 import { useBossPhase } from '@/hooks/useBossPhase';
+import { useDerivedMachineStats } from '@/hooks/useDerivedMachineStats';
 import { useResultStatus } from '@/hooks/useResultStatus';
 import { soundEngine } from '@/lib/audio';
 import { useStore } from '@/store/index';
@@ -92,10 +88,9 @@ export function Page() {
   // (v1.3.7 Phase 4-B: HUD 下段の equippedWeapon は BattleHudBottom 内部 selector に移譲)
   const currentWeapon = useStore((s) => s.currentWeapon);
   const weaponLv = useStore((s) => s.weaponLv);
-  // machineLevels は BattleField の machineRangePx / machineAttackSpeedMul で使う。
-  // (v1.3.7 Phase 4-B: activeCdReduction は BattleHudBottom 内部に移譲したので Page では
-  // range / attackSpeed の派生だけ実施)
-  const machineLevels = useStore((s) => s.machineLevels);
+  // v1.3.7 Phase 5: machineLevels の subscribe は useDerivedMachineStats hook 内部に移譲した
+  // (range / attackSpeed の 2 フィールドだけをピンポイント subscribe するため、 他の machineLevels
+  // 変化で Page が再 render しなくなる)。 Page では呼び出しのみ。
   const isPaused = useStore((s) => s.isPaused);
   // v1.3.7 Phase 4-C: runWorkshopLevels は BattleField 側で
   // calcRunWorkshopMultiplier(runWorkshopLevels.attackSpeedMul) を計算する Cutter rotateMs の
@@ -217,8 +212,9 @@ export function Page() {
 
   // ── ゲームループ (敵 spawn / 武器発射 / ダメージ / 撃破 / 被ダメ / 弾道 / ドロップ) ──
   // ResultDialog 表示中 (撤退 / gameover) は paused で完全停止させる
+  // v1.3.7 Phase 5: waveElapsedSec は useBattleLoop の戻り値から削除。
+  // BattleHudTop が entityStore.getWaveElapsedSec() を直接読むため Page は中継しない。
   const {
-    waveElapsedSec,
     fireActive,
     isOverdriveActive,
     killCount,
@@ -264,30 +260,21 @@ export function Page() {
     soundEngine.playBgm(bossPhase ? 'battleBoss' : 'battleNormal');
   }, [bossPhase, isScreenSaverOpen]);
 
-  // Wave 残り時間: 0 になったら advanceWave が走り経過秒はリセットされる
-  const waveSecondsRemaining = Math.max(0, WAVE_DURATION_SEC - waveElapsedSec);
+  // v1.3.7 Phase 5: Wave 残り時間の計算は BattleHudTop 内部で
+  // `WAVE_DURATION_SEC - entityStore.getWaveElapsedSec()` として閉じ込めた。
+  // Page では waveSecondsRemaining を計算しない。
 
   // HitEvent (EnemyHitFx) は別途配線予定。 当面はモジュール定数の空配列を使い回す (H2-4)
   const hitEvents = EMPTY_HIT_EVENTS;
 
-  // マシン索敵距離 (range_asymptotic: 150 → 450 px、Lv 100 で 300)。
-  // BattleField の range prop は **直径 %** を渡す: WEAPON_RANGE_PCT × (machineRange / 150)。
+  // v1.3.7 Phase 5: マシン強化の派生 (索敵距離 px / 攻撃速度倍率) を useDerivedMachineStats
+  // hook に集約。 Page から `machineLevels` selector と useMemo 2 本が消える。
+  // (range_asymptotic: 150 → 450 px、Lv 100 で 300 / linear: 1.0 + 0.05/Lv, maxLv 99)
+  //
+  // BattleField の range prop は **直径 %** を渡す: WEAPON_RANGE_PCT × (machineRangePx / 150)。
   // useBattleLoop 側は machineTick.range を読んで /2 して半径として当たり判定に使う (二重計算)。
   // 描画用にここでも machineLevels.range から導出する。
-  const machineRangePx = useMemo(() => {
-    const item = MACHINE_UPGRADE_ITEMS.find((i) => i.key === 'range');
-    if (item == null) return 150;
-    return calcEffectValue(item, machineLevels.range);
-  }, [machineLevels.range]);
-
-  // マシン強化「攻撃速度」倍率 (linear: 1.0 + 0.05/Lv, maxLv 99)。
-  // useBattleLoop の effectivePerSec が machineTick.attackSpeed を乗算しているので、
-  // Cutter の rotateMs も同じ倍率を含めて視覚と当たり判定を同期する。
-  const machineAttackSpeedMul = useMemo(() => {
-    const item = MACHINE_UPGRADE_ITEMS.find((i) => i.key === 'attackSpeed');
-    if (item == null) return 1;
-    return calcEffectValue(item, machineLevels.attackSpeed);
-  }, [machineLevels.attackSpeed]);
+  const { machineRangePx, machineAttackSpeedMul } = useDerivedMachineStats();
 
   // v1.3.7 Phase 4-B: 以下の派生計算は BattleHudBottom 内部に移譲済み:
   //   - weaponCds (currentWeapon / weaponSwitchCdSec から計算)
@@ -425,8 +412,6 @@ export function Page() {
             header={
               <BattleHudTop
                 totalWaves={TOTAL_WAVES}
-                secondsRemaining={waveSecondsRemaining}
-                secondsTotal={WAVE_DURATION_SEC}
                 isBossWave={currentWave === TOTAL_WAVES}
                 isResultOpen={isResultOpen}
               />
