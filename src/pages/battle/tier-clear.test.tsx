@@ -54,15 +54,7 @@ function makeUseBattleLoopReturn(
 ): UseBattleLoopResult {
   return {
     enemies: [],
-    damageEvents: [],
-    deathEvents: [],
-    projectileEvents: [],
-    appearanceEvents: [],
     waveElapsedSec: 0,
-    onDamageDone: vi.fn(),
-    onDeathDone: vi.fn(),
-    onProjectileDone: vi.fn(),
-    onAppearanceDone: vi.fn(),
     fireActive: vi.fn().mockReturnValue(true),
     isOverdriveActive: false,
     killCount: 42,

@@ -9,6 +9,7 @@ import { WaveStartFx } from '@/components/fx/WaveStartFx';
 import { AppShell } from '@/components/organisms/AppShell';
 import { BattleField } from '@/components/organisms/BattleField';
 import type { HitEvent } from '@/components/organisms/BattleField';
+import { AppearanceBannerLayer } from '@/components/organisms/BattleField/AppearanceBannerLayer';
 import { BattleHudBottom } from '@/components/organisms/BattleHudBottom';
 import { BattleHudTop } from '@/components/organisms/BattleHudTop';
 import { BattleMenuOverlay } from '@/components/organisms/BattleMenuOverlay';
@@ -33,6 +34,7 @@ import {
 } from '@/game/weapons/cutter';
 import { WEAPON_RANGE_PCT } from '@/game/weapons/range';
 import { ATTACK_PER_SEC_CAP, DEFAULT_ACTIVE_MAX_SEC, useBattleLoop } from '@/hooks/useBattleLoop';
+import { useBossPhase } from '@/hooks/useBossPhase';
 import { soundEngine } from '@/lib/audio';
 import { BigNum } from '@/lib/bignum/BigNum';
 import { useStore } from '@/store/index';
@@ -209,16 +211,7 @@ export function Page() {
   // ── ゲームループ (敵 spawn / 武器発射 / ダメージ / 撃破 / 被ダメ / 弾道 / ドロップ) ──
   // ResultDialog 表示中 (撤退 / gameover) は paused で完全停止させる
   const {
-    enemies,
-    damageEvents,
-    deathEvents,
-    projectileEvents,
     waveElapsedSec,
-    onDamageDone,
-    onDeathDone,
-    onProjectileDone,
-    appearanceEvents,
-    onAppearanceDone,
     fireActive,
     isOverdriveActive,
     killCount,
@@ -244,21 +237,13 @@ export function Page() {
   }, [tierCleared]);
 
   // ── BGM: ボス出現を契機に切替 (App.tsx の画面別 BGM を bossPhase 中だけ上書き) ──
-  // wave 30 開始時点では BGM は battleNormal のまま。 wave 開始 25 秒後にボスがスポーン
-  // (= AppearanceBannerFx と同時) するタイミングで battleBoss に切替。 ボス撃破で
-  // enemies からボスが消えた後も、 currentWave === 30 のうちは bossPhase を維持し、
-  // TierClearFx の演出中も battleBoss を流し続ける (advanceTier で wave=1 に戻る瞬間に解除)。
-  // (BUG-W30-2: 旧実装は currentWave===30 だけで判定していたため、 wave 30 開始直後
-  //  (= ボス出現の 25 秒前) から battleBoss に切替わってしまっていた)
-  const [bossPhase, setBossPhase] = useState(false);
-  useEffect(() => {
-    if (enemies.some((e) => e.kind === 'boss')) {
-      setBossPhase(true);
-    }
-  }, [enemies]);
-  useEffect(() => {
-    if (currentWave !== 30) setBossPhase(false);
-  }, [currentWave]);
+  // v1.3.7 (Phase 2-C): Page の useEffect([enemies]) 監視を useBossPhase hook に切り出した。
+  // 内部で entityStore を直接 subscribe するため、 Page が enemies 配列の参照変化に reactive
+  // でなくなる (Phase 4 で Page から useStore を分散するための布石も兼ねる)。
+  //
+  // 仕様維持: wave 30 中にボスが entityStore.enemies に含まれたら true、 wave 30 を抜けたら
+  // false にリセット (= TierClearFx 中も battleBoss が流れ、 wave=1 に戻る瞬間に battleNormal)。
+  const bossPhase = useBossPhase(entityStore);
   // v1.3.6: スクリーンセーバー中は SoundEngine.suspendAudio + autoResumeSuppressed のため
   // playBgm が早期 return される (= currentBgm.id 更新も skip)。 セーバー中に bossPhase が
   // 変化したまま閉じると、 ctx.resume() 後も旧 BGM track が鳴り続けてしまうため、
@@ -564,14 +549,7 @@ export function Page() {
             ref ベースの最新位置で再 mount される)。 */}
             {!isScreenSaverOpen && (
               <BattleField
-                enemies={enemies}
-                damageEvents={damageEvents}
                 hitEvents={hitEvents}
-                deathEvents={deathEvents}
-                projectileEvents={projectileEvents}
-                onDamageDone={onDamageDone}
-                onDeathDone={onDeathDone}
-                onProjectileDone={onProjectileDone}
                 showCutterOrbit={
                   currentWeapon === 'cutter' && isRunActive && !isPaused && !isResultOpen
                 }
@@ -662,16 +640,10 @@ export function Page() {
             />
           )}
 
-          {/* 上位敵 (elite / miniboss / boss) 出現バナー */}
-          {appearanceEvents.map((evt) => (
-            <AppearanceBannerFx
-              key={evt.id}
-              // 'miniboss' は AppearanceBannerFx に専用 kind が無いので 'boss' で代用 (赤・大きい)
-              kind={evt.kind === 'miniboss' ? 'boss' : evt.kind}
-              name={evt.name}
-              onDone={() => onAppearanceDone(evt.id)}
-            />
-          ))}
+          {/* v1.3.7 (Phase 2-C): 上位敵 (elite / miniboss / boss) 出現バナーを
+              AppearanceBannerLayer に閉じ込め、 entityStore を直接購読。 Page 本体は
+              appearance イベントに reactive でなくなる (= Page の re-render 頻度がさらに減る)。 */}
+          <AppearanceBannerLayer />
 
           {/* Wave 進行バナー (wave 切替時の 1.1 秒) */}
           {waveStartKey != null && (
