@@ -1,8 +1,12 @@
 import type { WeaponType } from '@/components/molecules/WeaponSlotIcon';
+import type { RunWorkshopLevels } from '@/components/organisms/RunWorkshopBottomSheet/items';
 import { BigNum } from '@/lib/bignum/BigNum';
 import { useStore } from '@/store/index';
 import { defaultBattleState } from '@/store/slices/battle';
+import { defaultCurrenciesState } from '@/store/slices/currencies';
 import { defaultMachineState, type MachineLevels } from '@/store/slices/machine';
+import { defaultRunWorkshopState, type RunWorkshopAutoEnabled } from '@/store/slices/runWorkshop';
+import { defaultSettingsState } from '@/store/slices/settings';
 
 /**
  * BattleHudTop 等の Organism が `useStore` を直接 subscribe するようになった v1.3.7 Phase 4
@@ -14,6 +18,9 @@ import { defaultMachineState, type MachineLevels } from '@/store/slices/machine'
  *
  * Phase 4-B で BattleHudBottom 用フィールド (screw / bolt / runStartBolt / currentWeapon /
  * weaponSwitchCdSec / activeCdSec / isAutoActive / machineLevels) を追加。
+ *
+ * Phase 4-C で RunWorkshopBottomSheet / BattleMenuOverlay 用フィールド (runWorkshopLevels /
+ * runWorkshopAutoEnabled / bgmVolume / seVolume / alloy / runStartAlloy) を追加。
  */
 export interface BattleStateSeed {
   /** マシン現在 HP (デフォルト: 1000) */
@@ -32,6 +39,10 @@ export interface BattleStateSeed {
   bolt?: BigNum;
   /** ラン開始時のボルト累計 (デフォルト: 0)。 earnedBolt = bolt - runStartBolt の計算で使う */
   runStartBolt?: BigNum;
+  /** 現在のアロイ累計 (デフォルト: 0) */
+  alloy?: BigNum;
+  /** ラン開始時のアロイ累計 (デフォルト: 0) */
+  runStartAlloy?: BigNum;
   /** 現在装備中の武器 (デフォルト: laser) */
   currentWeapon?: WeaponType;
   /** 武器切替 CD 残秒数 (デフォルト: 0)。 0 = 切替直後の CD なし、 3 = 切替直後 */
@@ -45,6 +56,20 @@ export interface BattleStateSeed {
    * 相当で埋める。 activeCdReduction だけ上げたいケースで `{ activeCdReduction: 5 }` のように使う。
    */
   machineLevels?: Partial<MachineLevels>;
+  /**
+   * RunWorkshop 4 項目の現在 Lv (部分指定可)。 未指定キーは defaultRunWorkshopLevels (全 0) で埋める。
+   * Phase 4-C で RunWorkshopBottomSheet が内部 selector 化したため追加。
+   */
+  runWorkshopLevels?: Partial<RunWorkshopLevels>;
+  /**
+   * RunWorkshop 4 項目の AUTO ON/OFF (部分指定可)。 未指定キーは false で埋める。
+   * Phase 4-C で RunWorkshopBottomSheet が内部 selector 化したため追加。
+   */
+  runWorkshopAutoEnabled?: Partial<RunWorkshopAutoEnabled>;
+  /** BGM 音量 (0.0〜1.0、 デフォルト: 0.8)。 Phase 4-C で BattleMenuOverlay が内部 selector 化したため追加 */
+  bgmVolume?: number;
+  /** SE 音量 (0.0〜1.0、 デフォルト: 0.8)。 Phase 4-C で BattleMenuOverlay が内部 selector 化したため追加 */
+  seVolume?: number;
 }
 
 /**
@@ -67,6 +92,8 @@ export function seedBattleState(seed: BattleStateSeed = {}): void {
     screw: seed.screw ?? BigNum.ZERO,
     bolt: seed.bolt ?? BigNum.ZERO,
     runStartBolt: seed.runStartBolt ?? BigNum.ZERO,
+    alloy: seed.alloy ?? BigNum.ZERO,
+    runStartAlloy: seed.runStartAlloy ?? BigNum.ZERO,
     currentWeapon: seed.currentWeapon ?? 'laser',
     weaponSwitchCdSec: seed.weaponSwitchCdSec ?? 0,
     activeCdSec: seed.activeCdSec ?? 0,
@@ -75,6 +102,16 @@ export function seedBattleState(seed: BattleStateSeed = {}): void {
       ...defaultMachineState.machineLevels,
       ...(seed.machineLevels ?? {}),
     },
+    runWorkshopLevels: {
+      ...defaultRunWorkshopState.runWorkshopLevels,
+      ...(seed.runWorkshopLevels ?? {}),
+    },
+    runWorkshopAutoEnabled: {
+      ...defaultRunWorkshopState.runWorkshopAutoEnabled,
+      ...(seed.runWorkshopAutoEnabled ?? {}),
+    },
+    bgmVolume: seed.bgmVolume ?? defaultSettingsState.bgmVolume,
+    seVolume: seed.seVolume ?? defaultSettingsState.seVolume,
   });
 }
 
@@ -88,10 +125,18 @@ export function seedBattleState(seed: BattleStateSeed = {}): void {
  *
  * Phase 4-B: machine slice の machineLevels も BattleHudBottom が購読するため、 ここで
  * defaultMachineState 相当 (全キー Lv 0) に戻す。
+ *
+ * Phase 4-C: runWorkshop slice / settings slice / currencies slice (alloy) も RunWorkshopBottomSheet /
+ * BattleMenuOverlay / Page の派生計算で購読されるようになったため、 ここで defaultXxxState 相当に戻す。
  */
 export function resetBattleState(): void {
   useStore.setState({
     ...defaultBattleState,
     machineLevels: defaultMachineState.machineLevels,
+    runWorkshopLevels: defaultRunWorkshopState.runWorkshopLevels,
+    runWorkshopAutoEnabled: defaultRunWorkshopState.runWorkshopAutoEnabled,
+    bgmVolume: defaultSettingsState.bgmVolume,
+    seVolume: defaultSettingsState.seVolume,
+    alloy: defaultCurrenciesState.alloy,
   });
 }

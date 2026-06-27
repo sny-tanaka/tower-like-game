@@ -90,7 +90,8 @@ export function Page() {
 
   // ── store から状態取得 ──
   const isRunActive = useStore((s) => s.isRunActive);
-  const screw = useStore((s) => s.screw);
+  // v1.3.7 Phase 4-C: screw は BattleHudBottom / RunWorkshopBottomSheet 内部 selector で
+  // 取得するようになったため Page では subscribe しない。
   // bolt / runStartBolt は ResultDialog の reward.bolt fallback (finalEarnedBolt が
   // まだ null のフレーム用) と earnedBolt useMemo で使う。 v1.3.7 Phase 4-B 以降、
   // HUD 下段の earnedBolt 表示は BattleHudBottom 内部で再計算するようになったため、
@@ -113,15 +114,17 @@ export function Page() {
   // range / attackSpeed の派生だけ実施)
   const machineLevels = useStore((s) => s.machineLevels);
   const isPaused = useStore((s) => s.isPaused);
+  // v1.3.7 Phase 4-C: runWorkshopLevels は BattleField 側で
+  // calcRunWorkshopMultiplier(runWorkshopLevels.attackSpeedMul) を計算する Cutter rotateMs の
+  // 派生に必要なので Page では引き続き subscribe。 RunWorkshopBottomSheet 側は内部 selector
+  // に移譲済みなので props 渡しは不要。
   const runWorkshopLevels = useStore((s) => s.runWorkshopLevels);
-  const runWorkshopAutoEnabled = useStore((s) => s.runWorkshopAutoEnabled);
+  // setRunWorkshopAuto は handleToggleWorkshopAuto 内で processRunWorkshopAuto 連動のため必要。
   const setRunWorkshopAuto = useStore((s) => s.setRunWorkshopAuto);
 
   // settings slice
-  const bgmVolume = useStore((s) => s.bgmVolume);
-  const seVolume = useStore((s) => s.seVolume);
-  const setBgmVolume = useStore((s) => s.setBgmVolume);
-  const setSeVolume = useStore((s) => s.setSeVolume);
+  // v1.3.7 Phase 4-C: bgmVolume / seVolume / setBgmVolume / setSeVolume は BattleMenuOverlay
+  // 内部 selector に移譲したため Page では subscribe しない。
   const setAutoActive = useStore((s) => s.setAutoActive);
   const switchWeapon = useStore((s) => s.switchWeapon);
   const setPaused = useStore((s) => s.setPaused);
@@ -496,9 +499,6 @@ export function Page() {
                 BattleField の高さは変えない。 */}
                 <RunWorkshopBottomSheet
                   open={isWorkshopOpen}
-                  screw={screw}
-                  levels={runWorkshopLevels}
-                  autoEnabled={runWorkshopAutoEnabled}
                   onUpgrade={handleWorkshopUpgrade}
                   onToggleAuto={handleToggleWorkshopAuto}
                   onClose={handleCloseWorkshop}
@@ -555,10 +555,6 @@ export function Page() {
           {/* バトルメニュー (isPaused と完全連動: pause = メニュー開) */}
           <BattleMenuOverlay
             open={isPaused}
-            bgmVolume={bgmVolume}
-            seVolume={seVolume}
-            onBgmChange={setBgmVolume}
-            onSeChange={setSeVolume}
             onRetreat={handleRetreat}
             onClose={() => {
               // メニューを閉じる = pause 解除

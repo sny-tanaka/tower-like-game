@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { memo, useState } from 'react';
 
 import styles from './style.module.scss';
 
@@ -8,6 +8,7 @@ import { Overlay } from '@/components/atoms/Overlay';
 import { Slider } from '@/components/atoms/Slider';
 import { Text } from '@/components/atoms/Text';
 import { ConfirmDialog } from '@/components/molecules/ConfirmDialog';
+import { useStore } from '@/store/index';
 
 // ---------------------------------------------------------------------------
 // 型定義
@@ -15,10 +16,6 @@ import { ConfirmDialog } from '@/components/molecules/ConfirmDialog';
 
 export interface BattleMenuOverlayProps {
   open: boolean;
-  bgmVolume: number;
-  seVolume: number;
-  onBgmChange: (value: number) => void;
-  onSeChange: (value: number) => void;
   onRetreat: () => void;
   onClose: () => void;
 }
@@ -37,16 +34,24 @@ export interface BattleMenuOverlayProps {
  *   - 閉じる Button
  *
  * アクティブ手動/自動 トグルはここには含めない（BattleHudBottom 内に常駐）。
+ *
+ * v1.3.7 Phase 4-C: 親 (Page) から prop drilling していた
+ *   - bgmVolume / seVolume
+ *   - onBgmChange / onSeChange
+ * を撤去し、 内部で `useStore` selector で音量値・setter を直接購読する。 さらに `React.memo`
+ * でラップして、 自身が subscribe している値が変化したフレーム + 親 props (open / callback) が
+ * 変化したフレームだけ再 render する。
+ *
+ * 音量 setter は副作用 (SE / processRunWorkshopAuto 等) を持たないため、 内部で store action
+ * を直接 Slider の onChange に渡せる。
  */
-export function BattleMenuOverlay({
-  open,
-  bgmVolume,
-  seVolume,
-  onBgmChange,
-  onSeChange,
-  onRetreat,
-  onClose,
-}: BattleMenuOverlayProps) {
+function BattleMenuOverlayImpl({ open, onRetreat, onClose }: BattleMenuOverlayProps) {
+  // ── store から直接 subscribe (Page を経由しない) ──
+  const bgmVolume = useStore((s) => s.bgmVolume);
+  const seVolume = useStore((s) => s.seVolume);
+  const setBgmVolume = useStore((s) => s.setBgmVolume);
+  const setSeVolume = useStore((s) => s.setSeVolume);
+
   const [confirmOpen, setConfirmOpen] = useState(false);
 
   if (!open) return null;
@@ -112,7 +117,7 @@ export function BattleMenuOverlay({
               min={0}
               max={1}
               step={0.01}
-              onChange={onBgmChange}
+              onChange={setBgmVolume}
               color="primary"
             />
 
@@ -137,7 +142,7 @@ export function BattleMenuOverlay({
               min={0}
               max={1}
               step={0.01}
-              onChange={onSeChange}
+              onChange={setSeVolume}
               color="primary"
             />
           </div>
@@ -179,3 +184,13 @@ export function BattleMenuOverlay({
     </>
   );
 }
+
+/**
+ * v1.3.7 Phase 4-C: BattleMenuOverlay を React.memo で wrap。 props を必要最小限
+ * (open / onRetreat / onClose) に絞ったため、 親 (Page) が 60fps で再 render しても
+ * 親 props が変化しなければ BattleMenuOverlay + 配下 (Overlay / Card / Slider × 2 等) の
+ * re-render をスキップできる。 メニューが閉じている (open=false) ときは早期 return で hooks
+ * 計算後すぐに null を返すため、 描画コストはほぼゼロ。
+ */
+export const BattleMenuOverlay = memo(BattleMenuOverlayImpl);
+BattleMenuOverlay.displayName = 'BattleMenuOverlay';

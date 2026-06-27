@@ -1,4 +1,6 @@
-import type { RunWorkshopKey, RunWorkshopLevels } from './items';
+import { memo } from 'react';
+
+import type { RunWorkshopKey } from './items';
 import {
   RUN_WORKSHOP_ITEMS,
   calcRunWorkshopCost,
@@ -13,7 +15,7 @@ import { IconButton } from '@/components/atoms/IconButton';
 import { Text } from '@/components/atoms/Text';
 import { UpgradeCard } from '@/components/molecules/UpgradeCard';
 import { BigNum } from '@/lib/bignum/BigNum';
-import type { RunWorkshopAutoEnabled } from '@/store/slices/runWorkshop';
+import { useStore } from '@/store/index';
 
 // ---------------------------------------------------------------------------
 // 型定義
@@ -24,19 +26,21 @@ export type { RunWorkshopLevels } from './items';
 export interface RunWorkshopBottomSheetProps {
   /** 開閉フラグ */
   open: boolean;
-  /** 現在のネジ残高 */
-  screw: BigNum;
-  /** 各項目の現在 Lv */
-  levels: RunWorkshopLevels;
   /**
    * 強化ボタンクリック時のコールバック。
    * key: 強化対象の項目キー
    * delta: 1 | 5 | 'max'
+   *
+   * v1.3.7 Phase 4-C: Page 側で SE (purchaseOk / reject) 再生と連動するため callback として残す。
+   * 内部で `useStore((s) => s.upgradeRunWorkshop)` を直接呼ぶと SE 連動が失われる。
    */
   onUpgrade: (key: RunWorkshopKey, delta: 1 | 5 | 'max') => void;
-  /** AUTO ON/OFF の現在状態 (省略時は全 OFF として描画) */
-  autoEnabled?: RunWorkshopAutoEnabled;
-  /** AUTO トグルのクリックハンドラ。指定時のみカード右上にトグルが表示される */
+  /**
+   * AUTO トグルのクリックハンドラ。指定時のみカード右上にトグルが表示される。
+   *
+   * v1.3.7 Phase 4-C: Page 側で `processRunWorkshopAuto` の即時呼び出しと連動するため callback
+   * として残す。 内部で `setRunWorkshopAuto` を直接呼ぶと「ON にした瞬間の即時購入」 が失われる。
+   */
   onToggleAuto?: (key: RunWorkshopKey, enabled: boolean) => void;
   /** シートを閉じるコールバック */
   onClose?: () => void;
@@ -51,17 +55,31 @@ export interface RunWorkshopBottomSheetProps {
  *
  * バトル中のラン内ワークショップをボトムシートで表示する Organism。
  * Sheet + BottomSheetHandle + UpgradeCard × 4 を合成。
- * 強化ロジックは props 経由 (pure / stateless)。
+ *
+ * v1.3.7 Phase 4-C: 親 (Page) から prop drilling していた
+ *   - screw (ネジ残高)
+ *   - levels (= runWorkshopLevels)
+ *   - autoEnabled (= runWorkshopAutoEnabled)
+ * を撤去し、 内部で `useStore` selector を直接購読する。 さらに `React.memo` でラップして、
+ * 自身が subscribe している値が変化したフレーム + 親 props (open / callback) が変化した
+ * フレームだけ再 render する (= Page の re-render が伝播しない)。
+ *
+ * SE / processRunWorkshopAuto との連動が必要な `onUpgrade` / `onToggleAuto` は Page 側で
+ * useCallback された関数を受け取る形のまま残す (内部で store action を直接呼ぶと連動が失われる)。
  */
-export function RunWorkshopBottomSheet({
+function RunWorkshopBottomSheetImpl({
   open,
-  screw,
-  levels,
   onUpgrade,
-  autoEnabled,
   onToggleAuto,
   onClose,
 }: RunWorkshopBottomSheetProps) {
+  // ── store から直接 subscribe (Page を経由しない) ──
+  // selector を 1 値ずつ書くことで、 zustand のデフォルト Object.is 比較に乗る。
+  const screw = useStore((s) => s.screw);
+  const levels = useStore((s) => s.runWorkshopLevels);
+  const autoEnabled = useStore((s) => s.runWorkshopAutoEnabled);
+
+  // open=false は何も描画しない (= hooks 順序を保つため selector の後に return)
   if (!open) return null;
 
   return (
@@ -127,7 +145,7 @@ export function RunWorkshopBottomSheet({
             const canAfford5 = screw.gte(cost5Bn);
             const canAffordMax = maxLvDelta > 0;
 
-            const cardAutoEnabled = autoEnabled?.[item.key] ?? false;
+            const cardAutoEnabled = autoEnabled[item.key] ?? false;
             const cardOnToggleAuto =
               onToggleAuto != null ? (next: boolean) => onToggleAuto(item.key, next) : undefined;
 
@@ -174,3 +192,12 @@ export function RunWorkshopBottomSheet({
     </section>
   );
 }
+
+/**
+ * v1.3.7 Phase 4-C: RunWorkshopBottomSheet を React.memo で wrap。 props を必要最小限
+ * (open / callback) に絞ったため、 親 (Page) が 60fps で再 render しても親 props が
+ * 変化しなければ RunWorkshopBottomSheet + その配下 (UpgradeCard × 4 + CurrencyAmount 等) の
+ * re-render をスキップできる。 内部の store subscribe で値が変わったフレームだけ再 render される。
+ */
+export const RunWorkshopBottomSheet = memo(RunWorkshopBottomSheetImpl);
+RunWorkshopBottomSheet.displayName = 'RunWorkshopBottomSheet';

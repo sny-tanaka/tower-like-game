@@ -1,3 +1,5 @@
+import { memo } from 'react';
+
 import styles from './style.module.scss';
 
 import { Button } from '@/components/atoms/Button';
@@ -73,8 +75,12 @@ function formatTime(sec: number): string {
  *   - 統計: 到達 Tier / Wave / 撃破数 / 所要時間
  *   - 獲得: CurrencyAmount × 2 (bolt, alloy) + パッチ一覧
  *   - アクション: Button "出撃準備へ" 1 つ
+ *
+ * v1.3.7 Phase 4-C: React.memo で wrap。 finalize 後の snapshot 経路 (finalTier ?? currentTier
+ * / finalEarnedBolt ?? earnedBolt) との整合性が必要なため、 props 経路は維持。 内部 selector
+ * への移譲は Phase 4-D で `useResultStatus` hook を抽出するときにまとめて整理する。
  */
-export function ResultDialog({
+function ResultDialogImpl({
   open,
   status,
   reachedTier,
@@ -263,3 +269,13 @@ export function ResultDialog({
     </Overlay>
   );
 }
+
+/**
+ * v1.3.7 Phase 4-C: ResultDialog を React.memo で wrap。 props (status / reachedTier /
+ * reachedWave / killed / elapsedSec / reward / onClose) が変化したフレームだけ再 render する。
+ * `reward` object は Page 側で `{ bolt: ..., alloy: ..., patches: droppedPatches.map(...) }` を
+ * 毎 render 新規生成しているため、 現状は memo の効果は限定的だが、 Phase 4-D で reward を
+ * useMemo 化 / 内部 selector 化することで完全に止められる準備として memo を入れる。
+ */
+export const ResultDialog = memo(ResultDialogImpl);
+ResultDialog.displayName = 'ResultDialog';
