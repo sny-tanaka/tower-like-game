@@ -75,15 +75,12 @@ describe('v2 マイグレーション (settings.muted フィールド追加)', (
     // muted=true のレコードを先に入れておく
     await new Promise<void>((resolve, reject) => {
       const tx = db.transaction(STORES.settings, 'readwrite');
-      const req = tx
-        .objectStore(STORES.settings)
-        .put({
-          id: 'singleton',
-          bgmVolume: 0.5,
-          seVolume: 0.5,
-          vibrationEnabled: true,
-          muted: true,
-        });
+      const req = tx.objectStore(STORES.settings).put({
+        id: 'singleton',
+        bgmVolume: 0.5,
+        seVolume: 0.5,
+        muted: true,
+      });
       req.onsuccess = () => resolve();
       req.onerror = () => reject(req.error);
     });

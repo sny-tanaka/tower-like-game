@@ -10,7 +10,6 @@ import type { RootStore } from '@/store/index';
 export interface SettingsState {
   bgmVolume: number; // 0.0 〜 1.0
   seVolume: number; // 0.0 〜 1.0
-  vibrationEnabled: boolean;
   muted: boolean;
   /** 描画 fps の上限。 30 / 45 / 60 から選択 (発熱対策) */
   targetFps: TargetFps;
@@ -23,7 +22,6 @@ export interface SettingsState {
 export interface SettingsActions {
   setBgmVolume: (volume: number) => void;
   setSeVolume: (volume: number) => void;
-  setVibrationEnabled: (enabled: boolean) => void;
   setMuted: (muted: boolean) => void;
   setTargetFps: (fps: TargetFps) => void;
   resetSettings: () => void;
@@ -38,7 +36,6 @@ export type SettingsSlice = SettingsState & SettingsActions;
 export const defaultSettingsState: SettingsState = {
   bgmVolume: 0.8,
   seVolume: 0.8,
-  vibrationEnabled: true,
   muted: false,
   targetFps: 60,
 };
@@ -53,8 +50,6 @@ export const createSettingsSlice: StateCreator<RootStore, [], [], SettingsSlice>
   setBgmVolume: (volume) => set({ bgmVolume: Math.max(0, Math.min(1, volume)) }),
 
   setSeVolume: (volume) => set({ seVolume: Math.max(0, Math.min(1, volume)) }),
-
-  setVibrationEnabled: (enabled) => set({ vibrationEnabled: enabled }),
 
   setMuted: (muted) => set({ muted }),
 

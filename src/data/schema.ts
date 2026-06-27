@@ -127,7 +127,6 @@ export type SettingsRecord = {
   id: 'singleton';
   bgmVolume: number; // 0.0 〜 1.0
   seVolume: number; // 0.0 〜 1.0
-  vibrationEnabled: boolean;
   muted: boolean;
   targetFps?: TargetFps; // 未保存の旧データは DEFAULT_SETTINGS.targetFps で補完
 };
@@ -174,7 +173,6 @@ export const DEFAULT_SETTINGS: SettingsRecord = {
   id: 'singleton',
   bgmVolume: 0.8,
   seVolume: 0.8,
-  vibrationEnabled: true,
   muted: false,
   targetFps: 60,
 };

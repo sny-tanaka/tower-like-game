@@ -114,7 +114,6 @@ export async function hydrateStore(): Promise<void> {
   useStore.setState({
     bgmVolume: s.bgmVolume,
     seVolume: s.seVolume,
-    vibrationEnabled: s.vibrationEnabled,
     muted: s.muted ?? false,
     targetFps: s.targetFps ?? DEFAULT_SETTINGS.targetFps ?? 60,
   });
@@ -154,12 +153,11 @@ export async function syncWeapons(): Promise<void> {
 /** settings slice を IndexedDB に書き戻す */
 export async function syncSettings(): Promise<void> {
   const db = await getDb();
-  const { bgmVolume, seVolume, vibrationEnabled, muted, targetFps } = useStore.getState();
+  const { bgmVolume, seVolume, muted, targetFps } = useStore.getState();
   await putSettings(db, {
     id: 'singleton',
     bgmVolume,
     seVolume,
-    vibrationEnabled,
     muted,
     targetFps,
   });
@@ -323,7 +321,6 @@ export function setupAutoSave(): void {
     if (
       state.bgmVolume !== prev.bgmVolume ||
       state.seVolume !== prev.seVolume ||
-      state.vibrationEnabled !== prev.vibrationEnabled ||
       state.muted !== prev.muted ||
       state.targetFps !== prev.targetFps
     ) {

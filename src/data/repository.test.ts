@@ -202,13 +202,12 @@ describe('settings リポジトリ', () => {
       id: 'singleton' as const,
       bgmVolume: 0.5,
       seVolume: 0.3,
-      vibrationEnabled: false,
       muted: true,
     };
     await putSettings(db, updated);
     const result = await getSettings(db);
     expect(result?.bgmVolume).toBe(0.5);
-    expect(result?.vibrationEnabled).toBe(false);
+    expect(result?.seVolume).toBe(0.3);
     expect(result?.muted).toBe(true);
   });
 });

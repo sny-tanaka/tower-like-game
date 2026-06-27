@@ -35,7 +35,8 @@ describe('schema 定数', () => {
   it('DEFAULT_SETTINGS のデフォルト値が正しい', () => {
     expect(DEFAULT_SETTINGS.bgmVolume).toBe(0.8);
     expect(DEFAULT_SETTINGS.seVolume).toBe(0.8);
-    expect(DEFAULT_SETTINGS.vibrationEnabled).toBe(true);
+    expect(DEFAULT_SETTINGS.muted).toBe(false);
+    expect(DEFAULT_SETTINGS.targetFps).toBe(60);
   });
 
   it('DEFAULT_WEAPONS の初期武器は laser', () => {

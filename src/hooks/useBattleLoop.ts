@@ -36,7 +36,6 @@ import { thunderPlasmaDischarge, thunderStats } from '@/game/weapons/thunder';
 import { soundEngine } from '@/lib/audio';
 import type { SoundId } from '@/lib/audio';
 import { BigNum } from '@/lib/bignum';
-import { vibrate } from '@/lib/haptics/vibrate';
 import { useStore } from '@/store/index';
 import { DEFAULT_ACTIVE_MAX_SEC } from '@/store/slices/battle';
 import type { WeaponType } from '@/store/slices/weapons';
@@ -490,6 +489,11 @@ export function useBattleLoop({
   // v1.3.2: suspendRendering が true になった瞬間に既存の描画 events と削除キューを全クリア
   // (= スクリーンセーバーを開いた瞬間に残っていた Fx を全部消す)。 false に戻ったタイミング
   // からは tick の append が再開され、 新規イベントだけ流れ始める。
+  //
+  // v1.3.5: suspendRendering 中は setEnemies / setWaveElapsedSec も tick 内で skip する
+  // ため、 false 復帰時に最新の enemiesRef.current / waveElapsedMsRef.current を 1 回 sync
+  // しないと、 BattleField が古い state で再 mount されて (敵が消えて見える / wave バーが
+  // 古い位置で再開) しまう。
   useEffect(() => {
     if (suspendRendering) {
       setDamageEvents([]);
@@ -500,6 +504,9 @@ export function useBattleLoop({
       pendingDeathRemovalsRef.current = new Set();
       pendingProjectileRemovalsRef.current = new Set();
       pendingAppearanceRemovalsRef.current = new Set();
+    } else {
+      setEnemies(enemiesRef.current);
+      setWaveElapsedSec(waveElapsedMsRef.current / 1000);
     }
   }, [suspendRendering]);
 
@@ -655,8 +662,11 @@ export function useBattleLoop({
     const fired = state.triggerActive(effectiveCdSec);
     if (!fired) return false;
 
-    soundEngine.play(WEAPON_ACTIVE_SOUND[state.currentWeapon]);
-    vibrate(15);
+    // v1.3.5: スクリーンセーバー中は SE を抑止 (発熱対策)。
+    // ループとロジックは継続するが、 オーディオパイプライン負荷は完全停止。
+    if (!suspendRenderingRef.current) {
+      soundEngine.play(WEAPON_ACTIVE_SOUND[state.currentWeapon]);
+    }
 
     const attackMul = calcRunWorkshopMultiplier(state.runWorkshopLevels.attackMul);
     const newDamageEvents: DamageEvent[] = [];
@@ -944,8 +954,8 @@ export function useBattleLoop({
             // 上位敵 (elite / miniboss / boss) が混じっていれば AppearanceBannerFx を出す
             const upperSpawns = newSpawns.filter((s) => s.kind !== 'normal');
             if (upperSpawns.length > 0) {
-              // ボス登場時に警告 SE を再生
-              if (upperSpawns.some((s) => s.kind === 'boss')) {
+              // ボス登場時に警告 SE を再生 (v1.3.5: スクリーンセーバー中は抑止)
+              if (upperSpawns.some((s) => s.kind === 'boss') && !suspendRenderingRef.current) {
                 soundEngine.play('bossWarn');
               }
               const newAppearances: AppearanceEvent[] = upperSpawns.map((s) => {
@@ -1193,8 +1203,10 @@ export function useBattleLoop({
                 fireAccumulatorMsRef.current -= intervalMs;
                 firedThisFrame += 1;
 
-                // 武器発射 SE
-                soundEngine.play(WEAPON_SHOOT_SOUND[state.currentWeapon]);
+                // 武器発射 SE (v1.3.5: スクリーンセーバー中は抑止)
+                if (!suspendRenderingRef.current) {
+                  soundEngine.play(WEAPON_SHOOT_SOUND[state.currentWeapon]);
+                }
 
                 const result = fireWeapon({
                   weapon: state.currentWeapon,
@@ -1561,12 +1573,13 @@ export function useBattleLoop({
               }
 
               // 撃破 SE: boss/miniboss は bossKill、 それ以外は enemyKill
-              if (enemy.kind === 'boss' || enemy.kind === 'miniboss') {
-                soundEngine.play('bossKill');
-                vibrate([40, 30, 40]);
-              } else {
-                soundEngine.play('enemyKill');
-                vibrate(8);
+              // v1.3.5: スクリーンセーバー中は SE を抑止 (発熱対策)
+              if (!suspendRenderingRef.current) {
+                if (enemy.kind === 'boss' || enemy.kind === 'miniboss') {
+                  soundEngine.play('bossKill');
+                } else {
+                  soundEngine.play('enemyKill');
+                }
               }
             } else {
               survivors.push(enemy);
@@ -1644,13 +1657,14 @@ export function useBattleLoop({
               const hpBefore = state.machineHp;
               state.damageHp(actualReceived);
               // 被ダメ SE: マシンが落ちたら machineDown / それ以外は machineHit
+              // v1.3.5: スクリーンセーバー中は SE を抑止 (発熱対策)
               const hpAfter = useStore.getState().machineHp;
-              if (hpAfter.isZero() && !hpBefore.isZero()) {
-                soundEngine.play('machineDown');
-                vibrate([100, 50, 100, 50, 100]);
-              } else {
-                soundEngine.play('machineHit');
-                vibrate(20);
+              if (!suspendRenderingRef.current) {
+                if (hpAfter.isZero() && !hpBefore.isZero()) {
+                  soundEngine.play('machineDown');
+                } else {
+                  soundEngine.play('machineHit');
+                }
               }
             }
           }
@@ -1711,8 +1725,10 @@ export function useBattleLoop({
             }
             if (decision === 'advanceWave') {
               state.advanceWave();
-              soundEngine.play('waveClear');
-              vibrate(15);
+              // v1.3.5: スクリーンセーバー中は SE を抑止 (発熱対策)
+              if (!suspendRenderingRef.current) {
+                soundEngine.play('waveClear');
+              }
               // wave 切替直後の同フレームで waveElapsedMsRef も 0 に揃える。
               // (currentWave 変化に反応する useEffect でも 0 にされるが、 そちらより前に
               //  setWaveElapsedSec(古い値) が走ってしまうと WaveProgressBar の AnimatedTimerBar
@@ -1726,8 +1742,10 @@ export function useBattleLoop({
               // preparation 画面が表示される。
               // (旧 0.3.4 までは state.advanceTier() を呼んで currentTier を +1 していたため、
               //  ボス撃破後に勝手に次 Tier が開始してしまっていた)
-              soundEngine.play('tierClear');
-              vibrate([40, 30, 40]);
+              // v1.3.5: スクリーンセーバー中は SE を抑止 (発熱対策)
+              if (!suspendRenderingRef.current) {
+                soundEngine.play('tierClear');
+              }
               setTierCleared(true);
               tierClearedRef.current = true; // 次フレームの tick で deltaSec=0 にする
               // wave 進行は止めるが waveElapsedMsRef はあえて触らない (= ボス出現演出後の
@@ -1737,8 +1755,13 @@ export function useBattleLoop({
         }
 
         // pause / gameover 中は表示更新もスキップ (60fps 再描画で発熱するため、 deltaSec > 0 ブロック内に置く)
-        setEnemies(enemiesRef.current);
-        setWaveElapsedSec(waveElapsedMsRef.current / 1000);
+        // v1.3.5: スクリーンセーバー中も親 BattleScreen の毎フレーム re-render を止める
+        // (BattleField は unmount 済みでも HUD / BattleScreen が enemies prop で再 render されるため)。
+        // 復帰時 (suspendRendering=false 切替) に useEffect で 1 回 sync する。
+        if (!suspendRenderingRef.current) {
+          setEnemies(enemiesRef.current);
+          setWaveElapsedSec(waveElapsedMsRef.current / 1000);
+        }
       }
 
       rafIdRef.current = requestAnimationFrame(tick);

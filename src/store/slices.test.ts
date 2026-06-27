@@ -420,11 +420,10 @@ describe('equippedPatches slice', () => {
 // ---------------------------------------------------------------------------
 
 describe('settings slice', () => {
-  it('初期値: bgmVolume=0.8, seVolume=0.8, vibration=true, muted=false, targetFps=60', () => {
+  it('初期値: bgmVolume=0.8, seVolume=0.8, muted=false, targetFps=60', () => {
     const s = makeStore().getState();
     expect(s.bgmVolume).toBe(0.8);
     expect(s.seVolume).toBe(0.8);
-    expect(s.vibrationEnabled).toBe(true);
     expect(s.muted).toBe(false);
     expect(s.targetFps).toBe(60);
   });
@@ -461,12 +460,6 @@ describe('settings slice', () => {
     expect(store.getState().seVolume).toBe(0.5);
   });
 
-  it('setVibrationEnabled: 変更できる', () => {
-    const store = makeStore();
-    store.getState().setVibrationEnabled(false);
-    expect(store.getState().vibrationEnabled).toBe(false);
-  });
-
   it('setMuted: true/false で切り替えられる', () => {
     const store = makeStore();
     expect(store.getState().muted).toBe(false);
@@ -486,10 +479,10 @@ describe('settings slice', () => {
   it('resetSettings: デフォルト値に戻る', () => {
     const store = makeStore();
     store.getState().setBgmVolume(0.3);
-    store.getState().setVibrationEnabled(false);
+    store.getState().setSeVolume(0.1);
     store.getState().resetSettings();
     expect(store.getState().bgmVolume).toBe(0.8);
-    expect(store.getState().vibrationEnabled).toBe(true);
+    expect(store.getState().seVolume).toBe(0.8);
   });
 
   it('setMuted: true→true の連続呼び出しでも true のまま', () => {
@@ -506,18 +499,16 @@ describe('settings slice', () => {
     expect(store.getState().muted).toBe(false);
   });
 
-  it('resetSettings: muted リセット後も bgmVolume / seVolume / vibrationEnabled / targetFps がデフォルト値になる', () => {
+  it('resetSettings: muted リセット後も bgmVolume / seVolume / targetFps がデフォルト値になる', () => {
     const store = makeStore();
     store.getState().setMuted(true);
     store.getState().setBgmVolume(0.1);
     store.getState().setSeVolume(0.2);
-    store.getState().setVibrationEnabled(false);
     store.getState().setTargetFps(30);
     store.getState().resetSettings();
     expect(store.getState().muted).toBe(false);
     expect(store.getState().bgmVolume).toBe(0.8);
     expect(store.getState().seVolume).toBe(0.8);
-    expect(store.getState().vibrationEnabled).toBe(true);
     expect(store.getState().targetFps).toBe(60);
   });
 });

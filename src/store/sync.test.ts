@@ -60,7 +60,6 @@ beforeEach(async () => {
     equippedPatches: new Map(),
     bgmVolume: 0.8,
     seVolume: 0.8,
-    vibrationEnabled: true,
     muted: false,
     targetFps: 60,
   });
@@ -160,15 +159,15 @@ describe('sync: weapons round-trip', () => {
 describe('sync: settings round-trip', () => {
   it('settings を書いて読み直すと同じ値になる', async () => {
     useStore.getState().setBgmVolume(0.5);
-    useStore.getState().setVibrationEnabled(false);
+    useStore.getState().setSeVolume(0.3);
 
     await syncSettings();
 
-    useStore.setState({ bgmVolume: 0.8, vibrationEnabled: true });
+    useStore.setState({ bgmVolume: 0.8, seVolume: 0.8 });
     await hydrateStore();
 
     expect(useStore.getState().bgmVolume).toBe(0.5);
-    expect(useStore.getState().vibrationEnabled).toBe(false);
+    expect(useStore.getState().seVolume).toBe(0.3);
   });
 
   it('settings の muted を書いて読み直すと同じ値になる', async () => {
