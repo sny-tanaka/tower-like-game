@@ -321,13 +321,12 @@ export type { AppearanceEvent } from '@/game/store/BattleEntityStore';
 
 export interface UseBattleLoopResult {
   /**
-   * v1.3.7 (Phase 2-C): enemies / waveElapsedSec は当面残置 (Page で BGM 切替判定 /
-   * WaveProgressBar に使う)。 ただし BattleField への描画は全て entityStore 経由になり、
-   * Page を経由しない。 events 系 (damage/death/projectile/appearance) と onXDone は廃止
-   * (BattleField / FxLayer / ProjectileLayer / AppearanceBannerLayer が直接購読する)。
+   * 現在 wave 内の経過秒 (0 〜 WAVE_DURATION_SEC)
+   *
+   * v1.3.7 (Phase 2-C フォローアップ): enemies は廃止 (BattleField + useBossPhase が
+   * entityStore 経由で取得)。 waveElapsedSec は Page で WaveProgressBar 表示に使うため残置。
+   * Phase 4 で BattleHudTop に分散するときに整理予定。
    */
-  enemies: SpawnedEnemy[];
-  /** 現在 wave 内の経過秒 (0 〜 WAVE_DURATION_SEC) */
   waveElapsedSec: number;
   /**
    * アクティブスキル発動。 store.triggerActive (CD セット + activeCdSec=max) を呼んだ上で、
@@ -476,7 +475,9 @@ export function useBattleLoop({
   // を呼ぶだけになる。 tick 冒頭で entityStore.consumePendingRemovals(kind) で取り出して
   // events ref を filter → tick 末尾で 1 度の setX + notifyFrame で反映する流れ。
 
-  const [enemies, setEnemies] = useState<SpawnedEnemy[]>([]);
+  // v1.3.7 (Phase 2-C フォローアップ): const [enemies, setEnemies] を廃止。 戻り値の enemies は
+  // Page で消費されなくなったため、 React state を維持する意味がない (entityStore.getEnemies()
+  // で 4 layer が取得する)。 useBattleLoop 自体の毎フレーム re-render trigger が 1 本減る。
   const [waveElapsedSec, setWaveElapsedSec] = useState<number>(0);
   const [isOverdriveActive, setIsOverdriveActive] = useState<boolean>(false);
 
@@ -523,7 +524,6 @@ export function useBattleLoop({
       entityStore.consumePendingRemovals('projectile');
       entityStore.consumePendingRemovals('appearance');
     } else {
-      setEnemies(enemiesRef.current);
       setWaveElapsedSec(waveElapsedMsRef.current / 1000);
       // v1.3.7 (Phase 2-A): スクリーンセーバー解除時に entityStore も sync。 events は空のまま
       // で OK (= 残 Fx 復活させない)。 ここで notifyFrame() を呼ぶことで Phase 2-B 以降の
@@ -617,12 +617,14 @@ export function useBattleLoop({
     }
     if (reset.resetEnemies) {
       enemiesRef.current = [];
-      setEnemies([]);
       // 敵リスト全クリア時は飛翔中砲弾も Cutter の遅延 pop も無効にする
       pendingCannonShellsRef.current = [];
       pendingCutterPopsRef.current = [];
+      // v1.3.7 Phase 2 フォローアップ: 旧 Tier の敵 ID が prevContactSetRef に残っていると
+      // 新 Tier で同一 ID が衝突した場合の挙動が不定になる。 ID 重複は実害ないが掃除しておく。
+      prevContactSetRef.current = new Set();
       // v1.3.7 (Phase 2-C): BattleField が entityStore を直接購読するようになったため、
-      // ここで setEnemies([]) + notifyFrame() を呼んで EnemyLayer を即座に再 render。
+      // setEnemies([]) + notifyFrame() で EnemyLayer を即座に再 render。
       // events (Fx) は触らない (= 再生中の DamagePop / Death Fx が wave 切替で消えるのは UX 劣化)。
       entityStore.setEnemies([]);
       entityStore.notifyFrame();
@@ -1800,13 +1802,11 @@ export function useBattleLoop({
         }
 
         // pause / gameover 中は表示更新もスキップ (60fps 再描画で発熱するため、 deltaSec > 0 ブロック内に置く)
-        // v1.3.5 + v1.3.7 (Phase 2-C): events は entityStore のみに sync (React useState 廃止)。
-        // enemies / waveElapsedSec は Page で BGM useEffect 等で使うため React state も維持。
+        // v1.3.5 + v1.3.7 (Phase 2-C フォローアップ): events / enemies は entityStore のみに sync。
+        // waveElapsedSec のみ React state (Page で waveSecondsRemaining 計算に使用)。
         // notifyFrame() で BattleField の 3 layer + AppearanceBannerLayer に 1 回通知。
-        // (BattleField は unmount 済みでも HUD / BattleScreen が enemies prop で再 render されるため)。
         // 復帰時 (suspendRendering=false 切替) に useEffect で 1 回 sync する。
         if (!suspendRenderingRef.current) {
-          setEnemies(enemiesRef.current);
           setWaveElapsedSec(waveElapsedMsRef.current / 1000);
           entityStore.setEnemies(enemiesRef.current);
           entityStore.setWaveElapsedSec(waveElapsedMsRef.current / 1000);
@@ -1853,7 +1853,6 @@ export function useBattleLoop({
   }, [isRunActive, tierWaves, fireActive, entityStore]);
 
   return {
-    enemies,
     waveElapsedSec,
     fireActive,
     isOverdriveActive,
