@@ -11,3 +11,39 @@
     outline-offset: -2px;
   }
 }
+
+/* v1.3.3: スクリーンセーバー中のステータステキスト (drift スロットに乗せる)
+   既存の ScreenSaverFx drift キーフレームが opacity を 0→1→1→0 でフェード in/out するため、
+   ここでは静的なテキストスタイルだけ定義する。 */
+.waveLabel {
+  font-family: var(--ff-display);
+  font-size: 28px;
+  font-weight: var(--fw-bold);
+  letter-spacing: 0.12em;
+  color: var(--c-text-dim);
+  text-shadow: 0 0 8px rgba(78, 228, 246, 0.35);
+  white-space: nowrap;
+  user-select: none;
+}
+
+.gameOverLabel {
+  font-family: var(--ff-display);
+  font-size: 32px;
+  font-weight: var(--fw-bold);
+  letter-spacing: 0.2em;
+  color: var(--c-danger);
+  text-shadow: 0 0 10px rgba(255, 77, 109, 0.55);
+  white-space: nowrap;
+  user-select: none;
+}
+
+.clearLabel {
+  font-family: var(--ff-display);
+  font-size: 32px;
+  font-weight: var(--fw-bold);
+  letter-spacing: 0.2em;
+  color: var(--c-primary);
+  text-shadow: 0 0 10px rgba(78, 228, 246, 0.55);
+  white-space: nowrap;
+  user-select: none;
+}

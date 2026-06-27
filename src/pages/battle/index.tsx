@@ -612,12 +612,15 @@ export function Page() {
           />
         )}
 
-        {/* スクリーンセーバー */}
+        {/* スクリーンセーバー (v1.3.3 で Tier/Wave + GAME OVER / TIER CLEAR をフェード表示) */}
         <ScreenSaverDialog
           open={isScreenSaverOpen}
           onClose={() => {
             setIsScreenSaverOpen(false);
           }}
+          currentTier={currentTier}
+          currentWave={currentWave}
+          resultStatus={effectiveResultStatus}
         />
 
         {/* BATTLE START バナー (出撃直後 1.6 秒) */}
