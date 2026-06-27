@@ -534,9 +534,16 @@ export function useBattleLoop({
   // 再計算し、 ref 経由で tick から参照する。 ラン中強化なしなら 0 回 / 強化 N 回なら N 回。
   const machineLevels = useStore((s) => s.machineLevels);
   const machineMaxHpStore = useStore((s) => s.machineMaxHp);
+  const highestTier = useStore((s) => s.highestTier);
   const machineStats: MachineStats = useMemo(
-    () => buildMachineStats({ machineMaxHp: machineMaxHpStore, machineLevels }),
-    [machineMaxHpStore, machineLevels]
+    () =>
+      buildMachineStats({
+        machineMaxHp: machineMaxHpStore,
+        machineLevels,
+        highestTier,
+        currentTier,
+      }),
+    [machineMaxHpStore, machineLevels, highestTier, currentTier]
   );
   const machineStatsRef = useRef(machineStats);
   machineStatsRef.current = machineStats;
@@ -640,6 +647,9 @@ export function useBattleLoop({
     const machine = buildMachineStats({
       machineMaxHp: state.machineMaxHp,
       machineLevels: state.machineLevels,
+      // v1.3.4: 出撃中 Tier と 最新未クリア Tier の差で baseAttack に倍率がかかる
+      highestTier: state.highestTier,
+      currentTier: state.currentTier,
     });
     const effectiveCdSec = DEFAULT_ACTIVE_MAX_SEC * (1 - machine.activeCdReduction);
     const fired = state.triggerActive(effectiveCdSec);

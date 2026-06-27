@@ -11,6 +11,18 @@
   gap: var(--sp-s);
 }
 
+/* v1.3.4: 選択中 Tier の差分バフ表示行 */
+.tierDiffBuffRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-s);
+  padding: var(--sp-xs) var(--sp-s);
+  background: var(--c-bg-elev);
+  border: 1px solid var(--c-border-faint);
+  border-radius: var(--r-s);
+}
+
 .grid {
   display: grid;
   grid-template-columns: repeat(5, 1fr);

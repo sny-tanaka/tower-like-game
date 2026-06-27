@@ -147,6 +147,23 @@
   box-shadow: var(--glow-purple-sm);
 }
 
+/* 装備中バッジ (v1.3.4) — カード右下、 シアン (primary) で「装備中」 を出す */
+.equippedBadge {
+  position: absolute;
+  bottom: -4px;
+  right: -4px;
+  font-family: var(--ff-display);
+  font-size: 9px;
+  font-weight: var(--fw-bold);
+  letter-spacing: var(--ls-loose);
+  color: var(--c-bg-deep);
+  background: var(--c-primary);
+  border-radius: var(--r-pill);
+  padding: 1px var(--sp-xs);
+  white-space: nowrap;
+  box-shadow: var(--glow-cyan-sm);
+}
+
 /* ============================
    size バリアント
    ============================ */

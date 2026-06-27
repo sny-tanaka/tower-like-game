@@ -2,6 +2,7 @@ import {
   MACHINE_UPGRADE_ITEMS,
   calcEffectValue,
 } from '@/components/organisms/MachineUpgradeList/items';
+import { calcTierDiffAttackMul } from '@/game/balance/tierDiffAttackMul';
 import type { MachineStats } from '@/game/damage.types';
 import { BigNum } from '@/lib/bignum';
 import type { MachineLevels } from '@/store/slices/machine';
@@ -21,6 +22,17 @@ export interface BuildMachineStatsOpts {
   machineMaxHp: BigNum;
   /** 永続強化 Lv (machine slice) */
   machineLevels: MachineLevels;
+  /**
+   * Tier 差分による baseAttack バフ用 (v1.3.4)。 最新未クリア Tier (store.highestTier)。
+   * 省略時は 0 (差 0 → 倍率 1.0) で扱う。
+   */
+  highestTier?: number;
+  /**
+   * Tier 差分による baseAttack バフ用 (v1.3.4)。 出撃中 Tier (store.currentTier)。
+   * highestTier との差が大きいほど baseAttack が指数的に増える (基数 1.2)。
+   * 省略時は 0 (差 0 → 倍率 1.0) で扱う。
+   */
+  currentTier?: number;
 }
 
 /** MACHINE_UPGRADE_ITEMS から指定 key の item を引いて Lv → 値を返すヘルパー */
@@ -33,13 +45,20 @@ function effect(key: string, lv: number, fallback: number): number {
 export function buildMachineStats({
   machineMaxHp,
   machineLevels,
+  highestTier = 0,
+  currentTier = 0,
 }: BuildMachineStatsOpts): MachineStats {
   // v1.0.0 リバランス: fallback 値も baseValue rebase に追随
   //   baseAttack / defense / hpRegen: 1 → 100
   //   maxHp: 1 → 10000
   //   attackSpeed: Lv 0 値は 1.0 のまま
+  // v1.3.4: 最高 Tier 更新インセンティブとして、 baseAttack に
+  //   1.2^(highestTier - currentTier) の累積倍率を乗算する。
+  //   仕様: src/game/balance/tierDiffAttackMul.ts
+  const baseAttackRaw = effect('baseAttack', machineLevels.baseAttack, 100);
+  const tierDiffMul = calcTierDiffAttackMul(highestTier, currentTier);
   return {
-    baseAttack: BigNum.fromNumber(effect('baseAttack', machineLevels.baseAttack, 100)),
+    baseAttack: BigNum.fromNumber(baseAttackRaw).mulNumber(tierDiffMul),
     defense: BigNum.fromNumber(effect('defense', machineLevels.defense, 100)),
     damageReduction: effect('damageReduction', machineLevels.damageReduction, 0),
     critRate: effect('critRate', machineLevels.critRate, 0),

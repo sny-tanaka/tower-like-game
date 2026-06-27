@@ -25,6 +25,11 @@ export interface MergeableEntry {
 export interface PatchMergeTabProps {
   /** ストーリー / テスト用オーバーライド */
   overridePatches?: Map<string, PatchEntry>;
+  /**
+   * テスト / ストーリー用: highestTier (= 最新未クリア Tier) のオーバーライド。
+   * 省略時は store.highestTier を使う。
+   */
+  overrideHighestTier?: number;
 }
 
 // ---------------------------------------------------------------------------
@@ -34,20 +39,31 @@ export interface PatchMergeTabProps {
 /**
  * patches Map から Tier <= maxTierLimit で合成可能なエントリを抽出する。
  * count >= 2 のエントリが対象。
+ *
+ * v1.3.4: 合成結果 Tier (= entry.tier + 1) が highestTier 以上なら不可。
+ * 「最新未クリア Tier (= highestTier) のパッチは合成で作れず、 出撃ドロップ狙い」 の仕様。
+ *
+ * @param patches      所持パッチマップ
+ * @param maxTierLimit 合成結果上限 Tier (この値以下のものだけが結果 Tier として許可)
+ * @param highestTier  最新未クリア Tier。 合成結果がこの値以上なら不可。 省略時は無制限。
  */
 export function calcMergeable(
   patches: Map<string, PatchEntry>,
-  maxTierLimit: number
+  maxTierLimit: number,
+  highestTier?: number
 ): MergeableEntry[] {
   const result: MergeableEntry[] = [];
   for (const entry of patches.values()) {
-    if (entry.tier < maxTierLimit && entry.count >= 2) {
-      result.push({
-        name: entry.name,
-        tier: entry.tier,
-        count: entry.count,
-      });
-    }
+    if (entry.count < 2) continue;
+    // 結果 Tier (= entry.tier + 1) が maxTierLimit を超えない
+    if (entry.tier >= maxTierLimit) continue;
+    // v1.3.4: 結果 Tier が最新未クリア Tier (highestTier) 以上なら不可
+    if (highestTier != null && entry.tier + 1 >= highestTier) continue;
+    result.push({
+      name: entry.name,
+      tier: entry.tier,
+      count: entry.count,
+    });
   }
   return result.sort((a, b) => a.tier - b.tier || a.name.localeCompare(b.name));
 }
@@ -55,11 +71,14 @@ export function calcMergeable(
 /**
  * 全合成を実行する。
  * Tier <= maxTierLimit の各エントリについて 2 → 1 (Tier+1) を繰り返す（再帰）。
- * 戻り値: 新しい patches Map
+ * v1.3.4: highestTier 指定時は「結果 Tier >= highestTier」 のエントリは合成しない。
+ *
+ * @param highestTier  最新未クリア Tier。 結果がこの値以上の合成は実行しない。
  */
 export function executeMergeAll(
   patches: Map<string, PatchEntry>,
-  maxTierLimit: number
+  maxTierLimit: number,
+  highestTier?: number
 ): Map<string, PatchEntry> {
   let next = new Map(patches);
   let changed = true;
@@ -69,6 +88,8 @@ export function executeMergeAll(
     for (const entry of Array.from(next.values())) {
       if (entry.tier >= maxTierLimit) continue;
       if (entry.count < 2) continue;
+      // v1.3.4: 結果 Tier が最新未クリア Tier (highestTier) 以上なら合成不可
+      if (highestTier != null && entry.tier + 1 >= highestTier) continue;
 
       const key = `${entry.name}#${entry.tier}`;
       const mergeCount = Math.floor(entry.count / 2);
@@ -97,27 +118,33 @@ export function executeMergeAll(
 // コンポーネント
 // ---------------------------------------------------------------------------
 
-export function PatchMergeTab({ overridePatches }: PatchMergeTabProps) {
+export function PatchMergeTab({ overridePatches, overrideHighestTier }: PatchMergeTabProps) {
   const storePatches = useStore((s) => s.patches);
+  const storeHighestTier = useStore((s) => s.highestTier);
   const addPatch = useStore((s) => s.addPatch);
   const consumePatch = useStore((s) => s.consumePatch);
   const pruneEmptyPatches = useStore((s) => s.pruneEmptyPatches);
 
   const patches = overridePatches ?? storePatches;
+  const highestTier = overrideHighestTier ?? storeHighestTier;
 
   // 所持パッチの最大 Tier を動的に算出
   const maxExistingTier = Math.max(1, ...Array.from(patches.values()).map((e) => e.tier));
   // ステッパーの上限: 現在所持の最高 Tier + 1（合成後に生まれうる最高 Tier）
-  const stepperMax = maxExistingTier + 1;
+  // v1.3.4: ただし「最新未クリア Tier (highestTier) 以上は合成不可」 制約に合わせて、
+  // ステッパー上限を min(maxExistingTier + 1, highestTier - 1) でクランプ。
+  // 例: highestTier = 5 (= Tier5 が未クリア) のとき、 合成結果は最大 T4 まで。
+  const stepperMaxRaw = maxExistingTier + 1;
+  const stepperMax = Math.max(1, Math.min(stepperMaxRaw, highestTier - 1));
 
-  const [maxTierLimit, setMaxTierLimit] = useState<number>(maxExistingTier);
+  const [maxTierLimit, setMaxTierLimit] = useState<number>(Math.min(maxExistingTier, stepperMax));
 
-  const mergeable = calcMergeable(patches, maxTierLimit + 1);
+  const mergeable = calcMergeable(patches, maxTierLimit + 1, highestTier);
   const canMerge = mergeable.length > 0;
 
   const handleMergeAll = () => {
     if (overridePatches) return; // オーバーライド時はストア操作しない
-    const nextPatches = executeMergeAll(patches, maxTierLimit + 1);
+    const nextPatches = executeMergeAll(patches, maxTierLimit + 1, highestTier);
 
     // 変化があるかチェック
     const hasChanges = [...nextPatches].some(([key, entry]) => {
@@ -174,6 +201,13 @@ export function PatchMergeTab({ overridePatches }: PatchMergeTabProps) {
             T{maxTierLimit} 以下を T{maxTierLimit + 1} に合成
           </Text>
         </div>
+        {/* v1.3.4: 最新未クリア Tier のパッチは合成不可 (= 出撃ドロップ狙い) のヒント */}
+        <Text
+          variant="caption"
+          color="dim"
+        >
+          最新 Tier (T{highestTier}) のパッチは合成で作れません。 出撃でドロップを狙ってください。
+        </Text>
       </div>
 
       {/* 合成対象リスト */}
