@@ -53,6 +53,7 @@ function makeEnemy(id: string, x = 0, y = 0): SpawnedEnemy {
     spawnedAtMs: 0,
     position: { x, y },
     maxHp: BigNum.fromNumber(1000),
+    hitRadius: 1.03,
     reward: {
       screw: 1,
       bolt: 1,

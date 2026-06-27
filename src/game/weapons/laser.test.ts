@@ -49,6 +49,7 @@ function makeEnemy(overrides: Partial<SpawnedEnemy> = {}): SpawnedEnemy {
     spawnedAtMs: 0,
     position: { x: 50, y: 50 },
     maxHp: BigNum.fromNumber(100),
+    hitRadius: 1.03,
     ...overrides,
   };
 }

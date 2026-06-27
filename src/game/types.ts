@@ -77,6 +77,12 @@ export interface SpawnedEnemy extends EnemyTemplate {
    * 敵が撃破/消滅すれば自動で消える (新規 spawn で 0 から)。
    */
   thunderStacks?: number;
+  /**
+   * 敵のヒット判定半径 (% フィールド、 v1.3.1)。 描画半径 ×0.95 相当。
+   * 各武器の距離判定で `dist ≤ targetRadius + hitRadius` を使い、 大きいスプライトの
+   * 端を通った弾も命中扱いにする。 spawnEnemy で kind 別に設定される (ENEMY_HIT_RADIUS_PCT)。
+   */
+  hitRadius: number;
 }
 
 // ---------------------------------------------------------------------------

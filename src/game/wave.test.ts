@@ -217,34 +217,45 @@ describe('getSpawnsAtTime', () => {
   it('W30: ボス出現タイミング (25s) 以降も半頻度で通常敵が湧き続ける', () => {
     idCounter = 0;
     const w30 = waves[29]!;
-    // 25.0s → 60.0s: ボス出現後の 35 秒間。 半頻度 2.0s 間隔で floor(35/2)=17 体湧く
+    // v1.3.1: ボス出現後はボス HP 60% 切るまで雑魚 0。 bossWeakenedAtMs を渡さない
+    // ケースでは、 ボス出現後 (25.0s 以降) の雑魚は 0 体。
     const spawns = getSpawnsAtTime(w30, 60_000, 25_000, constRng, idGen);
     const normals = spawns.filter((s) => s.kind === 'normal');
-    expect(normals).toHaveLength(17);
+    expect(normals).toHaveLength(0);
   });
 
-  it('W30: ボス出現を跨ぐフレームは「ボス前は通常テンポ + ボス後は半テンポ」 を正しく合算', () => {
+  it('W30: ボス HP 60% を切った後は通常頻度で雑魚スポーン再開 (v1.3.1)', () => {
+    idCounter = 0;
+    const w30 = waves[29]!;
+    // bossWeakenedAtMs = 30_000 (ボス出現の 5 秒後に HP 60% を切ったと仮定)。
+    // 25.0s → 60.0s: ボス出現後の 35 秒間のうち、 30s〜60s = 30 秒間が通常頻度
+    // (intervalSec = 1.0s)。 floor(30/1) = 30 体湧くはずだが、 累積差分の計算式は
+    // 「current = beforeBoss + floor((60-30)/1)= 25 + 30 = 55」 -
+    // 「prev = beforeBoss + floor((25-30)/1)= 25 + 0 (negative→0) = 25」 = 30 体。
+    const spawns = getSpawnsAtTime(w30, 60_000, 25_000, constRng, idGen, 30_000);
+    const normals = spawns.filter((s) => s.kind === 'normal');
+    expect(normals).toHaveLength(30);
+  });
+
+  it('W30: ボス出現を跨ぐフレームは「ボス前累積」 のみ反映 (HP 60% まだ切ってない)', () => {
     idCounter = 0;
     const w30 = waves[29]!;
     // 24.9s → 25.5s をまたぐ。
     // - 24.9s 時点: ボス前累積 = floor(24.9/1.0) = 24
-    // - 25.5s 時点: ボス前累積 = floor(25/1.0)=25 + ボス後 floor(0.5/2.0)=0 → 25
-    // 差分 = 1 体 (ボス出現タイミング 25s に湧く 1 体のみ、 ボス後は 0.5s しか経ってない)
+    // - 25.5s 時点: ボス前累積 = floor(25/1.0) = 25 (ボス後は HP 60% 未満なので 0)
+    // 差分 = 1 体 (ボス出現タイミング 25s に湧く 1 体のみ)
     const spawns = getSpawnsAtTime(w30, 25_500, 24_900, constRng, idGen);
     const normals = spawns.filter((s) => s.kind === 'normal');
     expect(normals).toHaveLength(1);
   });
 
-  it('W30: ボス出現後の単発フレームでも半頻度の通常敵が湧く', () => {
+  it('W30: ボス出現後の単発フレームでは雑魚 0 (v1.3.1 ボス HP 60% 未満)', () => {
     idCounter = 0;
     const w30 = waves[29]!;
-    // 26s → 30s: 全区間がボス後 (= 半頻度 2.0s 間隔)。
-    // - 26s 時点: ボス前 25 + ボス後 floor(1/2)=0 → 25
-    // - 30s 時点: ボス前 25 + ボス後 floor(5/2)=2 → 27
-    // 差分 = 2 体
+    // 26s → 30s: 全区間がボス後。 bossWeakenedAtMs null なので雑魚はスポーンしない。
     const spawns = getSpawnsAtTime(w30, 30_000, 26_000, constRng, idGen);
     const normals = spawns.filter((s) => s.kind === 'normal');
-    expect(normals).toHaveLength(2);
+    expect(normals).toHaveLength(0);
     expect(spawns.filter((s) => s.kind === 'boss')).toHaveLength(0);
   });
 

@@ -194,16 +194,16 @@ describe('PreparationScreen Page', () => {
       renderPage();
       expect(screen.getByTestId('debug-launch')).toBeInTheDocument();
       // ボタン文言の確認 (DEV プレフィックス + 開始 wave + 所持量)
-      expect(screen.getByTestId('debug-launch').textContent).toContain('W28');
+      expect(screen.getByTestId('debug-launch').textContent).toContain('W29');
     });
 
-    test('DEBUG 出撃押下 → startRun + initialWave=28 で currentWave=28', async () => {
+    test('DEBUG 出撃押下 → startRun + initialWave=29 で currentWave=29', async () => {
       const user = userEvent.setup();
       renderPage();
       await user.click(screen.getByTestId('debug-launch'));
       const s = useStore.getState();
       expect(s.isRunActive).toBe(true);
-      expect(s.currentWave).toBe(28);
+      expect(s.currentWave).toBe(29);
     });
 
     test('DEBUG 出撃押下 → ネジ / ボルト / 超合金が 1A (1e9) 加算される', async () => {
@@ -229,7 +229,7 @@ describe('PreparationScreen Page', () => {
       await user.click(screen.getByTestId('debug-launch'));
       const s = useStore.getState();
       expect(s.currentTier).toBe(2);
-      expect(s.currentWave).toBe(28);
+      expect(s.currentWave).toBe(29);
     });
 
     test('DEBUG 出撃押下 → launch SE が再生される', async () => {

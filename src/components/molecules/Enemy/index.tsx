@@ -82,7 +82,8 @@ const TYPE_PRESETS: Record<EnemyVisualType, TypePreset> = {
     defaultHp: true,
   },
   boss: {
-    size: 56,
+    // v1.3.1 で 56 → 84 (×1.5) に拡大 (ボス感を強める)
+    size: 84,
     color: 'var(--c-danger)',
     glow: 'rgba(255,77,109,0.7)',
     defaultHp: true,

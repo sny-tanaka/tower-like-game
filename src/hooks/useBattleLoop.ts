@@ -16,7 +16,7 @@ import { evaluatePatches } from '@/game/patches';
 import { dropPatch } from '@/game/patches/drops';
 import type { PatchDrop } from '@/game/patches/drops';
 import type { EquippedPatch } from '@/game/patches.types';
-import type { SpawnedEnemy } from '@/game/types';
+import type { EnemyKind, SpawnedEnemy } from '@/game/types';
 import { buildTierWaves, getSpawnsAtTime } from '@/game/wave';
 import { cannonApplySplash, cannonStats, cannonVolley } from '@/game/weapons/cannon';
 import {
@@ -166,12 +166,38 @@ export const ATTACK_PER_SEC_CAP = 10;
 export const MELEE_CONTACT_RANGE = 5;
 
 /**
+ * ボス HP 60% 閾値 (v1.3.1)。 ボス wave 中、 ボス HP がこの比率を切ると
+ * battle slice の bossWeakenedAtMs に現フレーム時刻が記録され、
+ * wave.ts の countBossNormalSpawns 経由で雑魚スポーンが通常頻度で再開する。
+ */
+export const BOSS_WEAKENED_HP_THRESHOLD = 0.6;
+
+/**
  * 敵接触時のノックバック距離 (%)。 マシン中心から離れる方向に enemy.position をこの値だけ押し戻す。
  * 体感としてスマホ画面(短辺 ~400px)で約 20px 相当。 画面サイズが変わると見た目の px は変動する。
  * 「新規接触フレーム」のみ 1 回適用 (毎フレーム適用ではない) ので、再接近 → 再接触 → 再ノックバック
  * というサイクルでダメージ間隔が空く。
+ *
+ * v1.3.1: normal (雑魚) は base 値 5。 上位敵は ATK 倍率と同じ係数で強化 (KNOCKBACK_DISTANCE_PCT_BY_KIND)。
  */
 export const KNOCKBACK_DISTANCE_PCT = 5;
+
+/**
+ * 敵種別ごとのノックバック距離 (% フィールド、 v1.3.1)。
+ * 上位敵 (elite/miniboss/boss) は ATK と同じ倍率で強化:
+ * - normal: 5% (= base)
+ * - elite: 6% (= 5 × 1.2)
+ * - miniboss: 7.5% (= 5 × 1.5)
+ * - boss: 15% (= 5 × 3.0、 重い一撃 → 距離取り直しの体感を更に強める調整)
+ *
+ * 結果: boss は単発の重い攻撃 → 押し戻されて長い再接近時間を必要とする。
+ */
+export const KNOCKBACK_DISTANCE_PCT_BY_KIND: Record<EnemyKind, number> = {
+  normal: 5,
+  elite: 6,
+  miniboss: 7.5,
+  boss: 15,
+};
 
 /**
  * 純粋関数: ノックバック後の position を計算する。
@@ -860,7 +886,10 @@ export function useBattleLoop({ paused = false }: UseBattleLoopOpts): UseBattleL
             () => {
               enemyIdCounterRef.current += 1;
               return `e-${state.currentTier}-${state.currentWave}-${enemyIdCounterRef.current}`;
-            }
+            },
+            // v1.3.1: boss wave 中のボス HP 60% フラグ。 null の間はボス出現後の雑魚 0、
+            // 値が入ったらそこから通常頻度で雑魚再開。 詳細は wave.ts countBossNormalSpawns。
+            state.bossWeakenedAtMs
           );
           if (newSpawns.length > 0) {
             enemiesRef.current = [...enemiesRef.current, ...newSpawns];
@@ -1094,9 +1123,11 @@ export function useBattleLoop({ paused = false }: UseBattleLoopOpts): UseBattleL
             const machineRangeMul = machineTick.range / 150;
             const effectiveRangeRadius =
               (WEAPON_RANGE_PCT[state.currentWeapon] * machineRangeMul) / 2;
+            // v1.3.1: 敵の hitRadius (= 描画半径 ×0.95) を射程判定に加味し、
+            // 大きい敵 (boss など) の縁が射程に入っているなら対象に含める。
             const sortedInRange = enemiesRef.current
               .map((enemy) => ({ enemy, dist: distanceFromMachine(enemy.position) }))
-              .filter(({ dist }) => dist <= effectiveRangeRadius)
+              .filter(({ enemy, dist }) => dist <= effectiveRangeRadius + enemy.hitRadius)
               .sort((a, b) => a.dist - b.dist)
               .map(({ enemy }) => enemy);
 
@@ -1531,13 +1562,15 @@ export function useBattleLoop({ paused = false }: UseBattleLoopOpts): UseBattleL
             if (prevContactSetRef.current.has(enemy.id)) {
               return enemy;
             }
-            // 新規接触: マシン中心 (50, 50) から離れる方向に KNOCKBACK_DISTANCE_PCT 押し戻す
+            // v1.3.1: 新規接触時、 敵 kind に応じたノックバック距離で押し戻す
+            // (normal 5% / elite 6% / miniboss 7.5% / boss 10%)
+            const kbDistance = KNOCKBACK_DISTANCE_PCT_BY_KIND[enemy.kind];
             return {
               ...enemy,
               position: applyKnockback(
                 enemy.position,
                 { x: MACHINE_CENTER_X, y: MACHINE_CENTER_Y },
-                KNOCKBACK_DISTANCE_PCT
+                kbDistance
               ),
             };
           });
@@ -1582,7 +1615,17 @@ export function useBattleLoop({ paused = false }: UseBattleLoopOpts): UseBattleL
           // ---- Wave 終了判定 (最終 wave は時間でなくボス撃破で advance) ----
           // 最終 wave の判定は「ボス kind の敵が居るか」 のみ。 通常敵が残っていても
           // 仕様上 Victory なので無視する (BUG-W30-1)。
-          const bossAlive = enemiesRef.current.some((e) => e.kind === 'boss');
+          const bossEnemy = enemiesRef.current.find((e) => e.kind === 'boss');
+          const bossAlive = bossEnemy != null;
+          // v1.3.1: ボス HP 60% 検知。 初回検知時のみ markBossWeakened 経由で
+          // bossWeakenedAtMs に現在 wave 経過 ms を記録 (= 雑魚スポーン再開トリガー)。
+          if (bossEnemy != null && state.bossWeakenedAtMs == null) {
+            const hpCurrent = parseFloat(bossEnemy.hp.toString());
+            const hpMax = parseFloat(bossEnemy.maxHp.toString());
+            if (hpMax > 0 && hpCurrent / hpMax < BOSS_WEAKENED_HP_THRESHOLD) {
+              state.markBossWeakened(waveElapsedMsRef.current);
+            }
+          }
           const decision = decideWaveAdvance(
             waveElapsedMsRef.current,
             schedule.durationSec,

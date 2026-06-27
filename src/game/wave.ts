@@ -117,7 +117,14 @@ export function getSpawnsAtTime(
   elapsedMs: number,
   prevElapsedMs: number,
   rng: () => number,
-  idGenerator: () => string
+  idGenerator: () => string,
+  /**
+   * ボス HP が 60% を切った wave 内経過 ms (boss wave 専用)。
+   * - null: まだ切ってない → ボス出現以降の通常敵スポーンを抑止
+   * - 値あり: その時刻以降は通常テンポ (×1.0) で雑魚スポーン再開
+   * boss wave 以外では無視される。
+   */
+  bossWeakenedAtMs: number | null = null
 ): SpawnedEnemy[] {
   const spawns: SpawnedEnemy[] = [];
   const elapsedSec = elapsedMs / 1000;
@@ -128,20 +135,15 @@ export function getSpawnsAtTime(
   const upperSpawnSec = schedule.durationSec - UPPER_ENEMY_LEAD_SEC;
 
   // 通常敵スポーン
-  // boss wave (W30): ボス出現以降も通常敵を湧かせるが「通常 wave の半分の頻度」 に落とす。
-  // 実装: ボス出現タイミング (upperSpawnSec) 以降は spawnIntervalSec を 2 倍にする。
-  // 累積本数は「ボス出現前: 通常テンポ、 ボス出現後: 半テンポ」 の合算で計算する。
-  // advanceTier は bossAlive===false で判定する (decideWaveAdvance) ので、 ボス出現後に
+  // boss wave (W30, v1.3.1): ボス出現後はボス HP 60% を切るまで雑魚 0、
+  // 切った後は通常頻度 (×1.0) で再開する。 ボス HP 60% を切った時刻は
+  // bossWeakenedAtMs (wave 内経過 ms) で渡される。 null の間はボス出現後 0 を返す。
+  // advanceTier は bossAlive===false で判定する (decideWaveAdvance) ので、 ボス HP 60% 切った後に
   // 通常敵が湧き続けても tier クリアを阻害しない (= ボスさえ倒せば残雑魚は無視できる)。
-  const BOSS_NORMAL_SPAWN_INTERVAL_MUL = 2;
+  const bossWeakenedSec = bossWeakenedAtMs != null ? bossWeakenedAtMs / 1000 : null;
   const normalCount =
     schedule.eliteKind === 'boss'
-      ? countBossNormalSpawns(
-          elapsedSec,
-          upperSpawnSec,
-          schedule.spawnIntervalSec,
-          BOSS_NORMAL_SPAWN_INTERVAL_MUL
-        )
+      ? countBossNormalSpawns(elapsedSec, upperSpawnSec, schedule.spawnIntervalSec, bossWeakenedSec)
       : Math.floor(elapsedSec / schedule.spawnIntervalSec);
   const prevNormalCount =
     schedule.eliteKind === 'boss'
@@ -149,7 +151,7 @@ export function getSpawnsAtTime(
           prevElapsedSec,
           upperSpawnSec,
           schedule.spawnIntervalSec,
-          BOSS_NORMAL_SPAWN_INTERVAL_MUL
+          bossWeakenedSec
         )
       : Math.floor(prevElapsedSec / schedule.spawnIntervalSec);
   const toSpawn = normalCount - prevNormalCount;
@@ -177,29 +179,34 @@ export function getSpawnsAtTime(
 // ---------------------------------------------------------------------------
 
 /**
- * boss wave での通常敵累積スポーン数を計算する。
- * - 0〜upperSpawnSec: 通常テンポ (intervalSec)
- * - upperSpawnSec〜: 半テンポ (intervalSec × intervalMul)
+ * boss wave での通常敵累積スポーン数を計算する (v1.3.1)。
+ * - 0〜upperSpawnSec: 通常テンポ (intervalSec) で雑魚スポーン
+ * - upperSpawnSec〜bossWeakenedSec: ボス HP 60% 切るまで雑魚 0 (= スポーン抑止)
+ * - bossWeakenedSec〜: ボス HP 60% 切った後、 通常テンポ (intervalSec) で再開
  *
- * elapsedSec が upperSpawnSec 未満なら、 通常テンポでの累積数のみ。
- * elapsedSec が upperSpawnSec 以上なら、 upperSpawnSec までの通常テンポ累積数 +
- * その後の半テンポ累積数 を合算して返す。
+ * bossWeakenedSec が null の間 (ボス HP まだ 60% 切ってない) はボス出現以降の雑魚は
+ * 出ない。 値が入ったらその時刻以降は通常頻度で湧き始める。
  */
-function countBossNormalSpawns(
+export function countBossNormalSpawns(
   elapsedSec: number,
   upperSpawnSec: number,
   intervalSec: number,
-  intervalMul: number
+  bossWeakenedSec: number | null
 ): number {
   if (elapsedSec <= 0) return 0;
+  // ボス出現前: 通常テンポでの累積
   if (elapsedSec <= upperSpawnSec) {
     return Math.floor(elapsedSec / intervalSec);
   }
   const beforeBoss = Math.floor(upperSpawnSec / intervalSec);
-  const afterBossSec = elapsedSec - upperSpawnSec;
-  const afterBossInterval = intervalSec * intervalMul;
-  const afterBoss = Math.floor(afterBossSec / afterBossInterval);
-  return beforeBoss + afterBoss;
+  // ボス HP 60% まだ切ってない: ボス出現以降は雑魚 0
+  if (bossWeakenedSec == null || elapsedSec <= bossWeakenedSec) {
+    return beforeBoss;
+  }
+  // ボス HP 60% 切った後: 通常テンポで再開
+  const afterWeakenedSec = elapsedSec - bossWeakenedSec;
+  const afterWeakened = Math.floor(afterWeakenedSec / intervalSec);
+  return beforeBoss + afterWeakened;
 }
 
 /**

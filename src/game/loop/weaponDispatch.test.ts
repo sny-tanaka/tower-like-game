@@ -29,6 +29,7 @@ function makeEnemy(id: string, x = 50, y = 50): SpawnedEnemy {
     spawnedAtMs: 0,
     position: { x, y },
     maxHp: BigNum.fromNumber(1000),
+    hitRadius: 1.03,
   };
 }
 
