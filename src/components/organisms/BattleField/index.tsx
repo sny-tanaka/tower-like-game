@@ -1,3 +1,5 @@
+import { useMemo } from 'react';
+
 import { EnemyLayer } from './EnemyLayer';
 import { FxLayer } from './FxLayer';
 import { ProjectileLayer } from './ProjectileLayer';
@@ -228,6 +230,10 @@ export function BattleField({
   // ぶら下げるだけ。 Phase 2-C で props 自体を型定義から削除する。
   const machineX = machinePosition.x;
   const machineY = machinePosition.y;
+  // v1.3.7 (Phase 3-C フォローアップ): EnemyLayer → EnemySprite × 35 の React.memo 比較が
+  // 「親 BattleField が再 render するたびに machinePosition={{x,y}} の object 参照が変わって
+  // 全 sprite で memo bust」 となるのを防ぐ。 useMemo で参照を安定化。
+  const machinePosMemo = useMemo(() => ({ x: machineX, y: machineY }), [machineX, machineY]);
 
   // 索敵円の直径 = range (= フィールド % の直径)。当たり判定とは「中心からの半径 ≤ range/2」 で同期。
   // design ref に合わせて 1 本のリングのみ描画
@@ -275,7 +281,7 @@ export function BattleField({
 
         {/* v1.3.7 (Phase 2-B): 敵 sprite ループを EnemyLayer に分離。
             useSyncExternalStore で entityStore を直接購読 (Page 経由なし)。 */}
-        <EnemyLayer machinePosition={{ x: machineX, y: machineY }} />
+        <EnemyLayer machinePosition={machinePosMemo} />
 
         {/* マシン (三角 + 単一リング) */}
         <div
