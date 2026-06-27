@@ -18,12 +18,9 @@ export default meta;
 type Story = StoryObj<typeof GameSettingsTab>;
 
 function DefaultStory() {
-  const [vibration, setVibration] = useState(true);
   const [targetFps, setTargetFps] = useState<TargetFps>(60);
   return (
     <GameSettingsTab
-      overrideVibration={vibration}
-      onVibrationChange={setVibration}
       overrideTargetFps={targetFps}
       onTargetFpsChange={setTargetFps}
     />
@@ -35,32 +32,12 @@ export const Default: Story = {
   render: () => <DefaultStory />,
 };
 
-/** バイブ OFF */
-export const VibrationOff: Story = {
-  render: () => (
-    <GameSettingsTab
-      overrideVibration={false}
-      overrideTargetFps={60}
-    />
-  ),
-};
-
 /** FPS 30 (発熱優先) */
 export const Fps30: Story = {
-  render: () => (
-    <GameSettingsTab
-      overrideVibration={true}
-      overrideTargetFps={30}
-    />
-  ),
+  render: () => <GameSettingsTab overrideTargetFps={30} />,
 };
 
 /** FPS 45 (バランス) */
 export const Fps45: Story = {
-  render: () => (
-    <GameSettingsTab
-      overrideVibration={true}
-      overrideTargetFps={45}
-    />
-  ),
+  render: () => <GameSettingsTab overrideTargetFps={45} />,
 };
