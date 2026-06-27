@@ -55,6 +55,12 @@
   flex-shrink: 0;
 }
 
+/* maxed 表示 (静的) */
+.lvBadgeMaxed {
+  color: var(--c-success);
+  box-shadow: var(--glow-success-md);
+}
+
 
 /* 説明文 */
 .description {
@@ -107,10 +113,12 @@
   flex: none;
 }
 
-/* ボタン列 (3 ボタン横並びの grid) */
+/* ボタン列 (3 ボタン横並びの grid)
+   --upgrade-cols は親の inline style から渡される (options 数に応じて 1〜3) */
 .buttons {
   display: grid;
   gap: 4px;
+  grid-template-columns: repeat(var(--upgrade-cols, 3), 1fr);
 }
 
 .btnCol {

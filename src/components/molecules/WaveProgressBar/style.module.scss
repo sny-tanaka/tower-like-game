@@ -26,6 +26,11 @@
   flex: 1;
 }
 
+/* boss wave 表示時のマイルストーン (静的) */
+.milestoneBoss {
+  color: var(--c-secondary);
+}
+
 .milestoneText {
   font-family: var(--ff-display);
   font-size: var(--fs-label);

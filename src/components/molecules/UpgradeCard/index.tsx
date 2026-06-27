@@ -157,17 +157,7 @@ export function UpgradeCard({
             {currentLabel}
           </span>
         )}
-        {maxed && (
-          <span
-            className={styles.lvBadge}
-            style={{
-              color: 'var(--c-success)',
-              boxShadow: 'var(--glow-success-md)',
-            }}
-          >
-            MAX
-          </span>
-        )}
+        {maxed && <span className={`${styles.lvBadge} ${styles.lvBadgeMaxed}`}>MAX</span>}
       </div>
 
       {/* 説明文 */}
@@ -214,11 +204,11 @@ export function UpgradeCard({
         </div>
       )}
 
-      {/* ボタン群 (3 ボタン: +1 / +5 / MAX) */}
+      {/* ボタン群 (3 ボタン: +1 / +5 / MAX)。 grid-template-columns は --upgrade-cols 経由で SCSS に渡す。 */}
       {!maxed && options.length > 0 && (
         <div
           className={styles.buttons}
-          style={{ gridTemplateColumns: `repeat(${options.length}, 1fr)` }}
+          style={{ ['--upgrade-cols' as string]: options.length }}
         >
           {options.map((opt) => {
             const disabled = opt.disabled === true;

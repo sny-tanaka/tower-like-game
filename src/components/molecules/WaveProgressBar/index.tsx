@@ -104,10 +104,7 @@ export function WaveProgressBar({
 
         {/* ボス wave のときは「BOSS WAVE」 ラベル (時間バーの代わり) */}
         {isBossWave && (
-          <span
-            className={styles.milestone}
-            style={{ color: 'var(--c-secondary)' }}
-          >
+          <span className={`${styles.milestone} ${styles.milestoneBoss}`}>
             <Icon
               name="skull"
               size={12}
