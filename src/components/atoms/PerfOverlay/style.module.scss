@@ -1,0 +1,35 @@
+.root {
+  position: fixed;
+  top: var(--sp-s);
+  right: var(--sp-s);
+  z-index: 9999;
+  padding: var(--sp-xs) var(--sp-s);
+  background: rgba(0, 0, 0, 0.7);
+  border: 1px solid var(--c-primary);
+  border-radius: var(--r-s);
+  font-family: var(--ff-numeric);
+  font-size: 11px;
+  line-height: 1.3;
+  color: var(--c-primary-hi);
+  pointer-events: none;
+  letter-spacing: var(--ls-num);
+  text-transform: uppercase;
+  /* Fx 群と独立した GPU layer (オーバーレイ自体は paint コストを上乗せしない) */
+  will-change: contents;
+}
+
+.row {
+  display: flex;
+  gap: var(--sp-xs);
+  justify-content: space-between;
+  min-width: 88px;
+}
+
+.label {
+  color: var(--c-text-dim);
+}
+
+.value {
+  color: var(--c-primary-hi);
+  font-weight: 600;
+}

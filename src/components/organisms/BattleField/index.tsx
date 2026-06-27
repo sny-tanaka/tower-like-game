@@ -290,6 +290,7 @@ export function BattleField({
           return (
             <div
               key={enemy.id}
+              data-enemy-id={enemy.id}
               className={styles.enemy}
               style={{
                 left: `${enemy.position.x}%`,

@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import styles from './style.module.scss';
 
+import { PerfOverlay } from '@/components/atoms/PerfOverlay';
 import { AppearanceBannerFx } from '@/components/fx/AppearanceBannerFx';
 import { TierClearFx } from '@/components/fx/TierClearFx';
 import { WaveStartFx } from '@/components/fx/WaveStartFx';
@@ -494,6 +495,9 @@ export function Page() {
 
   return (
     <div className={styles.root}>
+      {/* v1.3.7 (Phase 0): ?debug=perf クエリ時のみ fps / heap / 敵 sprite 数を画面右上に表示。
+          クエリが無ければ null を返すので production への影響ゼロ。 */}
+      <PerfOverlay />
       {/* v1.3.6: スクリーンセーバー中は AppShell 全体 (= BattleHudTop / BattleHudBottom /
           RunWorkshopBottomSheet / BattleField) を unmount。 これらは store selector を
           subscribe しているため、 tickCooldowns が毎フレーム activeCdSec を setState するたび
