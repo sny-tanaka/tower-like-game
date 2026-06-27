@@ -31,6 +31,13 @@ export interface NumericDisplayProps {
   suffix?: string;
   /** 小数点以下の桁数（BigNum では整数表示だが、生の数値を decimals 桁で表示） */
   decimals?: number;
+  /**
+   * 親側で `font-size` 等を CSS Module class でかぶせるための拡張ポイント。
+   * v1.3.7 inline style 棚卸し: 利用側で `style={{ fontSize: 14 }}` のように静的値を
+   * inline 渡しするのを避けるため追加。 size class より後ろに連結されるので
+   * 親 module の class が specificity でも勝つ (CSS Module は単一クラスセレクタ)。
+   */
+  className?: string;
   style?: CSSProperties;
 }
 
@@ -132,6 +139,7 @@ function NumericDisplayImpl({
   prefix,
   suffix,
   decimals,
+  className,
   style,
 }: NumericDisplayProps) {
   const bn: BigNum = typeof value === 'number' ? BigNum.fromNumber(value) : value;
@@ -173,9 +181,13 @@ function NumericDisplayImpl({
     ...style,
   };
 
+  const rootClass = className
+    ? `${styles.root} ${sizeClass} ${className}`
+    : `${styles.root} ${sizeClass}`;
+
   return (
     <span
-      className={`${styles.root} ${sizeClass}`}
+      className={rootClass}
       style={inlineStyle}
     >
       {prefix != null && <span className={styles.affix}>{prefix}</span>}
@@ -206,7 +218,8 @@ function areNumericDisplayPropsEqual(
     prev.glow !== next.glow ||
     prev.prefix !== next.prefix ||
     prev.suffix !== next.suffix ||
-    prev.decimals !== next.decimals
+    prev.decimals !== next.decimals ||
+    prev.className !== next.className
   ) {
     return false;
   }

@@ -3,6 +3,15 @@ import type { CSSProperties } from 'react';
 
 import styles from './style.module.scss';
 
+// stable な CSSProperties オブジェクト (毎 render 生成しないため module-level に置く)。
+// NumericDisplay の memo + shallowStyleEq は内容比較するが、 同参照ならその比較もスキップ。
+const STYLE_COLOR_SUCCESS: CSSProperties = { color: 'var(--c-success)' };
+const STYLE_COLOR_DANGER: CSSProperties = { color: 'var(--c-danger)' };
+const STYLE_COLOR_DISABLED: CSSProperties = { color: 'var(--c-text-disabled)' };
+const STYLE_COLOR_SCREW: CSSProperties = { color: 'var(--c-screw)' };
+const STYLE_COLOR_BOLT: CSSProperties = { color: 'var(--c-bolt)' };
+const STYLE_COLOR_ALLOY: CSSProperties = { color: 'var(--c-alloy)' };
+
 import { Icon } from '@/components/atoms/Icon';
 import { NumericDisplay } from '@/components/atoms/NumericDisplay';
 import type { NumericDisplaySize } from '@/components/atoms/NumericDisplay';
@@ -73,11 +82,10 @@ interface DeltaPrefixProps {
 }
 
 function DeltaPrefix({ delta, sizeClass }: DeltaPrefixProps) {
-  const colorVar = delta === '+' ? 'var(--c-success)' : 'var(--c-danger)';
+  const colorClass = delta === '+' ? styles.deltaPlus : styles.deltaMinus;
   return (
     <span
-      className={`${styles.delta} ${sizeClass}`}
-      style={{ color: colorVar } as CSSProperties}
+      className={`${styles.delta} ${sizeClass} ${colorClass}`}
       aria-hidden="true"
     >
       {delta}
@@ -104,11 +112,20 @@ function CurrencyAmountImpl({
   const config = CURRENCY_CONFIG[currency];
   const colorVar = subtle ? 'var(--c-text-disabled)' : `var(${config.cssVar})`;
 
-  // delta がある場合は delta の色を優先（subtle の場合は無効化）
-  const accentStyle: CSSProperties =
-    delta && !subtle
-      ? { color: delta === '+' ? 'var(--c-success)' : 'var(--c-danger)' }
-      : { color: colorVar };
+  // delta がある場合は delta の色を優先 (subtle の場合は無効化)。
+  // 毎 render 新 CSSProperties オブジェクトを作らないように module-level の定数を選択する。
+  // (NumericDisplay は memo + shallowStyleEq だが、 そもそも同参照ならその比較もスキップ)
+  const accentStyle: CSSProperties = subtle
+    ? STYLE_COLOR_DISABLED
+    : delta === '+'
+      ? STYLE_COLOR_SUCCESS
+      : delta === '-'
+        ? STYLE_COLOR_DANGER
+        : currency === 'screw'
+          ? STYLE_COLOR_SCREW
+          : currency === 'bolt'
+            ? STYLE_COLOR_BOLT
+            : STYLE_COLOR_ALLOY;
 
   const deltaSizeClass = {
     sm: styles.deltaSm,
