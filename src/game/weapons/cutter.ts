@@ -44,17 +44,18 @@ export interface CutterStats {
  *   - ダメ倍率: 1.2 固定
  *   - Overdrive (Lv 軸): 持続 8 + 0.1×Lv 秒、AS×3 + ダメ×3 (DPS 倍率 9)
  */
-/** Cutter 底値 attacks/sec。 1 fire = 「視覚 1 周のうち 1 / blades 分」 を判定する周期 */
-export const CUTTER_BASE_AS = 1.0;
+/** Cutter 底値 attacks/sec (v1.3.0 で 1.0 → 0.5 に半減、 旋回テンポを落として 1 ヒットダメ倍化) */
+export const CUTTER_BASE_AS = 0.5;
 /** Cutter 旋回半径 (px)。 Lv 不問で固定 */
 export const CUTTER_BASE_ORBIT_RADIUS = 80;
 /** Cutter 刃の枚数。 Lv 不問で固定 2 */
 export const CUTTER_BLADES = 2;
 /**
- * Cutter 底値 武器ダメージ倍率。 単体 DPS は AS × damageMul = 1.0 × 1.2 = 1.2、
+ * Cutter 底値 武器ダメージ倍率 (v1.3.0 で 1.2 → 2.4 に倍化)。
+ * 単体 DPS は AS × damageMul = 0.5 × 2.4 = 1.2 を維持、
  * 2 体同時時は 2.4 (blades=2 で 360° カバー)
  */
-export const CUTTER_BASE_DAMAGE_MUL = 1.2;
+export const CUTTER_BASE_DAMAGE_MUL = 2.4;
 
 export function cutterStats(weaponLv: number): CutterStats {
   // v1.1.1: attackPerSec / damageMul は武器Lv 不問の固定底値
