@@ -18,13 +18,13 @@ import {
   calcEffectValue,
 } from '@/components/organisms/MachineUpgradeList/items';
 import { ResultDialog } from '@/components/organisms/ResultDialog';
-import type { ResultStatus } from '@/components/organisms/ResultDialog';
 import { RunWorkshopBottomSheet } from '@/components/organisms/RunWorkshopBottomSheet';
 import {
   calcRunWorkshopMultiplier,
   type RunWorkshopKey,
 } from '@/components/organisms/RunWorkshopBottomSheet/items';
 import { ScreenSaverDialog } from '@/components/organisms/ScreenSaverDialog';
+import type { PatchDrop } from '@/game/patches/drops';
 import { BattleEntityStoreProvider } from '@/game/store/BattleEntityStoreContext';
 import { WAVE_DURATION_SEC } from '@/game/wave';
 import {
@@ -35,11 +35,10 @@ import {
 import { WEAPON_RANGE_PCT } from '@/game/weapons/range';
 import { ATTACK_PER_SEC_CAP, useBattleLoop } from '@/hooks/useBattleLoop';
 import { useBossPhase } from '@/hooks/useBossPhase';
+import { useResultStatus } from '@/hooks/useResultStatus';
 import { soundEngine } from '@/lib/audio';
-import { BigNum } from '@/lib/bignum/BigNum';
 import { useStore } from '@/store/index';
 import { useNavigation } from '@/store/navigation';
-import { flushAfterRun } from '@/store/sync';
 
 // ---------------------------------------------------------------------------
 // デフォルト値
@@ -61,16 +60,6 @@ const EMPTY_HIT_EVENTS: HitEvent[] = [];
  */
 const CUTTER_BLADES = 2;
 
-/**
- * リザルトダイアログが開いているかの判定。
- * isRunActive: true のときだけ HP チェックを行う（ラン開始前の初期 HP=0 でリザルトを出さない）。
- */
-function resolveResultStatus(isRunActive: boolean, machineHp: BigNum): ResultStatus | null {
-  if (!isRunActive) return null;
-  if (machineHp.lte(BigNum.ZERO)) return 'gameover';
-  return null;
-}
-
 // ---------------------------------------------------------------------------
 // BattleScreen Page
 // ---------------------------------------------------------------------------
@@ -89,20 +78,14 @@ export function Page() {
   const { navigate } = useNavigation();
 
   // ── store から状態取得 ──
+  // v1.3.7 Phase 4-D: bolt / alloy / runStartBolt / runStartAlloy / isRunActive (ResultDialog 用) は
+  // useResultStatus 内部で subscribe するため Page では引き続き使わない。
+  // isRunActive は BATTLE START バナーの遷移検知でも使うので Page でも subscribe する。
+  // machineHp は被ダメ検知 useEffect で使うので Page でも引き続き subscribe。
   const isRunActive = useStore((s) => s.isRunActive);
-  // v1.3.7 Phase 4-C: screw は BattleHudBottom / RunWorkshopBottomSheet 内部 selector で
-  // 取得するようになったため Page では subscribe しない。
-  // bolt / runStartBolt は ResultDialog の reward.bolt fallback (finalEarnedBolt が
-  // まだ null のフレーム用) と earnedBolt useMemo で使う。 v1.3.7 Phase 4-B 以降、
-  // HUD 下段の earnedBolt 表示は BattleHudBottom 内部で再計算するようになったため、
-  // Page 側の earnedBolt はあくまで ResultDialog 用の fallback。
-  const bolt = useStore((s) => s.bolt);
-  const alloy = useStore((s) => s.alloy);
-  const runStartBolt = useStore((s) => s.runStartBolt);
-  const runStartAlloy = useStore((s) => s.runStartAlloy);
   const machineHp = useStore((s) => s.machineHp);
-  // v1.3.7 Phase 4-A: machineMaxHp は BattleHudTop 内部に移譲したため Page では購読不要。
-  // (Page 自身では使っていないので、 selector ごと削除して Page の re-render を減らす)
+  // currentTier / currentWave は BGM 切替 (useBossPhase 連動) / WaveStartFx / TierClearFx /
+  // ScreenSaverDialog で使うため Page で引き続き subscribe。
   const currentTier = useStore((s) => s.currentTier);
   const currentWave = useStore((s) => s.currentWave);
   // currentWeapon は BattleField の showCutterOrbit / cutterRotateMs / WEAPON_RANGE_PCT で使う。
@@ -197,28 +180,40 @@ export function Page() {
     prevWaveRef.current = currentWave;
   }, [currentWave]);
 
-  // ── リザルト状態 (useBattleLoop に paused として渡すため先に計算) ──
-  const autoResultStatus = resolveResultStatus(isRunActive, machineHp);
-  // 撤退時は 'retreat' を手動で set するためローカル state で保持
-  const [resultStatus, setResultStatus] = useState<ResultStatus | null>(null);
-  const effectiveResultStatus = resultStatus ?? autoResultStatus;
-  const isResultOpen = effectiveResultStatus !== null;
+  // ── useBattleLoop の戻り値を hook 間で共有するための ref ──
+  // useResultStatus は finalize 時に killCount / runElapsedSec を必要とするが、 hook 呼出順は
+  // 「useResultStatus → useBattleLoop」 にしたい (= useBattleLoop に isResultOpen を渡すため)。
+  // そこで useBattleLoop の戻り値を毎 render で ref に同期し、 useResultStatus の getter で
+  // 読み出す形にする。 (= hook 順序の循環依存を回避)
+  const battleLoopRef = useRef<{
+    killCount: number;
+    runElapsedSec: number;
+    droppedPatches: PatchDrop[];
+  }>({
+    killCount: 0,
+    runElapsedSec: 0,
+    droppedPatches: [],
+  });
 
-  // ラン終了時点の tier / wave をスナップショット。 endRun() が currentTier/Wave を 1 に
-  // リセットしてしまうため、 ResultDialog 表示用に finalizeRun の冒頭で保存しておく。
-  const [finalTier, setFinalTier] = useState<number | null>(null);
-  const [finalWave, setFinalWave] = useState<number | null>(null);
-  // ラン終了時点の獲得 bolt / alloy もスナップショット。 endRun() は runStartBolt/Alloy を
-  // 0 にリセットするため、 再 render 後の earnedBolt = bolt - 0 = 全所持数 になってしまう。
-  // finalizeRun の冒頭で earnedBolt/earnedAlloy 自体を保存しておけば差分計算は固定される。
-  const [finalEarnedBolt, setFinalEarnedBolt] = useState<BigNum | null>(null);
-  const [finalEarnedAlloy, setFinalEarnedAlloy] = useState<BigNum | null>(null);
-
-  // ── リザルト SE (clear / gameover) ──
-  useEffect(() => {
-    if (effectiveResultStatus === 'clear') soundEngine.play('resultClear');
-    if (effectiveResultStatus === 'gameover') soundEngine.play('resultGameOver');
-  }, [effectiveResultStatus]);
+  // ── リザルト状態 (Phase 4-D: useResultStatus に集約) ──
+  // 自動 status 判定 (isRunActive + machineHp<=0 → 'gameover') / 手動 set ('retreat' / 'clear') /
+  // finalize 後 snapshot (reachedTier / reachedWave / earnedBolt / earnedAlloy) / SE 再生 /
+  // hasFinalizedRef ガードはすべて hook 内に閉じ込め済み。
+  const {
+    effectiveResultStatus,
+    isResultOpen,
+    reachedTier,
+    reachedWave,
+    earnedBolt,
+    earnedAlloy,
+    setRetreat,
+    finalizeAsClear,
+    resetFinalize,
+  } = useResultStatus({
+    getKillCount: () => battleLoopRef.current.killCount,
+    getRunElapsedSec: () => battleLoopRef.current.runElapsedSec,
+    getDroppedPatches: () => battleLoopRef.current.droppedPatches,
+  });
 
   // ── ゲームループ (敵 spawn / 武器発射 / ダメージ / 撃破 / 被ダメ / 弾道 / ドロップ) ──
   // ResultDialog 表示中 (撤退 / gameover) は paused で完全停止させる
@@ -239,6 +234,9 @@ export function Page() {
     // 通常通り setDamageEvents で append するとメモリ蓄積する)。
     suspendRendering: isScreenSaverOpen,
   });
+
+  // useBattleLoop の戻り値を ref に同期 (useResultStatus.getter から読まれる)
+  battleLoopRef.current = { killCount, runElapsedSec, droppedPatches };
 
   // Tier クリア通知: tierCleared が true になった瞬間に TierClearFx をマウント。
   // 演出終了 (onDone) は handleTierClearFxDone で処理 (次 Tier 解放 + ラン終了 + ResultDialog)。
@@ -295,70 +293,18 @@ export function Page() {
   //   - weaponCds (currentWeapon / weaponSwitchCdSec から計算)
   //   - activeCdReduction / activeMaxSec (machineLevels.activeCdReduction から計算)
   //   - earnedBolt の HUD 表示用計算 (bolt - runStartBolt)
-  // Page 側では BattleHudBottom にこれらを props で渡さないので、 useMemo / 関連 selector を撤去。
-  // (earnedBolt は ResultDialog の reward.bolt fallback 用に下記で別途 useMemo する)
+  // v1.3.7 Phase 4-D: ResultDialog 用の earnedBolt / earnedAlloy / reachedTier / reachedWave
+  // も useResultStatus 内部に移譲済み。 Page 側で別途 useMemo / selector を持つ必要なし。
 
   // v1.3.7 Phase 4-A: hpCurrentBn / hpMaxBn の useMemo は BattleHudTop 内部に移譲した
   // (BattleHudTop が useStore で直接 machineHp / machineMaxHp を購読 → memo + 0 クランプ
   // も内部で実施)。 Page は hp 値を BattleHudTop に渡さなくなったのでここの useMemo を削除。
-  // machineHp は引き続き「被ダメ検知 useEffect」 と「resolveResultStatus」 で使うので
-  // Page 上の useStore subscribe は残す。 machineMaxHp は Page 側で使わなくなったが、
-  // 他 effect への波及確認のため selector 自体は残置 (lint pass 用に下流で使う可能性に備える)。
-
-  // ── ラン終了共通ヘルパー ──
-  // gameover / 撤退どちらのフローでも endRun / profile 系を 1 度だけ呼ぶ。
-  // hasFinalizedRef で重複呼び出しを防ぐ。
-  const hasFinalizedRef = useRef(false);
-  const finalizeRun = useCallback(
-    (status: ResultStatus) => {
-      if (hasFinalizedRef.current) return;
-      hasFinalizedRef.current = true;
-      // endRun() で currentTier/Wave が 1、 runStartBolt/Alloy が 0 にリセットされるので
-      // useStore.getState() で fresh な値をスナップショット。
-      // (0.3.5: 旧実装は selector closure (deps に [currentTier, currentWave, ...]) を使って
-      //  いたが、 handleTierClearFxDone 経由で同期的に finalizeRun を呼ぶケースで「setState
-      //  → react reconcile 待ち」 タイミングの問題が起きるため、 すべて getState() に統一)
-      const state = useStore.getState();
-      const snapTier = state.currentTier;
-      const snapWave = state.currentWave;
-      setFinalTier(snapTier);
-      setFinalWave(snapWave);
-      const finalBolt = state.bolt.sub(state.runStartBolt);
-      const finalAlloy = state.alloy.sub(state.runStartAlloy);
-      setFinalEarnedBolt(finalBolt.lt(BigNum.ZERO) ? BigNum.ZERO : finalBolt);
-      setFinalEarnedAlloy(finalAlloy.lt(BigNum.ZERO) ? BigNum.ZERO : finalAlloy);
-      // gameover / clear パス: autoResultStatus は endRun() 後に「machineHp=0 → gameover」
-      // を返してしまう (defaultBattleState.machineHp = ZERO のため)。 'clear' でも 'gameover' でも
-      // ローカル state に固定してダイアログを維持する。
-      // (0.3.5: 'clear' を追加。 旧仕様では Tier ボス撃破で advanceTier していたため 'clear'
-      //  ステータスは事実上未使用だったが、 Tier クリア → リザルト画面フローで明示的に使う)
-      if (status === 'gameover' || status === 'clear') {
-        setResultStatus(status);
-      }
-      state.endRun();
-      state.updateHighest(snapTier, snapWave);
-      state.incrementRuns();
-      state.addEnemiesKilled(killCount);
-      state.addPlayTimeSec(runElapsedSec);
-      state.setLastPlayedAt(Date.now());
-      void flushAfterRun();
-    },
-    [killCount, runElapsedSec]
-  );
-
-  // effectiveResultStatus が null → 非 null に変化した瞬間に 1 度だけ finalizeRun を呼ぶ。
-  // hasFinalizedRef のリセットは handleResultClose (preparation 遷移時) で行う。
-  // 0.3.5: Tier クリアフロー (handleTierClearFxDone) が finalizeRun を先行呼びするケースが
-  // あるため、 ここでリセットすると重複呼び (updateHighest や incrementRuns が 2 回) になる。
-  const prevResultStatusRef = useRef<ResultStatus | null>(null);
-  useEffect(() => {
-    if (effectiveResultStatus !== null && prevResultStatusRef.current === null) {
-      finalizeRun(effectiveResultStatus);
-    }
-    prevResultStatusRef.current = effectiveResultStatus;
-  }, [effectiveResultStatus, finalizeRun]);
+  // machineHp は引き続き「被ダメ検知 useEffect」 でのみ使うので Page 上の useStore subscribe は残す。
+  // gameover 判定 (旧 resolveResultStatus) は useResultStatus 内部の subscribe に移譲。
 
   // ── ハンドラ ──
+  // (v1.3.7 Phase 4-D: finalizeRun / hasFinalizedRef / effectiveResultStatus 遷移検知 useEffect /
+  //  resultStatus SE 再生 useEffect は useResultStatus 内部に移譲済み。)
   // (H2-4: BattleHudBottom / RunWorkshopBottomSheet に渡すハンドラを useCallback 化。
   //  下流コンポーネントの React.memo を活かすため、 props の関数参照を安定化する。
   //  pause/screenSaver 等の依存は setState 系のみで安定なので deps を最小化できる)
@@ -377,16 +323,18 @@ export function Page() {
   const handleRetreat = useCallback(() => {
     // retreat 時はメニューも閉じる (= pause 解除)。 ResultDialog 側で停止が担保される
     setPaused(false);
-    setResultStatus('retreat');
+    // setRetreat: useResultStatus の手動 status set ('retreat')。 内部で setManualResultStatus
+    // するため、 直後の effectiveResultStatus は null → 'retreat' に遷移する。
+    setRetreat();
     soundEngine.play('resultRetreat');
-  }, [setPaused]);
+  }, [setPaused, setRetreat]);
 
   const handleResultClose = useCallback(() => {
-    // 次のラン開始用に finalize ガードをリセット (0.3.5: 旧実装は useEffect 内でリセット
-    // していたが、 Tier クリアフロー (handleTierClearFxDone) との重複防止のため移動)
-    hasFinalizedRef.current = false;
+    // 次のラン開始用に finalize ガードと snapshot をリセット (= 次ランで再度 null→非 null
+    // 遷移を検知できる)。 旧 hasFinalizedRef.current = false に相当。
+    resetFinalize();
     navigate('preparation');
-  }, [navigate]);
+  }, [navigate, resetFinalize]);
 
   const handleWorkshopUpgrade = useCallback(
     (key: RunWorkshopKey, delta: 1 | 5 | 'max') => {
@@ -448,23 +396,13 @@ export function Page() {
   const handleTierClearFxDone = useCallback(() => {
     setTierClearKey(0);
     const clearedTier = useStore.getState().currentTier;
-    finalizeRun('clear');
+    // Phase 4-D: finalize 'clear' は useResultStatus.finalizeAsClear に委譲
+    // (順序: finalizeAsClear → unlockNextTier の順は維持。 endRun が currentTier を 1 に
+    //  リセットするため clearedTier は finalize 前にスナップショット済み)
+    finalizeAsClear();
     useStore.getState().unlockNextTier(clearedTier);
     onTierClearedAck();
-  }, [onTierClearedAck, finalizeRun]);
-
-  // リザルトリワード: ラン開始時残高からの差分で算出 (負にならないようクランプ)。
-  // (H2-4: BigNum.sub は新規 BigNum を返すため、 毎 render で参照が変わって BattleHudBottom +
-  //  CurrencyAmount が 60fps re-render してしまう。 useMemo で固定し、 deps が変化しないフレームでは
-  //  同一参照を返す)
-  const earnedBolt = useMemo(() => {
-    const raw = bolt.sub(runStartBolt);
-    return raw.lt(BigNum.ZERO) ? BigNum.ZERO : raw;
-  }, [bolt, runStartBolt]);
-  const earnedAlloy = useMemo(() => {
-    const raw = alloy.sub(runStartAlloy);
-    return raw.lt(BigNum.ZERO) ? BigNum.ZERO : raw;
-  }, [alloy, runStartAlloy]);
+  }, [onTierClearedAck, finalizeAsClear]);
 
   // ── wave 関連 ──
   const TOTAL_WAVES = 30;
@@ -562,18 +500,21 @@ export function Page() {
             }}
           />
 
-          {/* リザルトダイアログ */}
+          {/* リザルトダイアログ
+            Phase 4-D: status / reachedTier / reachedWave / earnedBolt / earnedAlloy はすべて
+            useResultStatus が finalize snapshot or fallback 値を返す。 effectiveResultStatus は
+            null 時に isResultOpen=false のため、 ! で確定する。 */}
           {isResultOpen && (
             <ResultDialog
               open={isResultOpen}
               status={effectiveResultStatus!}
-              reachedTier={finalTier ?? currentTier}
-              reachedWave={finalWave ?? currentWave}
+              reachedTier={reachedTier}
+              reachedWave={reachedWave}
               killed={killCount}
               elapsedSec={runElapsedSec}
               reward={{
-                bolt: finalEarnedBolt ?? earnedBolt,
-                alloy: finalEarnedAlloy ?? earnedAlloy,
+                bolt: earnedBolt,
+                alloy: earnedAlloy,
                 patches: droppedPatches.map((p) => ({ ...p, count: 1 })),
               }}
               onClose={handleResultClose}
