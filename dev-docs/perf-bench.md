@@ -2,9 +2,12 @@
 
 v1.3.7 大規模リファクタの効果を **客観計測** するためのハーネスと手順。 機能変更はゼロ。
 
-## 1. `?debug=perf` で perf overlay を起動
+## 1. dev サーバ起動時に自動表示される perf overlay
 
-URL に `?debug=perf` を付けるとブラウザ右上に半透明の overlay が出る。 表示項目:
+`yarn dev` を起動するとブラウザ右上に半透明の overlay が **自動で出る**。 クエリパラメータ不要。
+production ビルド (`yarn build` の出力) では絶対に表示されない (= 描画コスト 0)。
+
+表示項目:
 
 | 項目 | 内容 |
 |---|---|
@@ -12,12 +15,13 @@ URL に `?debug=perf` を付けるとブラウザ右上に半透明の overlay �
 | **HEAP** | Chrome 限定 (`performance.memory.usedJSHeapSize`)。 MB 単位 |
 | **ENEMIES** | DOM 内の `[data-enemy-id]` 要素数 (= 描画中の敵 sprite 数) |
 
-実装は [src/components/atoms/PerfOverlay/](../src/components/atoms/PerfOverlay/index.tsx)。 `?debug=perf` 無しでは null を返すので production への影響ゼロ。
+実装は [src/components/atoms/PerfOverlay/](../src/components/atoms/PerfOverlay/index.tsx)。 表示制御は
+`import.meta.env.DEV` で行うため、 vite の env が dev モードかどうかで自動切替。
 
 ### 起動例
 
-- ローカル dev: `http://192.168.x.x:5173/tower-like-game/?debug=perf`
-- 本番 (GitHub Pages): `https://sny-tanaka.github.io/tower-like-game/?debug=perf`
+- ローカル dev (PC): `http://localhost:5173/tower-like-game/`
+- ローカル dev (スマホ): `http://<private IP>:5173/tower-like-game/`
 
 ## 2. Chrome DevTools Performance での詳細計測
 

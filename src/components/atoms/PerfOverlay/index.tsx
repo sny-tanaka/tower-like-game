@@ -3,34 +3,43 @@ import { useEffect, useRef, useState } from 'react';
 import styles from './style.module.scss';
 
 /**
- * PerfOverlay — `?debug=perf` 時に画面右上に常時表示する開発用パフォーマンスオーバーレイ。
+ * PerfOverlay — dev サーバ起動時に画面右上に自動表示される開発用パフォーマンスオーバーレイ。
  *
  * 表示内容:
  *   - 直近 1 秒の平均 fps (rAF タイムスタンプから算出)
  *   - JS ヒープ使用量 (Chrome only — `performance.memory.usedJSHeapSize`)
  *   - DOM 内 `[data-enemy-id]` 要素数 (敵スプライト数の DOM 観察用)
  *
- * v1.3.7 (Phase 0) のリファクタ効果を客観計測するためのハーネス。 機能変更ゼロ、
- * production ビルドでも `?debug=perf` クエリが無ければレンダリングされない (= 描画コスト 0)。
+ * v1.3.7 (Phase 0) のリファクタ効果を客観計測するためのハーネス。
  *
- * 使い方: `https://.../tower-like-game/?debug=perf`
+ * 表示制御:
+ *   - `yarn dev` (= `import.meta.env.DEV === true`): 自動で表示。 クエリ不要
+ *   - `yarn build` (= production): 絶対に表示されない
+ *   - `forceShow={true}` 明示: env 無視で表示 (story / test 用)
+ *   - `forceShow={false}` 明示: env 無視で非表示 (test 用)
  *
  * 仕様参照: dev-docs/perf-bench.md
  */
 export interface PerfOverlayProps {
-  /** テスト / ストーリー用: 強制的に表示する */
+  /**
+   * 表示制御 (省略時は dev サーバなら表示、 production なら非表示)。
+   * - `true`: 強制表示 (story 用)
+   * - `false`: 強制非表示 (test 用)
+   * - `undefined`: env で判定 (`import.meta.env.DEV`)
+   */
   forceShow?: boolean;
 }
 
 /**
- * `?debug=perf` クエリが付いているか判定。 forceShow が true なら無条件で true。
- * URL 解析失敗 (SSR 等) は false を返す。
+ * 表示判定。 forceShow を最優先、 未指定なら Vite の DEV env で判定。
+ * SSR や env 未取得時は安全側に倒して false を返す。
  */
-function isPerfModeOn(forceShow: boolean): boolean {
-  if (forceShow) return true;
-  if (typeof window === 'undefined') return false;
+function shouldShow(forceShow: boolean | undefined): boolean {
+  if (forceShow === true) return true;
+  if (forceShow === false) return false;
+  // Vite: import.meta.env.DEV は dev サーバ時 true、 production ビルド時 false
   try {
-    return new URLSearchParams(window.location.search).get('debug') === 'perf';
+    return import.meta.env?.DEV === true;
   } catch {
     return false;
   }
@@ -47,8 +56,8 @@ function toMB(bytes: number): string {
 
 const FPS_SAMPLE_WINDOW_MS = 1000;
 
-export function PerfOverlay({ forceShow = false }: PerfOverlayProps) {
-  const [enabled] = useState(() => isPerfModeOn(forceShow));
+export function PerfOverlay({ forceShow }: PerfOverlayProps) {
+  const [enabled] = useState(() => shouldShow(forceShow));
   const [fps, setFps] = useState<number>(0);
   const [heapMb, setHeapMb] = useState<string | null>(null);
   const [enemyCount, setEnemyCount] = useState<number>(0);
