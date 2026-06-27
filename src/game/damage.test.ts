@@ -176,7 +176,7 @@ describe('calcOutgoingDamage — 軽減率', () => {
     expect(result.finalDmg.toString()).toBe('80');
   });
 
-  it('軽減率 50% → finalDmg = (raw - defense) × 0.5', () => {
+  it('軽減率 50% → finalDmg = raw × 0.5 - defense (v1.3.3 the tower 方式)', () => {
     const machine = makeMachine({ baseAttack: BigNum.fromNumber(100) });
     const weapon = makeWeapon({ damageMultiplier: 1.0 });
     const result = calcOutgoingDamage(
@@ -184,8 +184,8 @@ describe('calcOutgoingDamage — 軽減率', () => {
       BigNum.fromNumber(20),
       0.5
     );
-    // (100 - 20) × 0.5 = 40
-    expect(result.finalDmg.toString()).toBe('40');
+    // 100 × 0.5 = 50 → 50 - 20 = 30
+    expect(result.finalDmg.toString()).toBe('30');
   });
 
   it('軽減率 100% → finalDmg = 0', () => {
@@ -221,14 +221,14 @@ describe('calcReceivedDamage', () => {
     expect(result.toString()).toBe('100');
   });
 
-  it('防御力 < 攻撃力 → finalDmg = (enemyAttack - defense) × (1 - reduction)', () => {
+  it('防御力 < 攻撃力 → finalDmg = enemyAttack × (1 - reduction) - defense (v1.3.3 the tower 方式)', () => {
     const machine = makeMachine({
       defense: BigNum.fromNumber(20),
       damageReduction: 0.5,
     });
-    // (100 - 20) × 0.5 = 40
+    // 100 × 0.5 = 50 → 50 - 20 = 30
     const result = calcReceivedDamage(BigNum.fromNumber(100), machine);
-    expect(result.toString()).toBe('40');
+    expect(result.toString()).toBe('30');
   });
 
   it('防御力 > 攻撃力 → finalDmg = 0', () => {
@@ -259,13 +259,13 @@ describe('calcReceivedDamage', () => {
     expect(result.toString()).toBe('100');
   });
 
-  it('クリティカル込みの攻撃力を正しく処理', () => {
+  it('クリティカル込みの攻撃力を正しく処理 (v1.3.3 the tower 方式)', () => {
     const machine = makeMachine({
       defense: BigNum.fromNumber(10),
       damageReduction: 0.25,
     });
-    // enemyAttack=110, afterDefense=100, finalDmg = 100 × 0.75 = 75
+    // enemyAttack=110 → 110 × 0.75 = 82.5 (mulNumber は切り上げで 83) → 83 - 10 = 73
     const result = calcReceivedDamage(BigNum.fromNumber(110), machine);
-    expect(result.toString()).toBe('75');
+    expect(result.toString()).toBe('73');
   });
 });

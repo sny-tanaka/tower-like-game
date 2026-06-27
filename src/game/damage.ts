@@ -62,10 +62,10 @@ export function rollCrit(critRate: number, rng: () => number): boolean {
  * 攻撃側ダメージ計算（マシン → 敵）。
  * 敵側の防御 / 軽減を引数で受ける。
  *
- * 計算式:
+ * 計算式 (v1.3.3 で the tower 方式に統一: 割合軽減 → 絶対防御):
  *   raw_dmg = baseAttack × weaponDamageMultiplier
  *   クリ時:  raw_dmg ×= critMultiplier
- *   finalDmg = max(0, raw_dmg − enemyDefense) × (1 − enemyDamageReduction)
+ *   finalDmg = max(0, raw_dmg × (1 − enemyDamageReduction) − enemyDefense)
  */
 export function calcOutgoingDamage(
   input: DamageCalcInput,
@@ -82,11 +82,11 @@ export function calcOutgoingDamage(
     rawDmg = rawDmg.mulNumber(machine.critMultiplier);
   }
 
-  // max(0, raw_dmg − enemyDefense)
-  const afterDefense = rawDmg.sub(enemyDefense); // sub は 0 以上を保証
-
-  // × (1 − enemyDamageReduction)
-  const finalDmg = applyReduction(afterDefense, enemyDamageReduction);
+  // v1.3.3: the tower 方式 — 先に割合軽減、 その後に絶対防御を引く
+  // raw_dmg × (1 − enemyDamageReduction)
+  const afterReduction = applyReduction(rawDmg, enemyDamageReduction);
+  // max(0, afterReduction − enemyDefense)
+  const finalDmg = afterReduction.sub(enemyDefense); // sub は 0 以上を保証
 
   return { rawDmg, finalDmg, isCrit };
 }
@@ -95,13 +95,17 @@ export function calcOutgoingDamage(
  * 被弾側ダメージ計算（敵 → マシン）。
  * マシンの防御 / 軽減を考慮する。
  *
- * 計算式:
- *   finalDmg = max(0, enemyAttack − machine.defense) × (1 − machine.damageReduction)
+ * 計算式 (v1.3.3 で the tower 方式に統一: 割合軽減 → 絶対防御):
+ *   finalDmg = max(0, enemyAttack × (1 − machine.damageReduction) − machine.defense)
+ *
+ * 順序の意味:
+ *   - 割合軽減を先に適用 → どんな大ダメージも一定割合まで減衰
+ *   - 絶対防御を後に引く → 軽減後のダメージから固定値を差し引く
+ *   - 結果: 軽減率が高いほど絶対防御の効きが相対的に薄くなる (the tower と同じ挙動)
  */
 export function calcReceivedDamage(enemyAttack: BigNum, machine: MachineStats): BigNum {
-  // max(0, enemyAttack − defense)
-  const afterDefense = enemyAttack.sub(machine.defense); // sub は 0 以上を保証
-
-  // × (1 − damageReduction)
-  return applyReduction(afterDefense, machine.damageReduction);
+  // v1.3.3: the tower 方式 — 先に割合軽減
+  const afterReduction = applyReduction(enemyAttack, machine.damageReduction);
+  // max(0, afterReduction − defense)
+  return afterReduction.sub(machine.defense); // sub は 0 以上を保証
 }
