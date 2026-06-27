@@ -26,6 +26,24 @@
   flex: 1;
 }
 
+/* v1.3.7 フォローアップ: マイルストーン kind ごとの色を class 化
+ * (旧実装は `style={{ color: milestone.color }}` で inline 渡ししていた。
+ *  kind = 'elite' | 'boss' | 'tier-up' の 3 値固定なので class 化が望ましい)
+ *
+ * .milestone を継承する span にこれらを付与する。 内側の Icon は currentColor を
+ * 使うため、 親 span の color が SVG fill / stroke にそのまま流れる。 */
+.milestoneElite {
+  color: var(--c-warning);
+}
+
+.milestoneBoss {
+  color: var(--c-secondary);
+}
+
+.milestoneTierUp {
+  color: var(--c-primary);
+}
+
 .milestoneText {
   font-family: var(--ff-display);
   font-size: var(--fs-label);

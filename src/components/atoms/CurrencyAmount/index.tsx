@@ -1,6 +1,16 @@
+import { memo } from 'react';
 import type { CSSProperties } from 'react';
 
 import styles from './style.module.scss';
+
+// stable な CSSProperties オブジェクト (毎 render 生成しないため module-level に置く)。
+// NumericDisplay の memo + shallowStyleEq は内容比較するが、 同参照ならその比較もスキップ。
+const STYLE_COLOR_SUCCESS: CSSProperties = { color: 'var(--c-success)' };
+const STYLE_COLOR_DANGER: CSSProperties = { color: 'var(--c-danger)' };
+const STYLE_COLOR_DISABLED: CSSProperties = { color: 'var(--c-text-disabled)' };
+const STYLE_COLOR_SCREW: CSSProperties = { color: 'var(--c-screw)' };
+const STYLE_COLOR_BOLT: CSSProperties = { color: 'var(--c-bolt)' };
+const STYLE_COLOR_ALLOY: CSSProperties = { color: 'var(--c-alloy)' };
 
 import { Icon } from '@/components/atoms/Icon';
 import { NumericDisplay } from '@/components/atoms/NumericDisplay';
@@ -55,8 +65,14 @@ const CURRENCY_CONFIG = {
 // アイコン: Icon Atom に委譲（claude design 製 SVG を参照）
 // ---------------------------------------------------------------------------
 
+// NOTE: xs / smPlus は現状 production の CurrencyAmount 利用箇所では未使用だが、
+// NumericDisplaySize 階段 (xs / sm / smPlus / md / lg / xl) と 1:1 で揃えておく
+// (将来 sm より少し大きい強調表示 — ボス HP やスコア相当の文脈で通貨アイコンを並べる
+// ケースに採用する時の備え)。
 const ICON_SIZE_MAP: Record<NumericDisplaySize, number> = {
+  xs: 10, // 将来採用時の備え (xs 数値と並ぶ補助通貨表示など)
   sm: 12,
+  smPlus: 14, // 将来採用時の備え (sm と md の中間強調と並ぶ通貨表示など)
   md: 16,
   lg: 22,
   xl: 28,
@@ -72,11 +88,10 @@ interface DeltaPrefixProps {
 }
 
 function DeltaPrefix({ delta, sizeClass }: DeltaPrefixProps) {
-  const colorVar = delta === '+' ? 'var(--c-success)' : 'var(--c-danger)';
+  const colorClass = delta === '+' ? styles.deltaPlus : styles.deltaMinus;
   return (
     <span
-      className={`${styles.delta} ${sizeClass}`}
-      style={{ color: colorVar } as CSSProperties}
+      className={`${styles.delta} ${sizeClass} ${colorClass}`}
       aria-hidden="true"
     >
       {delta}
@@ -88,7 +103,7 @@ function DeltaPrefix({ delta, sizeClass }: DeltaPrefixProps) {
 // コンポーネント
 // ---------------------------------------------------------------------------
 
-export function CurrencyAmount({
+function CurrencyAmountImpl({
   currency,
   value,
   size = 'md',
@@ -103,17 +118,30 @@ export function CurrencyAmount({
   const config = CURRENCY_CONFIG[currency];
   const colorVar = subtle ? 'var(--c-text-disabled)' : `var(${config.cssVar})`;
 
-  // delta がある場合は delta の色を優先（subtle の場合は無効化）
-  const accentStyle: CSSProperties =
-    delta && !subtle
-      ? { color: delta === '+' ? 'var(--c-success)' : 'var(--c-danger)' }
-      : { color: colorVar };
+  // delta がある場合は delta の色を優先 (subtle の場合は無効化)。
+  // 毎 render 新 CSSProperties オブジェクトを作らないように module-level の定数を選択する。
+  // (NumericDisplay は memo + shallowStyleEq だが、 そもそも同参照ならその比較もスキップ)
+  const accentStyle: CSSProperties = subtle
+    ? STYLE_COLOR_DISABLED
+    : delta === '+'
+      ? STYLE_COLOR_SUCCESS
+      : delta === '-'
+        ? STYLE_COLOR_DANGER
+        : currency === 'screw'
+          ? STYLE_COLOR_SCREW
+          : currency === 'bolt'
+            ? STYLE_COLOR_BOLT
+            : STYLE_COLOR_ALLOY;
 
+  // NOTE: xs / smPlus は現状 production の CurrencyAmount 利用箇所では未使用だが、
+  // NumericDisplaySize 階段と 1:1 で揃えておく (将来採用時の備え)。
   const deltaSizeClass = {
+    xs: styles.deltaSm, // 将来採用時の備え。 xs は sm 相当 (delta は 11px と 12px の差を吸収)
     sm: styles.deltaSm,
+    smPlus: styles.deltaMd, // 将来採用時の備え。 smPlus (14px) は md (16px) 相当に寄せる
     md: styles.deltaMd,
     lg: styles.deltaLg,
-    xl: styles.deltaLg, // xl はlg相当
+    xl: styles.deltaLg, // xl は lg 相当
   }[size];
 
   const iconEl = (
@@ -179,3 +207,48 @@ export function CurrencyAmount({
     </span>
   );
 }
+
+// ---------------------------------------------------------------------------
+// memo + 数値同値比較 (v1.3.7 Phase 5: BigNum 表示量子化)
+// ---------------------------------------------------------------------------
+//
+// 親 (BattleHudBottom など) が `useStore((s) => s.screw)` で BigNum を購読すると、 同じ数値でも
+// addScrew 系のアクションを経由した結果 BigNum インスタンスが入れ替わる場合がある (= zustand の
+// Object.is 比較で differ 判定 → 親 component 再 render → 子 CurrencyAmount も毎回再 render)。
+//
+// CurrencyAmount は表示が `aria-label="screw 1.20A"` のような文字列単位で決まるため、 BigNum の
+// **数値が同値であれば描画結果は同じ** という性質がある。 React.memo + カスタム比較で
+// `prev.value.eq(next.value)` を取れば、 同値 BigNum はスキップでき、 整数桁が変わったとき
+// (= toDisplay() の結果が変わったとき) だけ再 render される。
+//
+// 他の props (currency / size / delta / showLabel / subtle / align / ranked) は primitives なので
+// Object.is で比較すれば十分。
+function areCurrencyAmountPropsEqual(
+  prev: CurrencyAmountProps,
+  next: CurrencyAmountProps
+): boolean {
+  if (
+    prev.currency !== next.currency ||
+    prev.size !== next.size ||
+    prev.delta !== next.delta ||
+    prev.showLabel !== next.showLabel ||
+    prev.subtle !== next.subtle ||
+    prev.align !== next.align ||
+    prev.ranked !== next.ranked
+  ) {
+    return false;
+  }
+  return bignumOrNumberEq(prev.value, next.value);
+}
+
+function bignumOrNumberEq(a: BigNum | number, b: BigNum | number): boolean {
+  // 1) 参照同値ならスキップ
+  if (a === b) return true;
+  // 2) 片方 number / 片方 BigNum の混在は数値同値で比較 (BigNum.fromNumber 経由)
+  const aBn = typeof a === 'number' ? BigNum.fromNumber(a) : a;
+  const bBn = typeof b === 'number' ? BigNum.fromNumber(b) : b;
+  return aBn.eq(bBn);
+}
+
+export const CurrencyAmount = memo(CurrencyAmountImpl, areCurrencyAmountPropsEqual);
+CurrencyAmount.displayName = 'CurrencyAmount';

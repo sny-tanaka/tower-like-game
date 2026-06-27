@@ -7,6 +7,23 @@
   text-align: center;
 }
 
+/* 静的 inline style を class 化 (旧: style={{ fontSize, letterSpacing, ... }}) */
+.subtitle {
+  font-size: 11px;
+  letter-spacing: 0.24em;
+}
+
+.tagline {
+  margin-top: 4px;
+  font-size: 11px;
+}
+
+.version {
+  font-size: 10px;
+  margin-top: 6px;
+  opacity: 0.7;
+}
+
 /* cyan → purple グラデのメインタイトル */
 .title {
   font-family: var(--ff-display);

@@ -63,17 +63,17 @@ export interface UpgradeCardProps {
 // ---------------------------------------------------------------------------
 // アクセント→CSS マッピング
 // ---------------------------------------------------------------------------
+//
+// v1.3.7 フォローアップ:
+//   accent (primary / secondary / warning) は 3 値固定なので、 color / boxShadow /
+//   text-shadow は inline style ではなく CSS Module の class で表現する。
+//   ここで保持するのは「JSX に流す class 名」 と「Icon の color prop に渡す CSS 変数文字列」 のみ。
 
-const ACCENT_COLOR: Record<UpgradeCardAccent, string> = {
+/** Icon の color prop に渡す CSS 変数 (子 Icon を currentColor で塗らない用途向け) */
+const ACCENT_ICON_COLOR: Record<UpgradeCardAccent, string> = {
   primary: 'var(--c-primary)',
   secondary: 'var(--c-secondary)',
   warning: 'var(--c-warning)',
-};
-
-const ACCENT_GLOW: Record<UpgradeCardAccent, string> = {
-  primary: 'var(--glow-cyan-sm)',
-  secondary: 'var(--glow-purple-sm)',
-  warning: 'none',
 };
 
 const CURRENCY_TO_ACCENT: Record<UpgradeCardCurrency, UpgradeCardAccent> = {
@@ -88,10 +88,18 @@ const ACCENT_BTN_CLASS: Record<UpgradeCardAccent, string> = {
   warning: styles.btnWarning,
 };
 
-const ACCENT_GLOW_RGBA: Record<UpgradeCardAccent, string> = {
-  primary: 'rgba(78, 228, 246, 0.55)',
-  secondary: 'rgba(169, 107, 255, 0.55)',
-  warning: 'rgba(246, 185, 74, 0.55)',
+/** lvBadge に当てる accent 別 class (color + boxShadow を SCSS 側で持つ) */
+const ACCENT_LV_BADGE_CLASS: Record<UpgradeCardAccent, string> = {
+  primary: styles.lvBadgePrimary,
+  secondary: styles.lvBadgeSecondary,
+  warning: styles.lvBadgeWarning,
+};
+
+/** valueAfter に当てる accent 別 class (color + textShadow を SCSS 側で持つ) */
+const ACCENT_VALUE_AFTER_CLASS: Record<UpgradeCardAccent, string> = {
+  primary: styles.valueAfterPrimary,
+  secondary: styles.valueAfterSecondary,
+  warning: styles.valueAfterWarning,
 };
 
 // ---------------------------------------------------------------------------
@@ -125,10 +133,11 @@ export function UpgradeCard({
   onToggleAuto,
 }: UpgradeCardProps) {
   const resolvedAccent = accent ?? CURRENCY_TO_ACCENT[currency];
-  const accentColor = ACCENT_COLOR[resolvedAccent];
-  const effectiveIconColor = iconColor ?? accentColor;
+  const accentIconColor = ACCENT_ICON_COLOR[resolvedAccent];
+  const effectiveIconColor = iconColor ?? accentIconColor;
   const btnClass = ACCENT_BTN_CLASS[resolvedAccent];
-  const afterGlow = ACCENT_GLOW_RGBA[resolvedAccent];
+  const lvBadgeAccentClass = ACCENT_LV_BADGE_CLASS[resolvedAccent];
+  const valueAfterAccentClass = ACCENT_VALUE_AFTER_CLASS[resolvedAccent];
 
   return (
     <div
@@ -150,24 +159,9 @@ export function UpgradeCard({
         )}
         <span className={styles.title}>{title}</span>
         {currentLabel != null && !maxed && (
-          <span
-            className={styles.lvBadge}
-            style={{ color: accentColor, boxShadow: ACCENT_GLOW[resolvedAccent] }}
-          >
-            {currentLabel}
-          </span>
+          <span className={`${styles.lvBadge} ${lvBadgeAccentClass}`}>{currentLabel}</span>
         )}
-        {maxed && (
-          <span
-            className={styles.lvBadge}
-            style={{
-              color: 'var(--c-success)',
-              boxShadow: 'var(--glow-success-md)',
-            }}
-          >
-            MAX
-          </span>
-        )}
+        {maxed && <span className={`${styles.lvBadge} ${styles.lvBadgeMaxed}`}>MAX</span>}
       </div>
 
       {/* 説明文 */}
@@ -192,13 +186,7 @@ export function UpgradeCard({
             {after != null && !maxed && (
               <>
                 <span className={styles.arrow}>→</span>
-                <span
-                  className={styles.valueAfter}
-                  style={{
-                    color: accentColor,
-                    textShadow: `0 0 5px ${afterGlow}`,
-                  }}
-                >
+                <span className={`${styles.valueAfter} ${valueAfterAccentClass}`}>
                   {formatNumber(after)}
                   {beforeSuffix}
                 </span>
@@ -214,11 +202,11 @@ export function UpgradeCard({
         </div>
       )}
 
-      {/* ボタン群 (3 ボタン: +1 / +5 / MAX) */}
+      {/* ボタン群 (3 ボタン: +1 / +5 / MAX)。 grid-template-columns は --upgrade-cols 経由で SCSS に渡す。 */}
       {!maxed && options.length > 0 && (
         <div
           className={styles.buttons}
-          style={{ gridTemplateColumns: `repeat(${options.length}, 1fr)` }}
+          style={{ ['--upgrade-cols' as string]: options.length }}
         >
           {options.map((opt) => {
             const disabled = opt.disabled === true;

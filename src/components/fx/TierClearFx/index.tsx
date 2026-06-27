@@ -39,14 +39,8 @@ export function TierClearFx({ duration = 1400, onDone }: TierClearFxProps) {
       onAnimationEnd={onDone}
     >
       <div className={styles.flash} />
-      <div
-        className={styles.band}
-        style={{ top: '34%' }}
-      />
-      <div
-        className={styles.band}
-        style={{ top: '64%' }}
-      />
+      <div className={`${styles.band} ${styles.bandTop}`} />
+      <div className={`${styles.band} ${styles.bandBottom}`} />
       {RAY_ANGLES.map((angle) => (
         <div
           key={angle}

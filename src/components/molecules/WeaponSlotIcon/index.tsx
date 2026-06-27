@@ -62,8 +62,11 @@ export function WeaponSlotIcon({
 
   const showReadyFx = !active && !onCd && ready;
 
+  const sizeClass = size === 'sm' ? styles.sizeSm : size === 'lg' ? styles.sizeLg : styles.sizeMd;
+
   const classNames = [
     styles.root,
+    sizeClass,
     active ? styles.active : '',
     onCd ? styles.onCd : '',
     swapDisabled ? styles.swapDisabled : '',
@@ -75,7 +78,6 @@ export function WeaponSlotIcon({
     <button
       type="button"
       className={classNames}
-      style={{ width: slotPx, height: slotPx, minWidth: slotPx, minHeight: slotPx }}
       onClick={swapDisabled ? undefined : onClick}
       disabled={swapDisabled && onClick == null}
       aria-label={`${weapon} weapon slot${active ? ' (active)' : ''}${onCd ? ` (cooldown ${cdProgress}%)` : ready ? ' (ready)' : ''}`}

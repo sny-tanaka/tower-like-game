@@ -37,6 +37,24 @@
   font-size: var(--fs-label);
 }
 
+/* ── 静的な font-size を style 直書きせず class で表現する (v1.3.7 inline style 棚卸し) ── */
+/* Text / NumericDisplay は className を受けない / style を渡しても上書きできるが毎 render の
+   オブジェクト生成 (= memo 失効リスク) があるので、 親側ラッパー span に class を当てる方針。 */
+
+/* Text variant=label の上にかぶせる微調整 (Text には現状 9-10px の size token がないため
+   HUD 内でだけ class 上書きで詰める。 Text 側の体系見直しは別タスク) */
+.hpLabel {
+  font-size: 10px;
+}
+
+.shieldLabel {
+  font-size: 9.5px;
+}
+
+/* v1.3.7 フォローアップ:
+ *   NumericDisplay の上書き class (.hpCurrentValue / .hpMaxValue / .shieldValue) は
+ *   size token (`hp` = 14px / `xs` = 11px) に吸収して廃止した。 */
+
 .shieldBlock {
   display: inline-flex;
   align-items: baseline;

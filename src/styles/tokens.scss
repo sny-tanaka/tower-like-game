@@ -91,9 +91,12 @@
   --fs-body:    14px;
   --fs-caption: 12px;
   --fs-label:   11px;
+  --fs-num-xl:  36px;   /* hero counters (Showcase 等) */
   --fs-num-l:   28px;   /* HUD HP, large counters */
   --fs-num-m:   18px;   /* card values */
+  --fs-num-sm-plus: 14px;   /* sm より少し大きい中間強調 (HUD HP current 値, ボス HP, スコア など) */
   --fs-num-s:   13px;   /* inline numerics */
+  --fs-num-xs:  11px;   /* HUD 補助数値 (max 値・shield 値など) */
 
   /* ========== Typography: weight ========== */
   --fw-regular:  400; /* @kind font */

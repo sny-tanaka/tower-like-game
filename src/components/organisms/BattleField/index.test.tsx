@@ -1,10 +1,14 @@
 import { render, screen } from '@testing-library/react';
 import { describe, expect, test, vi } from 'vitest';
 
-import type { DamageEvent, DeathEvent, HitEvent } from './index';
+import type { DamageEvent, DeathEvent, HitEvent, ProjectileEvent } from './index';
 import { BattleField } from './index';
 
 import { createEnemyTemplate, spawnEnemy } from '@/game/enemies';
+import { BattleEntityStore } from '@/game/store/BattleEntityStore';
+import { BattleEntityStoreProvider } from '@/game/store/BattleEntityStoreContext';
+import { MutableEnemy } from '@/game/types';
+import type { SpawnedEnemy } from '@/game/types';
 import { BigNum } from '@/lib/bignum/BigNum';
 
 // ---------------------------------------------------------------------------
@@ -18,16 +22,55 @@ function makeEnemy(id: string, kind: 'normal' | 'elite' | 'miniboss' | 'boss', x
 }
 
 // ---------------------------------------------------------------------------
-// デフォルト props
+// v1.3.7 (Phase 2-B): BattleField が entityStore を Context から取得するようになったため、
+// テストは Provider 経由で render する。 props (enemies / damageEvents 等) を store に
+// 注入してから wrap する。 onXDone コールバックは Phase 2-B では BattleField props として
+// 残っているが、 内部 3 layer は entityStore 経由なので呼び出しは onHitDone のみ生きている。
 // ---------------------------------------------------------------------------
 
-const defaultProps = {
-  enemies: [],
-  damageEvents: [] as DamageEvent[],
-  hitEvents: [] as HitEvent[],
-  deathEvents: [] as DeathEvent[],
-  range: 25,
-};
+interface RenderProps {
+  enemies?: SpawnedEnemy[];
+  damageEvents?: DamageEvent[];
+  hitEvents?: HitEvent[];
+  deathEvents?: DeathEvent[];
+  projectileEvents?: ProjectileEvent[];
+  range?: number;
+  showCutterOrbit?: boolean;
+  showOverdriveAura?: boolean;
+  machineHitKey?: number;
+  cutterRotateMs?: number;
+  machinePosition?: { x: number; y: number };
+  onHitDone?: (id: string) => void;
+  store?: BattleEntityStore;
+}
+
+function renderBattleField(props: RenderProps = {}) {
+  const store = props.store ?? new BattleEntityStore();
+  if (props.enemies) {
+    // v1.3.7 (Phase 3-C): setEnemies は deprecated。 個別 addEnemy にループ展開する。
+    for (const e of props.enemies) {
+      // makeEnemy は spread で plain object を返すため MutableEnemy で再 wrap
+      store.addEnemy(e instanceof MutableEnemy ? e : new MutableEnemy(e));
+    }
+  }
+  if (props.damageEvents) store.setDamageEvents(props.damageEvents);
+  if (props.deathEvents) store.setDeathEvents(props.deathEvents);
+  if (props.projectileEvents) store.setProjectileEvents(props.projectileEvents);
+  return render(
+    <BattleEntityStoreProvider store={store}>
+      <BattleField
+        range={props.range ?? 25}
+        hitEvents={props.hitEvents ?? []}
+        showCutterOrbit={props.showCutterOrbit}
+        showOverdriveAura={props.showOverdriveAura}
+        machineHitKey={props.machineHitKey}
+        cutterRotateMs={props.cutterRotateMs}
+        machinePosition={props.machinePosition}
+        onHitDone={props.onHitDone}
+      />
+    </BattleEntityStoreProvider>
+  );
+}
 
 // ---------------------------------------------------------------------------
 // レンダリング
@@ -35,17 +78,17 @@ const defaultProps = {
 
 describe('BattleField — レンダリング', () => {
   test('マシン (aria-label="マシン") が表示される', () => {
-    render(<BattleField {...defaultProps} />);
+    renderBattleField();
     expect(screen.getByLabelText('マシン')).toBeInTheDocument();
   });
 
   test('バトルフィールド root が role="img" aria-label="バトルフィールド"', () => {
-    render(<BattleField {...defaultProps} />);
+    renderBattleField();
     expect(screen.getByRole('img', { name: 'バトルフィールド' })).toBeInTheDocument();
   });
 
   test('敵 0 体のとき敵要素が存在しない', () => {
-    const { container } = render(<BattleField {...defaultProps} />);
+    const { container } = renderBattleField();
     expect(container.querySelectorAll('[data-enemy-type]').length).toBe(0);
   });
 
@@ -55,45 +98,25 @@ describe('BattleField — レンダリング', () => {
       makeEnemy('e2', 'normal', 50, 50),
       makeEnemy('e3', 'normal', 80, 20),
     ];
-    render(
-      <BattleField
-        {...defaultProps}
-        enemies={enemies}
-      />
-    );
+    renderBattleField({ enemies });
     expect(screen.getAllByLabelText('standard enemy')).toHaveLength(3);
   });
 
   test('elite 敵が表示される', () => {
     const enemies = [makeEnemy('e1', 'elite', 50, 30)];
-    render(
-      <BattleField
-        {...defaultProps}
-        enemies={enemies}
-      />
-    );
+    renderBattleField({ enemies });
     expect(screen.getByLabelText('elite enemy')).toBeInTheDocument();
   });
 
   test('boss 敵が表示される', () => {
     const enemies = [makeEnemy('b1', 'boss', 50, 20)];
-    render(
-      <BattleField
-        {...defaultProps}
-        enemies={enemies}
-      />
-    );
+    renderBattleField({ enemies });
     expect(screen.getByLabelText('boss enemy')).toBeInTheDocument();
   });
 
   test('miniboss 敵が表示される', () => {
     const enemies = [makeEnemy('mb1', 'miniboss', 50, 25)];
-    render(
-      <BattleField
-        {...defaultProps}
-        enemies={enemies}
-      />
-    );
+    renderBattleField({ enemies });
     expect(screen.getByLabelText('miniboss enemy')).toBeInTheDocument();
   });
 });
@@ -108,39 +131,29 @@ describe('BattleField — MachineHitFx 配線', () => {
   const MHF_SELECTOR = '[aria-hidden="true"][style*="--mhf-x"]';
 
   test('machineHitKey=0 (初期) では MachineHitFx をマウントしない', () => {
-    const { container } = render(
-      <BattleField
-        {...defaultProps}
-        machineHitKey={0}
-      />
-    );
+    const { container } = renderBattleField({ machineHitKey: 0 });
     expect(container.querySelectorAll(MHF_SELECTOR).length).toBe(0);
   });
 
   test('machineHitKey=1 で MachineHitFx がマウントされる', () => {
-    const { container } = render(
-      <BattleField
-        {...defaultProps}
-        machineHitKey={1}
-      />
-    );
+    const { container } = renderBattleField({ machineHitKey: 1 });
     expect(container.querySelectorAll(MHF_SELECTOR).length).toBe(1);
   });
 
   test('machineHitKey 増分で MachineHitFx が再マウント (key で別 instance)', () => {
-    const { container, rerender } = render(
-      <BattleField
-        {...defaultProps}
-        machineHitKey={1}
-      />
-    );
+    // 同一 store を再利用 (key 増分のみテスト)
+    const store = new BattleEntityStore();
+    const { container, rerender } = renderBattleField({ store, machineHitKey: 1 });
     const first = container.querySelector(MHF_SELECTOR);
     expect(first).not.toBeNull();
     rerender(
-      <BattleField
-        {...defaultProps}
-        machineHitKey={2}
-      />
+      <BattleEntityStoreProvider store={store}>
+        <BattleField
+          range={25}
+          hitEvents={[]}
+          machineHitKey={2}
+        />
+      </BattleEntityStoreProvider>
     );
     const second = container.querySelector(MHF_SELECTOR);
     expect(second).not.toBeNull();
@@ -149,13 +162,10 @@ describe('BattleField — MachineHitFx 配線', () => {
   });
 
   test('cx/cy = machinePosition が CSS 変数 (--mhf-x / --mhf-y) に反映される', () => {
-    const { container } = render(
-      <BattleField
-        {...defaultProps}
-        machinePosition={{ x: 50, y: 50 }}
-        machineHitKey={1}
-      />
-    );
+    const { container } = renderBattleField({
+      machinePosition: { x: 50, y: 50 },
+      machineHitKey: 1,
+    });
     const mhf = container.querySelector<HTMLElement>(MHF_SELECTOR);
     expect(mhf?.style.getPropertyValue('--mhf-x')).toBe('50%');
     expect(mhf?.style.getPropertyValue('--mhf-y')).toBe('50%');
@@ -168,84 +178,38 @@ describe('BattleField — MachineHitFx 配線', () => {
 
 describe('BattleField — machinePosition', () => {
   test('デフォルト (50, 50) で left/top がスタイルに含まれる', () => {
-    render(<BattleField {...defaultProps} />);
+    renderBattleField();
     const machine = screen.getByLabelText('マシン');
     expect(machine).toHaveStyle({ left: '50%', top: '50%' });
   });
 
   test('カスタム位置が反映される', () => {
-    render(
-      <BattleField
-        {...defaultProps}
-        machinePosition={{ x: 30, y: 60 }}
-      />
-    );
+    renderBattleField({ machinePosition: { x: 30, y: 60 } });
     const machine = screen.getByLabelText('マシン');
     expect(machine).toHaveStyle({ left: '30%', top: '60%' });
   });
 });
 
 // ---------------------------------------------------------------------------
-// Fx イベント
+// Fx イベント (Phase 2-B: 内部 3 layer に分割。 entityStore 経由で配信される)
 // ---------------------------------------------------------------------------
 
 describe('BattleField — Fx イベント', () => {
-  test('DamagePopFx が damageEvents 分だけレンダリングされる', () => {
+  test('DamagePopFx が damageEvents 分だけレンダリングされる (entityStore 経由)', () => {
     const damageEvents: DamageEvent[] = [
       { id: 'd1', x: 30, y: 40, value: BigNum.fromNumber(100) },
       { id: 'd2', x: 60, y: 30, value: BigNum.fromNumber(200), crit: true },
     ];
-    const { container } = render(
-      <BattleField
-        {...defaultProps}
-        damageEvents={damageEvents}
-      />
-    );
+    const { container } = renderBattleField({ damageEvents });
     // DamagePopFx は --pop-x / --pop-y / --pop-duration の CSS 変数を持つ div を出す
-    // (Issue #87 で <style> タグの動的注入を廃止したのでそちらでは判別できない)
     const popEls = container.querySelectorAll<HTMLElement>('[style*="--pop-x"]');
     expect(popEls.length).toBe(damageEvents.length);
   });
 
-  test('onDamageDone がアニメ完了時に呼ばれる', async () => {
-    const onDamageDone = vi.fn();
-    const damageEvents: DamageEvent[] = [{ id: 'd1', x: 30, y: 40, value: BigNum.fromNumber(500) }];
-    const { container } = render(
-      <BattleField
-        {...defaultProps}
-        damageEvents={damageEvents}
-        onDamageDone={onDamageDone}
-      />
-    );
-    // animationend イベントを手動発火
-    const popEl = container.querySelector('[class*="root"]');
-    if (popEl) {
-      popEl.dispatchEvent(new Event('animationend', { bubbles: true }));
-    }
-    // 呼ばれなくても型確認はできているのでテスト通過
-  });
-
-  test('onHitDone コールバックが props として受け取れる', () => {
+  test('onHitDone コールバックが props として受け取れる (現状 EMPTY_HIT_EVENTS のため未呼出)', () => {
     const onHitDone = vi.fn();
-    render(
-      <BattleField
-        {...defaultProps}
-        onHitDone={onHitDone}
-      />
-    );
-    // コールバックが渡せること（型チェックのためのスモークテスト）
+    renderBattleField({ onHitDone });
     expect(onHitDone).not.toHaveBeenCalled();
-  });
-
-  test('onDeathDone コールバックが props として受け取れる', () => {
-    const onDeathDone = vi.fn();
-    render(
-      <BattleField
-        {...defaultProps}
-        onDeathDone={onDeathDone}
-      />
-    );
-    expect(onDeathDone).not.toHaveBeenCalled();
   });
 });
 
@@ -255,25 +219,13 @@ describe('BattleField — Fx イベント', () => {
 
 describe('BattleField — 索敵円', () => {
   test('range=50 のとき width / height とも 50% (range = 直径 % をそのまま rangeCircle に流す)', () => {
-    const { container } = render(
-      <BattleField
-        {...defaultProps}
-        range={50}
-      />
-    );
-    // .rangeCircle は .field（正方形）内で width / height ともに range % をそのまま指定して真円化。
-    // range は **直径** % 仕様で、当たり判定半径は別途 range/2 で算出する。
+    const { container } = renderBattleField({ range: 50 });
     const circle = container.querySelector('[aria-hidden]');
     expect(circle).toHaveStyle({ width: '50%', height: '50%' });
   });
 
   test('range=80 のとき width / height とも 80%', () => {
-    const { container } = render(
-      <BattleField
-        {...defaultProps}
-        range={80}
-      />
-    );
+    const { container } = renderBattleField({ range: 80 });
     const circle = container.querySelector('[aria-hidden]');
     expect(circle).toHaveStyle({ width: '80%', height: '80%' });
   });

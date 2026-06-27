@@ -77,7 +77,6 @@ export function AppearanceBannerFx({
         <Text
           variant="label"
           className={styles.label}
-          style={{ color: preset.color, fontSize: 12, letterSpacing: '0.32em' }}
         >
           {preset.label}
         </Text>
@@ -85,13 +84,6 @@ export function AppearanceBannerFx({
           <Text
             variant="heading-1"
             className={styles.name}
-            style={{
-              color: 'var(--c-text)',
-              fontSize: 22,
-              fontFamily: 'var(--ff-display)',
-              fontWeight: 700,
-              textShadow: preset.glow,
-            }}
           >
             {name}
           </Text>

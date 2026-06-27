@@ -1,10 +1,14 @@
 import type { Meta, StoryObj } from '@storybook/react';
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 
-import type { DamageEvent, DeathEvent, DummyPin, HitEvent } from './index';
+import type { DamageEvent, DeathEvent, DummyPin, HitEvent, ProjectileEvent } from './index';
 import { BattleField } from './index';
 
 import { createEnemyTemplate, spawnEnemy } from '@/game/enemies';
+import { BattleEntityStore } from '@/game/store/BattleEntityStore';
+import { BattleEntityStoreProvider } from '@/game/store/BattleEntityStoreContext';
+import { MutableEnemy } from '@/game/types';
+import type { SpawnedEnemy } from '@/game/types';
 import { BigNum } from '@/lib/bignum/BigNum';
 
 // ---------------------------------------------------------------------------
@@ -51,19 +55,45 @@ const meta: Meta<typeof BattleField> = {
     layout: 'fullscreen',
   },
   decorators: [
-    (Story) => (
-      <div
-        style={{
-          width: 390,
-          height: 600,
-          margin: '0 auto',
-          background: 'var(--c-bg-deep)',
-          position: 'relative',
-        }}
-      >
-        <Story />
-      </div>
-    ),
+    // v1.3.7 (Phase 2-B): BattleField の 3 layer は entityStore (Context 経由) から
+    // enemies / events を読むため、 Story の args 経由で渡しても無視される。
+    // decorator で args を取り出して BattleEntityStore に注入 + Provider でラップする。
+    (Story, context) => {
+      const args = context.args as {
+        enemies?: SpawnedEnemy[];
+        damageEvents?: DamageEvent[];
+        deathEvents?: DeathEvent[];
+        projectileEvents?: ProjectileEvent[];
+      };
+      const store = useMemo(() => {
+        const s = new BattleEntityStore();
+        // v1.3.7 (Phase 3-C): setEnemies は deprecated。 個別 addEnemy にループ展開する。
+        if (args.enemies) {
+          for (const e of args.enemies) {
+            s.addEnemy(e instanceof MutableEnemy ? e : new MutableEnemy(e));
+          }
+        }
+        if (args.damageEvents) s.setDamageEvents(args.damageEvents);
+        if (args.deathEvents) s.setDeathEvents(args.deathEvents);
+        if (args.projectileEvents) s.setProjectileEvents(args.projectileEvents);
+        return s;
+      }, [args.enemies, args.damageEvents, args.deathEvents, args.projectileEvents]);
+      return (
+        <BattleEntityStoreProvider store={store}>
+          <div
+            style={{
+              width: 390,
+              height: 600,
+              margin: '0 auto',
+              background: 'var(--c-bg-deep)',
+              position: 'relative',
+            }}
+          >
+            <Story />
+          </div>
+        </BattleEntityStoreProvider>
+      );
+    },
   ],
   args: {
     range: 25,

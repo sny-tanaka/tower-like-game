@@ -19,6 +19,28 @@
   }
 }
 
+/* size 別の寸法 (旧: inline style={{ width / height / minWidth / minHeight }}) */
+.sizeSm {
+  width: 40px;
+  height: 40px;
+  min-width: 40px;
+  min-height: 40px;
+}
+
+.sizeMd {
+  width: 52px;
+  height: 52px;
+  min-width: 52px;
+  min-height: 52px;
+}
+
+.sizeLg {
+  width: 64px;
+  height: 64px;
+  min-width: 64px;
+  min-height: 64px;
+}
+
 /* active (使用中 / 選択中) */
 .active {
   border-color: var(--c-primary);

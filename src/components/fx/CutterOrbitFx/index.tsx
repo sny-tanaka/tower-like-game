@@ -103,7 +103,7 @@ export function CutterOrbitFx({
         key={`sweep-${i}`}
         className={styles.sweep}
         viewBox={`0 0 ${length} ${length}`}
-        style={{ transform: `rotate(${angle - sweepDeg}deg)`, transformOrigin: '0 0' }}
+        style={{ transform: `rotate(${angle - sweepDeg}deg)` }}
         preserveAspectRatio="none"
       >
         <path

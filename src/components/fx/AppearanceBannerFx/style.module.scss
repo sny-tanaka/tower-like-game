@@ -78,10 +78,18 @@
 .label {
   display: block;
   margin-bottom: 4px;
+  color: var(--app-color);
+  font-size: 12px;
+  letter-spacing: 0.32em;
 }
 
 .name {
   display: block;
+  color: var(--c-text);
+  font-size: 22px;
+  font-family: var(--ff-display);
+  font-weight: 700;
+  text-shadow: var(--app-glow);
 }
 
 @media (prefers-reduced-motion: reduce) {

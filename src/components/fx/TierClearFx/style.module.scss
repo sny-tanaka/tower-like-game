@@ -92,6 +92,15 @@
   animation: band var(--tc-duration, 1400ms) var(--ease-out) both;
 }
 
+/* 上下 band の固定位置 (旧: style={{ top: '34%' / '64%' }}) */
+.bandTop {
+  top: 34%;
+}
+
+.bandBottom {
+  top: 64%;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .flash,
   .ray,

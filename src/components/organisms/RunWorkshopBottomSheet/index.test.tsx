@@ -1,6 +1,6 @@
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { describe, expect, test, vi } from 'vitest';
+import { afterEach, describe, expect, test, vi } from 'vitest';
 
 import {
   RUN_WORKSHOP_ITEMS,
@@ -10,10 +10,10 @@ import {
   calcRunWorkshopMultiplier,
 } from './items';
 
-import type { RunWorkshopLevels } from './index';
 import { RunWorkshopBottomSheet } from './index';
 
 import { BigNum } from '@/lib/bignum/BigNum';
+import { resetBattleState, seedBattleState } from '@/test-utils/seedBattleState';
 
 // ---------------------------------------------------------------------------
 // items.ts の純粋関数テスト
@@ -121,21 +121,22 @@ describe('RUN_WORKSHOP_ITEMS', () => {
 // ---------------------------------------------------------------------------
 // RunWorkshopBottomSheet コンポーネントテスト
 // ---------------------------------------------------------------------------
+//
+// v1.3.7 Phase 4-C: RunWorkshopBottomSheet は screw / runWorkshopLevels / runWorkshopAutoEnabled
+// を内部 useStore selector で直接購読するようになったため、 props から渡せない (= seed する必要がある)。
+// 親 props として残っているのは open / callback (onUpgrade / onToggleAuto / onClose)。
 
-const defaultLevels: RunWorkshopLevels = {
-  attackMul: 0,
-  attackSpeedMul: 0,
-  hpMul: 0,
-  screwGainMul: 0,
-};
+// 各テスト後に store を defaultBattleState 相当に戻す (state リーク防止)
+afterEach(() => {
+  resetBattleState();
+});
 
 describe('RunWorkshopBottomSheet', () => {
   test('open=false のとき何も描画されない', () => {
+    seedBattleState({ screw: BigNum.fromNumber(0) });
     render(
       <RunWorkshopBottomSheet
         open={false}
-        screw={BigNum.fromNumber(0)}
-        levels={defaultLevels}
         onUpgrade={() => undefined}
       />
     );
@@ -143,11 +144,10 @@ describe('RunWorkshopBottomSheet', () => {
   });
 
   test('open=true のとき 4 項目のタイトルが描画される', () => {
+    seedBattleState({ screw: BigNum.fromNumber(0) });
     render(
       <RunWorkshopBottomSheet
         open={true}
-        screw={BigNum.fromNumber(0)}
-        levels={defaultLevels}
         onUpgrade={() => undefined}
       />
     );
@@ -158,11 +158,10 @@ describe('RunWorkshopBottomSheet', () => {
   });
 
   test('全 Lv 0 は "Lv 0" が 4 つ表示される', () => {
+    seedBattleState({ screw: BigNum.fromNumber(0) });
     render(
       <RunWorkshopBottomSheet
         open={true}
-        screw={BigNum.fromNumber(0)}
-        levels={defaultLevels}
         onUpgrade={() => undefined}
       />
     );
@@ -171,11 +170,10 @@ describe('RunWorkshopBottomSheet', () => {
   });
 
   test('ネジ不足のとき +1 ボタンが disabled になる', () => {
+    seedBattleState({ screw: BigNum.fromNumber(0) });
     render(
       <RunWorkshopBottomSheet
         open={true}
-        screw={BigNum.fromNumber(0)}
-        levels={defaultLevels}
         onUpgrade={() => undefined}
       />
     );
@@ -186,11 +184,10 @@ describe('RunWorkshopBottomSheet', () => {
   });
 
   test('ネジ十分のとき +1 ボタンが enabled になる', () => {
+    seedBattleState({ screw: BigNum.fromNumber(10_000) });
     render(
       <RunWorkshopBottomSheet
         open={true}
-        screw={BigNum.fromNumber(10_000)}
-        levels={defaultLevels}
         onUpgrade={() => undefined}
       />
     );
@@ -202,11 +199,10 @@ describe('RunWorkshopBottomSheet', () => {
 
   test('+1 ボタンクリックで onUpgrade が key と delta=1 で呼ばれる', async () => {
     const onUpgrade = vi.fn();
+    seedBattleState({ screw: BigNum.fromNumber(10_000) });
     render(
       <RunWorkshopBottomSheet
         open={true}
-        screw={BigNum.fromNumber(10_000)}
-        levels={defaultLevels}
         onUpgrade={onUpgrade}
       />
     );
@@ -217,11 +213,10 @@ describe('RunWorkshopBottomSheet', () => {
 
   test('+5 ボタンクリックで onUpgrade が delta=5 で呼ばれる', async () => {
     const onUpgrade = vi.fn();
+    seedBattleState({ screw: BigNum.fromNumber(10_000) });
     render(
       <RunWorkshopBottomSheet
         open={true}
-        screw={BigNum.fromNumber(10_000)}
-        levels={defaultLevels}
         onUpgrade={onUpgrade}
       />
     );
@@ -232,11 +227,10 @@ describe('RunWorkshopBottomSheet', () => {
 
   test('MAX ボタンクリックで onUpgrade が delta="max" で呼ばれる', async () => {
     const onUpgrade = vi.fn();
+    seedBattleState({ screw: BigNum.fromNumber(10_000) });
     render(
       <RunWorkshopBottomSheet
         open={true}
-        screw={BigNum.fromNumber(10_000)}
-        levels={defaultLevels}
         onUpgrade={onUpgrade}
       />
     );
@@ -247,11 +241,10 @@ describe('RunWorkshopBottomSheet', () => {
 
   test('onClose が渡されたとき、ヘッダーの閉じるボタン (chevron-down) で呼ばれる', async () => {
     const onClose = vi.fn();
+    seedBattleState({ screw: BigNum.fromNumber(0) });
     render(
       <RunWorkshopBottomSheet
         open={true}
-        screw={BigNum.fromNumber(0)}
-        levels={defaultLevels}
         onUpgrade={() => undefined}
         onClose={onClose}
       />
@@ -262,11 +255,10 @@ describe('RunWorkshopBottomSheet', () => {
   });
 
   test('onToggleAuto 未指定なら AUTO トグルは描画されない', () => {
+    seedBattleState({ screw: BigNum.fromNumber(0) });
     render(
       <RunWorkshopBottomSheet
         open={true}
-        screw={BigNum.fromNumber(0)}
-        levels={defaultLevels}
         onUpgrade={() => undefined}
       />
     );
@@ -274,11 +266,10 @@ describe('RunWorkshopBottomSheet', () => {
   });
 
   test('onToggleAuto 指定で 4 つの AUTO トグルが描画される', () => {
+    seedBattleState({ screw: BigNum.fromNumber(0) });
     render(
       <RunWorkshopBottomSheet
         open={true}
-        screw={BigNum.fromNumber(0)}
-        levels={defaultLevels}
         onUpgrade={() => undefined}
         onToggleAuto={() => undefined}
       />
@@ -287,17 +278,18 @@ describe('RunWorkshopBottomSheet', () => {
   });
 
   test('autoEnabled の各 key の値が各カードに伝播する', () => {
+    seedBattleState({
+      screw: BigNum.fromNumber(0),
+      runWorkshopAutoEnabled: {
+        attackMul: true,
+        attackSpeedMul: false,
+        hpMul: true,
+        screwGainMul: false,
+      },
+    });
     render(
       <RunWorkshopBottomSheet
         open={true}
-        screw={BigNum.fromNumber(0)}
-        levels={defaultLevels}
-        autoEnabled={{
-          attackMul: true,
-          attackSpeedMul: false,
-          hpMul: true,
-          screwGainMul: false,
-        }}
         onUpgrade={() => undefined}
         onToggleAuto={() => undefined}
       />
@@ -312,17 +304,10 @@ describe('RunWorkshopBottomSheet', () => {
 
   test('AUTO トグルクリックで onToggleAuto が (key, next) で呼ばれる', async () => {
     const onToggleAuto = vi.fn();
+    seedBattleState({ screw: BigNum.fromNumber(0) });
     render(
       <RunWorkshopBottomSheet
         open={true}
-        screw={BigNum.fromNumber(0)}
-        levels={defaultLevels}
-        autoEnabled={{
-          attackMul: false,
-          attackSpeedMul: false,
-          hpMul: false,
-          screwGainMul: false,
-        }}
         onUpgrade={() => undefined}
         onToggleAuto={onToggleAuto}
       />
@@ -330,5 +315,27 @@ describe('RunWorkshopBottomSheet', () => {
     const autoBtns = screen.getAllByRole('button', { name: /AUTO/ });
     await userEvent.click(autoBtns[0]); // attackMul
     expect(onToggleAuto).toHaveBeenCalledWith('attackMul', true);
+  });
+
+  test('levels seed で渡した Lv が反映される', () => {
+    seedBattleState({
+      screw: BigNum.fromNumber(0),
+      runWorkshopLevels: {
+        attackMul: 5,
+        attackSpeedMul: 3,
+        hpMul: 2,
+        screwGainMul: 1,
+      },
+    });
+    render(
+      <RunWorkshopBottomSheet
+        open={true}
+        onUpgrade={() => undefined}
+      />
+    );
+    expect(screen.getByText('Lv 5')).toBeInTheDocument();
+    expect(screen.getByText('Lv 3')).toBeInTheDocument();
+    expect(screen.getByText('Lv 2')).toBeInTheDocument();
+    expect(screen.getByText('Lv 1')).toBeInTheDocument();
   });
 });

@@ -42,6 +42,16 @@
   backdrop-filter: blur(6px);
 }
 
+/* WAVE ラベル / 数字の静的 font-size (旧: inline style) */
+.label {
+  font-size: 11px;
+}
+
+.number {
+  font-size: 24px;
+  font-weight: 700;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .wrap {
     animation: none;

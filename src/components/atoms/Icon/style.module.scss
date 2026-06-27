@@ -6,3 +6,10 @@
   flex-shrink: 0;
   vertical-align: middle;
 }
+
+/* inline-svg ラッパー: 静的部分 (display / line-height) は CSS Module へ。
+   `color` のみ毎 render 変わりうるので inline style に残す。 */
+.inlineSvgWrap {
+  display: inline-flex;
+  line-height: 0;
+}

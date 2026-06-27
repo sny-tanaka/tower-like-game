@@ -182,4 +182,67 @@ describe('CurrencyAmount', () => {
     );
     expect(container.querySelector('[role="img"]')).toBeTruthy();
   });
+
+  // -------------------------------------------------------------------------
+  // v1.3.7 Phase 5: memo + 数値同値スキップ (BigNum 表示量子化)
+  // -------------------------------------------------------------------------
+  describe('memo + BigNum.eq による re-render スキップ', () => {
+    it('value が同一参照 BigNum なら同じ DOM を保持する', () => {
+      const value = BigNum.fromNumber(1234);
+      const { container, rerender } = render(
+        <CurrencyAmount
+          currency="screw"
+          value={value}
+        />
+      );
+      const firstHtml = container.innerHTML;
+      // 同じ value を再渡し
+      rerender(
+        <CurrencyAmount
+          currency="screw"
+          value={value}
+        />
+      );
+      expect(container.innerHTML).toBe(firstHtml);
+    });
+
+    it('別インスタンスでも数値が同値なら DOM が変わらない (= memo がスキップ)', () => {
+      const v1 = BigNum.fromNumber(1234);
+      const v2 = BigNum.fromNumber(1234);
+      const { container, rerender } = render(
+        <CurrencyAmount
+          currency="screw"
+          value={v1}
+        />
+      );
+      const firstHtml = container.innerHTML;
+      rerender(
+        <CurrencyAmount
+          currency="screw"
+          value={v2}
+        />
+      );
+      // 表示は同じ (1.23A) で DOM 構造は変わらない
+      expect(container.innerHTML).toBe(firstHtml);
+    });
+
+    it('数値が変わるとき DOM (aria-label) が更新される', () => {
+      const { container, rerender } = render(
+        <CurrencyAmount
+          currency="screw"
+          value={BigNum.fromNumber(1234)}
+        />
+      );
+      const first = container.querySelector('[role="img"]')?.getAttribute('aria-label') ?? '';
+      rerender(
+        <CurrencyAmount
+          currency="screw"
+          value={BigNum.fromNumber(2345)}
+        />
+      );
+      const second = container.querySelector('[role="img"]')?.getAttribute('aria-label') ?? '';
+      expect(first).not.toBe(second);
+      expect(second).toContain('2.34A');
+    });
+  });
 });

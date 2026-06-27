@@ -1,3 +1,4 @@
+import { memo } from 'react';
 import type { CSSProperties } from 'react';
 
 import styles from './style.module.scss';
@@ -8,7 +9,23 @@ import { BigNum } from '@/lib/bignum/BigNum';
 // 型定義
 // ---------------------------------------------------------------------------
 
-export type NumericDisplaySize = 'sm' | 'md' | 'lg' | 'xl';
+/**
+ * NumericDisplay の size token。
+ *  - xs     (11px) HUD 補助数値 (max 値, shield 値)
+ *  - sm     (13px) inline numerics
+ *  - smPlus (14px) sm より少し大きい中間強調 (HUD HP current 値, スコア強調 など)
+ *  - md     (18px) card values (デフォルト)
+ *  - lg     (28px) HUD HP, large counters
+ *  - xl     (36px) hero counters (Showcase 等)
+ *
+ * v1.3.7 フォローアップ: 上書き class (font-size 直書き) を廃止するため
+ * `xs` / `smPlus` を追加。 既存 sm/md/lg/xl の値は据え置き。
+ *
+ * NOTE: `smPlus` はかつて用途特化的に `hp` という名前だったが、 階段命名
+ * (xs / sm / smPlus / md / lg / xl) の整合性を取るため中立命名に rename した。
+ * shield HUD やボス HP バー、 ResultDialog のスコアなどでも再利用可能。
+ */
+export type NumericDisplaySize = 'xs' | 'sm' | 'smPlus' | 'md' | 'lg' | 'xl';
 export type NumericDisplayAccentColor =
   | 'scale'
   | 'text'
@@ -30,6 +47,13 @@ export interface NumericDisplayProps {
   suffix?: string;
   /** 小数点以下の桁数（BigNum では整数表示だが、生の数値を decimals 桁で表示） */
   decimals?: number;
+  /**
+   * 親側で `font-size` 等を CSS Module class でかぶせるための拡張ポイント。
+   * v1.3.7 inline style 棚卸し: 利用側で `style={{ fontSize: 14 }}` のように静的値を
+   * inline 渡しするのを避けるため追加。 size class より後ろに連結されるので
+   * 親 module の class が specificity でも勝つ (CSS Module は単一クラスセレクタ)。
+   */
+  className?: string;
   style?: CSSProperties;
 }
 
@@ -123,7 +147,7 @@ function resolveGlow(accentColor: Exclude<NumericDisplayAccentColor, 'scale'>): 
 // コンポーネント
 // ---------------------------------------------------------------------------
 
-export function NumericDisplay({
+function NumericDisplayImpl({
   value,
   size = 'md',
   accentColor = 'scale',
@@ -131,6 +155,7 @@ export function NumericDisplay({
   prefix,
   suffix,
   decimals,
+  className,
   style,
 }: NumericDisplayProps) {
   const bn: BigNum = typeof value === 'number' ? BigNum.fromNumber(value) : value;
@@ -160,7 +185,9 @@ export function NumericDisplay({
   }
 
   const sizeClass = {
+    xs: styles.sizeXs,
     sm: styles.sizeSm,
+    smPlus: styles.sizeSmPlus,
     md: styles.sizeMd,
     lg: styles.sizeLg,
     xl: styles.sizeXl,
@@ -172,9 +199,13 @@ export function NumericDisplay({
     ...style,
   };
 
+  const rootClass = className
+    ? `${styles.root} ${sizeClass} ${className}`
+    : `${styles.root} ${sizeClass}`;
+
   return (
     <span
-      className={`${styles.root} ${sizeClass}`}
+      className={rootClass}
       style={inlineStyle}
     >
       {prefix != null && <span className={styles.affix}>{prefix}</span>}
@@ -183,3 +214,55 @@ export function NumericDisplay({
     </span>
   );
 }
+
+// ---------------------------------------------------------------------------
+// memo + 数値同値比較 (v1.3.7 Phase 5: BigNum 表示量子化)
+// ---------------------------------------------------------------------------
+//
+// machineHp は被ダメごとに新 BigNum インスタンスで更新される。 BattleHudTop が React.memo で
+// ラップ済みでも、 内部 selector (= machineHp) が変化したフレームは BattleHudTop ごと再 render
+// する。 そのときの NumericDisplay も毎フレーム描画されるが、 表示文字列が同じなら出力 DOM は
+// 等価のはず → memo + 数値同値比較で「BigNum 同値ならスキップ」 する。
+//
+// `style` は CSSProperties (オブジェクト)。 親で useMemo していなければ毎 render 新参照になり
+// memo が効かないので、 ここではキー単位の浅い比較を行う。
+function areNumericDisplayPropsEqual(
+  prev: NumericDisplayProps,
+  next: NumericDisplayProps
+): boolean {
+  if (
+    prev.size !== next.size ||
+    prev.accentColor !== next.accentColor ||
+    prev.glow !== next.glow ||
+    prev.prefix !== next.prefix ||
+    prev.suffix !== next.suffix ||
+    prev.decimals !== next.decimals ||
+    prev.className !== next.className
+  ) {
+    return false;
+  }
+  if (!shallowStyleEq(prev.style, next.style)) return false;
+  return numericValueEq(prev.value, next.value);
+}
+
+function numericValueEq(a: BigNum | number, b: BigNum | number): boolean {
+  if (a === b) return true;
+  const aBn = typeof a === 'number' ? BigNum.fromNumber(a) : a;
+  const bBn = typeof b === 'number' ? BigNum.fromNumber(b) : b;
+  return aBn.eq(bBn);
+}
+
+function shallowStyleEq(a: CSSProperties | undefined, b: CSSProperties | undefined): boolean {
+  if (a === b) return true;
+  if (a == null || b == null) return false;
+  const aKeys = Object.keys(a);
+  const bKeys = Object.keys(b);
+  if (aKeys.length !== bKeys.length) return false;
+  for (const k of aKeys) {
+    if ((a as Record<string, unknown>)[k] !== (b as Record<string, unknown>)[k]) return false;
+  }
+  return true;
+}
+
+export const NumericDisplay = memo(NumericDisplayImpl, areNumericDisplayPropsEqual);
+NumericDisplay.displayName = 'NumericDisplay';

@@ -43,47 +43,101 @@ export interface EnemyTemplate {
   };
 }
 
-export interface SpawnedEnemy extends EnemyTemplate {
-  /** ウェーブ内でユニークな ID */
+/**
+ * `MutableEnemy` の constructor 引数。 旧 `SpawnedEnemy` interface 相当の plain object 型。
+ *
+ * v1.3.7 (Phase 3-A): mutation 対象を field 単位で明示するため class 化したが、 既存の
+ * `spawnEnemy()` などは依然 plain object を返している。 `MutableEnemy` は class method を
+ * 持たず field のみで構成しているため、 structural typing 上 plain object とも互換であり、
+ * 既存呼び出しを書き換えずに済む。
+ */
+export interface SpawnedEnemyInit extends EnemyTemplate {
   id: string;
-  /** ラン開始からの経過 ms */
   spawnedAtMs: number;
-  /** 位置をパーセントで表現（0-100） */
   position: { x: number; y: number };
-  /**
-   * spawn 時点の最大 HP (= template.hp のスナップショット)。
-   * HP バーの残量比 (current / max) 算出に使う。 現在 HP (hp) が減っても変わらない。
-   */
   maxHp: BigNum;
-  /**
-   * 凍結解除時刻 (ラン開始からの経過 ms)。
-   * 現在の経過 ms より大きい間、 敵は移動を停止する (近接ダメは止めない仕様)。
-   * 期限切れ後は undefined に戻る。
-   */
+  hp: BigNum;
   frozenUntilMs?: number;
-  /** 燃焼継続終了時刻 (ラン開始からの経過 ms)。 期限切れ後は undefined に戻る */
   burnUntilMs?: number;
-  /** 燃焼中の毎秒ダメージ量 (BigNum)。 burnUntilMs と組で有効 */
   burnPerSec?: BigNum;
-  /**
-   * 燃焼 tick 用の累積 ms。 BigNum は整数演算で `mulNumber(deltaSec)` が天井丸めされて
-   * 60FPS で +60 倍暴走するため、 HP リジェネと同様に「1 秒ごとに `burnPerSec` を 1 回適用」
-   * する累積カウンタを敵ごとに持つ。 burn 付与時に 0 リセット、 期限切れで undefined。
-   */
   burnAccumulatorMs?: number;
-  /**
-   * Thunder 命中回数 (= スタック数)。 0〜THUNDER_STACK_MAX (5) で頭打ち。
-   * ヒットごとに +1、 ダメ計算時に `1 + THUNDER_STACK_DMG_PER_STACK × stack` 倍率が乗る。
-   * 敵が撃破/消滅すれば自動で消える (新規 spawn で 0 から)。
-   */
   thunderStacks?: number;
-  /**
-   * 敵のヒット判定半径 (% フィールド、 v1.3.1)。 描画半径 ×0.95 相当。
-   * 各武器の距離判定で `dist ≤ targetRadius + hitRadius` を使い、 大きいスプライトの
-   * 端を通った弾も命中扱いにする。 spawnEnemy で kind 別に設定される (ENEMY_HIT_RADIUS_PCT)。
-   */
   hitRadius: number;
 }
+
+/**
+ * バトル中に位置・HP・状態異常が更新される「敵」 のクラス表現。
+ *
+ * v1.3.7 (Phase 3-A): 旧 `interface SpawnedEnemy` を class 化。 不変フィールド (id / kind /
+ * subtype / speed / reward / hitRadius / spawnedAtMs / maxHp / atk) は `readonly`、 可変
+ * フィールド (hp / position / 状態異常タイマー類) は readonly なし。 `position` はオブジェクト
+ * 自体は差し替え可能だが、 x / y を直接書き換えても良い (Phase 3-B で in-place mutation を
+ * 使う前提)。
+ *
+ * 重要 (構造的型互換): 本 class は method を一切持たず、 field 宣言のみで構成する。 これに
+ * より plain object とも structural typing 上互換となり、 `export type SpawnedEnemy =
+ * MutableEnemy` と書いても既存の plain object を返す `spawnEnemy()` などをそのまま使い続け
+ * られる (Phase 3-A では「クラス定義の導入」 にとどめ、 actual instantiation は Phase 3-B
+ * 以降)。
+ *
+ * 各 field の意味は旧 `interface SpawnedEnemy` のコメントを参照。
+ */
+export class MutableEnemy {
+  // ---- 不変フィールド ----
+  readonly id: string;
+  readonly kind: EnemyKind;
+  readonly subtype?: NormalSubtype;
+  readonly speed: number;
+  readonly reward: {
+    screw: number;
+    bolt: number;
+    alloyChance: number;
+    alloyAmount: number;
+  };
+  readonly hitRadius: number;
+  readonly spawnedAtMs: number;
+  readonly maxHp: BigNum;
+  readonly atk: BigNum;
+
+  // ---- 可変フィールド (Phase 3-B で in-place mutation を使う) ----
+  hp: BigNum;
+  /**
+   * 位置 (パーセント 0-100)。 オブジェクトは readonly ではない (差し替え可)
+   * かつ x / y も書き換え可能 (mutate in place)。
+   */
+  position: { x: number; y: number };
+  frozenUntilMs?: number;
+  burnUntilMs?: number;
+  burnPerSec?: BigNum;
+  burnAccumulatorMs?: number;
+  thunderStacks?: number;
+
+  constructor(init: SpawnedEnemyInit) {
+    this.id = init.id;
+    this.kind = init.kind;
+    this.subtype = init.subtype;
+    this.speed = init.speed;
+    this.reward = init.reward;
+    this.hitRadius = init.hitRadius;
+    this.spawnedAtMs = init.spawnedAtMs;
+    this.maxHp = init.maxHp;
+    this.atk = init.atk;
+    this.hp = init.hp;
+    this.position = init.position;
+    this.frozenUntilMs = init.frozenUntilMs;
+    this.burnUntilMs = init.burnUntilMs;
+    this.burnPerSec = init.burnPerSec;
+    this.burnAccumulatorMs = init.burnAccumulatorMs;
+    this.thunderStacks = init.thunderStacks;
+  }
+}
+
+/**
+ * 既存コードからの import 互換のため、 `SpawnedEnemy` は `MutableEnemy` の type alias として
+ * 残す。 `MutableEnemy` が field のみで構成されているため、 plain object も structural typing
+ * 上代入可能 (= `spawnEnemy()` の戻り値型変更が不要)。
+ */
+export type SpawnedEnemy = MutableEnemy;
 
 // ---------------------------------------------------------------------------
 // ウェーブスケジュール

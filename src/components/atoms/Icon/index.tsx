@@ -1,3 +1,5 @@
+import styles from './style.module.scss';
+
 import alloySvg from '@/assets/icons/alloy.svg?raw';
 import boltSvg from '@/assets/icons/bolt.svg?raw';
 import cannonSvg from '@/assets/icons/cannon.svg?raw';
@@ -80,8 +82,8 @@ export function Icon({ name, size = 16, color = 'currentColor', className }: Ico
       <span
         role="img"
         aria-hidden
-        className={className}
-        style={{ display: 'inline-flex', color, lineHeight: 0 }}
+        className={className ? `${styles.inlineSvgWrap} ${className}` : styles.inlineSvgWrap}
+        style={{ color }}
         dangerouslySetInnerHTML={{ __html: applySize(inlineSvg, size) }}
       />
     );

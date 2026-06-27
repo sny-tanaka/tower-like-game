@@ -20,6 +20,7 @@ import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 
 import { Page } from './index';
 
+import { BattleEntityStore } from '@/game/store/BattleEntityStore';
 import type { UseBattleLoopResult } from '@/hooks/useBattleLoop';
 import { useBattleLoop } from '@/hooks/useBattleLoop';
 import { BigNum } from '@/lib/bignum/BigNum';
@@ -52,16 +53,6 @@ function makeUseBattleLoopReturn(
   overrides: Partial<UseBattleLoopResult> = {}
 ): UseBattleLoopResult {
   return {
-    enemies: [],
-    damageEvents: [],
-    deathEvents: [],
-    projectileEvents: [],
-    appearanceEvents: [],
-    waveElapsedSec: 0,
-    onDamageDone: vi.fn(),
-    onDeathDone: vi.fn(),
-    onProjectileDone: vi.fn(),
-    onAppearanceDone: vi.fn(),
     fireActive: vi.fn().mockReturnValue(true),
     isOverdriveActive: false,
     killCount: 42,
@@ -69,6 +60,7 @@ function makeUseBattleLoopReturn(
     droppedPatches: [],
     tierCleared: false,
     onTierClearedAck: vi.fn(),
+    entityStore: new BattleEntityStore(),
     ...overrides,
   };
 }

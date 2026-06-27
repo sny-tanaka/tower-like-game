@@ -1,3 +1,5 @@
+import { memo, useMemo } from 'react';
+
 import styles from './style.module.scss';
 
 import { Badge } from '@/components/atoms/Badge';
@@ -6,32 +8,26 @@ import { ProgressBar } from '@/components/atoms/ProgressBar';
 import { Text } from '@/components/atoms/Text';
 import { WaveProgressBar } from '@/components/molecules/WaveProgressBar';
 import type { WaveMilestone } from '@/components/molecules/WaveProgressBar';
-import type { BigNum } from '@/lib/bignum/BigNum';
+import { useEntityStore } from '@/game/store/BattleEntityStoreContext';
+import { WAVE_DURATION_SEC } from '@/game/wave';
+import { BigNum } from '@/lib/bignum/BigNum';
+import { useStore } from '@/store/index';
 
 export interface BattleHudTopProps {
-  /** マシン現在 HP */
-  hpCurrent: BigNum;
-  /** マシン最大 HP */
-  hpMax: BigNum;
   /** シールド (optional) */
   shieldCurrent?: BigNum;
   shieldMax?: BigNum;
-  /** 現在の Tier (1-12) */
-  tier: number;
-  /** 現在の Wave 番号 */
-  wave: number;
   /** 総 Wave 数 */
   totalWaves: number;
-  /** ウェーブ残り秒数 */
-  secondsRemaining: number;
-  /** ウェーブ合計秒数 */
-  secondsTotal: number;
   /** ボスウェーブかどうか */
   isBossWave?: boolean;
   /** 次のマイルストーン */
   nextMilestone?: WaveMilestone;
-  /** ゲーム pause 状態。 Wave タイマーアニメを停止する */
-  paused?: boolean;
+  /**
+   * ResultDialog 表示中フラグ。 Page で `effectiveResultStatus !== null` を計算して渡す。
+   * 内部の `isPaused || isResultOpen` 判定に使う (= リザルト中も Wave タイマーアニメを停止)。
+   */
+  isResultOpen?: boolean;
 }
 
 /**
@@ -42,27 +38,64 @@ export interface BattleHudTopProps {
  *   2. HP プログレスバー (色 hp / solid)
  *   3. Shield プログレスバー (任意)
  *   4. Wave プログレスバー (number / secondsLeft / nextMilestone)
+ *
+ * v1.3.7 Phase 4-A: 親 (Page) から prop drilling していた hpCurrent / hpMax / tier / wave / paused
+ * を撤去し、 内部で `useStore` selector を直接購読する。 さらに `React.memo` でラップして、
+ * 自身が subscribe している値が変化したフレーム + 親 props (secondsRemaining 等) が変化した
+ * フレームだけ再 render するようにした (= Page の re-render が BattleHudTop に伝播しない)。
+ *
+ * v1.3.7 Phase 5: 親 (Page) から prop drilling していた `secondsRemaining` / `secondsTotal`
+ * を撤去し、 `useEntityStore()` で entityStore を取得 → 内部で
+ * `WAVE_DURATION_SEC - entityStore.getWaveElapsedSec()` を計算する。
+ *
+ * 注: WaveProgressBar 内の `AnimatedTimerBar` はマウント時の `secondsRemaining` だけを
+ * snapshot して以後は CSS animation で連続描画する設計のため、 BattleHudTop が毎フレーム
+ * 再 render する必要はない (= entityStore に `useSyncExternalStore` で reactive 購読する必要なし)。
+ * BattleHudTop は内部 selector (currentWave / isPaused / machineHp 等) が変化したフレームに
+ * 再 render され、 そのタイミングで最新の `entityStore.getWaveElapsedSec()` が
+ * AnimatedTimerBar の `key={waveNumber}` 再マウント時の初期値として渡る。
  */
-export function BattleHudTop({
-  hpCurrent,
-  hpMax,
+function BattleHudTopImpl({
   shieldCurrent,
   shieldMax,
-  tier,
-  wave,
   totalWaves,
-  secondsRemaining,
-  secondsTotal,
   isBossWave = false,
   nextMilestone,
-  paused = false,
+  isResultOpen = false,
 }: BattleHudTopProps) {
+  // ── store から直接 subscribe (Page を経由しない) ──
+  // selector を 1 値ずつ書くことで、 zustand のデフォルト Object.is 比較に乗る。
+  // (例: tier だけ更新 → 他の selector は同一参照を返すので、 Object.is で再 render skip)
+  const machineHp = useStore((s) => s.machineHp);
+  const machineMaxHp = useStore((s) => s.machineMaxHp);
+  const currentTier = useStore((s) => s.currentTier);
+  const currentWave = useStore((s) => s.currentWave);
+  const isPaused = useStore((s) => s.isPaused);
+
+  // ── wave 残り秒数: entityStore から直接取得 (Page を経由しない、 reactive 購読もしない) ──
+  // AnimatedTimerBar はマウント時 (= 親 component が key={waveNumber} 切替で再マウント) の
+  // 初期値を CSS animation の起点として 1 度だけ参照する。 毎フレーム reactive に追従する
+  // 必要がないため、 useSyncExternalStore は使わない (= BattleHudTop の毎フレーム再 render を回避)。
+  const entityStore = useEntityStore();
+  const waveElapsedSec = entityStore.getWaveElapsedSec();
+  const secondsRemaining = Math.max(0, WAVE_DURATION_SEC - waveElapsedSec);
+  const secondsTotal = WAVE_DURATION_SEC;
+
+  // machineMaxHp が 0 (ラン外) のときは 1 にクランプ (computeRatio の 0 除算回避)
+  // (旧 Page 側 hpMaxBn useMemo の移譲)
+  const hpMaxBn = useMemo(
+    () => (machineMaxHp.isZero() ? BigNum.fromNumber(1) : machineMaxHp),
+    [machineMaxHp]
+  );
+  const paused = isPaused || isResultOpen;
+
   const effectiveMilestone =
-    nextMilestone ?? (isBossWave ? ({ wave, kind: 'boss' } as WaveMilestone) : undefined);
+    nextMilestone ??
+    (isBossWave ? ({ wave: currentWave, kind: 'boss' } as WaveMilestone) : undefined);
 
   const hasShield = shieldCurrent != null && shieldMax != null;
   // ProgressBar は number で受けるため、display 比 (0-100) を渡す
-  const hpRatio = computeRatio(hpCurrent, hpMax);
+  const hpRatio = computeRatio(machineHp, hpMaxBn);
   const shieldRatio = hasShield ? computeRatio(shieldCurrent, shieldMax) : 0;
 
   return (
@@ -75,33 +108,31 @@ export function BattleHudTop({
       <div className={styles.headerRow}>
         <Badge
           variant="tier"
-          tier={tier}
+          tier={currentTier}
           size="md"
           glow
         />
         <Text
           variant="label"
           color="dim"
-          style={{ fontSize: 10 }}
+          className={styles.hpLabel}
         >
           HP
         </Text>
         <span
           className={styles.hpValue}
-          aria-label={`HP ${hpCurrent.toDisplay()} / ${hpMax.toDisplay()}`}
+          aria-label={`HP ${machineHp.toDisplay()} / ${hpMaxBn.toDisplay()}`}
         >
           <NumericDisplay
-            value={hpCurrent}
-            size="sm"
+            value={machineHp}
+            size="smPlus"
             accentColor="text"
-            style={{ fontSize: 14 }}
           />
           <span className={styles.hpDivider}>/</span>
           <NumericDisplay
-            value={hpMax}
-            size="sm"
+            value={hpMaxBn}
+            size="xs"
             accentColor="dim"
-            style={{ fontSize: 11 }}
           />
         </span>
         {hasShield && (
@@ -109,15 +140,14 @@ export function BattleHudTop({
             <Text
               variant="label"
               color="primary"
-              style={{ fontSize: 9.5 }}
+              className={styles.shieldLabel}
             >
               SHLD
             </Text>
             <NumericDisplay
               value={shieldCurrent}
-              size="sm"
+              size="xs"
               accentColor="primary"
-              style={{ fontSize: 11 }}
             />
           </span>
         )}
@@ -143,7 +173,7 @@ export function BattleHudTop({
 
       {/* ── Wave 進捗 (ボス wave は時間カウントダウンせず BOSS WAVE 表示) ── */}
       <WaveProgressBar
-        waveNumber={wave}
+        waveNumber={currentWave}
         secondsLeft={secondsRemaining}
         secondsMax={secondsTotal}
         nextMilestone={effectiveMilestone}
@@ -159,11 +189,14 @@ export function BattleHudTop({
         className={styles.srOnly}
         aria-hidden="false"
       >
-        {wave}/{totalWaves}
+        {currentWave}/{totalWaves}
       </span>
     </div>
   );
 }
+
+export const BattleHudTop = memo(BattleHudTopImpl);
+BattleHudTop.displayName = 'BattleHudTop';
 
 function computeRatio(current: BigNum, max: BigNum): number {
   // BigNum は number 比に変換できないため、toDisplay 経由ではなく toString で

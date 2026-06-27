@@ -33,6 +33,14 @@
   line-height: var(--lh-tight);
 }
 
+.deltaPlus {
+  color: var(--c-success);
+}
+
+.deltaMinus {
+  color: var(--c-danger);
+}
+
 .deltaSm {
   font-size: var(--fs-num-s);
 }

@@ -37,7 +37,7 @@ export function TitleHeader({
           variant="label"
           color="mid"
           align="center"
-          style={{ fontSize: 11, letterSpacing: '0.24em' }}
+          className={styles.subtitle}
         >
           {subtitle}
         </Text>
@@ -48,7 +48,7 @@ export function TitleHeader({
           variant="caption"
           color="dim"
           align="center"
-          style={{ marginTop: 4, fontSize: 11 }}
+          className={styles.tagline}
         >
           {tagline}
         </Text>
@@ -59,7 +59,7 @@ export function TitleHeader({
           variant="numeric-s"
           color="dim"
           align="center"
-          style={{ fontSize: 10, marginTop: 6, opacity: 0.7 }}
+          className={styles.version}
         >
           {version}
         </Text>
