@@ -16,6 +16,8 @@ import { evaluatePatches } from '@/game/patches';
 import { dropPatch } from '@/game/patches/drops';
 import type { PatchDrop } from '@/game/patches/drops';
 import type { EquippedPatch } from '@/game/patches.types';
+import { BattleEntityStore } from '@/game/store/BattleEntityStore';
+import type { AppearanceEvent } from '@/game/store/BattleEntityStore';
 import type { EnemyKind, SpawnedEnemy } from '@/game/types';
 import { buildTierWaves, getSpawnsAtTime } from '@/game/wave';
 import { cannonApplySplash, cannonStats, cannonVolley } from '@/game/weapons/cannon';
@@ -312,13 +314,10 @@ export interface UseBattleLoopOpts {
 /**
  * 上位敵 (elite / miniboss / boss) の出現バナー演出イベント。
  * useBattleLoop が spawn 検知時に発火し、 battle 画面が AppearanceBannerFx をマウントする。
+ *
+ * v1.3.7 (Phase 1): 型定義は BattleEntityStore に移動。 互換性のためここで re-export。
  */
-export interface AppearanceEvent {
-  id: string;
-  kind: 'elite' | 'miniboss' | 'boss';
-  /** 表示用の敵名 (例 "ELITE T1W5"。 battle 画面で生成しても良い) */
-  name: string;
-}
+export type { AppearanceEvent } from '@/game/store/BattleEntityStore';
 
 export interface UseBattleLoopResult {
   enemies: SpawnedEnemy[];
@@ -362,6 +361,14 @@ export interface UseBattleLoopResult {
   tierCleared: boolean;
   /** tierCleared フラグをリセット (親が消費したことを通知) */
   onTierClearedAck: () => void;
+  /**
+   * v1.3.7 (Phase 1): バトル中エンティティを保持する外部 store。 Phase 2 で BattleField が
+   * useSyncExternalStore でこの store を直接購読し、 Page の毎フレーム re-render を切る。
+   *
+   * Phase 1 では「使えるが利用していない」 状態 (= 既存の React state と二重管理)。 listener が
+   * いないため notifyFrame() は実質 no-op。
+   */
+  entityStore: BattleEntityStore;
 }
 
 /** 通常敵が ボルト をドロップする確率 (02-currencies.md 仕様) */
@@ -486,6 +493,15 @@ export function useBattleLoop({
   const [waveElapsedSec, setWaveElapsedSec] = useState<number>(0);
   const [isOverdriveActive, setIsOverdriveActive] = useState<boolean>(false);
 
+  // v1.3.7 (Phase 1): BattleEntityStore を hook ローカルで生成。 StrictMode の double-invoke を
+  // 避けるため useRef で 1 度だけインスタンス化。 Phase 2 で BattleField が直接購読するための
+  // 土台。 Phase 1 では tick 末尾で notifyFrame を呼ぶだけ (listener=0 なので実質 no-op)。
+  const entityStoreRef = useRef<BattleEntityStore | null>(null);
+  if (entityStoreRef.current === null) {
+    entityStoreRef.current = new BattleEntityStore();
+  }
+  const entityStore = entityStoreRef.current;
+
   // v1.3.2: suspendRendering が true になった瞬間に既存の描画 events と削除キューを全クリア
   // (= スクリーンセーバーを開いた瞬間に残っていた Fx を全部消す)。 false に戻ったタイミング
   // からは tick の append が再開され、 新規イベントだけ流れ始める。
@@ -507,6 +523,10 @@ export function useBattleLoop({
     } else {
       setEnemies(enemiesRef.current);
       setWaveElapsedSec(waveElapsedMsRef.current / 1000);
+      // TODO (v1.3.7 Phase 2): BattleField が entityStore を直接購読するようになったら、
+      // ここで entityStore.setEnemies(enemiesRef.current) + setWaveElapsedSec(...)
+      // + notifyFrame() を呼んでスクリーンセーバー解除時に最新値を sync する。
+      // Phase 1 では listener=0 のため省略 (次フレームの tick 末尾で同期される)。
     }
   }, [suspendRendering]);
 
@@ -597,6 +617,9 @@ export function useBattleLoop({
       // 敵リスト全クリア時は飛翔中砲弾も Cutter の遅延 pop も無効にする
       pendingCannonShellsRef.current = [];
       pendingCutterPopsRef.current = [];
+      // TODO (v1.3.7 Phase 2): BattleField が entityStore を直接購読するようになったら、
+      // ここで entityStore.reset() を呼んで Tier/Wave 切替時の古いエンティティを掃除する。
+      // Phase 1 では listener=0 のため省略 (= 次フレームの tick で setEnemies 同期される)。
     }
   }, [currentTier, currentWave]);
 
@@ -630,6 +653,9 @@ export function useBattleLoop({
       // 浮動小数 accumulator も初期化して低 fps 時の累積誤差をリセット
       fireAccumulatorMsRef.current = 0;
       cutterAngleDegRef.current = 0;
+      // TODO (v1.3.7 Phase 2): BattleField が entityStore 直接購読時、 ここで
+      // entityStore.reset() を呼び、 前ランの古いエンティティ / events を一括掃除する。
+      // Phase 1 では listener=0 のため省略。
     }
   }, [isRunActive]);
 
@@ -1774,6 +1800,16 @@ export function useBattleLoop({
           setEnemies(enemiesRef.current);
           setWaveElapsedSec(waveElapsedMsRef.current / 1000);
         }
+
+        // v1.3.7 (Phase 1): BattleEntityStore に最新の enemies / waveElapsedSec を同期 +
+        // notifyFrame()。 Phase 1 では BattleField はまだ React state 経由なので listener=0
+        // で実質 no-op だが、 Phase 2 で BattleField が直接購読するための土台。
+        // events の同期は Phase 2 で BattleField 切替と同時に対応。
+        if (!suspendRenderingRef.current) {
+          entityStore.setEnemies(enemiesRef.current);
+          entityStore.setWaveElapsedSec(waveElapsedMsRef.current / 1000);
+          entityStore.notifyFrame();
+        }
       }
 
       rafIdRef.current = requestAnimationFrame(tick);
@@ -1807,7 +1843,8 @@ export function useBattleLoop({
       document.removeEventListener('visibilitychange', handleVisibility);
       stopLoop();
     };
-  }, [isRunActive, tierWaves, fireActive]);
+    // entityStore は useRef による安定参照なので毎 render 同一だが、 lint 警告解消のため deps に含める
+  }, [isRunActive, tierWaves, fireActive, entityStore]);
 
   return {
     enemies,
@@ -1827,5 +1864,6 @@ export function useBattleLoop({
     droppedPatches,
     tierCleared,
     onTierClearedAck,
+    entityStore,
   };
 }

@@ -20,6 +20,7 @@ import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 
 import { Page } from './index';
 
+import { BattleEntityStore } from '@/game/store/BattleEntityStore';
 import type { UseBattleLoopResult } from '@/hooks/useBattleLoop';
 import { useBattleLoop } from '@/hooks/useBattleLoop';
 import { BigNum } from '@/lib/bignum/BigNum';
@@ -69,6 +70,7 @@ function makeUseBattleLoopReturn(
     droppedPatches: [],
     tierCleared: false,
     onTierClearedAck: vi.fn(),
+    entityStore: new BattleEntityStore(),
     ...overrides,
   };
 }
