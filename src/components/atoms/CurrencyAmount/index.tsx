@@ -66,7 +66,9 @@ const CURRENCY_CONFIG = {
 // ---------------------------------------------------------------------------
 
 const ICON_SIZE_MAP: Record<NumericDisplaySize, number> = {
+  xs: 10,
   sm: 12,
+  hp: 14,
   md: 16,
   lg: 22,
   xl: 28,
@@ -128,7 +130,9 @@ function CurrencyAmountImpl({
             : STYLE_COLOR_ALLOY;
 
   const deltaSizeClass = {
+    xs: styles.deltaSm, // xs は sm 相当 (delta は 11px と 12px の差を吸収)
     sm: styles.deltaSm,
+    hp: styles.deltaMd, // hp (14px) は md (16px) 相当に寄せる
     md: styles.deltaMd,
     lg: styles.deltaLg,
     xl: styles.deltaLg, // xl はlg相当

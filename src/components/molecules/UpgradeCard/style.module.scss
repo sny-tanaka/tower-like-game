@@ -55,6 +55,26 @@
   flex-shrink: 0;
 }
 
+/* v1.3.7 フォローアップ: accent kind ごとの lvBadge スタイルを class 化
+ * (旧実装は `style={{ color, boxShadow }}` で inline 渡ししていた。
+ *  accent = 'primary' | 'secondary' | 'warning' の 3 値固定なので class 化)
+ *
+ * .lvBadge を継承する span にこれらを付与する。 currentColor で枠線も同色に揃う。 */
+.lvBadgePrimary {
+  color: var(--c-primary);
+  box-shadow: var(--glow-cyan-sm);
+}
+
+.lvBadgeSecondary {
+  color: var(--c-secondary);
+  box-shadow: var(--glow-purple-sm);
+}
+
+.lvBadgeWarning {
+  color: var(--c-warning);
+  /* warning は glow なし (ACCENT_GLOW.warning = 'none' の踏襲) */
+}
+
 /* maxed 表示 (静的) */
 .lvBadgeMaxed {
   color: var(--c-success);
@@ -105,6 +125,24 @@
   line-height: var(--lh-tight);
   flex: 0 1 auto;
   min-width: 0;
+}
+
+/* v1.3.7 フォローアップ: valueAfter の accent 別 color + textShadow を class 化
+ * (旧実装は `style={{ color: accentColor, textShadow: ACCENT_GLOW_RGBA[resolvedAccent] }}` で
+ *  inline 渡ししていた。 lvBadge と同じく accent = primary/secondary/warning の 3 値固定) */
+.valueAfterPrimary {
+  color: var(--c-primary);
+  text-shadow: 0 0 5px rgba(78, 228, 246, 0.55);
+}
+
+.valueAfterSecondary {
+  color: var(--c-secondary);
+  text-shadow: 0 0 5px rgba(169, 107, 255, 0.55);
+}
+
+.valueAfterWarning {
+  color: var(--c-warning);
+  text-shadow: 0 0 5px rgba(246, 185, 74, 0.55);
 }
 
 .arrow {

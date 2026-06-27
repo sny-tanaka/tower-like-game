@@ -44,13 +44,18 @@ export interface WaveProgressBarProps {
 // マイルストーン設定
 // ---------------------------------------------------------------------------
 
+/**
+ * マイルストーン kind ごとの label / icon / 色 class の対応。
+ * 色は SCSS Module の class で表現し、 内側 Icon は `currentColor` を継承する。
+ * (旧実装は `style={{ color }}` を inline で渡していたが、 v1.3.7 フォローアップで class 化)
+ */
 const MILESTONE_CONFIG: Record<
   WaveMilestoneKind,
-  { label: string; color: string; iconName: 'skull' | 'lightning' | 'spark' }
+  { label: string; colorClass: string; iconName: 'skull' | 'lightning' | 'spark' }
 > = {
-  elite: { label: 'ELITE', color: 'var(--c-warning)', iconName: 'lightning' },
-  boss: { label: 'BOSS', color: 'var(--c-secondary)', iconName: 'skull' },
-  'tier-up': { label: 'TIER UP', color: 'var(--c-primary)', iconName: 'spark' },
+  elite: { label: 'ELITE', colorClass: styles.milestoneElite, iconName: 'lightning' },
+  boss: { label: 'BOSS', colorClass: styles.milestoneBoss, iconName: 'skull' },
+  'tier-up': { label: 'TIER UP', colorClass: styles.milestoneTierUp, iconName: 'spark' },
 };
 
 // ---------------------------------------------------------------------------
@@ -87,14 +92,10 @@ export function WaveProgressBar({
 
         {/* 次マイルストーン (ボス wave 中は「次」 が無いので表示しない) */}
         {!isBossWave && milestone != null && nextMilestone != null && (
-          <span
-            className={styles.milestone}
-            style={{ color: milestone.color }}
-          >
+          <span className={`${styles.milestone} ${milestone.colorClass}`}>
             <Icon
               name={milestone.iconName}
               size={12}
-              color={milestone.color}
             />
             <span className={styles.milestoneText}>
               {milestone.label} @{nextMilestone.wave}
@@ -108,7 +109,6 @@ export function WaveProgressBar({
             <Icon
               name="skull"
               size={12}
-              color="var(--c-secondary)"
             />
             <span className={styles.milestoneText}>BOSS WAVE</span>
           </span>

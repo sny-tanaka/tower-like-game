@@ -127,6 +127,51 @@ describe('NumericDisplay', () => {
     expect(el.className).toContain('sizeLg');
   });
 
+  // v1.3.7 フォローアップ: size 体系拡張 (xs / hp / xl)
+  it('size=xs のとき sizeXs クラスが付く (HUD 補助数値)', () => {
+    const { container } = render(
+      <NumericDisplay
+        value={1}
+        size="xs"
+      />
+    );
+    const el = container.querySelector('span')!;
+    expect(el.className).toContain('sizeXs');
+  });
+
+  it('size=hp のとき sizeHp クラスが付く (HUD HP current 値)', () => {
+    const { container } = render(
+      <NumericDisplay
+        value={1}
+        size="hp"
+      />
+    );
+    const el = container.querySelector('span')!;
+    expect(el.className).toContain('sizeHp');
+  });
+
+  it('size=md のとき sizeMd クラスが付く', () => {
+    const { container } = render(
+      <NumericDisplay
+        value={1}
+        size="md"
+      />
+    );
+    const el = container.querySelector('span')!;
+    expect(el.className).toContain('sizeMd');
+  });
+
+  it('size=xl のとき sizeXl クラスが付く', () => {
+    const { container } = render(
+      <NumericDisplay
+        value={1}
+        size="xl"
+      />
+    );
+    const el = container.querySelector('span')!;
+    expect(el.className).toContain('sizeXl');
+  });
+
   it('外部 style prop がマージされる', () => {
     const { container } = render(
       <NumericDisplay

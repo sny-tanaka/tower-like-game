@@ -41,7 +41,8 @@
 /* Text / NumericDisplay は className を受けない / style を渡しても上書きできるが毎 render の
    オブジェクト生成 (= memo 失効リスク) があるので、 親側ラッパー span に class を当てる方針。 */
 
-/* Text variant=label の上にかぶせる微調整 */
+/* Text variant=label の上にかぶせる微調整 (Text には現状 9-10px の size token がないため
+   HUD 内でだけ class 上書きで詰める。 Text 側の体系見直しは別タスク) */
 .hpLabel {
   font-size: 10px;
 }
@@ -50,15 +51,9 @@
   font-size: 9.5px;
 }
 
-/* NumericDisplay の数値表示サイズ微調整 (size="sm" の上書き用) */
-.hpCurrentValue {
-  font-size: 14px;
-}
-
-.hpMaxValue,
-.shieldValue {
-  font-size: 11px;
-}
+/* v1.3.7 フォローアップ:
+ *   NumericDisplay の上書き class (.hpCurrentValue / .hpMaxValue / .shieldValue) は
+ *   size token (`hp` = 14px / `xs` = 11px) に吸収して廃止した。 */
 
 .shieldBlock {
   display: inline-flex;

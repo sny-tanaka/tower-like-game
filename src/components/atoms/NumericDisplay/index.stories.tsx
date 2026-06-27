@@ -13,7 +13,7 @@ const meta: Meta<typeof NumericDisplay> = {
   argTypes: {
     size: {
       control: { type: 'select' },
-      options: ['sm', 'md', 'lg'],
+      options: ['xs', 'sm', 'hp', 'md', 'lg', 'xl'],
     },
     accentColor: {
       control: { type: 'select' },
@@ -51,18 +51,13 @@ export const WithGlow: Story = {
 export const Sizes: Story = {
   render: () => (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-      <NumericDisplay
-        value={1234}
-        size="sm"
-      />
-      <NumericDisplay
-        value={1234}
-        size="md"
-      />
-      <NumericDisplay
-        value={1234}
-        size="lg"
-      />
+      {(['xs', 'sm', 'hp', 'md', 'lg', 'xl'] as const).map((s) => (
+        <NumericDisplay
+          key={s}
+          value={1234}
+          size={s}
+        />
+      ))}
     </div>
   ),
 };
@@ -197,7 +192,14 @@ export const Showcase: Story = {
       { key: 'dim' },
     ];
 
-    const sizes: Array<'sm' | 'md' | 'lg' | 'xl'> = ['sm', 'md', 'lg', 'xl'];
+    const sizes: Array<'xs' | 'sm' | 'hp' | 'md' | 'lg' | 'xl'> = [
+      'xs',
+      'sm',
+      'hp',
+      'md',
+      'lg',
+      'xl',
+    ];
 
     const sectionTitle: React.CSSProperties = {
       color: 'var(--c-primary)',
@@ -272,8 +274,8 @@ export const Showcase: Story = {
           </div>
         ))}
 
-        {/* --- Sizes (sm / md / lg / xl) --- */}
-        <div style={sectionTitle}>Sizes (sm / md / lg / xl)</div>
+        {/* --- Sizes (xs / sm / hp / md / lg / xl) --- */}
+        <div style={sectionTitle}>Sizes (xs / sm / hp / md / lg / xl)</div>
         {sizes.map((s) => (
           <div
             key={s}

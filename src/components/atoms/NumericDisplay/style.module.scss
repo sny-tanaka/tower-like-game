@@ -10,8 +10,26 @@
   font-variant-numeric: tabular-nums;
 }
 
+/* ----------------------------------------------------------------------------
+ * size token (v1.3.7 フォローアップで体系拡張)
+ *  xs (11px)  — HUD 補助数値 (max 値, shield 値など)
+ *  sm (13px)  — inline numerics
+ *  hp (14px)  — HUD HP current 値専用 (sm よりやや大きく強調)
+ *  md (18px)  — card values
+ *  lg (28px)  — HUD HP, large counters
+ *  xl (36px)  — hero counters (Showcase 等)
+ * ---------------------------------------------------------------------------- */
+
+.sizeXs {
+  font-size: var(--fs-num-xs);
+}
+
 .sizeSm {
   font-size: var(--fs-num-s);
+}
+
+.sizeHp {
+  font-size: var(--fs-num-hp);
 }
 
 .sizeMd {
@@ -23,7 +41,7 @@
 }
 
 .sizeXl {
-  font-size: 36px;
+  font-size: var(--fs-num-xl);
 }
 
 .affix {

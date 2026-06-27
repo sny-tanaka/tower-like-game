@@ -125,16 +125,14 @@ function BattleHudTopImpl({
         >
           <NumericDisplay
             value={machineHp}
-            size="sm"
+            size="hp"
             accentColor="text"
-            className={styles.hpCurrentValue}
           />
           <span className={styles.hpDivider}>/</span>
           <NumericDisplay
             value={hpMaxBn}
-            size="sm"
+            size="xs"
             accentColor="dim"
-            className={styles.hpMaxValue}
           />
         </span>
         {hasShield && (
@@ -148,9 +146,8 @@ function BattleHudTopImpl({
             </Text>
             <NumericDisplay
               value={shieldCurrent}
-              size="sm"
+              size="xs"
               accentColor="primary"
-              className={styles.shieldValue}
             />
           </span>
         )}

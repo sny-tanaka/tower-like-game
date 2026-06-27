@@ -9,7 +9,19 @@ import { BigNum } from '@/lib/bignum/BigNum';
 // 型定義
 // ---------------------------------------------------------------------------
 
-export type NumericDisplaySize = 'sm' | 'md' | 'lg' | 'xl';
+/**
+ * NumericDisplay の size token。
+ *  - xs (11px) HUD 補助数値 (max 値, shield 値)
+ *  - sm (13px) inline numerics
+ *  - hp (14px) HUD HP current 値 (sm よりやや大きく強調)
+ *  - md (18px) card values (デフォルト)
+ *  - lg (28px) HUD HP, large counters
+ *  - xl (36px) hero counters (Showcase 等)
+ *
+ * v1.3.7 フォローアップ: 上書き class (font-size 直書き) を廃止するため
+ * `xs` / `hp` を追加。 既存 sm/md/lg/xl の値は据え置き。
+ */
+export type NumericDisplaySize = 'xs' | 'sm' | 'hp' | 'md' | 'lg' | 'xl';
 export type NumericDisplayAccentColor =
   | 'scale'
   | 'text'
@@ -169,7 +181,9 @@ function NumericDisplayImpl({
   }
 
   const sizeClass = {
+    xs: styles.sizeXs,
     sm: styles.sizeSm,
+    hp: styles.sizeHp,
     md: styles.sizeMd,
     lg: styles.sizeLg,
     xl: styles.sizeXl,
