@@ -476,17 +476,9 @@
   }
 }
 
-@keyframes glow {
-  0%,
-  100% {
-    filter: drop-shadow(0 0 8px rgba(78, 228, 246, 0.55))
-      drop-shadow(0 0 16px rgba(78, 228, 246, 0.25));
-  }
-  50% {
-    filter: drop-shadow(0 0 14px rgba(78, 228, 246, 0.85))
-      drop-shadow(0 0 32px rgba(78, 228, 246, 0.5));
-  }
-}
+/* v1.3.6: glow keyframe (drop-shadow filter infinite animation) を削除。
+ * drop-shadow を毎フレーム補間すると GPU layer ラスタライズが連続発生して発熱要因に
+ * なるため、 静的な drop-shadow に置換 (towerCore で直接指定)。 */
 
 .root {
   position: relative;
@@ -554,9 +546,11 @@
 
 .towerCore {
   color: var(--c-primary-hi);
-  animation:
-    pulse 3.6s var(--ease-default) infinite,
-    glow 3.6s var(--ease-default) infinite;
+  /* v1.3.6: glow animation を削除、 drop-shadow は静止 1 回 rasterize で済む値に。
+   * pulse (transform: scale) は GPU layer 1 つで済み軽量なので残す。 */
+  filter: drop-shadow(0 0 10px rgba(78, 228, 246, 0.7))
+    drop-shadow(0 0 20px rgba(78, 228, 246, 0.35));
+  animation: pulse 3.6s var(--ease-default) infinite;
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -574,8 +568,11 @@
     top: auto;
   }
   .towerR1,
-  .towerR2,
+  .towerR2 {
+    animation: none !important;
+  }
   .towerCore {
     animation: none !important;
+    filter: none !important;
   }
 }

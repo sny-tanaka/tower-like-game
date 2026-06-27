@@ -40,21 +40,40 @@ function gcd(a: number, b: number): number {
 }
 
 // ---------------------------------------------------------------------------
-// rationalize
+// rationalize (v1.3.6: scalar → {num, den} の memo を追加。 hot path で同じ scalar
+//   (= damageMul / critMultiplier / hpLifestealPct / 0.3 burn 係数 / activePower 等) が
+//   毎ヒット渡されるが、 scalar が同じなら結果も同じ。 .toString() + gcd ループ + オブジェクト
+//   割当のコストを memo で完全カットする。
+//   Map は insertion-order なので、 サイズ上限超過時は最古エントリを退避する簡易 LRU)
 // ---------------------------------------------------------------------------
+
+const RATIONALIZE_CACHE_MAX = 256;
+const rationalizeCache = new Map<number, { num: number; den: number }>();
 
 /** 小数スカラーを { num, den } の既約分数に変換する。 */
 export function rationalize(scalar: number): { num: number; den: number } {
+  const cached = rationalizeCache.get(scalar);
+  if (cached !== undefined) return cached;
+
   const str = scalar.toString();
   const dotIdx = str.indexOf('.');
+  let result: { num: number; den: number };
   if (dotIdx === -1) {
-    return { num: Math.round(scalar), den: 1 };
+    result = { num: Math.round(scalar), den: 1 };
+  } else {
+    const decimals = str.length - dotIdx - 1;
+    const den = Math.pow(10, decimals);
+    const num = Math.round(scalar * den);
+    const g = gcd(Math.abs(num), den);
+    result = { num: num / g, den: den / g };
   }
-  const decimals = str.length - dotIdx - 1;
-  const den = Math.pow(10, decimals);
-  const num = Math.round(scalar * den);
-  const g = gcd(Math.abs(num), den);
-  return { num: num / g, den: den / g };
+
+  if (rationalizeCache.size >= RATIONALIZE_CACHE_MAX) {
+    const firstKey = rationalizeCache.keys().next().value;
+    if (firstKey !== undefined) rationalizeCache.delete(firstKey);
+  }
+  rationalizeCache.set(scalar, result);
+  return result;
 }
 
 // ---------------------------------------------------------------------------

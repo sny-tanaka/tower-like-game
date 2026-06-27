@@ -4,6 +4,7 @@ import styles from './style.module.scss';
 
 import { Icon } from '@/components/atoms/Icon';
 import { ScreenSaverFx } from '@/components/fx/ScreenSaverFx';
+import { soundEngine } from '@/lib/audio';
 
 export interface ScreenSaverDialogProps {
   open: boolean;
@@ -71,6 +72,18 @@ export function ScreenSaverDialog({
   currentWave,
   resultStatus = null,
 }: ScreenSaverDialogProps) {
+  // v1.3.6: open の間 AudioContext を suspend (BGM / SE を含む audio worklet を idle に)。
+  // 通常プレイ中の audio スレッド常時稼働が発熱要因なので、 スクリーンセーバー中だけ止める。
+  // close (cleanup) で resume するが、 BGM track 自体は currentBgm が保持しているので再開時に
+  // 何もしなくても自動的に再生継続する。
+  useEffect(() => {
+    if (!open) return;
+    soundEngine.suspendAudio();
+    return () => {
+      soundEngine.resumeAudio();
+    };
+  }, [open]);
+
   // Wake Lock: open の間だけスクリーン点灯を維持する
   useEffect(() => {
     if (!open) return;

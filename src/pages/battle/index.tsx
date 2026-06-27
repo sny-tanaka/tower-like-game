@@ -256,9 +256,15 @@ export function Page() {
   useEffect(() => {
     if (currentWave !== 30) setBossPhase(false);
   }, [currentWave]);
+  // v1.3.6: スクリーンセーバー中は SoundEngine.suspendAudio + autoResumeSuppressed のため
+  // playBgm が早期 return される (= currentBgm.id 更新も skip)。 セーバー中に bossPhase が
+  // 変化したまま閉じると、 ctx.resume() 後も旧 BGM track が鳴り続けてしまうため、
+  // isScreenSaverOpen=false 復帰時に bossPhase に応じた playBgm を再呼出して正しい track に揃える。
+  // 同一 id の playBgm は SoundEngine 側で no-op なので副作用なし。
   useEffect(() => {
+    if (isScreenSaverOpen) return;
     soundEngine.playBgm(bossPhase ? 'battleBoss' : 'battleNormal');
-  }, [bossPhase]);
+  }, [bossPhase, isScreenSaverOpen]);
 
   // Wave 残り時間: 0 になったら advanceWave が走り経過秒はリセットされる
   const waveSecondsRemaining = Math.max(0, WAVE_DURATION_SEC - waveElapsedSec);
@@ -488,92 +494,99 @@ export function Page() {
 
   return (
     <div className={styles.root}>
-      <AppShell
-        noScroll
-        variant="battle"
-        header={
-          <BattleHudTop
-            hpCurrent={hpCurrentBn}
-            hpMax={hpMaxBn}
-            tier={currentTier}
-            wave={currentWave}
-            totalWaves={TOTAL_WAVES}
-            secondsRemaining={waveSecondsRemaining}
-            secondsTotal={WAVE_DURATION_SEC}
-            isBossWave={currentWave === TOTAL_WAVES}
-            paused={isPaused || isResultOpen}
-          />
-        }
-        footer={
-          <div className={styles.battleFooter}>
-            {/* ワークショップシート: HudBottom の上に absolute で重ねる overlay。
+      {/* v1.3.6: スクリーンセーバー中は AppShell 全体 (= BattleHudTop / BattleHudBottom /
+          RunWorkshopBottomSheet / BattleField) を unmount。 これらは store selector を
+          subscribe しているため、 tickCooldowns が毎フレーム activeCdSec を setState するたび
+          re-render する。 unmount すれば subscribers がいなくなり、 store 更新は no-op に。
+          ScreenSaverDialog 等の overlay 層 (BattleMenuOverlay / ResultDialog) は引き続き表示。 */}
+      {!isScreenSaverOpen && (
+        <AppShell
+          noScroll
+          variant="battle"
+          header={
+            <BattleHudTop
+              hpCurrent={hpCurrentBn}
+              hpMax={hpMaxBn}
+              tier={currentTier}
+              wave={currentWave}
+              totalWaves={TOTAL_WAVES}
+              secondsRemaining={waveSecondsRemaining}
+              secondsTotal={WAVE_DURATION_SEC}
+              isBossWave={currentWave === TOTAL_WAVES}
+              paused={isPaused || isResultOpen}
+            />
+          }
+          footer={
+            <div className={styles.battleFooter}>
+              {/* ワークショップシート: HudBottom の上に absolute で重ねる overlay。
                 BattleField の高さは変えない。 */}
-            <RunWorkshopBottomSheet
-              open={isWorkshopOpen}
-              screw={screw}
-              levels={runWorkshopLevels}
-              autoEnabled={runWorkshopAutoEnabled}
-              onUpgrade={handleWorkshopUpgrade}
-              onToggleAuto={handleToggleWorkshopAuto}
-              onClose={handleCloseWorkshop}
-            />
-            <BattleHudBottom
-              screw={screw}
-              earnedBolt={earnedBolt}
-              equippedWeapon={currentWeapon}
-              weaponCds={weaponCds}
-              activeCd={activeCdSec}
-              activeMax={activeMaxSec}
-              isAutoActive={isAutoActive}
-              onSwitchWeapon={handleSwitchWeapon}
-              onActivate={handleManualActivate}
-              onToggleAuto={setAutoActive}
-              isPaused={isPaused}
-              onTogglePause={handleTogglePause}
-              onOpenScreenSaver={handleOpenScreenSaver}
-              isWorkshopOpen={isWorkshopOpen}
-              onToggleWorkshop={handleToggleWorkshop}
-            />
-          </div>
-        }
-      >
-        {/* メインコンテンツ: BattleField
+              <RunWorkshopBottomSheet
+                open={isWorkshopOpen}
+                screw={screw}
+                levels={runWorkshopLevels}
+                autoEnabled={runWorkshopAutoEnabled}
+                onUpgrade={handleWorkshopUpgrade}
+                onToggleAuto={handleToggleWorkshopAuto}
+                onClose={handleCloseWorkshop}
+              />
+              <BattleHudBottom
+                screw={screw}
+                earnedBolt={earnedBolt}
+                equippedWeapon={currentWeapon}
+                weaponCds={weaponCds}
+                activeCd={activeCdSec}
+                activeMax={activeMaxSec}
+                isAutoActive={isAutoActive}
+                onSwitchWeapon={handleSwitchWeapon}
+                onActivate={handleManualActivate}
+                onToggleAuto={setAutoActive}
+                isPaused={isPaused}
+                onTogglePause={handleTogglePause}
+                onOpenScreenSaver={handleOpenScreenSaver}
+                isWorkshopOpen={isWorkshopOpen}
+                onToggleWorkshop={handleToggleWorkshop}
+              />
+            </div>
+          }
+        >
+          {/* メインコンテンツ: BattleField
             v1.3.2: スクリーンセーバー中は BattleField を完全 unmount して描画を停止する
             (発熱対策)。 useBattleLoop の rAF / state 更新は継続するため
             ゲーム進行は止まらないが、 敵 / Fx の描画 + DamagePop / DeathFx の
             DOM ノード生成・GPU フィルタが全て止まる (スクリーンセーバー閉じたら
             ref ベースの最新位置で再 mount される)。 */}
-        {!isScreenSaverOpen && (
-          <BattleField
-            enemies={enemies}
-            damageEvents={damageEvents}
-            hitEvents={hitEvents}
-            deathEvents={deathEvents}
-            projectileEvents={projectileEvents}
-            onDamageDone={onDamageDone}
-            onDeathDone={onDeathDone}
-            onProjectileDone={onProjectileDone}
-            showCutterOrbit={
-              currentWeapon === 'cutter' && isRunActive && !isPaused && !isResultOpen
-            }
-            showOverdriveAura={isOverdriveActive && isRunActive && !isResultOpen}
-            machineHitKey={machineHitKey}
-            cutterRotateMs={calcCutterRotateMs(
-              // useBattleLoop の effectivePerSec と同じ式
-              // (cutterStats × machineAS × RW × Overdrive、 ATTACK_PER_SEC_CAP で頭打ち)
-              Math.min(
-                ATTACK_PER_SEC_CAP,
-                cutterStats(weaponLv).attackPerSec *
-                  machineAttackSpeedMul *
-                  calcRunWorkshopMultiplier(runWorkshopLevels.attackSpeedMul) *
-                  (isOverdriveActive ? CUTTER_OVERDRIVE_ATTACK_SPEED_MUL : 1)
-              ),
-              CUTTER_BLADES
-            )}
-            range={WEAPON_RANGE_PCT[currentWeapon] * (machineRangePx / 150)}
-          />
-        )}
-      </AppShell>
+          {!isScreenSaverOpen && (
+            <BattleField
+              enemies={enemies}
+              damageEvents={damageEvents}
+              hitEvents={hitEvents}
+              deathEvents={deathEvents}
+              projectileEvents={projectileEvents}
+              onDamageDone={onDamageDone}
+              onDeathDone={onDeathDone}
+              onProjectileDone={onProjectileDone}
+              showCutterOrbit={
+                currentWeapon === 'cutter' && isRunActive && !isPaused && !isResultOpen
+              }
+              showOverdriveAura={isOverdriveActive && isRunActive && !isResultOpen}
+              machineHitKey={machineHitKey}
+              cutterRotateMs={calcCutterRotateMs(
+                // useBattleLoop の effectivePerSec と同じ式
+                // (cutterStats × machineAS × RW × Overdrive、 ATTACK_PER_SEC_CAP で頭打ち)
+                Math.min(
+                  ATTACK_PER_SEC_CAP,
+                  cutterStats(weaponLv).attackPerSec *
+                    machineAttackSpeedMul *
+                    calcRunWorkshopMultiplier(runWorkshopLevels.attackSpeedMul) *
+                    (isOverdriveActive ? CUTTER_OVERDRIVE_ATTACK_SPEED_MUL : 1)
+                ),
+                CUTTER_BLADES
+              )}
+              range={WEAPON_RANGE_PCT[currentWeapon] * (machineRangePx / 150)}
+            />
+          )}
+        </AppShell>
+      )}
 
       {/* ── overlay 層（AppShell の外、root に対して絶対配置）── */}
       <div
