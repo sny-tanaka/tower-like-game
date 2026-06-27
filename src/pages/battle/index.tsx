@@ -33,13 +33,12 @@ import {
   cutterStats,
 } from '@/game/weapons/cutter';
 import { WEAPON_RANGE_PCT } from '@/game/weapons/range';
-import { ATTACK_PER_SEC_CAP, DEFAULT_ACTIVE_MAX_SEC, useBattleLoop } from '@/hooks/useBattleLoop';
+import { ATTACK_PER_SEC_CAP, useBattleLoop } from '@/hooks/useBattleLoop';
 import { useBossPhase } from '@/hooks/useBossPhase';
 import { soundEngine } from '@/lib/audio';
 import { BigNum } from '@/lib/bignum/BigNum';
 import { useStore } from '@/store/index';
 import { useNavigation } from '@/store/navigation';
-import { WEAPON_SWITCH_CD_SEC } from '@/store/slices/battle';
 import { flushAfterRun } from '@/store/sync';
 
 // ---------------------------------------------------------------------------
@@ -92,6 +91,10 @@ export function Page() {
   // ── store から状態取得 ──
   const isRunActive = useStore((s) => s.isRunActive);
   const screw = useStore((s) => s.screw);
+  // bolt / runStartBolt は ResultDialog の reward.bolt fallback (finalEarnedBolt が
+  // まだ null のフレーム用) と earnedBolt useMemo で使う。 v1.3.7 Phase 4-B 以降、
+  // HUD 下段の earnedBolt 表示は BattleHudBottom 内部で再計算するようになったため、
+  // Page 側の earnedBolt はあくまで ResultDialog 用の fallback。
   const bolt = useStore((s) => s.bolt);
   const alloy = useStore((s) => s.alloy);
   const runStartBolt = useStore((s) => s.runStartBolt);
@@ -101,11 +104,14 @@ export function Page() {
   // (Page 自身では使っていないので、 selector ごと削除して Page の re-render を減らす)
   const currentTier = useStore((s) => s.currentTier);
   const currentWave = useStore((s) => s.currentWave);
+  // currentWeapon は BattleField の showCutterOrbit / cutterRotateMs / WEAPON_RANGE_PCT で使う。
+  // (v1.3.7 Phase 4-B: HUD 下段の equippedWeapon は BattleHudBottom 内部 selector に移譲)
   const currentWeapon = useStore((s) => s.currentWeapon);
   const weaponLv = useStore((s) => s.weaponLv);
+  // machineLevels は BattleField の machineRangePx / machineAttackSpeedMul で使う。
+  // (v1.3.7 Phase 4-B: activeCdReduction は BattleHudBottom 内部に移譲したので Page では
+  // range / attackSpeed の派生だけ実施)
   const machineLevels = useStore((s) => s.machineLevels);
-  const activeCdSec = useStore((s) => s.activeCdSec);
-  const isAutoActive = useStore((s) => s.isAutoActive);
   const isPaused = useStore((s) => s.isPaused);
   const runWorkshopLevels = useStore((s) => s.runWorkshopLevels);
   const runWorkshopAutoEnabled = useStore((s) => s.runWorkshopAutoEnabled);
@@ -120,7 +126,9 @@ export function Page() {
   const switchWeapon = useStore((s) => s.switchWeapon);
   const setPaused = useStore((s) => s.setPaused);
   const upgradeRunWorkshop = useStore((s) => s.upgradeRunWorkshop);
-  const weaponSwitchCdSec = useStore((s) => s.weaponSwitchCdSec);
+  // v1.3.7 Phase 4-B: activeCdSec / isAutoActive / weaponSwitchCdSec は BattleHudBottom 内部
+  // で購読するようになったため Page では subscribe しない。
+  // (handleManualActivate は useBattleLoop.fireActive に集約済みで activeCdSec を読まない)
 
   // ── ローカル UI state (overlay 開閉) ──
   // pause と BattleMenuOverlay は連動: isPaused が真のときに menu を表示する。
@@ -280,34 +288,12 @@ export function Page() {
     return calcEffectValue(item, machineLevels.attackSpeed);
   }, [machineLevels.attackSpeed]);
 
-  // マシン強化「アクティブ CD 短縮率」 (0〜0.5)。 CD ゲージ最大値も短縮率に応じて縮め、
-  // 「ゲージが満タンになるまでの時間 = 60s × (1 - reduction)」 とすることで、
-  // 「最初から部分的に溜まった見た目」 ではなく「溜まる速度が上がった見た目」 にする。
-  const activeCdReduction = useMemo(() => {
-    const item = MACHINE_UPGRADE_ITEMS.find((i) => i.key === 'activeCdReduction');
-    if (item == null) return 0;
-    return calcEffectValue(item, machineLevels.activeCdReduction);
-  }, [machineLevels.activeCdReduction]);
-  const activeMaxSec = useMemo(
-    () => DEFAULT_ACTIVE_MAX_SEC * (1 - Math.max(0, Math.min(1, activeCdReduction))),
-    [activeCdReduction]
-  );
-
-  // 武器切替 CD (仕様 05-weapons.md §武器切替: 3 秒)
-  // 装備中の武器は常に 100 (= CD なし表示)、 他の武器は経過率 % を出す。
-  // (H2-4: weaponCds は同じ値の組み合わせなら参照を安定化させて BattleHudBottom の memo を活かす)
-  const weaponCds = useMemo<Record<typeof currentWeapon, number>>(() => {
-    const weaponCdPct = Math.max(
-      0,
-      Math.min(100, ((WEAPON_SWITCH_CD_SEC - weaponSwitchCdSec) / WEAPON_SWITCH_CD_SEC) * 100)
-    );
-    return {
-      laser: currentWeapon === 'laser' ? 100 : weaponCdPct,
-      cannon: currentWeapon === 'cannon' ? 100 : weaponCdPct,
-      thunder: currentWeapon === 'thunder' ? 100 : weaponCdPct,
-      cutter: currentWeapon === 'cutter' ? 100 : weaponCdPct,
-    };
-  }, [currentWeapon, weaponSwitchCdSec]);
+  // v1.3.7 Phase 4-B: 以下の派生計算は BattleHudBottom 内部に移譲済み:
+  //   - weaponCds (currentWeapon / weaponSwitchCdSec から計算)
+  //   - activeCdReduction / activeMaxSec (machineLevels.activeCdReduction から計算)
+  //   - earnedBolt の HUD 表示用計算 (bolt - runStartBolt)
+  // Page 側では BattleHudBottom にこれらを props で渡さないので、 useMemo / 関連 selector を撤去。
+  // (earnedBolt は ResultDialog の reward.bolt fallback 用に下記で別途 useMemo する)
 
   // v1.3.7 Phase 4-A: hpCurrentBn / hpMaxBn の useMemo は BattleHudTop 内部に移譲した
   // (BattleHudTop が useStore で直接 machineHp / machineMaxHp を購読 → memo + 0 クランプ
@@ -518,17 +504,9 @@ export function Page() {
                   onClose={handleCloseWorkshop}
                 />
                 <BattleHudBottom
-                  screw={screw}
-                  earnedBolt={earnedBolt}
-                  equippedWeapon={currentWeapon}
-                  weaponCds={weaponCds}
-                  activeCd={activeCdSec}
-                  activeMax={activeMaxSec}
-                  isAutoActive={isAutoActive}
                   onSwitchWeapon={handleSwitchWeapon}
                   onActivate={handleManualActivate}
                   onToggleAuto={setAutoActive}
-                  isPaused={isPaused}
                   onTogglePause={handleTogglePause}
                   onOpenScreenSaver={handleOpenScreenSaver}
                   isWorkshopOpen={isWorkshopOpen}
