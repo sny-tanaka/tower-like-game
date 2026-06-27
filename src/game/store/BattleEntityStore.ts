@@ -1,5 +1,5 @@
 import type { DamageEvent, DeathEvent, ProjectileEvent } from '@/components/organisms/BattleField';
-import type { SpawnedEnemy } from '@/game/types';
+import type { EnemyKind, MutableEnemy, NormalSubtype, SpawnedEnemy } from '@/game/types';
 
 // ---------------------------------------------------------------------------
 // BattleEntityStore
@@ -50,6 +50,20 @@ type Listener = () => void;
  */
 export type EventKind = 'damage' | 'death' | 'projectile' | 'appearance';
 
+/**
+ * v1.3.7 (Phase 3-A): `getEnemyStatusSnapshot(id)` の戻り値型。 `useSyncExternalStore` の
+ * `Object.is` 安定判定のため、 同一フレーム内で同じ参照を返すよう `BattleEntityStore` が
+ * Map にキャッシュする。
+ */
+export interface EnemyStatusSnapshot {
+  hpRatio: number;
+  kind: EnemyKind;
+  subtype?: NormalSubtype;
+  isFrozen: boolean;
+  isBurning: boolean;
+  thunderStacks?: number;
+}
+
 export class BattleEntityStore {
   // ---- 内部状態 (Phase 1 は immutable のまま、 配列丸ごと差し替え) ----
   private enemies: readonly SpawnedEnemy[] = [];
@@ -74,6 +88,36 @@ export class BattleEntityStore {
     projectile: new Set(),
     appearance: new Set(),
   };
+
+  // -------------------------------------------------------------------------
+  // v1.3.7 (Phase 3-A): 敵単位の listener / mutation
+  // -------------------------------------------------------------------------
+  //
+  // 設計意図: Phase 3-B 以降、 敵の position / 状態異常は in-place mutation で更新する。
+  // 全体 listener (this.listeners) で全 BattleField を再 render するのではなく、 「動いた敵」
+  // 「状態異常が変わった敵」 だけが listener を通じて自身を再 render する。
+  //
+  // mark 系メソッドは内部 Set にバッファするだけで notify しない。 1 tick 末尾の
+  // notifyFrame() でまとめて呼ぶ (= 1 tick = 1 回の React 再 render に保つ)。
+
+  /** id → 「位置が変わった敵」 を購読する listener Set */
+  private enemyPositionListeners: Map<string, Set<Listener>> = new Map();
+  /** id → 「状態異常 / HP が変わった敵」 を購読する listener Set */
+  private enemyStatusListeners: Map<string, Set<Listener>> = new Map();
+  /** id → 敵オブジェクト (getEnemyById の O(1) lookup 用) */
+  private enemyById: Map<string, SpawnedEnemy> = new Map();
+  /** addEnemy / removeEnemy で +1 される、 敵リストの世代番号 */
+  private enemyListVersion: number = 0;
+  /** notifyFrame で flush する markEnemyMoved の id 集合 */
+  private pendingMovedIds: Set<string> = new Set();
+  /** notifyFrame で flush する markEnemyStatusChanged の id 集合 */
+  private pendingStatusChangedIds: Set<string> = new Set();
+  /**
+   * id → status snapshot のキャッシュ。 lazy 方式: `markEnemyStatusChanged(id)` で当該 id
+   * のキャッシュを破棄し、 次回 `getEnemyStatusSnapshot(id)` で再計算する。 これにより
+   * `useSyncExternalStore` の `Object.is` 比較で「変わってない敵は同じ参照」 となる。
+   */
+  private statusSnapshotCache: Map<string, EnemyStatusSnapshot> = new Map();
 
   // -------------------------------------------------------------------------
   // subscribe / getSnapshot (React.useSyncExternalStore 規約)
@@ -105,6 +149,12 @@ export class BattleEntityStore {
 
   setEnemies(enemies: readonly SpawnedEnemy[]): void {
     this.enemies = enemies;
+    // v1.3.7 (Phase 3-A): enemyById index も同期する。 個別 listener は呼ばない
+    // (Phase 3-B で setEnemies の意味を見直す予定)。
+    this.enemyById.clear();
+    for (const e of enemies) {
+      this.enemyById.set(e.id, e);
+    }
   }
 
   setDamageEvents(events: readonly DamageEvent[]): void {
@@ -131,11 +181,40 @@ export class BattleEntityStore {
    * tick 末尾で 1 回だけ呼ぶ。 frameVersion を +1 して全 listener に通知。
    * Phase 1 では useBattleLoop の tick 末尾から呼ばれ、 BattleField はまだ
    * React state 経由なので listener は無 (空 Set)。 Phase 2 から実利用。
+   *
+   * v1.3.7 (Phase 3-A): 全体 listener に加えて、 markEnemyMoved / markEnemyStatusChanged
+   * で積まれた id 集合に対応する敵単位 listener も呼ぶ (一括通知)。 敵単位 listener が
+   * 1 件もない id でも積みっぱなしにならないよう、 通知後は pending Set を空にする。
    */
   notifyFrame(): void {
     this.frameVersion += 1;
     for (const listener of this.listeners) {
       listener();
+    }
+
+    // 敵単位 listener の一括通知 (Phase 3-A)。 listener 内 set state による listener 集合の
+    // 変更を防ぐため、 Set を一度コピーしてから iterate する。
+    if (this.pendingMovedIds.size > 0) {
+      const movedIds = this.pendingMovedIds;
+      this.pendingMovedIds = new Set();
+      for (const id of movedIds) {
+        const set = this.enemyPositionListeners.get(id);
+        if (!set || set.size === 0) continue;
+        for (const listener of [...set]) {
+          listener();
+        }
+      }
+    }
+    if (this.pendingStatusChangedIds.size > 0) {
+      const statusIds = this.pendingStatusChangedIds;
+      this.pendingStatusChangedIds = new Set();
+      for (const id of statusIds) {
+        const set = this.enemyStatusListeners.get(id);
+        if (!set || set.size === 0) continue;
+        for (const listener of [...set]) {
+          listener();
+        }
+      }
     }
   }
 
@@ -196,6 +275,141 @@ export class BattleEntityStore {
   }
 
   // -------------------------------------------------------------------------
+  // v1.3.7 (Phase 3-A): 敵単位 subscribe / mutation
+  // -------------------------------------------------------------------------
+
+  /**
+   * 指定 ID の敵の「位置」 を購読する。 戻り値は unsubscribe 関数。
+   * mark + notifyFrame までは呼ばれない (= 1 tick = 高々 1 回)。
+   */
+  subscribeEnemyPosition = (id: string, listener: Listener): (() => void) => {
+    let set = this.enemyPositionListeners.get(id);
+    if (!set) {
+      set = new Set();
+      this.enemyPositionListeners.set(id, set);
+    }
+    set.add(listener);
+    return () => {
+      const s = this.enemyPositionListeners.get(id);
+      if (!s) return;
+      s.delete(listener);
+      if (s.size === 0) {
+        this.enemyPositionListeners.delete(id);
+      }
+    };
+  };
+
+  /**
+   * 指定 ID の敵の「状態 (HP / 状態異常)」 を購読する。 戻り値は unsubscribe 関数。
+   */
+  subscribeEnemyStatus = (id: string, listener: Listener): (() => void) => {
+    let set = this.enemyStatusListeners.get(id);
+    if (!set) {
+      set = new Set();
+      this.enemyStatusListeners.set(id, set);
+    }
+    set.add(listener);
+    return () => {
+      const s = this.enemyStatusListeners.get(id);
+      if (!s) return;
+      s.delete(listener);
+      if (s.size === 0) {
+        this.enemyStatusListeners.delete(id);
+      }
+    };
+  };
+
+  /**
+   * 「この敵は今フレームに動いた」 ことを記録する。 notify は起こさず Set に積むだけ。
+   * notifyFrame() で対応する subscribeEnemyPosition の listener が呼ばれる。
+   */
+  markEnemyMoved(id: string): void {
+    this.pendingMovedIds.add(id);
+  }
+
+  /**
+   * 「この敵は今フレームに状態 (HP / 状態異常) が変わった」 ことを記録する。 notify は起こさず
+   * Set に積むだけ。 同時に status snapshot のキャッシュを破棄して次回 read 時に再計算する。
+   */
+  markEnemyStatusChanged(id: string): void {
+    this.pendingStatusChangedIds.add(id);
+    this.statusSnapshotCache.delete(id);
+  }
+
+  /**
+   * 敵を追加する。 内部の enemies 配列と enemyById index を更新し、 enemyListVersion を +1。
+   * (個別 position / status listener は addEnemy 単体では呼ばない。 必要なら notifyFrame で
+   *  全体 listener が拾う。)
+   */
+  addEnemy(enemy: MutableEnemy): void {
+    this.enemies = [...this.enemies, enemy];
+    this.enemyById.set(enemy.id, enemy);
+    this.enemyListVersion += 1;
+  }
+
+  /**
+   * 敵を削除する。 enemies 配列から id を filter で外し、 listener Set / snapshot キャッシュ
+   * もまとめて掃除する。 enemyListVersion を +1。
+   */
+  removeEnemy(id: string): void {
+    this.enemies = this.enemies.filter((e) => e.id !== id);
+    this.enemyById.delete(id);
+    this.enemyPositionListeners.delete(id);
+    this.enemyStatusListeners.delete(id);
+    this.statusSnapshotCache.delete(id);
+    this.pendingMovedIds.delete(id);
+    this.pendingStatusChangedIds.delete(id);
+    this.enemyListVersion += 1;
+  }
+
+  /**
+   * addEnemy / removeEnemy のたびに +1 される世代番号。 「敵リストの構造的変化」 を検知したい
+   * 購読側 (BattleField の敵一覧 layer 等) が getSnapshot として使う。
+   */
+  getEnemyListVersion(): number {
+    return this.enemyListVersion;
+  }
+
+  /** id → 敵オブジェクトの O(1) lookup */
+  getEnemyById(id: string): MutableEnemy | undefined {
+    return this.enemyById.get(id);
+  }
+
+  /**
+   * 指定 ID の敵の「描画に必要な状態」 のスナップショットを返す。
+   *
+   * `useSyncExternalStore` の `Object.is` 安定判定のため、 `markEnemyStatusChanged(id)` で
+   * 明示的に invalidate されるまでは同じ参照を返す lazy キャッシュ方式 (= 状態異常が変わって
+   * いない敵は再 render されない)。 該当 id の敵が居ない場合は null を返す。
+   */
+  getEnemyStatusSnapshot(id: string): EnemyStatusSnapshot | null {
+    const cached = this.statusSnapshotCache.get(id);
+    if (cached !== undefined) return cached;
+    const enemy = this.enemyById.get(id);
+    if (!enemy) return null;
+    // BigNum → number 変換は EnemyLayer の既存パターンに揃える (parseFloat(toString()))。
+    // 表示用比率なので精度は十分。
+    const hpNum = parseFloat(enemy.hp.toString());
+    const maxHpNum = Math.max(0.0001, parseFloat(enemy.maxHp.toString()));
+    const hpRatio = Math.max(0, Math.min(1, hpNum / maxHpNum));
+    // isFrozen / isBurning は「タイマーが定義されている (= 期限切れリセット前)」 で判定する。
+    // タイマー期限切れは hook 側で enemy.frozenUntilMs = undefined に戻して
+    // markEnemyStatusChanged(id) を呼ぶ運用 (Phase 3-B 担当)。
+    const isFrozen = enemy.frozenUntilMs !== undefined;
+    const isBurning = enemy.burnUntilMs !== undefined;
+    const snapshot: EnemyStatusSnapshot = {
+      hpRatio,
+      kind: enemy.kind,
+      subtype: enemy.subtype,
+      isFrozen,
+      isBurning,
+      thunderStacks: enemy.thunderStacks,
+    };
+    this.statusSnapshotCache.set(id, snapshot);
+    return snapshot;
+  }
+
+  // -------------------------------------------------------------------------
   // テスト用ヘルパー
   // -------------------------------------------------------------------------
 
@@ -220,8 +434,16 @@ export class BattleEntityStore {
       projectile: new Set(),
       appearance: new Set(),
     };
-    // frameVersion はあえてリセットしない (購読側の Object.is で「変化なし」 と
-    // 誤判定されないよう単調増加を保つ)。
+    // v1.3.7 (Phase 3-A): 敵単位の内部状態も掃除する。 enemyListVersion は frameVersion と
+    // 同じく単調増加を保つ (購読側の Object.is 誤判定を避ける)。
+    this.enemyPositionListeners.clear();
+    this.enemyStatusListeners.clear();
+    this.enemyById.clear();
+    this.pendingMovedIds.clear();
+    this.pendingStatusChangedIds.clear();
+    this.statusSnapshotCache.clear();
+    // frameVersion / enemyListVersion はあえてリセットしない (購読側の Object.is で「変化
+    // なし」 と誤判定されないよう単調増加を保つ)。
     this.notifyFrame();
   }
 }

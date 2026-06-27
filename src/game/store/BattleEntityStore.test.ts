@@ -3,7 +3,35 @@ import { describe, expect, it, vi } from 'vitest';
 import { BattleEntityStore } from './BattleEntityStore';
 
 import type { DamageEvent } from '@/components/organisms/BattleField';
+import { MutableEnemy } from '@/game/types';
 import { BigNum } from '@/lib/bignum/BigNum';
+
+// テスト用の MutableEnemy 生成 helper (Phase 3-A の subscribeEnemy* / addEnemy 系で使う)
+function makeEnemy(overrides: {
+  id: string;
+  hp?: number;
+  maxHp?: number;
+  frozen?: boolean;
+  burn?: boolean;
+}) {
+  const hp = overrides.hp ?? 100;
+  const maxHp = overrides.maxHp ?? 100;
+  return new MutableEnemy({
+    id: overrides.id,
+    kind: 'normal',
+    subtype: 'standard',
+    speed: 1,
+    reward: { screw: 1, bolt: 0, alloyChance: 0, alloyAmount: 0 },
+    hitRadius: 1.03,
+    spawnedAtMs: 0,
+    hp: BigNum.fromNumber(hp),
+    maxHp: BigNum.fromNumber(maxHp),
+    atk: BigNum.fromNumber(10),
+    position: { x: 50, y: 50 },
+    frozenUntilMs: overrides.frozen ? 10_000 : undefined,
+    burnUntilMs: overrides.burn ? 10_000 : undefined,
+  });
+}
 
 describe('BattleEntityStore — subscribe / notify', () => {
   it('subscribe した listener が notifyFrame で呼ばれる', () => {
@@ -211,5 +239,215 @@ describe('BattleEntityStore — reset', () => {
     store.subscribe(listener);
     store.reset();
     expect(listener).toHaveBeenCalledTimes(1);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// v1.3.7 (Phase 3-A): 敵単位 listener / mutation
+// ---------------------------------------------------------------------------
+
+describe('BattleEntityStore — subscribeEnemyPosition / markEnemyMoved (Phase 3-A)', () => {
+  it('markEnemyMoved した敵の position listener が notifyFrame で呼ばれる', () => {
+    const store = new BattleEntityStore();
+    store.addEnemy(makeEnemy({ id: 'e-1' }));
+    const listener = vi.fn();
+    store.subscribeEnemyPosition('e-1', listener);
+
+    store.markEnemyMoved('e-1');
+    expect(listener).not.toHaveBeenCalled(); // mark だけでは呼ばれない
+
+    store.notifyFrame();
+    expect(listener).toHaveBeenCalledTimes(1);
+  });
+
+  it('markEnemyMoved していない敵の listener は呼ばれない', () => {
+    const store = new BattleEntityStore();
+    store.addEnemy(makeEnemy({ id: 'e-1' }));
+    store.addEnemy(makeEnemy({ id: 'e-2' }));
+    const l1 = vi.fn();
+    const l2 = vi.fn();
+    store.subscribeEnemyPosition('e-1', l1);
+    store.subscribeEnemyPosition('e-2', l2);
+
+    store.markEnemyMoved('e-1');
+    store.notifyFrame();
+    expect(l1).toHaveBeenCalledTimes(1);
+    expect(l2).not.toHaveBeenCalled();
+  });
+
+  it('subscribeEnemyPosition の戻り値で listener が外れる', () => {
+    const store = new BattleEntityStore();
+    store.addEnemy(makeEnemy({ id: 'e-1' }));
+    const listener = vi.fn();
+    const unsubscribe = store.subscribeEnemyPosition('e-1', listener);
+
+    store.markEnemyMoved('e-1');
+    store.notifyFrame();
+    expect(listener).toHaveBeenCalledTimes(1);
+
+    unsubscribe();
+    store.markEnemyMoved('e-1');
+    store.notifyFrame();
+    expect(listener).toHaveBeenCalledTimes(1); // unsub 後は呼ばれない
+  });
+
+  it('notifyFrame 後は pendingMovedIds が空になる (mark しないと次フレで通知されない)', () => {
+    const store = new BattleEntityStore();
+    store.addEnemy(makeEnemy({ id: 'e-1' }));
+    const listener = vi.fn();
+    store.subscribeEnemyPosition('e-1', listener);
+
+    store.markEnemyMoved('e-1');
+    store.notifyFrame();
+    expect(listener).toHaveBeenCalledTimes(1);
+
+    // 次フレで mark しなければ呼ばれない
+    store.notifyFrame();
+    expect(listener).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('BattleEntityStore — subscribeEnemyStatus / markEnemyStatusChanged (Phase 3-A)', () => {
+  it('markEnemyStatusChanged した敵の status listener が notifyFrame で呼ばれる', () => {
+    const store = new BattleEntityStore();
+    store.addEnemy(makeEnemy({ id: 'e-1' }));
+    const listener = vi.fn();
+    store.subscribeEnemyStatus('e-1', listener);
+
+    store.markEnemyStatusChanged('e-1');
+    expect(listener).not.toHaveBeenCalled();
+
+    store.notifyFrame();
+    expect(listener).toHaveBeenCalledTimes(1);
+  });
+
+  it('position と status の listener Set は独立 (markEnemyMoved は status listener を呼ばない)', () => {
+    const store = new BattleEntityStore();
+    store.addEnemy(makeEnemy({ id: 'e-1' }));
+    const posListener = vi.fn();
+    const statusListener = vi.fn();
+    store.subscribeEnemyPosition('e-1', posListener);
+    store.subscribeEnemyStatus('e-1', statusListener);
+
+    store.markEnemyMoved('e-1');
+    store.notifyFrame();
+    expect(posListener).toHaveBeenCalledTimes(1);
+    expect(statusListener).not.toHaveBeenCalled();
+
+    store.markEnemyStatusChanged('e-1');
+    store.notifyFrame();
+    expect(posListener).toHaveBeenCalledTimes(1); // 増えない
+    expect(statusListener).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('BattleEntityStore — addEnemy / removeEnemy / getEnemyById (Phase 3-A)', () => {
+  it('addEnemy で enemyListVersion が +1 + getEnemies に含まれる + getEnemyById で取れる', () => {
+    const store = new BattleEntityStore();
+    expect(store.getEnemyListVersion()).toBe(0);
+    const enemy = makeEnemy({ id: 'e-1' });
+    store.addEnemy(enemy);
+    expect(store.getEnemyListVersion()).toBe(1);
+    expect(store.getEnemies()).toContain(enemy);
+    expect(store.getEnemyById('e-1')).toBe(enemy);
+  });
+
+  it('removeEnemy で enemyListVersion が +1 + listener Set が削除される', () => {
+    const store = new BattleEntityStore();
+    store.addEnemy(makeEnemy({ id: 'e-1' }));
+    const posListener = vi.fn();
+    const statusListener = vi.fn();
+    store.subscribeEnemyPosition('e-1', posListener);
+    store.subscribeEnemyStatus('e-1', statusListener);
+    expect(store.getEnemyListVersion()).toBe(1);
+
+    store.removeEnemy('e-1');
+    expect(store.getEnemyListVersion()).toBe(2);
+    expect(store.getEnemyById('e-1')).toBeUndefined();
+    expect(store.getEnemies().find((e) => e.id === 'e-1')).toBeUndefined();
+
+    // removeEnemy 後に mark しても listener Set が空なので呼ばれない
+    store.markEnemyMoved('e-1');
+    store.markEnemyStatusChanged('e-1');
+    store.notifyFrame();
+    expect(posListener).not.toHaveBeenCalled();
+    expect(statusListener).not.toHaveBeenCalled();
+  });
+});
+
+describe('BattleEntityStore — getEnemyStatusSnapshot (Phase 3-A lazy cache)', () => {
+  it('該当 id の敵が居ない場合は null を返す', () => {
+    const store = new BattleEntityStore();
+    expect(store.getEnemyStatusSnapshot('missing')).toBeNull();
+  });
+
+  it('markEnemyStatusChanged を呼ばない限り同一参照を返す (Object.is 安定)', () => {
+    const store = new BattleEntityStore();
+    store.addEnemy(makeEnemy({ id: 'e-1', hp: 50, maxHp: 100, frozen: true, burn: false }));
+    const s1 = store.getEnemyStatusSnapshot('e-1');
+    const s2 = store.getEnemyStatusSnapshot('e-1');
+    expect(s1).not.toBeNull();
+    expect(Object.is(s1, s2)).toBe(true);
+    expect(s1?.hpRatio).toBeCloseTo(0.5);
+    expect(s1?.isFrozen).toBe(true);
+    expect(s1?.isBurning).toBe(false);
+    expect(s1?.kind).toBe('normal');
+    expect(s1?.subtype).toBe('standard');
+  });
+
+  it('markEnemyStatusChanged 後は再計算され別参照になる', () => {
+    const store = new BattleEntityStore();
+    const enemy = makeEnemy({ id: 'e-1', hp: 100, maxHp: 100 });
+    store.addEnemy(enemy);
+    const before = store.getEnemyStatusSnapshot('e-1');
+    expect(before?.hpRatio).toBeCloseTo(1.0);
+
+    // HP を mutate (Phase 3-B 想定の in-place mutation)
+    enemy.hp = BigNum.fromNumber(20);
+    // mark しないとキャッシュは更新されない
+    expect(store.getEnemyStatusSnapshot('e-1')).toBe(before);
+
+    store.markEnemyStatusChanged('e-1');
+    const after = store.getEnemyStatusSnapshot('e-1');
+    expect(after).not.toBeNull();
+    expect(Object.is(before, after)).toBe(false);
+    expect(after?.hpRatio).toBeCloseTo(0.2);
+  });
+});
+
+describe('BattleEntityStore — reset で Phase 3-A 内部状態も掃除される', () => {
+  it('reset で enemyById / listener Set / snapshot キャッシュ / pending が空になる', () => {
+    const store = new BattleEntityStore();
+    const enemy = makeEnemy({ id: 'e-1' });
+    store.addEnemy(enemy);
+    store.subscribeEnemyPosition('e-1', () => undefined);
+    store.subscribeEnemyStatus('e-1', () => undefined);
+    store.getEnemyStatusSnapshot('e-1'); // キャッシュを温める
+    store.markEnemyMoved('e-1');
+    store.markEnemyStatusChanged('e-1');
+
+    store.reset();
+
+    expect(store.getEnemyById('e-1')).toBeUndefined();
+    expect(store.getEnemies()).toEqual([]);
+    expect(store.getEnemyStatusSnapshot('e-1')).toBeNull();
+
+    // reset 後に同じ id で listener を張り直し、 mark + notifyFrame しても、 前回登録した
+    // listener はもう呼ばれない (clear 済み)
+    const newListener = vi.fn();
+    store.addEnemy(makeEnemy({ id: 'e-1' }));
+    store.subscribeEnemyPosition('e-1', newListener);
+    store.markEnemyMoved('e-1');
+    store.notifyFrame();
+    expect(newListener).toHaveBeenCalledTimes(1);
+  });
+
+  it('reset でも enemyListVersion は単調増加 (購読側 Object.is 誤判定防止)', () => {
+    const store = new BattleEntityStore();
+    store.addEnemy(makeEnemy({ id: 'e-1' }));
+    const before = store.getEnemyListVersion();
+    store.reset();
+    const after = store.getEnemyListVersion();
+    expect(after).toBeGreaterThanOrEqual(before);
   });
 });
