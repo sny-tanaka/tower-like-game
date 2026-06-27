@@ -226,6 +226,10 @@ export function Page() {
     onTierClearedAck,
   } = useBattleLoop({
     paused: isResultOpen,
+    // v1.3.2: スクリーンセーバー中は描画 events (damageEvents 等) の生成を停止して
+    // 発熱対策 (BattleField を unmount しているため Fx 完了通知 onDamageDone が来ず、
+    // 通常通り setDamageEvents で append するとメモリ蓄積する)。
+    suspendRendering: isScreenSaverOpen,
   });
 
   // Tier クリア通知: tierCleared が true になった瞬間に TierClearFx をマウント。
@@ -533,33 +537,42 @@ export function Page() {
           </div>
         }
       >
-        {/* メインコンテンツ: BattleField */}
-        <BattleField
-          enemies={enemies}
-          damageEvents={damageEvents}
-          hitEvents={hitEvents}
-          deathEvents={deathEvents}
-          projectileEvents={projectileEvents}
-          onDamageDone={onDamageDone}
-          onDeathDone={onDeathDone}
-          onProjectileDone={onProjectileDone}
-          showCutterOrbit={currentWeapon === 'cutter' && isRunActive && !isPaused && !isResultOpen}
-          showOverdriveAura={isOverdriveActive && isRunActive && !isResultOpen}
-          machineHitKey={machineHitKey}
-          cutterRotateMs={calcCutterRotateMs(
-            // useBattleLoop の effectivePerSec と同じ式
-            // (cutterStats × machineAS × RW × Overdrive、 ATTACK_PER_SEC_CAP で頭打ち)
-            Math.min(
-              ATTACK_PER_SEC_CAP,
-              cutterStats(weaponLv).attackPerSec *
-                machineAttackSpeedMul *
-                calcRunWorkshopMultiplier(runWorkshopLevels.attackSpeedMul) *
-                (isOverdriveActive ? CUTTER_OVERDRIVE_ATTACK_SPEED_MUL : 1)
-            ),
-            CUTTER_BLADES
-          )}
-          range={WEAPON_RANGE_PCT[currentWeapon] * (machineRangePx / 150)}
-        />
+        {/* メインコンテンツ: BattleField
+            v1.3.2: スクリーンセーバー中は BattleField を完全 unmount して描画を停止する
+            (発熱対策)。 useBattleLoop の rAF / state 更新は継続するため
+            ゲーム進行は止まらないが、 敵 / Fx の描画 + DamagePop / DeathFx の
+            DOM ノード生成・GPU フィルタが全て止まる (スクリーンセーバー閉じたら
+            ref ベースの最新位置で再 mount される)。 */}
+        {!isScreenSaverOpen && (
+          <BattleField
+            enemies={enemies}
+            damageEvents={damageEvents}
+            hitEvents={hitEvents}
+            deathEvents={deathEvents}
+            projectileEvents={projectileEvents}
+            onDamageDone={onDamageDone}
+            onDeathDone={onDeathDone}
+            onProjectileDone={onProjectileDone}
+            showCutterOrbit={
+              currentWeapon === 'cutter' && isRunActive && !isPaused && !isResultOpen
+            }
+            showOverdriveAura={isOverdriveActive && isRunActive && !isResultOpen}
+            machineHitKey={machineHitKey}
+            cutterRotateMs={calcCutterRotateMs(
+              // useBattleLoop の effectivePerSec と同じ式
+              // (cutterStats × machineAS × RW × Overdrive、 ATTACK_PER_SEC_CAP で頭打ち)
+              Math.min(
+                ATTACK_PER_SEC_CAP,
+                cutterStats(weaponLv).attackPerSec *
+                  machineAttackSpeedMul *
+                  calcRunWorkshopMultiplier(runWorkshopLevels.attackSpeedMul) *
+                  (isOverdriveActive ? CUTTER_OVERDRIVE_ATTACK_SPEED_MUL : 1)
+              ),
+              CUTTER_BLADES
+            )}
+            range={WEAPON_RANGE_PCT[currentWeapon] * (machineRangePx / 150)}
+          />
+        )}
       </AppShell>
 
       {/* ── overlay 層（AppShell の外、root に対して絶対配置）── */}
