@@ -1,20 +1,13 @@
+import { EnemyLayer } from './EnemyLayer';
+import { FxLayer } from './FxLayer';
+import { ProjectileLayer } from './ProjectileLayer';
 import styles from './style.module.scss';
 
 import { Icon } from '@/components/atoms/Icon';
-import { BlastFx } from '@/components/fx/BlastFx';
-import { CannonShellFx } from '@/components/fx/CannonShellFx';
-import { ChainBoltFx } from '@/components/fx/ChainBoltFx';
 import { CutterOrbitFx } from '@/components/fx/CutterOrbitFx';
-import { DamagePopFx } from '@/components/fx/DamagePopFx';
-import { EnemyDeathFx } from '@/components/fx/EnemyDeathFx';
 import { EnemyHitFx } from '@/components/fx/EnemyHitFx';
-import { LaserBeamFx } from '@/components/fx/LaserBeamFx';
 import { MachineHitFx } from '@/components/fx/MachineHitFx';
-import { MegaBeamFx } from '@/components/fx/MegaBeamFx';
 import { OverdriveAuraFx } from '@/components/fx/OverdriveAuraFx';
-import { ThunderStrikeFx } from '@/components/fx/ThunderStrikeFx';
-import { Enemy, spawnedEnemyToVisualType } from '@/components/molecules/Enemy';
-import type { EnemyVisualType } from '@/components/molecules/Enemy';
 import type { SpawnedEnemy } from '@/game/types';
 import type { BigNum } from '@/lib/bignum/BigNum';
 
@@ -103,25 +96,54 @@ export interface DummyPin {
 }
 
 export interface BattleFieldProps {
-  /** 表示中の敵リスト */
-  enemies: SpawnedEnemy[];
+  /**
+   * 表示中の敵リスト
+   *
+   * v1.3.7 (Phase 2-B): 内部実装は entityStore (Context 経由) から取得するようになった。
+   * 本 props は互換性のため optional に残置 (= 渡しても無視される)。 Phase 2-C で削除予定。
+   */
+  enemies?: SpawnedEnemy[];
   /** マシン中心パーセント座標 (default: { x: 50, y: 50 } — THE TOWER オマージュで中央配置) */
   machinePosition?: { x: number; y: number };
-  /** DamagePop 描画イベント */
-  damageEvents: DamageEvent[];
+  /**
+   * DamagePop 描画イベント
+   *
+   * v1.3.7 (Phase 2-B): FxLayer が entityStore から直接取得するため、 本 props は無視される。
+   */
+  damageEvents?: DamageEvent[];
   /** EnemyHit 描画イベント */
   hitEvents: HitEvent[];
-  /** EnemyDeath 描画イベント */
-  deathEvents: DeathEvent[];
-  /** DamagePopFx 完了通知 */
+  /**
+   * EnemyDeath 描画イベント
+   *
+   * v1.3.7 (Phase 2-B): FxLayer が entityStore から直接取得するため、 本 props は無視される。
+   */
+  deathEvents?: DeathEvent[];
+  /**
+   * DamagePopFx 完了通知
+   *
+   * v1.3.7 (Phase 2-B): FxLayer が直接 entityStore.queueRemoval を呼ぶため、 本 props は無視。
+   */
   onDamageDone?: (id: string) => void;
   /** EnemyHitFx 完了通知 */
   onHitDone?: (id: string) => void;
-  /** EnemyDeathFx 完了通知 */
+  /**
+   * EnemyDeathFx 完了通知
+   *
+   * v1.3.7 (Phase 2-B): FxLayer が直接 entityStore.queueRemoval を呼ぶため、 本 props は無視。
+   */
   onDeathDone?: (id: string) => void;
-  /** 弾道 / 着弾エフェクト */
+  /**
+   * 弾道 / 着弾エフェクト
+   *
+   * v1.3.7 (Phase 2-B): ProjectileLayer が entityStore から直接取得するため、 本 props は無視。
+   */
   projectileEvents?: ProjectileEvent[];
-  /** ProjectileFx 完了通知 */
+  /**
+   * ProjectileFx 完了通知
+   *
+   * v1.3.7 (Phase 2-B): ProjectileLayer が直接 entityStore.queueRemoval を呼ぶため、 本 props は無視。
+   */
   onProjectileDone?: (id: string) => void;
   /**
    * Cutter の常時回転刃を表示するか。
@@ -173,21 +195,8 @@ function pinKindToColor(kind: DummyPin['kind']): string {
   }
 }
 
-/**
- * 敵タイプ別 cqmin サイズ (= フィールド短辺に対する % 相当)。
- *
- * v1.1.1 で px 固定から cqmin に切替。 端末間で「マシン本体に対する敵の相対サイズ」 を
- * 揃えるため。 値は旧 px 値を「典型的なポートレート field (~390 cqmin)」 で割った比率を
- * 採用 (standard 14px / 390 ≈ 3.6cqmin)。
- */
-const ENEMY_SIZE_CQMIN: Record<EnemyVisualType, string> = {
-  standard: '3.6cqmin',
-  swift: '3.3cqmin',
-  tough: '4.6cqmin',
-  elite: '6.7cqmin',
-  miniboss: '9.2cqmin',
-  boss: '21.6cqmin', // v1.3.1 で 14.4 → 21.6 (×1.5) に拡大
-};
+// v1.3.7 (Phase 2-B): ENEMY_SIZE_CQMIN と spawnedEnemyToVisualType は visualTypes.ts に
+// 切り出して EnemyLayer.tsx と共用するようになった。
 
 // ---------------------------------------------------------------------------
 // コンポーネント
@@ -203,16 +212,9 @@ const ENEMY_SIZE_CQMIN: Record<EnemyVisualType, string> = {
  * - Fx のマウント / unmount 制御（DamagePop / EnemyHit / EnemyDeath）
  */
 export function BattleField({
-  enemies,
   machinePosition = { x: 50, y: 50 },
-  damageEvents,
   hitEvents,
-  deathEvents,
-  onDamageDone,
   onHitDone,
-  onDeathDone,
-  projectileEvents = [],
-  onProjectileDone,
   showCutterOrbit = false,
   showOverdriveAura = false,
   cutterRotateMs,
@@ -220,6 +222,10 @@ export function BattleField({
   dummyPins = [],
   machineHitKey = 0,
 }: BattleFieldProps) {
+  // v1.3.7 (Phase 2-B): enemies / damageEvents / deathEvents / projectileEvents 及び
+  // onDamageDone / onDeathDone / onProjectileDone props は 3 layer (EnemyLayer / FxLayer /
+  // ProjectileLayer) に委譲。 BattleField は entityStore を Context から取得する layer に
+  // ぶら下げるだけ。 Phase 2-C で props 自体を型定義から削除する。
   const machineX = machinePosition.x;
   const machineY = machinePosition.y;
 
@@ -267,48 +273,9 @@ export function BattleField({
           </div>
         ))}
 
-        {/* 敵: Enemy molecule に委譲。 SpawnedEnemy → EnemyVisualType マッピング、
-          状態異常は frozenUntilMs / burnUntilMs から導出。 HP バーは元 HP との比 (max は
-          template.hp) で算出するが、 spawn 後に最大値が変わらないので template.hp == 初期 HP
-          相当を維持する想定。 */}
-        {enemies.map((enemy) => {
-          const visualType = spawnedEnemyToVisualType(enemy.kind, enemy.subtype);
-          // 状態異常: frozen 優先 (動作停止のほうがプレイヤーに見えやすい)
-          const isFrozen = enemy.frozenUntilMs != null;
-          const isBurning = enemy.burnUntilMs != null;
-          const status = isFrozen ? 'frozen' : isBurning ? 'burning' : 'normal';
-          // HP 残量比: 0-1 のフロート。 BigNum を文字列経由で float 化
-          const hpCurrent = parseFloat(enemy.hp.toString());
-          const hpMaxNum = Math.max(0.0001, parseFloat(enemy.maxHp.toString()));
-          const hpRatio = Math.max(0, Math.min(1, hpCurrent / hpMaxNum));
-          // facing: 敵 → マシン中央へのベクトル角度 (rad)。
-          // SVG 自体は +x (右) 向き → 完全に左 (敵 x < machineX, y == machineY) のとき angle=0。
-          // 画面座標系は Y が下向きなので atan2(dy, dx) でそのまま CSS rotate に渡せる
-          // (CSS rotate は時計回り正、 +Y 下向きで +90° で下向きになる)。
-          const facing = Math.atan2(machineY - enemy.position.y, machineX - enemy.position.x);
-
-          return (
-            <div
-              key={enemy.id}
-              data-enemy-id={enemy.id}
-              className={styles.enemy}
-              style={{
-                left: `${enemy.position.x}%`,
-                top: `${enemy.position.y}%`,
-                position: 'absolute',
-                transform: 'translate(-50%, -50%)',
-              }}
-            >
-              <Enemy
-                type={visualType}
-                size={ENEMY_SIZE_CQMIN[visualType]}
-                hp={hpRatio}
-                status={status}
-                facing={facing}
-              />
-            </div>
-          );
-        })}
+        {/* v1.3.7 (Phase 2-B): 敵 sprite ループを EnemyLayer に分離。
+            useSyncExternalStore で entityStore を直接購読 (Page 経由なし)。 */}
+        <EnemyLayer machinePosition={{ x: machineX, y: machineY }} />
 
         {/* マシン (三角 + 単一リング) */}
         <div
@@ -361,19 +328,11 @@ export function BattleField({
           />
         )}
 
-        {/* DamagePopFx */}
-        {damageEvents.map((evt) => (
-          <DamagePopFx
-            key={evt.id}
-            value={Number(evt.value.toString())}
-            x={evt.x}
-            y={evt.y}
-            crit={evt.crit}
-            onDone={() => onDamageDone?.(evt.id)}
-          />
-        ))}
+        {/* v1.3.7 (Phase 2-B): DamagePopFx / EnemyDeathFx を FxLayer に分離。
+            useSyncExternalStore で entityStore を直接購読 (Page 経由なし)。 */}
+        <FxLayer />
 
-        {/* EnemyHitFx */}
+        {/* EnemyHitFx (現状 useBattleLoop で未配線、 EMPTY_HIT_EVENTS のため空のまま) */}
         {hitEvents.map((evt) => (
           <EnemyHitFx
             key={evt.id}
@@ -383,85 +342,8 @@ export function BattleField({
           />
         ))}
 
-        {/* EnemyDeathFx */}
-        {deathEvents.map((evt) => (
-          <EnemyDeathFx
-            key={evt.id}
-            x={evt.x}
-            y={evt.y}
-            onDone={() => onDeathDone?.(evt.id)}
-          />
-        ))}
-
-        {/* 弾道 / 着弾エフェクト */}
-        {projectileEvents.map((evt) => {
-          switch (evt.kind) {
-            case 'laser':
-              return (
-                <LaserBeamFx
-                  key={evt.id}
-                  x1={evt.x1}
-                  y1={evt.y1}
-                  x2={evt.x2}
-                  y2={evt.y2}
-                  onDone={() => onProjectileDone?.(evt.id)}
-                />
-              );
-            case 'cannonShell':
-              return (
-                <CannonShellFx
-                  key={evt.id}
-                  x1={evt.x1}
-                  y1={evt.y1}
-                  x2={evt.x2}
-                  y2={evt.y2}
-                  duration={evt.durationMs}
-                  onDone={() => onProjectileDone?.(evt.id)}
-                />
-              );
-            case 'blast':
-              return (
-                <BlastFx
-                  key={evt.id}
-                  x={evt.x}
-                  y={evt.y}
-                  radius={evt.radius}
-                  delayMs={evt.delayMs}
-                  onDone={() => onProjectileDone?.(evt.id)}
-                />
-              );
-            case 'thunderStrike':
-              return (
-                <ThunderStrikeFx
-                  key={evt.id}
-                  x={evt.x}
-                  y={evt.y}
-                  duration={evt.durationMs}
-                  onDone={() => onProjectileDone?.(evt.id)}
-                />
-              );
-            case 'chain':
-              return (
-                <ChainBoltFx
-                  key={evt.id}
-                  points={evt.points}
-                  delayMs={evt.delayMs}
-                  onDone={() => onProjectileDone?.(evt.id)}
-                />
-              );
-            case 'megaBeam':
-              return (
-                <MegaBeamFx
-                  key={evt.id}
-                  x={evt.x}
-                  y={evt.y}
-                  angle={evt.angle}
-                  widthPct={evt.widthPct}
-                  onDone={() => onProjectileDone?.(evt.id)}
-                />
-              );
-          }
-        })}
+        {/* v1.3.7 (Phase 2-B): 弾道 / 着弾 Fx を ProjectileLayer に分離。 */}
+        <ProjectileLayer />
       </div>
     </div>
   );
