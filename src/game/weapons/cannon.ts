@@ -24,11 +24,11 @@ import { BigNum } from '@/lib/bignum/BigNum';
 // 定数
 // ---------------------------------------------------------------------------
 
-/** Cannon 底値 attacks/sec (低速・高ダメ型 — 未強化状態で 2 秒に 1 発) */
-export const CANNON_BASE_AS = 0.5;
+/** Cannon 底値 attacks/sec (v1.3.0 で 0.5 → 0.25 に半減、 未強化で 4 秒に 1 発) */
+export const CANNON_BASE_AS = 0.25;
 
-/** Cannon 底値 武器ダメージ倍率 (DPS = 0.5 × 3.0 = 1.5) */
-export const CANNON_BASE_DAMAGE_MUL = 3.0;
+/** Cannon 底値 武器ダメージ倍率 (DPS = 0.25 × 6.0 = 1.5 を維持) */
+export const CANNON_BASE_DAMAGE_MUL = 6.0;
 
 /**
  * 爆発半径 底値 (フィールド % 半径)。
@@ -55,8 +55,8 @@ const VOLLEY_SPREAD_DEG = 360 / VOLLEY_SHOTS; // 72°
 /** Volley の爆発半径倍率 */
 const VOLLEY_SPLASH_MUL = 3;
 
-/** Volley 1 発ダメージ倍率（通常攻撃比） */
-const VOLLEY_DAMAGE_MUL = 10;
+/** Volley 1 発ダメージ倍率（通常攻撃比、 v1.3.0 で 10 → 5 に半減: 通常 damageMul 倍化と相殺） */
+const VOLLEY_DAMAGE_MUL = 5;
 
 /**
  * 砲弾の飛翔速度 (% / 秒)。 マシン中心からの距離 (画面短辺 0-100%) を

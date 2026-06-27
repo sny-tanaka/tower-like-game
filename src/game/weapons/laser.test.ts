@@ -58,12 +58,12 @@ function makeEnemy(overrides: Partial<SpawnedEnemy> = {}): SpawnedEnemy {
 // ---------------------------------------------------------------------------
 
 describe('LASER_BASE_* 定数', () => {
-  it('LASER_BASE_AS = 2.5（v1.1 維持）', () => {
-    expect(LASER_BASE_AS).toBe(2.5);
+  it('LASER_BASE_AS = 1.25（v1.3.0 で 2.5 → 1.25 に半減）', () => {
+    expect(LASER_BASE_AS).toBe(1.25);
   });
 
-  it('LASER_BASE_DAMAGE_MUL = 0.8（v1.1 で 0.4 → 0.8）', () => {
-    expect(LASER_BASE_DAMAGE_MUL).toBe(0.8);
+  it('LASER_BASE_DAMAGE_MUL = 1.6（v1.3.0 で 0.8 → 1.6 に倍化、 DPS 1.25×1.6=2.0 維持）', () => {
+    expect(LASER_BASE_DAMAGE_MUL).toBe(1.6);
   });
 
   it('LASER_MEGA_BEAM_WIDTH_PCT = 12（v1.1 で 6 → 12）', () => {
@@ -85,7 +85,7 @@ describe('laserStats', () => {
     expect(s.attackPerSec).toBeCloseTo(LASER_BASE_AS);
     expect(s.pierce).toBe(1);
     expect(s.damageMul).toBeCloseTo(LASER_BASE_DAMAGE_MUL);
-    expect(s.megaDamageMul).toBeCloseTo(50.0);
+    expect(s.megaDamageMul).toBeCloseTo(25.0);
     expect(s.critMultiplierBonus).toBeCloseTo(0);
   });
 
@@ -94,7 +94,7 @@ describe('laserStats', () => {
     expect(s.attackPerSec).toBeCloseTo(LASER_BASE_AS); // 固定
     expect(s.pierce).toBe(1);
     expect(s.damageMul).toBeCloseTo(LASER_BASE_DAMAGE_MUL); // 固定
-    expect(s.megaDamageMul).toBeCloseTo(50.0); // 固定
+    expect(s.megaDamageMul).toBeCloseTo(25.0); // 固定
     expect(s.critMultiplierBonus).toBeCloseTo(0.01);
   });
 
@@ -103,14 +103,14 @@ describe('laserStats', () => {
     expect(s.attackPerSec).toBeCloseTo(LASER_BASE_AS);
     expect(s.pierce).toBe(1);
     expect(s.damageMul).toBeCloseTo(LASER_BASE_DAMAGE_MUL);
-    expect(s.megaDamageMul).toBeCloseTo(50.0);
+    expect(s.megaDamageMul).toBeCloseTo(25.0);
     expect(s.critMultiplierBonus).toBeCloseTo(0.1);
   });
 
-  it('v1.1.1: Lv 20 でも megaDamageMul は固定 50、critMultiplierBonus = 0.2', () => {
+  it('v1.3.0: Lv 20 でも megaDamageMul は固定 25、critMultiplierBonus = 0.2', () => {
     const s = laserStats(20);
     expect(s.pierce).toBe(1);
-    expect(s.megaDamageMul).toBeCloseTo(50.0);
+    expect(s.megaDamageMul).toBeCloseTo(25.0);
     expect(s.critMultiplierBonus).toBeCloseTo(0.2);
   });
 
@@ -119,7 +119,7 @@ describe('laserStats', () => {
     expect(s.attackPerSec).toBeCloseTo(LASER_BASE_AS);
     expect(s.pierce).toBe(1);
     expect(s.damageMul).toBeCloseTo(LASER_BASE_DAMAGE_MUL);
-    expect(s.megaDamageMul).toBeCloseTo(50.0);
+    expect(s.megaDamageMul).toBeCloseTo(25.0);
     expect(s.critMultiplierBonus).toBeCloseTo(0.5);
   });
 
@@ -127,7 +127,7 @@ describe('laserStats', () => {
     const s = laserStats(60);
     expect(s.pierce).toBe(1);
     expect(s.critMultiplierBonus).toBeCloseTo(0.6);
-    expect(s.megaDamageMul).toBeCloseTo(50.0); // 固定
+    expect(s.megaDamageMul).toBeCloseTo(25.0); // 固定
   });
 
   it('Lv100: pierce 固定 1（Lv 100 でも増えない）、critMultiplierBonus = 1.0', () => {
@@ -373,14 +373,15 @@ describe('laserMegaBeam', () => {
     expect(result.hits).toHaveLength(1);
   });
 
-  it('Mega Beam のダメージは通常攻撃の ×megaDamageMul になる（Lv0: × 50）', () => {
+  it('Mega Beam のダメージは通常攻撃の ×megaDamageMul になる（Lv0: × 25, v1.3.0 で 50 → 25）', () => {
     const baseAttack = 100;
     const machine = makeMachine({ baseAttack: BigNum.fromNumber(baseAttack), critRate: 0 });
     const stats = laserStats(0);
     const enemy = makeEnemy({ id: 'mega-dmg', position: { x: 70, y: 50 } });
     const result = laserMegaBeam(machine, stats, [enemy], 0);
-    // damage = baseAttack × LASER_BASE_DAMAGE_MUL × megaDamageMul(=50)
-    const expected = String(Math.floor(baseAttack * LASER_BASE_DAMAGE_MUL * 50));
+    // damage = baseAttack × LASER_BASE_DAMAGE_MUL(1.6) × megaDamageMul(25) = 4000
+    // ※ v1.3.0 で BASE_DAMAGE_MUL 倍化 + megaDamageMul 半減で絶対ダメ維持
+    const expected = String(Math.floor(baseAttack * LASER_BASE_DAMAGE_MUL * 25));
     expect(result.hits[0].damage.toString()).toBe(expected);
   });
 
@@ -406,9 +407,9 @@ describe('laserMegaBeam', () => {
     const stats = laserStats(100); // critMultiplierBonus = 1.0 でも Mega Beam には乗らない
     const enemy = makeEnemy({ id: 'mega-nocrit', position: { x: 70, y: 50 } });
     const result = laserMegaBeam(machine, stats, [enemy], 0);
-    // v1.1.1: megaDamageMul は固定 50。Mega Beam は isCrit:false で素ダメのみ
+    // v1.3.0: megaDamageMul は固定 25 (50 → 25 へ半減)。 Mega Beam は isCrit:false で素ダメのみ
     const damageMul = LASER_BASE_DAMAGE_MUL;
-    const megaDamageMul = 50; // 固定
+    const megaDamageMul = 25; // 固定
     const totalMul = damageMul * megaDamageMul;
     const expected = Math.floor(baseAttack * totalMul);
     const actual = parseInt(result.hits[0].damage.toString(), 10);

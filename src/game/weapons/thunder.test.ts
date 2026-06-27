@@ -61,17 +61,17 @@ const rngAlwaysCrit = (): number => 0; // critRate > 0 なら true
 // ---------------------------------------------------------------------------
 
 describe('thunderStats', () => {
-  it('Lv0 の基本値が仕様通り (AS=2.0, dmgMul=0.45)', () => {
+  it('Lv0 の基本値が仕様通り (v1.3.0: AS=1.0, dmgMul=0.9)', () => {
     const stats = thunderStats(0);
     expect(stats.attackPerSec).toBeCloseTo(THUNDER_BASE_AS);
-    expect(THUNDER_BASE_AS).toBe(2.0);
+    expect(THUNDER_BASE_AS).toBe(1.0);
     expect(stats.chainCount).toBe(THUNDER_BASE_CHAIN_COUNT);
     // v1.2.0: chainCount を 3 → 4 に増加 (中距離散布敵処理の役割強化)
     expect(THUNDER_BASE_CHAIN_COUNT).toBe(4);
     expect(stats.damageMul).toBeCloseTo(THUNDER_BASE_DAMAGE_MUL);
-    expect(THUNDER_BASE_DAMAGE_MUL).toBeCloseTo(0.45);
-    // Lv0: plasmaDamageMul = 10 × (1 + 0) = 10
-    expect(stats.plasmaDamageMul).toBeCloseTo(10);
+    expect(THUNDER_BASE_DAMAGE_MUL).toBeCloseTo(0.9);
+    // v1.3.0: plasmaDamageMul = 5 (10 → 5 に半減、 damageMul 倍化と相殺)
+    expect(stats.plasmaDamageMul).toBeCloseTo(5);
     // Lv0: hpLifestealPct = 0
     expect(stats.hpLifestealPct).toBe(0);
   });
@@ -80,12 +80,12 @@ describe('thunderStats', () => {
     const stats = thunderStats(10);
     expect(stats.damageMul).toBeCloseTo(THUNDER_BASE_DAMAGE_MUL);
     expect(stats.attackPerSec).toBeCloseTo(THUNDER_BASE_AS);
-    expect(stats.plasmaDamageMul).toBeCloseTo(10);
+    expect(stats.plasmaDamageMul).toBeCloseTo(5);
   });
 
-  it('v1.1.1: Lv 20 でも plasmaDamageMul は固定 10', () => {
+  it('v1.3.0: Lv 20 でも plasmaDamageMul は固定 5', () => {
     const stats = thunderStats(20);
-    expect(stats.plasmaDamageMul).toBeCloseTo(10);
+    expect(stats.plasmaDamageMul).toBeCloseTo(5);
   });
 
   it('v1.1.1: Lv 1000 でも attackPerSec は THUNDER_BASE_AS で固定', () => {
@@ -338,7 +338,7 @@ describe('thunderPlasmaDischarge', () => {
     const stats = thunderStats(0); // damageMul=THUNDER_BASE_DAMAGE_MUL, plasmaDamageMul=10
     const enemies = [makeEnemy('e1')];
     const result = thunderPlasmaDischarge(machine, stats, enemies);
-    const expected = String(Math.floor(baseAttack * THUNDER_BASE_DAMAGE_MUL * 10));
+    const expected = String(Math.floor(baseAttack * THUNDER_BASE_DAMAGE_MUL * 5));
     expect(result.hits[0]!.damage.toString()).toBe(expected);
   });
 
@@ -355,7 +355,7 @@ describe('thunderPlasmaDischarge', () => {
     ];
     const result = thunderPlasmaDischarge(machine, stats, enemies);
 
-    const expected = String(Math.floor(baseAttack * THUNDER_BASE_DAMAGE_MUL * 10));
+    const expected = String(Math.floor(baseAttack * THUNDER_BASE_DAMAGE_MUL * 5));
     // 全員同じダメージ（連鎖減衰なし）
     for (const hit of result.hits) {
       expect(hit.damage.toString()).toBe(expected);

@@ -33,10 +33,10 @@ export interface ThunderStats {
 /** Thunder 通常攻撃の同時ターゲット数 (武器 Lv で伸びない仕様固定値) */
 export const THUNDER_BASE_CHAIN_COUNT = 4;
 
-/** Thunder 底値 武器ダメージ倍率 (AS 2.0/s × 0.45 = 0.9 DPS / 4 体時 3.6) */
-export const THUNDER_BASE_DAMAGE_MUL = 0.45;
-/** Thunder 底値 attacks/sec (Cutter 圏外 4 体散開での標準テンポ) */
-export const THUNDER_BASE_AS = 2.0;
+/** Thunder 底値 武器ダメージ倍率 (v1.3.0 で 0.45 → 0.9 に倍化、 AS 1.0/s × 0.9 = 0.9 DPS / 4 体時 3.6 を維持) */
+export const THUNDER_BASE_DAMAGE_MUL = 0.9;
+/** Thunder 底値 attacks/sec (v1.3.0 で 2.0 → 1.0 に半減、 1 発ダメ倍増で DPS 維持) */
+export const THUNDER_BASE_AS = 1.0;
 
 /**
  * Thunder スタックシステム (v1.2.0):
@@ -60,7 +60,8 @@ export function thunderStats(weaponLv: number): ThunderStats {
   // v1.1.1: damageMul / attackPerSec / plasmaDamageMul は武器Lv 不問の固定底値
   const damageMul = THUNDER_BASE_DAMAGE_MUL;
   const attackPerSec = THUNDER_BASE_AS;
-  const plasmaDamageMul = 10;
+  // v1.3.0: damageMul を 2 倍にしたので、 アクティブ絶対ダメ維持のため plasmaDamageMul を半分に (10 → 5)
+  const plasmaDamageMul = 5;
 
   // Thunder の Lv 軸: 攻撃時 HP 回復率 (0.001 × Lv = 0.1%/Lv)
   const hpLifestealPct = 0.001 * lv;

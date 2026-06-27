@@ -155,16 +155,16 @@ describe('cannonStats', () => {
     expect(s.attackPerSec).toBeCloseTo(CANNON_BASE_AS);
     expect(s.splashRadius).toBeCloseTo(8);
     expect(s.damageMul).toBeCloseTo(CANNON_BASE_DAMAGE_MUL);
-    expect(CANNON_BASE_DAMAGE_MUL).toBe(3.0);
+    expect(CANNON_BASE_DAMAGE_MUL).toBe(6.0); // v1.3.0 で 3.0 → 6.0 に倍化
     expect(s.volleyShots).toBe(VOLLEY_SHOTS);
-    expect(s.volleyDamageMul).toBeCloseTo(10);
+    expect(s.volleyDamageMul).toBeCloseTo(5);
   });
 
   it('v1.1.2: Lv 10 で damageMul / attackPerSec / volleyDamageMul は固定底値、splash 半径だけ Lv で伸びる', () => {
     const s = cannonStats(10);
     expect(s.damageMul).toBeCloseTo(CANNON_BASE_DAMAGE_MUL); // Lv 不問固定
     expect(s.attackPerSec).toBeCloseTo(CANNON_BASE_AS); // Lv 不問固定
-    expect(s.volleyDamageMul).toBeCloseTo(10); // Lv 不問固定
+    expect(s.volleyDamageMul).toBeCloseTo(5); // Lv 不問固定
     expect(s.splashRadius).toBeCloseTo(9, 5); // Lv 軸: 8 + 0.1×10
   });
 
@@ -172,7 +172,7 @@ describe('cannonStats', () => {
     const s = cannonStats(50);
     expect(s.damageMul).toBeCloseTo(CANNON_BASE_DAMAGE_MUL);
     expect(s.attackPerSec).toBeCloseTo(CANNON_BASE_AS);
-    expect(s.volleyDamageMul).toBeCloseTo(10);
+    expect(s.volleyDamageMul).toBeCloseTo(5);
     expect(s.splashRadius).toBeCloseTo(13, 5); // 8 + 0.1×50
   });
 
@@ -180,7 +180,7 @@ describe('cannonStats', () => {
     const s = cannonStats(100);
     expect(s.damageMul).toBeCloseTo(CANNON_BASE_DAMAGE_MUL);
     expect(s.attackPerSec).toBeCloseTo(CANNON_BASE_AS);
-    expect(s.volleyDamageMul).toBeCloseTo(10);
+    expect(s.volleyDamageMul).toBeCloseTo(5);
     expect(s.splashRadius).toBeCloseTo(18, 5); // 8 + 0.1×100
   });
 
@@ -374,7 +374,7 @@ describe('cannonNormalAttack', () => {
 
 describe('cannonVolley', () => {
   const machine = defaultMachine();
-  const stats = cannonStats(0); // Lv 0: volleyShots=5, volleyDamageMul=10
+  const stats = cannonStats(0); // Lv 0: volleyShots=5, volleyDamageMul=5 (v1.3.0)
 
   it('敵が 0 体でも 5 shot を生成する', () => {
     const result = fireVolleyAndResolve(machine, stats, []);
@@ -442,7 +442,7 @@ describe('cannonVolley', () => {
   });
 
   it('Volley ダメージは通常攻撃の damageMul × volleyDamageMul 倍になっている', () => {
-    // baseAttack=100, Lv0: damageMul=CANNON_BASE_DAMAGE_MUL(=3), volleyDamageMul=10
+    // v1.3.0: damageMul=CANNON_BASE_DAMAGE_MUL(=6), volleyDamageMul=5 (旧 3 × 10 と絶対値は同じ 30 倍)
     // 敵をマシン (50,50) から離して baseDeg / 射影 が決定するようにする
     const enemy = makeEnemy('A', 70, 50);
     const result = fireVolleyAndResolve(machine, stats, [enemy]);
@@ -450,8 +450,8 @@ describe('cannonVolley', () => {
     const shot0 = result.shots[0]!;
     expect(shot0.hits.length).toBeGreaterThan(0);
 
-    // 100 × CANNON_BASE_DAMAGE_MUL × 10
-    const expectedDmg = BigNum.fromNumber(100 * CANNON_BASE_DAMAGE_MUL * 10);
+    // 100 × CANNON_BASE_DAMAGE_MUL × 5
+    const expectedDmg = BigNum.fromNumber(100 * CANNON_BASE_DAMAGE_MUL * 5);
     expect(shot0.hits[0]!.damage.eq(expectedDmg)).toBe(true);
   });
 

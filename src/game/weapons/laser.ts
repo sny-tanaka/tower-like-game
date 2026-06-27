@@ -33,10 +33,10 @@ export interface LaserStats {
   critMultiplierBonus: number;
 }
 
-/** Laser 底値 attacks/sec */
-export const LASER_BASE_AS = 2.5;
-/** Laser 底値 武器ダメージ倍率（単体 DPS: 2.5 × 0.8 = 2.0） */
-export const LASER_BASE_DAMAGE_MUL = 0.8;
+/** Laser 底値 attacks/sec (v1.3.0 で 2.5 → 1.25 に半減、 1 発ダメ倍増で DPS 維持) */
+export const LASER_BASE_AS = 1.25;
+/** Laser 底値 武器ダメージ倍率（単体 DPS: 1.25 × 1.6 = 2.0 を維持） */
+export const LASER_BASE_DAMAGE_MUL = 1.6;
 
 /**
  * Laser 上位敵 (elite/miniboss/boss) ヒット時のダメ倍率 (v1.2.0)。
@@ -60,7 +60,8 @@ export function laserStats(weaponLv: number): LaserStats {
   const attackPerSec = LASER_BASE_AS;
   const pierce = 1;
   const damageMul = LASER_BASE_DAMAGE_MUL;
-  const megaDamageMul = 50;
+  // v1.3.0: damageMul を 2 倍にしたので、 アクティブ絶対ダメ維持のため megaDamageMul を半分に (50 → 25)
+  const megaDamageMul = 25;
 
   // Laser の Lv 軸: critMultiplier ボーナス +0.01 × Lv (Lv 60 で +0.6, Lv 100 で +1.0)
   const critMultiplierBonus = 0.01 * lv;

@@ -70,17 +70,17 @@ const rngNever = () => 0;
 // ---------------------------------------------------------------------------
 
 describe('cutterStats', () => {
-  it('Lv0 で初期値が正しい (AS=1.0, damageMul=1.2, blades=2)', () => {
+  it('Lv0 で初期値が正しい (v1.3.0: AS=0.5, damageMul=2.4, blades=2)', () => {
     const stats = cutterStats(0);
     expect(stats.attackPerSec).toBeCloseTo(CUTTER_BASE_AS);
-    expect(stats.attackPerSec).toBeCloseTo(1.0);
+    expect(stats.attackPerSec).toBeCloseTo(0.5);
     expect(stats.orbitRadius).toBe(CUTTER_BASE_ORBIT_RADIUS);
     expect(stats.orbitRadius).toBe(80);
     expect(stats.blades).toBe(CUTTER_BLADES);
     expect(stats.blades).toBe(2);
     expect(stats.damageMul).toBeCloseTo(CUTTER_BASE_DAMAGE_MUL);
-    expect(stats.damageMul).toBeCloseTo(1.2);
-    // 単体 DPS = AS × damageMul = 1.0 × 1.2 = 1.2 (2 体時 2.4)
+    expect(stats.damageMul).toBeCloseTo(2.4);
+    // v1.3.0: 単体 DPS = AS × damageMul = 0.5 × 2.4 = 1.2 (旧 1.0 × 1.2 と同じ) を維持
     expect(stats.attackPerSec * stats.damageMul).toBeCloseTo(1.2);
     expect(stats.overdriveDurationSec).toBeCloseTo(CUTTER_OVERDRIVE_BASE_DURATION_SEC);
     expect(stats.overdriveDurationSec).toBeCloseTo(8);

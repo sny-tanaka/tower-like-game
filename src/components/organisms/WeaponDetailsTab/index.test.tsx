@@ -54,10 +54,10 @@ describe('buildLaserStats (v1.1.1: 4 ステ DMG / 連射速度 / 射程 / Critic
     expect(range?.suffix).toBe('m');
   });
 
-  it('連射速度 = weapon.AS × machine.attackSpeed', () => {
+  it('連射速度 = weapon.AS × machine.attackSpeed (v1.3.0: LASER_BASE_AS 1.25)', () => {
     const stats = buildLaserStats(0, BASE_ATTACK, MACHINE_RANGE, 2.0); // machineAS=2.0
     const as = stats.find((s) => s.label === '連射速度');
-    expect(as?.value).toBe(5.0); // 2.5 × 2.0
+    expect(as?.value).toBe(2.5); // 1.25 × 2.0
     expect(as?.suffix).toBe('/s');
   });
 });
