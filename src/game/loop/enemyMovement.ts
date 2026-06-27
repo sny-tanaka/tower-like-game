@@ -1,4 +1,4 @@
-import type { SpawnedEnemy } from '@/game/types';
+import type { MutableEnemy } from '@/game/types';
 
 /**
  * マシン中心座標 (画面比 0-100%) — useBattleLoop の MACHINE_CENTER_X/Y と
@@ -8,7 +8,7 @@ export const MACHINE_X = 50;
 export const MACHINE_Y = 50;
 
 /**
- * 1 フレームで敵の position を更新する純粋関数。
+ * 1 フレームで敵の position を **副作用的に** 更新する関数 (v1.3.7 Phase 3-B)。
  *
  * - 敵 position (0-100%) からマシン中心 (50, 50) へ直線移動
  * - 移動量 = `enemy.speed × deltaSec` (単位: % / 秒)
@@ -18,39 +18,43 @@ export const MACHINE_Y = 50;
  * - マシンに到達 (距離 ≤ 移動量) で position を (50, 50) にスナップ
  * - **凍結中 (frozenUntilMs > nowMs) は移動しない** (近接ダメは止めない仕様)
  *
- * 副作用なし。 新しい SpawnedEnemy オブジェクトを返す (position が変わらない場合
- * は元のオブジェクトを返す)。
+ * Phase 3-B (in-place mutation):
+ *   - 引数 enemy の `position.x` / `position.y` を **直接書換える** (オブジェクト差替えなし)
+ *   - 戻り値は「位置が変わったか」 (boolean)。 useBattleLoop は false の場合
+ *     `markEnemyMoved(id)` を省略でき、 listener 通知を最小化できる
  *
  * @param nowMs ラン開始からの現在経過 ms (凍結期限判定に使用)。 省略時は凍結無視
+ * @returns 位置が変わった場合 true、 frozen / speed=0 / 既にマシン上などで変わらない場合 false
  */
-export function updateEnemyPosition(
-  enemy: SpawnedEnemy,
+export function mutateEnemyPosition(
+  enemy: MutableEnemy,
   deltaSec: number,
   nowMs?: number
-): SpawnedEnemy {
+): boolean {
   // 凍結中はそのまま (移動量 0)
   if (enemy.frozenUntilMs != null && nowMs != null && enemy.frozenUntilMs > nowMs) {
-    return enemy;
+    return false;
   }
 
   const dx = MACHINE_X - enemy.position.x;
   const dy = MACHINE_Y - enemy.position.y;
   const dist = Math.sqrt(dx * dx + dy * dy);
-  if (dist <= 0) return enemy;
+  if (dist <= 0) return false;
 
   const moveDist = enemy.speed * deltaSec;
-  if (moveDist <= 0) return enemy;
+  if (moveDist <= 0) return false;
 
   if (moveDist >= dist) {
-    return { ...enemy, position: { x: MACHINE_X, y: MACHINE_Y } };
+    // 既にマシン位置にいる場合は false を返す (本来は dist=0 で早期 return しているが
+    // 浮動小数演算で僅差を取りこぼすリスクの保険)。
+    if (enemy.position.x === MACHINE_X && enemy.position.y === MACHINE_Y) return false;
+    enemy.position.x = MACHINE_X;
+    enemy.position.y = MACHINE_Y;
+    return true;
   }
 
   const ratio = moveDist / dist;
-  return {
-    ...enemy,
-    position: {
-      x: enemy.position.x + dx * ratio,
-      y: enemy.position.y + dy * ratio,
-    },
-  };
+  enemy.position.x = enemy.position.x + dx * ratio;
+  enemy.position.y = enemy.position.y + dy * ratio;
+  return true;
 }

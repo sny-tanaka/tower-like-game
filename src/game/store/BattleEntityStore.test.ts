@@ -4,20 +4,13 @@ import { BattleEntityStore } from './BattleEntityStore';
 
 import type { DamageEvent } from '@/components/organisms/BattleField';
 import { MutableEnemy } from '@/game/types';
+import type { SpawnedEnemyInit } from '@/game/types';
 import { BigNum } from '@/lib/bignum/BigNum';
 
 // テスト用の MutableEnemy 生成 helper (Phase 3-A の subscribeEnemy* / addEnemy 系で使う)
-function makeEnemy(overrides: {
-  id: string;
-  hp?: number;
-  maxHp?: number;
-  frozen?: boolean;
-  burn?: boolean;
-}) {
-  const hp = overrides.hp ?? 100;
-  const maxHp = overrides.maxHp ?? 100;
-  return new MutableEnemy({
-    id: overrides.id,
+function makeEnemyInit(id: string, hp = 100, maxHp = 100): SpawnedEnemyInit {
+  return {
+    id,
     kind: 'normal',
     subtype: 'standard',
     speed: 1,
@@ -28,9 +21,20 @@ function makeEnemy(overrides: {
     maxHp: BigNum.fromNumber(maxHp),
     atk: BigNum.fromNumber(10),
     position: { x: 50, y: 50 },
-    frozenUntilMs: overrides.frozen ? 10_000 : undefined,
-    burnUntilMs: overrides.burn ? 10_000 : undefined,
-  });
+  };
+}
+
+function makeEnemy(overrides: {
+  id: string;
+  hp?: number;
+  maxHp?: number;
+  frozen?: boolean;
+  burn?: boolean;
+}) {
+  const init = makeEnemyInit(overrides.id, overrides.hp ?? 100, overrides.maxHp ?? 100);
+  init.frozenUntilMs = overrides.frozen ? 10_000 : undefined;
+  init.burnUntilMs = overrides.burn ? 10_000 : undefined;
+  return new MutableEnemy(init);
 }
 
 describe('BattleEntityStore — subscribe / notify', () => {
@@ -115,25 +119,17 @@ describe('BattleEntityStore — getSnapshot', () => {
 });
 
 describe('BattleEntityStore — mutation API', () => {
-  it('setEnemies / getEnemies で配列を保持できる', () => {
+  it('setEnemies / getEnemies で配列を保持できる (Phase 3-B: clearEnemies + addEnemy にラップされた挙動)', () => {
     const store = new BattleEntityStore();
     expect(store.getEnemies()).toEqual([]);
-    const enemies = [
-      {
-        id: 'e-1',
-        kind: 'normal' as const,
-        position: { x: 50, y: 50 },
-        hp: BigNum.fromNumber(100),
-        maxHp: BigNum.fromNumber(100),
-        atk: BigNum.fromNumber(10),
-        speed: 1,
-        reward: { screw: 1, bolt: 0, alloyChance: 0, alloyAmount: 0 },
-        hitRadius: 1.03,
-        spawnedAtMs: 0,
-      },
-    ];
+    const enemies = [new MutableEnemy(makeEnemyInit('e-1'))];
     store.setEnemies(enemies);
-    expect(store.getEnemies()).toBe(enemies);
+    // Phase 3-B: setEnemies は内部で clearEnemies + addEnemy(個別) にラップされるため
+    // 「渡した配列がそのまま返る」 参照同一性は保証されない (= 内部 mutable 配列に追加される)。
+    // 中身 (個々の敵オブジェクト) は同一参照で保持される。
+    const got = store.getEnemies();
+    expect(got).toHaveLength(1);
+    expect(got[0]).toBe(enemies[0]);
   });
 
   it('setDamageEvents / getDamageEvents で events を保持', () => {
@@ -203,20 +199,7 @@ describe('BattleEntityStore — queueRemoval / consumePendingRemovals (Phase 2-A
 describe('BattleEntityStore — reset', () => {
   it('reset で全状態がクリアされる', () => {
     const store = new BattleEntityStore();
-    store.setEnemies([
-      {
-        id: 'e-1',
-        kind: 'normal',
-        position: { x: 50, y: 50 },
-        hp: BigNum.fromNumber(100),
-        maxHp: BigNum.fromNumber(100),
-        atk: BigNum.fromNumber(10),
-        speed: 1,
-        reward: { screw: 1, bolt: 0, alloyChance: 0, alloyAmount: 0 },
-        hitRadius: 1.03,
-        spawnedAtMs: 0,
-      },
-    ]);
+    store.setEnemies([new MutableEnemy(makeEnemyInit('e-1'))]);
     store.setWaveElapsedSec(20);
     store.reset();
     expect(store.getEnemies()).toEqual([]);
@@ -338,6 +321,40 @@ describe('BattleEntityStore — subscribeEnemyStatus / markEnemyStatusChanged (P
     store.notifyFrame();
     expect(posListener).toHaveBeenCalledTimes(1); // 増えない
     expect(statusListener).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('BattleEntityStore — clearEnemies (Phase 3-B)', () => {
+  it('clearEnemies で enemies / enemyById / listener Set / snapshotCache を全消し + enemyListVersion +1', () => {
+    const store = new BattleEntityStore();
+    const e1 = makeEnemy({ id: 'e-1' });
+    const e2 = makeEnemy({ id: 'e-2' });
+    store.addEnemy(e1);
+    store.addEnemy(e2);
+    store.subscribeEnemyPosition('e-1', () => undefined);
+    store.subscribeEnemyStatus('e-2', () => undefined);
+    store.getEnemyStatusSnapshot('e-1'); // キャッシュを温める
+    store.markEnemyMoved('e-1');
+    store.markEnemyStatusChanged('e-2');
+    const versionBefore = store.getEnemyListVersion();
+
+    store.clearEnemies();
+
+    expect(store.getEnemies()).toEqual([]);
+    expect(store.getEnemyById('e-1')).toBeUndefined();
+    expect(store.getEnemyById('e-2')).toBeUndefined();
+    expect(store.getEnemyStatusSnapshot('e-1')).toBeNull();
+    expect(store.getEnemyListVersion()).toBeGreaterThan(versionBefore);
+  });
+
+  it('clearEnemies は notify を起こさない (= 単発 React render を発生させない)', () => {
+    const store = new BattleEntityStore();
+    const listener = vi.fn();
+    store.subscribe(listener);
+    store.addEnemy(makeEnemy({ id: 'e-1' }));
+    listener.mockReset();
+    store.clearEnemies();
+    expect(listener).not.toHaveBeenCalled();
   });
 });
 

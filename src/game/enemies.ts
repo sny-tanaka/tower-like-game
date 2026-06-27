@@ -7,6 +7,7 @@ import {
   waveAtkFactor,
   waveScrewFactor,
 } from './tier';
+import { MutableEnemy } from './types';
 import type { EnemyKind, EnemyTemplate, NormalSubtype, SpawnedEnemy } from './types';
 
 // ---------------------------------------------------------------------------
@@ -210,7 +211,10 @@ export function spawnEnemy(
   const x = rng() < 0.5 ? 0 : 100;
   const y = rng() * 100; // 0〜100% の範囲
 
-  return {
+  // v1.3.7 (Phase 3-B): `MutableEnemy` のインスタンスを返す (plain object → class)。
+  // tick 内で `enemy.hp = ...` 等の field 直書きを安全に行うため、 型と実体を class に
+  // 揃える (= structural typing 互換に頼らない)。
+  return new MutableEnemy({
     ...template,
     id,
     spawnedAtMs,
@@ -218,7 +222,7 @@ export function spawnEnemy(
     maxHp: template.hp,
     thunderStacks: 0,
     hitRadius: ENEMY_HIT_RADIUS_PCT[template.kind],
-  };
+  });
 }
 
 // ---------------------------------------------------------------------------

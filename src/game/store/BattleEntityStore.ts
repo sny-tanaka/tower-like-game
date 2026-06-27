@@ -65,8 +65,13 @@ export interface EnemyStatusSnapshot {
 }
 
 export class BattleEntityStore {
-  // ---- 内部状態 (Phase 1 は immutable のまま、 配列丸ごと差し替え) ----
-  private enemies: readonly SpawnedEnemy[] = [];
+  // ---- 内部状態 ----
+  //
+  // v1.3.7 (Phase 3-B): `enemies` は **mutable array** で持つ。 addEnemy で push、 removeEnemy で
+  // splice。 useBattleLoop tick 内の 5 段 spread を in-place mutation に書き換えるため、 配列
+  // 自体も spread 廃止 + push / splice ベースに揃える。 外部公開は `getEnemies()` で
+  // `readonly MutableEnemy[]` として返す (= 読み取り専用ビュー)。
+  private enemies: MutableEnemy[] = [];
   private damageEvents: readonly DamageEvent[] = [];
   private deathEvents: readonly DeathEvent[] = [];
   private projectileEvents: readonly ProjectileEvent[] = [];
@@ -147,13 +152,19 @@ export class BattleEntityStore {
   // mutation API (Phase 1: 配列を丸ごと差し替え)
   // -------------------------------------------------------------------------
 
-  setEnemies(enemies: readonly SpawnedEnemy[]): void {
-    this.enemies = enemies;
-    // v1.3.7 (Phase 3-A): enemyById index も同期する。 個別 listener は呼ばない
-    // (Phase 3-B で setEnemies の意味を見直す予定)。
-    this.enemyById.clear();
+  /**
+   * v1.3.7 (Phase 3-B): `setEnemies()` は **後方互換 API**。 内部で `clearEnemies()` + 個別
+   * `addEnemy()` のループに展開される。 `useBattleLoop` tick は `addEnemy` / `removeEnemy` に
+   * 移行済みのため tick からは呼ばれない。 BattleField のテスト / Storybook の初期セットアップ
+   * 用にのみ残置。
+   *
+   * `enemyListVersion` は内部の addEnemy 経由で個々の敵分が +1 される (= clearEnemies で
+   * 一度 +1、 N 体 add で +N。 真の世代変化は clearEnemies の +1 が担保)。
+   */
+  setEnemies(enemies: readonly MutableEnemy[]): void {
+    this.clearEnemies();
     for (const e of enemies) {
-      this.enemyById.set(e.id, e);
+      this.addEnemy(e);
     }
   }
 
@@ -222,7 +233,11 @@ export class BattleEntityStore {
   // getters (Phase 2 で BattleField が listener 内から呼ぶ)
   // -------------------------------------------------------------------------
 
-  getEnemies(): readonly SpawnedEnemy[] {
+  /**
+   * 内部 enemies 配列の **読み取り専用ビュー**。 呼び出し側が破壊的更新しないこと
+   * (TypeScript の `readonly MutableEnemy[]` で防ぐ。 配列自体は内部で再利用される)。
+   */
+  getEnemies(): readonly MutableEnemy[] {
     return this.enemies;
   }
 
@@ -337,28 +352,58 @@ export class BattleEntityStore {
   }
 
   /**
-   * 敵を追加する。 内部の enemies 配列と enemyById index を更新し、 enemyListVersion を +1。
-   * (個別 position / status listener は addEnemy 単体では呼ばない。 必要なら notifyFrame で
-   *  全体 listener が拾う。)
+   * 敵を追加する。 内部の enemies 配列に **push** で in-place 追加し、 enemyById index を更新、
+   * enemyListVersion を +1 する。 (個別 position / status listener は addEnemy 単体では呼ばない。
+   * 必要なら notifyFrame で全体 listener が拾う。)
+   *
+   * v1.3.7 (Phase 3-B): 旧 `this.enemies = [...this.enemies, enemy]` の配列スプレッドを廃止し
+   * `push` に変更。 同フレーム内で多数 spawn しても O(N²) コピーが発生しなくなる。
    */
   addEnemy(enemy: MutableEnemy): void {
-    this.enemies = [...this.enemies, enemy];
+    this.enemies.push(enemy);
     this.enemyById.set(enemy.id, enemy);
     this.enemyListVersion += 1;
   }
 
   /**
-   * 敵を削除する。 enemies 配列から id を filter で外し、 listener Set / snapshot キャッシュ
-   * もまとめて掃除する。 enemyListVersion を +1。
+   * 敵を削除する。 enemies 配列から id 該当を **splice** で in-place 除去し、 listener Set /
+   * snapshot キャッシュもまとめて掃除する。 enemyListVersion を +1 する。
+   *
+   * v1.3.7 (Phase 3-B): 旧 filter (新配列生成) を splice に変更。 indexOf-then-splice は
+   * O(N) だが、 撃破処理は 1 フレームで N 件起きるとそれぞれ O(N) で実質 O(N²) になり得る。
+   * 大量撃破フレームで気になる場合は呼び出し側で「死亡 ID をまとめて Set に貯めて 1 度の
+   * filter + 再代入」 にする最適化が可能。 当面は push/splice の素直な実装を維持。
    */
   removeEnemy(id: string): void {
-    this.enemies = this.enemies.filter((e) => e.id !== id);
+    const idx = this.enemies.findIndex((e) => e.id === id);
+    if (idx >= 0) {
+      this.enemies.splice(idx, 1);
+    }
     this.enemyById.delete(id);
     this.enemyPositionListeners.delete(id);
     this.enemyStatusListeners.delete(id);
     this.statusSnapshotCache.delete(id);
     this.pendingMovedIds.delete(id);
     this.pendingStatusChangedIds.delete(id);
+    this.enemyListVersion += 1;
+  }
+
+  /**
+   * 敵リストを **一括クリア** する (Phase 3-B 新設)。 ラン開始 / Tier 切替時、 または
+   * `suspendRendering` 復帰時に hook が呼ぶ。 内部の配列・index・listener Set・snapshot cache・
+   * pending Set を全て掃除し、 `enemyListVersion` を +1 して購読側に「リスト構造変化」 を通知。
+   *
+   * 個別の `removeEnemy(id)` を N 回呼ぶより 1 回の clearEnemies のほうが効率的かつ意味が明確
+   * (= 「ここで全 reset」 という意図)。
+   */
+  clearEnemies(): void {
+    this.enemies.length = 0;
+    this.enemyById.clear();
+    this.enemyPositionListeners.clear();
+    this.enemyStatusListeners.clear();
+    this.statusSnapshotCache.clear();
+    this.pendingMovedIds.clear();
+    this.pendingStatusChangedIds.clear();
     this.enemyListVersion += 1;
   }
 
@@ -420,7 +465,9 @@ export class BattleEntityStore {
 
   /** ラン終了 / Tier 切替などで全状態をリセット */
   reset(): void {
-    this.enemies = [];
+    // v1.3.7 (Phase 3-B): 敵周りの内部状態クリアは `clearEnemies()` に統合
+    // (enemies / enemyById / listeners / pending / snapshotCache / enemyListVersion++)。
+    this.clearEnemies();
     this.damageEvents = [];
     this.deathEvents = [];
     this.projectileEvents = [];
@@ -434,14 +481,6 @@ export class BattleEntityStore {
       projectile: new Set(),
       appearance: new Set(),
     };
-    // v1.3.7 (Phase 3-A): 敵単位の内部状態も掃除する。 enemyListVersion は frameVersion と
-    // 同じく単調増加を保つ (購読側の Object.is 誤判定を避ける)。
-    this.enemyPositionListeners.clear();
-    this.enemyStatusListeners.clear();
-    this.enemyById.clear();
-    this.pendingMovedIds.clear();
-    this.pendingStatusChangedIds.clear();
-    this.statusSnapshotCache.clear();
     // frameVersion / enemyListVersion はあえてリセットしない (購読側の Object.is で「変化
     // なし」 と誤判定されないよう単調増加を保つ)。
     this.notifyFrame();

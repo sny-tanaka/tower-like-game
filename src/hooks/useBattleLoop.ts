@@ -9,7 +9,7 @@ import { calcRunWorkshopMultiplier } from '@/components/organisms/RunWorkshopBot
 import { calcReceivedDamage } from '@/game/damage';
 import type { MachineStats } from '@/game/damage.types';
 import { scaledReward } from '@/game/enemies';
-import { updateEnemyPosition } from '@/game/loop/enemyMovement';
+import { mutateEnemyPosition } from '@/game/loop/enemyMovement';
 import { buildMachineStats } from '@/game/loop/machineStats';
 import { fireWeapon, getAttackPerSec } from '@/game/loop/weaponDispatch';
 import { evaluatePatches } from '@/game/patches';
@@ -525,10 +525,10 @@ export function useBattleLoop({
       entityStore.consumePendingRemovals('appearance');
     } else {
       setWaveElapsedSec(waveElapsedMsRef.current / 1000);
-      // v1.3.7 (Phase 2-A): スクリーンセーバー解除時に entityStore も sync。 events は空のまま
-      // で OK (= 残 Fx 復活させない)。 ここで notifyFrame() を呼ぶことで Phase 2-B 以降の
-      // listener (BattleField 3 layer) に「最新の enemies/waveElapsedSec」 を 1 回反映。
-      entityStore.setEnemies(enemiesRef.current);
+      // v1.3.7 (Phase 2-A→3-B): スクリーンセーバー解除時の sync。 Phase 3-B 以降は tick が
+      // addEnemy / removeEnemy で随時 entityStore.enemies を最新化しているため、 ここで
+      // `setEnemies(enemiesRef.current)` を呼び直す必要はなくなった (= 一括 sync 廃止)。
+      // events は空のまま (= 残 Fx 復活させない)。 waveElapsedSec のみ sync + notifyFrame()。
       entityStore.setWaveElapsedSec(waveElapsedMsRef.current / 1000);
       entityStore.notifyFrame();
     }
@@ -623,10 +623,11 @@ export function useBattleLoop({
       // v1.3.7 Phase 2 フォローアップ: 旧 Tier の敵 ID が prevContactSetRef に残っていると
       // 新 Tier で同一 ID が衝突した場合の挙動が不定になる。 ID 重複は実害ないが掃除しておく。
       prevContactSetRef.current = new Set();
-      // v1.3.7 (Phase 2-C): BattleField が entityStore を直接購読するようになったため、
-      // setEnemies([]) + notifyFrame() で EnemyLayer を即座に再 render。
-      // events (Fx) は触らない (= 再生中の DamagePop / Death Fx が wave 切替で消えるのは UX 劣化)。
-      entityStore.setEnemies([]);
+      // v1.3.7 (Phase 3-B): `setEnemies([])` を `clearEnemies()` に置換 (Phase 3-B 新 API)。
+      // 内部 enemies / enemyById / listener Set / snapshotCache / pending を一括掃除し
+      // enemyListVersion を +1 する。 events (Fx) は触らない (= 再生中の DamagePop / Death Fx
+      // が wave 切替で消えるのは UX 劣化)。
+      entityStore.clearEnemies();
       entityStore.notifyFrame();
     }
   }, [currentTier, currentWave, entityStore]);
@@ -703,20 +704,22 @@ export function useBattleLoop({
     const newProjectileEvents: ProjectileEvent[] = [];
 
     const applyHits = (hits: Array<{ enemyId: string; damage: BigNum; crit?: boolean }>): void => {
-      const hitMap = new Map(hits.map((h) => [h.enemyId, h]));
-      enemiesRef.current = enemiesRef.current.map((e) => {
-        const hit = hitMap.get(e.id);
-        if (hit == null) return e;
+      // v1.3.7 (Phase 3-B): in-place mutation。 hit 対象の enemy.hp を直接書換え、
+      // markEnemyStatusChanged で status snapshot キャッシュを invalidate する。
+      for (const hit of hits) {
+        const enemy = entityStore.getEnemyById(hit.enemyId);
+        if (enemy == null) continue;
         damageEventIdRef.current += 1;
         newDamageEvents.push({
           id: `de-${damageEventIdRef.current}`,
-          x: e.position.x,
-          y: e.position.y,
+          x: enemy.position.x,
+          y: enemy.position.y,
           value: hit.damage,
           crit: hit.crit ?? false,
         });
-        return { ...e, hp: e.hp.sub(hit.damage) };
-      });
+        enemy.hp = enemy.hp.sub(hit.damage);
+        entityStore.markEnemyStatusChanged(enemy.id);
+      }
     };
 
     switch (state.currentWeapon) {
@@ -848,8 +851,8 @@ export function useBattleLoop({
       }
     }
     return true;
-    // entityStore は useRef 由来で参照不変のため deps 不要 (React 19 lint も同様の判定)。
-  }, []);
+    // entityStore は useRef 由来で参照不変のため毎 render 同一だが、 lint 警告解消のため deps に含める
+  }, [entityStore]);
 
   useEffect(() => {
     if (!isRunActive) return;
@@ -991,7 +994,13 @@ export function useBattleLoop({
             state.bossWeakenedAtMs
           );
           if (newSpawns.length > 0) {
-            enemiesRef.current = [...enemiesRef.current, ...newSpawns];
+            // v1.3.7 (Phase 3-B): スプレッドを廃止し push + entityStore.addEnemy に分解。
+            // addEnemy で entityStore 側の enemies / enemyById / enemyListVersion がフレーム内
+            // に随時更新される (= EnemyLayer は listVersion 変化を検知して即マウント)。
+            for (const e of newSpawns) {
+              enemiesRef.current.push(e);
+              entityStore.addEnemy(e);
+            }
             // 上位敵 (elite / miniboss / boss) が混じっていれば AppearanceBannerFx を出す
             const upperSpawns = newSpawns.filter((s) => s.kind !== 'normal');
             if (upperSpawns.length > 0) {
@@ -1023,50 +1032,49 @@ export function useBattleLoop({
           }
 
           // ---- 敵移動 (frozen 中はスキップ。 nowGameMs 基準で期限判定) ----
-          enemiesRef.current = enemiesRef.current.map((e) =>
-            updateEnemyPosition(e, deltaSec, nowGameMs)
-          );
+          // v1.3.7 (Phase 3-B): in-place mutation。 mutateEnemyPosition は position.x / .y を
+          // 直接書換え、 「位置が変わった」 場合のみ true を返す。 false (frozen / 既にマシン上 /
+          // speed=0) のフレームは markEnemyMoved を省略して listener 通知を最小化する。
+          for (const e of enemiesRef.current) {
+            if (mutateEnemyPosition(e, deltaSec, nowGameMs)) {
+              entityStore.markEnemyMoved(e.id);
+            }
+          }
 
           // ---- 状態異常 tick: 燃焼 DoT 適用 + 期限切れフィールドのクリア ----
-          enemiesRef.current = enemiesRef.current.map((e) => {
-            let next = e;
+          // v1.3.7 (Phase 3-B): in-place mutation。 status (HP / frozen / burn) が変わった敵は
+          // markEnemyStatusChanged で status snapshot キャッシュを invalidate する。
+          for (const e of enemiesRef.current) {
+            let statusChanged = false;
             // 燃焼: 期限内なら累積 ms を進めて 1 秒経過ごとに burnPerSec を 1 回 HP から減算する。
             // BigNum は整数演算で `mulNumber(deltaSec)` が天井丸めされて 60FPS で +60 倍暴走するため、
             // HP リジェネと同じ calcIntervalTicks 方式で「1 秒粒度の atomic 減算」に統一。
-            if (
-              next.burnUntilMs != null &&
-              next.burnPerSec != null &&
-              next.burnUntilMs > nowGameMs
-            ) {
+            if (e.burnUntilMs != null && e.burnPerSec != null && e.burnUntilMs > nowGameMs) {
               const { ticks, nextAccumulatorMs } = calcIntervalTicks(
-                next.burnAccumulatorMs ?? 0,
+                e.burnAccumulatorMs ?? 0,
                 deltaSec
               );
               if (ticks > 0) {
-                next = {
-                  ...next,
-                  hp: next.hp.sub(next.burnPerSec.mulInt(ticks)),
-                  burnAccumulatorMs: nextAccumulatorMs,
-                };
-              } else {
-                next = { ...next, burnAccumulatorMs: nextAccumulatorMs };
+                e.hp = e.hp.sub(e.burnPerSec.mulInt(ticks));
+                statusChanged = true;
               }
+              e.burnAccumulatorMs = nextAccumulatorMs;
             }
-            // 期限切れチェック (frozen / burn)
-            const updates: Partial<SpawnedEnemy> = {};
-            if (next.frozenUntilMs != null && next.frozenUntilMs <= nowGameMs) {
-              updates.frozenUntilMs = undefined;
+            // 期限切れチェック (frozen / burn) — タイマーを undefined に戻し status 変化フラグを立てる
+            if (e.frozenUntilMs != null && e.frozenUntilMs <= nowGameMs) {
+              e.frozenUntilMs = undefined;
+              statusChanged = true;
             }
-            if (next.burnUntilMs != null && next.burnUntilMs <= nowGameMs) {
-              updates.burnUntilMs = undefined;
-              updates.burnPerSec = undefined;
-              updates.burnAccumulatorMs = undefined;
+            if (e.burnUntilMs != null && e.burnUntilMs <= nowGameMs) {
+              e.burnUntilMs = undefined;
+              e.burnPerSec = undefined;
+              e.burnAccumulatorMs = undefined;
+              statusChanged = true;
             }
-            if (Object.keys(updates).length > 0) {
-              next = { ...next, ...updates };
+            if (statusChanged) {
+              entityStore.markEnemyStatusChanged(e.id);
             }
-            return next;
-          });
+          }
 
           // ---- 着弾遅延砲弾の消化 (Cannon 砲弾の着弾タイミング、 v1.1.2) ----
           // applyAtMs <= nowGameMs の pending 砲弾を抽出。 着弾位置で cannonApplySplash で
@@ -1112,12 +1120,12 @@ export function useBattleLoop({
               );
               if (rawHits.length === 0) continue;
 
-              const enemiesById = new Map<string, SpawnedEnemy>(
-                enemiesRef.current.map((e) => [e.id, e])
-              );
-              // 着弾時に onAttack パッチを評価 (敵種別・ rng は着弾時点で確定)
+              // v1.3.7 (Phase 3-B): in-place mutation。 entityStore.getEnemyById で O(1) lookup
+              // しつつ、 hit 対象だけ HP / freeze / burn を直接書換える。 augmentedHits の生成は
+              // (おそらく全 hit に対する onAttack rng 評価が必要なので) そのまま残し、 反映だけ
+              // in-place に。 ダメージ pop の position は同じ enemy 参照から読む。
               const augmentedHits = rawHits.map((hit) => {
-                const target = enemiesById.get(hit.enemyId);
+                const target = entityStore.getEnemyById(hit.enemyId);
                 let damage = hit.damage;
                 let freeze = false;
                 let freezeSec: number | undefined;
@@ -1144,35 +1152,28 @@ export function useBattleLoop({
                 return { ...hit, damage, freeze, freezeSec, burnSec };
               });
 
-              const augmentedById = new Map(augmentedHits.map((h) => [h.enemyId, h]));
-              enemiesRef.current = enemiesRef.current.map((e) => {
-                const hit = augmentedById.get(e.id);
-                if (hit == null) return e;
-                let updated: SpawnedEnemy = { ...e, hp: e.hp.sub(hit.damage) };
-                if (hit.freeze && hit.freezeSec != null && hit.freezeSec > 0) {
-                  const newFrozenUntil = nowGameMs + hit.freezeSec * 1000;
-                  updated = {
-                    ...updated,
-                    frozenUntilMs: Math.max(updated.frozenUntilMs ?? 0, newFrozenUntil),
-                  };
-                }
-                if (hit.burnSec != null && hit.burnSec > 0) {
-                  const newBurnUntil = nowGameMs + hit.burnSec * 1000;
-                  const newBurnPerSec = hit.damage.mulNumber(0.3);
-                  const prev = updated.burnPerSec;
-                  const wasBurning = updated.burnUntilMs != null;
-                  updated = {
-                    ...updated,
-                    burnUntilMs: Math.max(updated.burnUntilMs ?? 0, newBurnUntil),
-                    burnPerSec: prev != null && prev.gt(newBurnPerSec) ? prev : newBurnPerSec,
-                    burnAccumulatorMs: wasBurning ? updated.burnAccumulatorMs : 0,
-                  };
-                }
-                return updated;
-              });
-
               for (const hit of augmentedHits) {
-                const enemy = enemiesById.get(hit.enemyId);
+                const enemy = entityStore.getEnemyById(hit.enemyId);
+                if (enemy != null) {
+                  enemy.hp = enemy.hp.sub(hit.damage);
+                  if (hit.freeze && hit.freezeSec != null && hit.freezeSec > 0) {
+                    const newFrozenUntil = nowGameMs + hit.freezeSec * 1000;
+                    enemy.frozenUntilMs = Math.max(enemy.frozenUntilMs ?? 0, newFrozenUntil);
+                  }
+                  if (hit.burnSec != null && hit.burnSec > 0) {
+                    const newBurnUntil = nowGameMs + hit.burnSec * 1000;
+                    const newBurnPerSec = hit.damage.mulNumber(0.3);
+                    const prev = enemy.burnPerSec;
+                    const wasBurning = enemy.burnUntilMs != null;
+                    enemy.burnUntilMs = Math.max(enemy.burnUntilMs ?? 0, newBurnUntil);
+                    enemy.burnPerSec =
+                      prev != null && prev.gt(newBurnPerSec) ? prev : newBurnPerSec;
+                    if (!wasBurning) {
+                      enemy.burnAccumulatorMs = 0;
+                    }
+                  }
+                  entityStore.markEnemyStatusChanged(enemy.id);
+                }
                 damageEventIdRef.current += 1;
                 delayedDamageEvents.push({
                   id: `de-${damageEventIdRef.current}`,
@@ -1307,18 +1308,14 @@ export function useBattleLoop({
                   });
                 }
 
-                // 敵 HP 減算 (immutable に置換) + onAttack パッチ適用
+                // 敵 HP 減算 (Phase 3-B: in-place mutation) + onAttack パッチ適用
                 if (result.hits.length > 0) {
-                  // H2-2: hit ごとの enemiesRef.current.find() (O(N)) を避けるため、
-                  // 「敵 ID → 敵」 Map を 1 度だけ構築 (O(N))。 同 hit 処理ブロック内の
-                  // 3 箇所 (onAttack 評価 / DamageEvent 位置取得 / hitPositions) で使い回す。
-                  // HP 減算後の Map 再構築は不要 (position は不変、 HP は read しない)。
-                  const enemiesById = new Map<string, SpawnedEnemy>(
-                    enemiesRef.current.map((e) => [e.id, e])
-                  );
+                  // v1.3.7 (Phase 3-B): hit ごとの lookup は entityStore.getEnemyById で O(1)。
+                  // 同 hit 処理ブロック内の 3 箇所 (onAttack 評価 / DamageEvent 位置取得 /
+                  // hitPositions) で再利用する (= position は不変なので 1 度参照を取れば OK)。
                   // 各 hit について onAttack パッチを評価し、 damage / 状態異常を補正
                   const augmentedHits = result.hits.map((hit) => {
-                    const targetEnemy = enemiesById.get(hit.enemyId);
+                    const targetEnemy = entityStore.getEnemyById(hit.enemyId);
                     if (targetEnemy == null) {
                       return {
                         ...hit,
@@ -1361,52 +1358,46 @@ export function useBattleLoop({
 
                   // v1.1.2: cannon は result.hits が空で別途 pendingCannonShells に積むため、
                   // ここでは非 cannon 武器のみ即時 HP 減算 + DamageEvent 発火する。
+                  // v1.3.7 (Phase 3-B): in-place mutation。 hit 対象敵を entityStore.getEnemyById
+                  // で O(1) lookup し、 hp / thunderStacks / 状態異常タイマーを直接書換える。
                   {
-                    const hitMap = new Map(augmentedHits.map((h) => [h.enemyId, h]));
-                    enemiesRef.current = enemiesRef.current.map((e) => {
-                      const hit = hitMap.get(e.id);
-                      if (hit == null) return e;
-                      let updated: SpawnedEnemy = { ...e, hp: e.hp.sub(hit.damage) };
-                      // Thunder スタック反映 (v1.2.0): hit.thunderStackAfter があれば
-                      // 敵オブジェクトに書き戻す。 thunderNormalAttack 内で計算済み (上限 5)。
-                      if (hit.thunderStackAfter != null) {
-                        updated = { ...updated, thunderStacks: hit.thunderStackAfter };
-                      }
-                      // 凍結付与: 既存があれば長い方を採用
-                      if (hit.freeze && hit.freezeSec != null && hit.freezeSec > 0) {
-                        const newFrozenUntil = nowGameMs + hit.freezeSec * 1000;
-                        updated = {
-                          ...updated,
-                          frozenUntilMs: Math.max(updated.frozenUntilMs ?? 0, newFrozenUntil),
-                        };
-                      }
-                      // 燃焼付与: 期限は長い方、 burnPerSec は強い方
-                      if (hit.burnSec != null && hit.burnSec > 0) {
-                        const newBurnUntil = nowGameMs + hit.burnSec * 1000;
-                        const newBurnPerSec = hit.damage.mulNumber(0.3);
-                        const prevBurnPerSec = updated.burnPerSec;
-                        const wasBurning = updated.burnUntilMs != null;
-                        updated = {
-                          ...updated,
-                          burnUntilMs: Math.max(updated.burnUntilMs ?? 0, newBurnUntil),
-                          // 新規燃焼開始時のみ accumulator を 0 リセット
-                          burnAccumulatorMs: wasBurning ? updated.burnAccumulatorMs : 0,
-                          burnPerSec:
+                    for (const hit of augmentedHits) {
+                      const enemy = entityStore.getEnemyById(hit.enemyId);
+                      if (enemy != null) {
+                        enemy.hp = enemy.hp.sub(hit.damage);
+                        // Thunder スタック反映 (v1.2.0): hit.thunderStackAfter があれば
+                        // 敵オブジェクトに書き戻す。 thunderNormalAttack 内で計算済み (上限 5)。
+                        if (hit.thunderStackAfter != null) {
+                          enemy.thunderStacks = hit.thunderStackAfter;
+                        }
+                        // 凍結付与: 既存があれば長い方を採用
+                        if (hit.freeze && hit.freezeSec != null && hit.freezeSec > 0) {
+                          const newFrozenUntil = nowGameMs + hit.freezeSec * 1000;
+                          enemy.frozenUntilMs = Math.max(enemy.frozenUntilMs ?? 0, newFrozenUntil);
+                        }
+                        // 燃焼付与: 期限は長い方、 burnPerSec は強い方
+                        if (hit.burnSec != null && hit.burnSec > 0) {
+                          const newBurnUntil = nowGameMs + hit.burnSec * 1000;
+                          const newBurnPerSec = hit.damage.mulNumber(0.3);
+                          const prevBurnPerSec = enemy.burnPerSec;
+                          const wasBurning = enemy.burnUntilMs != null;
+                          enemy.burnUntilMs = Math.max(enemy.burnUntilMs ?? 0, newBurnUntil);
+                          enemy.burnPerSec =
                             prevBurnPerSec != null && prevBurnPerSec.gt(newBurnPerSec)
                               ? prevBurnPerSec
-                              : newBurnPerSec,
-                        };
+                              : newBurnPerSec;
+                          // 新規燃焼開始時のみ accumulator を 0 リセット
+                          if (!wasBurning) {
+                            enemy.burnAccumulatorMs = 0;
+                          }
+                        }
+                        entityStore.markEnemyStatusChanged(enemy.id);
                       }
-                      return updated;
-                    });
 
-                    // DamageEvent 発火 — augmented damage を表示に使う。
-                    // Cutter は刃が物理的に各敵の角度に達した瞬間に pop すべきなので、
-                    // progressInSweep × intervalMs ぶん遅延キュー (pendingCutterPopsRef) に積む。
-                    // 他武器は即時発火 (newDamageEvents)。
-                    for (const hit of augmentedHits) {
-                      // H2-2: O(N) find() → O(1) Map.get()
-                      const enemy = enemiesById.get(hit.enemyId);
+                      // DamageEvent 発火 — augmented damage を表示に使う。
+                      // Cutter は刃が物理的に各敵の角度に達した瞬間に pop すべきなので、
+                      // progressInSweep × intervalMs ぶん遅延キュー (pendingCutterPopsRef) に積む。
+                      // 他武器は即時発火 (newDamageEvents)。
                       damageEventIdRef.current += 1;
                       const popId = `de-${damageEventIdRef.current}`;
                       const popX = enemy?.position.x ?? 50;
@@ -1453,9 +1444,9 @@ export function useBattleLoop({
                   // cannon: マシン → 着弾点に砲弾 (CannonShellFx) → duration 後に Blast (BlastFx)
                   // thunder: 着弾点の真上から落雷 (ThunderStrikeFx) → duration 後に連鎖 (ChainBoltFx)
                   // cutter:  常時表示の CutterOrbitFx に任せるため発火ごとの projectile は生成しない
-                  // H2-2: O(N) find() × hits 数 → O(1) Map.get() × hits 数
+                  // v1.3.7 (Phase 3-B): entityStore.getEnemyById で O(1) lookup
                   const hitPositions = augmentedHits
-                    .map((h) => enemiesById.get(h.enemyId))
+                    .map((h) => entityStore.getEnemyById(h.enemyId))
                     .filter((e): e is SpawnedEnemy => e != null)
                     .map((e) => ({ x: e.position.x, y: e.position.y }));
 
@@ -1529,6 +1520,9 @@ export function useBattleLoop({
             state.machineLevels.patchDropRate
           );
           const newDeathEvents: DeathEvent[] = [];
+          // v1.3.7 (Phase 3-B): survivors を新規配列に詰めて enemiesRef を差し替える方針は同じ
+          // (= 死亡 ID を 1 度の filter で落とす + entityStore.removeEnemy を逐次呼ぶ)。
+          // entityStore.enemies は removeEnemy で splice されて随時最新化される。
           const survivors: SpawnedEnemy[] = [];
           let earnedScrew = BigNum.ZERO;
           let earnedBolt = BigNum.ZERO;
@@ -1627,6 +1621,11 @@ export function useBattleLoop({
                   soundEngine.play('enemyKill');
                 }
               }
+
+              // v1.3.7 (Phase 3-B): entityStore からも除去 (= 個別 listener Set / snapshotCache /
+              // enemyById を atomic に掃除し、 enemyListVersion を +1。 EnemyLayer は次フレームの
+              // notifyFrame で「敵が消えた」 ことを listVersion 変化で検知)。
+              entityStore.removeEnemy(enemy.id);
             } else {
               survivors.push(enemy);
             }
@@ -1663,13 +1662,15 @@ export function useBattleLoop({
           // 適用し、 押し戻された敵は MELEE 外に出るため次フレーム以降は DPS が止まる。
           // 敵が enemy.speed で再接近 → 再接触したらまたノックバック + 短時間 DPS、 を繰り返す。
           // machine stats は useMemo + ref でキャッシュ済み (Issue #84)
+          // v1.3.7 (Phase 3-B): in-place mutation。 ノックバック後の position を直接書換え、
+          // 動いた敵には markEnemyMoved を呼ぶ。 既存挙動どおり「新規接触フレームのみ」 適用。
           const machineStats = machineStatsRef.current;
           let totalReceived = BigNum.ZERO;
           const newContactSet = new Set<string>();
-          enemiesRef.current = enemiesRef.current.map((enemy) => {
+          for (const enemy of enemiesRef.current) {
             const dist = distanceFromMachine(enemy.position);
             if (dist > MELEE_CONTACT_RANGE) {
-              return enemy;
+              continue;
             }
             // 接触中: DPS 加算
             const dmgPerSec = calcReceivedDamage(enemy.atk, machineStats);
@@ -1677,20 +1678,20 @@ export function useBattleLoop({
             newContactSet.add(enemy.id);
             // 継続接触はノックバックなし (毎フレーム押し戻すと不自然なため)
             if (prevContactSetRef.current.has(enemy.id)) {
-              return enemy;
+              continue;
             }
             // v1.3.1: 新規接触時、 敵 kind に応じたノックバック距離で押し戻す
             // (normal 5% / elite 6% / miniboss 7.5% / boss 10%)
             const kbDistance = KNOCKBACK_DISTANCE_PCT_BY_KIND[enemy.kind];
-            return {
-              ...enemy,
-              position: applyKnockback(
-                enemy.position,
-                { x: MACHINE_CENTER_X, y: MACHINE_CENTER_Y },
-                kbDistance
-              ),
-            };
-          });
+            const newPos = applyKnockback(
+              enemy.position,
+              { x: MACHINE_CENTER_X, y: MACHINE_CENTER_Y },
+              kbDistance
+            );
+            enemy.position.x = newPos.x;
+            enemy.position.y = newPos.y;
+            entityStore.markEnemyMoved(enemy.id);
+          }
           prevContactSetRef.current = newContactSet;
           if (!totalReceived.isZero()) {
             // onHit パッチ評価 (damageImmune で overrideReceivedDamage = 0 になる可能性)
@@ -1802,13 +1803,12 @@ export function useBattleLoop({
         }
 
         // pause / gameover 中は表示更新もスキップ (60fps 再描画で発熱するため、 deltaSec > 0 ブロック内に置く)
-        // v1.3.5 + v1.3.7 (Phase 2-C フォローアップ): events / enemies は entityStore のみに sync。
-        // waveElapsedSec のみ React state (Page で waveSecondsRemaining 計算に使用)。
-        // notifyFrame() で BattleField の 3 layer + AppearanceBannerLayer に 1 回通知。
-        // 復帰時 (suspendRendering=false 切替) に useEffect で 1 回 sync する。
+        // v1.3.5 + v1.3.7 (Phase 2-C → 3-B): events は entityStore に sync、 enemies は tick 中の
+        // addEnemy / removeEnemy / mark* で随時 sync 済み (= setEnemies 廃止)。 notifyFrame() が
+        // 「全体 listener (フレーム更新)」 + 「pending Set にたまった敵単位 mark の listener」
+        // をまとめて呼ぶ。 復帰時 (suspendRendering=false 切替) は useEffect で 1 回 sync する。
         if (!suspendRenderingRef.current) {
           setWaveElapsedSec(waveElapsedMsRef.current / 1000);
-          entityStore.setEnemies(enemiesRef.current);
           entityStore.setWaveElapsedSec(waveElapsedMsRef.current / 1000);
           entityStore.setDamageEvents(damageEventsRef.current);
           entityStore.setDeathEvents(deathEventsRef.current);
