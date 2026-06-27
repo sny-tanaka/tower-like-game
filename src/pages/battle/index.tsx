@@ -97,7 +97,8 @@ export function Page() {
   const runStartBolt = useStore((s) => s.runStartBolt);
   const runStartAlloy = useStore((s) => s.runStartAlloy);
   const machineHp = useStore((s) => s.machineHp);
-  const machineMaxHp = useStore((s) => s.machineMaxHp);
+  // v1.3.7 Phase 4-A: machineMaxHp は BattleHudTop 内部に移譲したため Page では購読不要。
+  // (Page 自身では使っていないので、 selector ごと削除して Page の re-render を減らす)
   const currentTier = useStore((s) => s.currentTier);
   const currentWave = useStore((s) => s.currentWave);
   const currentWeapon = useStore((s) => s.currentWeapon);
@@ -308,13 +309,12 @@ export function Page() {
     };
   }, [currentWeapon, weaponSwitchCdSec]);
 
-  // BattleHudTop は BigNum を受け取る — machineMaxHp が 0 (ラン外) のときは 1 にクランプ
-  // (H2-4: BigNum 演算結果を useMemo してパス先 BattleHudTop の memo を活かす)
-  const hpCurrentBn = machineHp;
-  const hpMaxBn = useMemo(
-    () => (machineMaxHp.isZero() ? BigNum.fromNumber(1) : machineMaxHp),
-    [machineMaxHp]
-  );
+  // v1.3.7 Phase 4-A: hpCurrentBn / hpMaxBn の useMemo は BattleHudTop 内部に移譲した
+  // (BattleHudTop が useStore で直接 machineHp / machineMaxHp を購読 → memo + 0 クランプ
+  // も内部で実施)。 Page は hp 値を BattleHudTop に渡さなくなったのでここの useMemo を削除。
+  // machineHp は引き続き「被ダメ検知 useEffect」 と「resolveResultStatus」 で使うので
+  // Page 上の useStore subscribe は残す。 machineMaxHp は Page 側で使わなくなったが、
+  // 他 effect への波及確認のため selector 自体は残置 (lint pass 用に下流で使う可能性に備える)。
 
   // ── ラン終了共通ヘルパー ──
   // gameover / 撤退どちらのフローでも endRun / profile 系を 1 度だけ呼ぶ。
@@ -497,15 +497,11 @@ export function Page() {
             variant="battle"
             header={
               <BattleHudTop
-                hpCurrent={hpCurrentBn}
-                hpMax={hpMaxBn}
-                tier={currentTier}
-                wave={currentWave}
                 totalWaves={TOTAL_WAVES}
                 secondsRemaining={waveSecondsRemaining}
                 secondsTotal={WAVE_DURATION_SEC}
                 isBossWave={currentWave === TOTAL_WAVES}
-                paused={isPaused || isResultOpen}
+                isResultOpen={isResultOpen}
               />
             }
             footer={
