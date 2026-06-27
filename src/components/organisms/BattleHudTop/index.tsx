@@ -125,7 +125,7 @@ function BattleHudTopImpl({
         >
           <NumericDisplay
             value={machineHp}
-            size="hp"
+            size="smPlus"
             accentColor="text"
           />
           <span className={styles.hpDivider}>/</span>

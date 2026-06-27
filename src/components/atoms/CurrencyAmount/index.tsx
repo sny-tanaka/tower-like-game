@@ -65,10 +65,14 @@ const CURRENCY_CONFIG = {
 // アイコン: Icon Atom に委譲（claude design 製 SVG を参照）
 // ---------------------------------------------------------------------------
 
+// NOTE: xs / smPlus は現状 production の CurrencyAmount 利用箇所では未使用だが、
+// NumericDisplaySize 階段 (xs / sm / smPlus / md / lg / xl) と 1:1 で揃えておく
+// (将来 sm より少し大きい強調表示 — ボス HP やスコア相当の文脈で通貨アイコンを並べる
+// ケースに採用する時の備え)。
 const ICON_SIZE_MAP: Record<NumericDisplaySize, number> = {
-  xs: 10,
+  xs: 10, // 将来採用時の備え (xs 数値と並ぶ補助通貨表示など)
   sm: 12,
-  hp: 14,
+  smPlus: 14, // 将来採用時の備え (sm と md の中間強調と並ぶ通貨表示など)
   md: 16,
   lg: 22,
   xl: 28,
@@ -129,13 +133,15 @@ function CurrencyAmountImpl({
             ? STYLE_COLOR_BOLT
             : STYLE_COLOR_ALLOY;
 
+  // NOTE: xs / smPlus は現状 production の CurrencyAmount 利用箇所では未使用だが、
+  // NumericDisplaySize 階段と 1:1 で揃えておく (将来採用時の備え)。
   const deltaSizeClass = {
-    xs: styles.deltaSm, // xs は sm 相当 (delta は 11px と 12px の差を吸収)
+    xs: styles.deltaSm, // 将来採用時の備え。 xs は sm 相当 (delta は 11px と 12px の差を吸収)
     sm: styles.deltaSm,
-    hp: styles.deltaMd, // hp (14px) は md (16px) 相当に寄せる
+    smPlus: styles.deltaMd, // 将来採用時の備え。 smPlus (14px) は md (16px) 相当に寄せる
     md: styles.deltaMd,
     lg: styles.deltaLg,
-    xl: styles.deltaLg, // xl はlg相当
+    xl: styles.deltaLg, // xl は lg 相当
   }[size];
 
   const iconEl = (

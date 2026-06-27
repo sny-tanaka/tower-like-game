@@ -11,17 +11,21 @@ import { BigNum } from '@/lib/bignum/BigNum';
 
 /**
  * NumericDisplay の size token。
- *  - xs (11px) HUD 補助数値 (max 値, shield 値)
- *  - sm (13px) inline numerics
- *  - hp (14px) HUD HP current 値 (sm よりやや大きく強調)
- *  - md (18px) card values (デフォルト)
- *  - lg (28px) HUD HP, large counters
- *  - xl (36px) hero counters (Showcase 等)
+ *  - xs     (11px) HUD 補助数値 (max 値, shield 値)
+ *  - sm     (13px) inline numerics
+ *  - smPlus (14px) sm より少し大きい中間強調 (HUD HP current 値, スコア強調 など)
+ *  - md     (18px) card values (デフォルト)
+ *  - lg     (28px) HUD HP, large counters
+ *  - xl     (36px) hero counters (Showcase 等)
  *
  * v1.3.7 フォローアップ: 上書き class (font-size 直書き) を廃止するため
- * `xs` / `hp` を追加。 既存 sm/md/lg/xl の値は据え置き。
+ * `xs` / `smPlus` を追加。 既存 sm/md/lg/xl の値は据え置き。
+ *
+ * NOTE: `smPlus` はかつて用途特化的に `hp` という名前だったが、 階段命名
+ * (xs / sm / smPlus / md / lg / xl) の整合性を取るため中立命名に rename した。
+ * shield HUD やボス HP バー、 ResultDialog のスコアなどでも再利用可能。
  */
-export type NumericDisplaySize = 'xs' | 'sm' | 'hp' | 'md' | 'lg' | 'xl';
+export type NumericDisplaySize = 'xs' | 'sm' | 'smPlus' | 'md' | 'lg' | 'xl';
 export type NumericDisplayAccentColor =
   | 'scale'
   | 'text'
@@ -183,7 +187,7 @@ function NumericDisplayImpl({
   const sizeClass = {
     xs: styles.sizeXs,
     sm: styles.sizeSm,
-    hp: styles.sizeHp,
+    smPlus: styles.sizeSmPlus,
     md: styles.sizeMd,
     lg: styles.sizeLg,
     xl: styles.sizeXl,

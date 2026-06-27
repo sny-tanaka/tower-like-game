@@ -127,7 +127,7 @@ describe('NumericDisplay', () => {
     expect(el.className).toContain('sizeLg');
   });
 
-  // v1.3.7 フォローアップ: size 体系拡張 (xs / hp / xl)
+  // v1.3.7 フォローアップ: size 体系拡張 (xs / smPlus / xl)
   it('size=xs のとき sizeXs クラスが付く (HUD 補助数値)', () => {
     const { container } = render(
       <NumericDisplay
@@ -139,15 +139,15 @@ describe('NumericDisplay', () => {
     expect(el.className).toContain('sizeXs');
   });
 
-  it('size=hp のとき sizeHp クラスが付く (HUD HP current 値)', () => {
+  it('size=smPlus のとき sizeSmPlus クラスが付く (sm より少し大きい中間強調)', () => {
     const { container } = render(
       <NumericDisplay
         value={1}
-        size="hp"
+        size="smPlus"
       />
     );
     const el = container.querySelector('span')!;
-    expect(el.className).toContain('sizeHp');
+    expect(el.className).toContain('sizeSmPlus');
   });
 
   it('size=md のとき sizeMd クラスが付く', () => {
