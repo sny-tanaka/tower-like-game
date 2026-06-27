@@ -66,7 +66,7 @@ export function TitleActions({
           variant="caption"
           color="dim"
           align="center"
-          style={{ fontSize: 10.5, marginTop: -2 }}
+          className={styles.lastSaved}
         >
           {'最終セーブ: ' + lastSavedAt}
         </Text>

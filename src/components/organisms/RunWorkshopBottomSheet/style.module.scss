@@ -42,6 +42,16 @@
   min-width: 0;
 }
 
+/* タイトル / サブタイトルの静的 font-size */
+.headerTitle {
+  font-size: 14px;
+  line-height: 1.2;
+}
+
+.headerSubtitle {
+  font-size: 10.5px;
+}
+
 /* 2×2 グリッド */
 .grid {
   display: grid;

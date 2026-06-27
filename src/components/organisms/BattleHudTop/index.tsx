@@ -115,7 +115,7 @@ function BattleHudTopImpl({
         <Text
           variant="label"
           color="dim"
-          style={{ fontSize: 10 }}
+          className={styles.hpLabel}
         >
           HP
         </Text>
@@ -127,14 +127,14 @@ function BattleHudTopImpl({
             value={machineHp}
             size="sm"
             accentColor="text"
-            style={{ fontSize: 14 }}
+            className={styles.hpCurrentValue}
           />
           <span className={styles.hpDivider}>/</span>
           <NumericDisplay
             value={hpMaxBn}
             size="sm"
             accentColor="dim"
-            style={{ fontSize: 11 }}
+            className={styles.hpMaxValue}
           />
         </span>
         {hasShield && (
@@ -142,7 +142,7 @@ function BattleHudTopImpl({
             <Text
               variant="label"
               color="primary"
-              style={{ fontSize: 9.5 }}
+              className={styles.shieldLabel}
             >
               SHLD
             </Text>
@@ -150,7 +150,7 @@ function BattleHudTopImpl({
               value={shieldCurrent}
               size="sm"
               accentColor="primary"
-              style={{ fontSize: 11 }}
+              className={styles.shieldValue}
             />
           </span>
         )}

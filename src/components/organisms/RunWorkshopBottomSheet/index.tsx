@@ -95,14 +95,14 @@ function RunWorkshopBottomSheetImpl({
           <div className={styles.headerText}>
             <Text
               variant="heading-3"
-              style={{ fontSize: 14, lineHeight: 1.2 }}
+              className={styles.headerTitle}
             >
               ラン中ワークショップ
             </Text>
             <Text
               variant="caption"
               color="dim"
-              style={{ fontSize: 10.5 }}
+              className={styles.headerSubtitle}
             >
               ラン終了で全リセット
             </Text>

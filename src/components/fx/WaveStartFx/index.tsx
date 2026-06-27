@@ -36,14 +36,14 @@ export function WaveStartFx({ waveNumber, duration = 1100, onDone }: WaveStartFx
         <Text
           variant="label"
           color="primary"
-          style={{ fontSize: 11 }}
+          className={styles.label}
         >
           WAVE
         </Text>
         <Text
           variant="numeric-l"
           color="primary"
-          style={{ fontSize: 24, fontWeight: 700 }}
+          className={styles.number}
         >
           {String(waveNumber)}
         </Text>
