@@ -122,6 +122,56 @@ describe('BattleEntityStore — mutation API', () => {
   });
 });
 
+describe('BattleEntityStore — queueRemoval / consumePendingRemovals (Phase 2-A)', () => {
+  it('queueRemoval で削除キューに ID を積める', () => {
+    const store = new BattleEntityStore();
+    expect(store.getPendingRemovalCount('damage')).toBe(0);
+    store.queueRemoval('damage', 'de-1');
+    store.queueRemoval('damage', 'de-2');
+    expect(store.getPendingRemovalCount('damage')).toBe(2);
+  });
+
+  it('queueRemoval は notify を起こさない', () => {
+    const store = new BattleEntityStore();
+    const listener = vi.fn();
+    store.subscribe(listener);
+    store.queueRemoval('damage', 'de-1');
+    expect(listener).not.toHaveBeenCalled();
+  });
+
+  it('consumePendingRemovals で取り出すと内部キューがクリアされる (atomic)', () => {
+    const store = new BattleEntityStore();
+    store.queueRemoval('death', 'dh-1');
+    store.queueRemoval('death', 'dh-2');
+    const consumed = store.consumePendingRemovals('death');
+    expect(consumed.size).toBe(2);
+    expect(consumed.has('dh-1')).toBe(true);
+    expect(consumed.has('dh-2')).toBe(true);
+    expect(store.getPendingRemovalCount('death')).toBe(0);
+  });
+
+  it('種別ごとに独立 (damage と death は混ざらない)', () => {
+    const store = new BattleEntityStore();
+    store.queueRemoval('damage', 'de-1');
+    store.queueRemoval('death', 'dh-1');
+    store.queueRemoval('projectile', 'pj-1');
+    store.queueRemoval('appearance', 'ap-1');
+    expect(store.consumePendingRemovals('damage').size).toBe(1);
+    expect(store.consumePendingRemovals('death').size).toBe(1);
+    expect(store.consumePendingRemovals('projectile').size).toBe(1);
+    expect(store.consumePendingRemovals('appearance').size).toBe(1);
+  });
+
+  it('reset() で削除キューも掃除される', () => {
+    const store = new BattleEntityStore();
+    store.queueRemoval('damage', 'de-1');
+    store.queueRemoval('projectile', 'pj-1');
+    store.reset();
+    expect(store.getPendingRemovalCount('damage')).toBe(0);
+    expect(store.getPendingRemovalCount('projectile')).toBe(0);
+  });
+});
+
 describe('BattleEntityStore — reset', () => {
   it('reset で全状態がクリアされる', () => {
     const store = new BattleEntityStore();

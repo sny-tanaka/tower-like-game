@@ -42,6 +42,14 @@ export interface AppearanceEvent {
 
 type Listener = () => void;
 
+/**
+ * 削除キューの種別。 useBattleLoop の Fx 完了通知 (onXDone) で「次フレームに events から
+ * 取り除く」 ID を積むときに使う。
+ *
+ * v1.3.7 (Phase 2-A): hook 内の pendingXRemovalsRef × 4 を BattleEntityStore に移管。
+ */
+export type EventKind = 'damage' | 'death' | 'projectile' | 'appearance';
+
 export class BattleEntityStore {
   // ---- 内部状態 (Phase 1 は immutable のまま、 配列丸ごと差し替え) ----
   private enemies: readonly SpawnedEnemy[] = [];
@@ -54,6 +62,18 @@ export class BattleEntityStore {
   /** notifyFrame() で +1 されるフレームバージョン。 getSnapshot() の戻り値 */
   private frameVersion: number = 0;
   private listeners: Set<Listener> = new Set();
+
+  /**
+   * v1.3.7 (Phase 2-A): Fx 完了通知 (onXDone) からの削除キュー。 種別ごとに Set で持ち、
+   * tick 冒頭で consumePendingRemovals() で取り出す。 notify は起こさない (= 再 render
+   * しない、 hook 側で events 配列を更新 → tick 末尾の 1 度の notifyFrame で反映)。
+   */
+  private pendingRemovals: Record<EventKind, Set<string>> = {
+    damage: new Set(),
+    death: new Set(),
+    projectile: new Set(),
+    appearance: new Set(),
+  };
 
   // -------------------------------------------------------------------------
   // subscribe / getSnapshot (React.useSyncExternalStore 規約)
@@ -148,6 +168,34 @@ export class BattleEntityStore {
   }
 
   // -------------------------------------------------------------------------
+  // 削除キュー API (Phase 2-A): Fx 完了通知から呼び、 tick 冒頭で hook が flush する
+  // -------------------------------------------------------------------------
+
+  /**
+   * Fx 完了 ID を削除キューに積む。 notify は起こさない (= 単発の React 再 render を発生
+   * させない)。 tick 冒頭で consumePendingRemovals() で取り出し、 hook 側で events 配列を
+   * filter → tick 末尾の 1 度の notifyFrame で反映する。
+   */
+  queueRemoval(kind: EventKind, id: string): void {
+    this.pendingRemovals[kind].add(id);
+  }
+
+  /**
+   * 指定種別の削除キューを取り出して内部 Set をクリアする (atomic)。
+   * 戻り値の Set は呼び出し側で読み取り専用に扱う。
+   */
+  consumePendingRemovals(kind: EventKind): Set<string> {
+    const consumed = this.pendingRemovals[kind];
+    this.pendingRemovals[kind] = new Set();
+    return consumed;
+  }
+
+  /** 現在の削除キューサイズ (テスト / debug 用) */
+  getPendingRemovalCount(kind: EventKind): number {
+    return this.pendingRemovals[kind].size;
+  }
+
+  // -------------------------------------------------------------------------
   // テスト用ヘルパー
   // -------------------------------------------------------------------------
 
@@ -164,6 +212,14 @@ export class BattleEntityStore {
     this.projectileEvents = [];
     this.appearanceEvents = [];
     this.waveElapsedSec = 0;
+    // v1.3.7 (Phase 2-A): 削除キューも掃除 (前ランの Fx onDone が遅れて queue したものを
+    // 次ランに持ち越さない)
+    this.pendingRemovals = {
+      damage: new Set(),
+      death: new Set(),
+      projectile: new Set(),
+      appearance: new Set(),
+    };
     // frameVersion はあえてリセットしない (購読側の Object.is で「変化なし」 と
     // 誤判定されないよう単調増加を保つ)。
     this.notifyFrame();

@@ -473,17 +473,10 @@ export function useBattleLoop({
     }>
   >([]);
 
-  /**
-   * Fx 完了通知のバッファ (H2-3)。 onDamageDone / onDeathDone / onProjectileDone /
-   * onAppearanceDone は Fx 演出完了時に複数同時に呼ばれることがあり、 各々で setState
-   * (filter で配列再生成) を呼ぶと BattleField 全体が連鎖 re-render する。
-   * 完了 ID をここに溜めて、 tick 冒頭で 1 回だけ filter + setState する。
-   * (Fx unmount は 1 tick = ~16ms 遅れるが視覚への影響なし)
-   */
-  const pendingDamageRemovalsRef = useRef<Set<string>>(new Set());
-  const pendingDeathRemovalsRef = useRef<Set<string>>(new Set());
-  const pendingProjectileRemovalsRef = useRef<Set<string>>(new Set());
-  const pendingAppearanceRemovalsRef = useRef<Set<string>>(new Set());
+  // v1.3.7 (Phase 2-A): Fx 完了通知のバッファ (H2-3) を BattleEntityStore に移管。
+  // hook 内の pendingXRemovalsRef × 4 は廃止し、 onXDone は entityStore.queueRemoval(kind, id)
+  // を呼ぶだけになる。 tick 冒頭で entityStore.consumePendingRemovals(kind) で取り出して
+  // events ref を filter → tick 末尾で 1 度の setX + notifyFrame で反映する流れ。
 
   const [enemies, setEnemies] = useState<SpawnedEnemy[]>([]);
   const [damageEvents, setDamageEvents] = useState<DamageEvent[]>([]);
@@ -492,6 +485,16 @@ export function useBattleLoop({
   const [appearanceEvents, setAppearanceEvents] = useState<AppearanceEvent[]>([]);
   const [waveElapsedSec, setWaveElapsedSec] = useState<number>(0);
   const [isOverdriveActive, setIsOverdriveActive] = useState<boolean>(false);
+
+  // v1.3.7 (Phase 2-A): events の「正」 ソースを useState から ref に移管。 tick 内の
+  // 多重 setDamageEvents(prev => [...]) → ref.current = [...ref.current, ...] に集約し、
+  // React state は tick 末尾で 1 度だけ同期。 setState 呼出回数を 60fps × ヒット数 → 1/frame
+  // に削減。 entityStore にも同じ参照を渡すため、 Phase 2-C で React state を廃止しても
+  // BattleField が同じデータを読める。
+  const damageEventsRef = useRef<DamageEvent[]>([]);
+  const deathEventsRef = useRef<DeathEvent[]>([]);
+  const projectileEventsRef = useRef<ProjectileEvent[]>([]);
+  const appearanceEventsRef = useRef<AppearanceEvent[]>([]);
 
   // v1.3.7 (Phase 1): BattleEntityStore を hook ローカルで生成。 StrictMode の double-invoke を
   // 避けるため useRef で 1 度だけインスタンス化。 Phase 2 で BattleField が直接購読するための
@@ -512,23 +515,35 @@ export function useBattleLoop({
   // 古い位置で再開) しまう。
   useEffect(() => {
     if (suspendRendering) {
+      // v1.3.7 (Phase 2-A): events ref + entityStore の両方をクリア (= 残 Fx 全消し)。
+      // 削除キューも空に (前フレームの onDone を持ち越さない)。
+      damageEventsRef.current = [];
+      deathEventsRef.current = [];
+      projectileEventsRef.current = [];
+      appearanceEventsRef.current = [];
       setDamageEvents([]);
       setDeathEvents([]);
       setProjectileEvents([]);
       setAppearanceEvents([]);
-      pendingDamageRemovalsRef.current = new Set();
-      pendingDeathRemovalsRef.current = new Set();
-      pendingProjectileRemovalsRef.current = new Set();
-      pendingAppearanceRemovalsRef.current = new Set();
+      entityStore.setDamageEvents([]);
+      entityStore.setDeathEvents([]);
+      entityStore.setProjectileEvents([]);
+      entityStore.setAppearanceEvents([]);
+      entityStore.consumePendingRemovals('damage');
+      entityStore.consumePendingRemovals('death');
+      entityStore.consumePendingRemovals('projectile');
+      entityStore.consumePendingRemovals('appearance');
     } else {
       setEnemies(enemiesRef.current);
       setWaveElapsedSec(waveElapsedMsRef.current / 1000);
-      // TODO (v1.3.7 Phase 2): BattleField が entityStore を直接購読するようになったら、
-      // ここで entityStore.setEnemies(enemiesRef.current) + setWaveElapsedSec(...)
-      // + notifyFrame() を呼んでスクリーンセーバー解除時に最新値を sync する。
-      // Phase 1 では listener=0 のため省略 (次フレームの tick 末尾で同期される)。
+      // v1.3.7 (Phase 2-A): スクリーンセーバー解除時に entityStore も sync。 events は空のまま
+      // で OK (= 残 Fx 復活させない)。 ここで notifyFrame() を呼ぶことで Phase 2-B 以降の
+      // listener (BattleField 3 layer) に「最新の enemies/waveElapsedSec」 を 1 回反映。
+      entityStore.setEnemies(enemiesRef.current);
+      entityStore.setWaveElapsedSec(waveElapsedMsRef.current / 1000);
+      entityStore.notifyFrame();
     }
-  }, [suspendRendering]);
+  }, [suspendRendering, entityStore]);
 
   // ---- ラン統計 3 state ----
   const [killCount, setKillCount] = useState<number>(0);
@@ -645,38 +660,50 @@ export function useBattleLoop({
       // 着弾遅延砲弾 / Cutter pop キューは前ラン途中の未着弾分が残るとロジック不整合の元
       pendingCannonShellsRef.current = [];
       pendingCutterPopsRef.current = [];
-      // Fx 完了通知バッファも念のため空に (前ラン終了で flush 済みのはずだが二重防御)
-      pendingDamageRemovalsRef.current = new Set();
-      pendingDeathRemovalsRef.current = new Set();
-      pendingProjectileRemovalsRef.current = new Set();
-      pendingAppearanceRemovalsRef.current = new Set();
+      // v1.3.7 (Phase 2-A): events ref を空に + entityStore も reset() で全クリア
+      // (前ランの古いエンティティ / events / 削除キュー を完全に掃除)
+      damageEventsRef.current = [];
+      deathEventsRef.current = [];
+      projectileEventsRef.current = [];
+      appearanceEventsRef.current = [];
+      entityStore.reset();
       // 浮動小数 accumulator も初期化して低 fps 時の累積誤差をリセット
       fireAccumulatorMsRef.current = 0;
       cutterAngleDegRef.current = 0;
-      // TODO (v1.3.7 Phase 2): BattleField が entityStore 直接購読時、 ここで
-      // entityStore.reset() を呼び、 前ランの古いエンティティ / events を一括掃除する。
-      // Phase 1 では listener=0 のため省略。
     }
-  }, [isRunActive]);
+  }, [isRunActive, entityStore]);
 
-  // H2-3: Fx 完了通知は ref Set にバッファするだけ (setState を起こさない)。
+  // H2-3 + v1.3.7 (Phase 2-A): Fx 完了通知は entityStore.queueRemoval(kind, id) でバッファするだけ。
+  // setState や notify は起こさない (= 単発の React 再 render を発生させない)。
   // 実際の配列フィルタ + setState は tick 冒頭で 1 回だけ flush する。
   // 同フレーム内に大量の Fx (DamagePopFx 等) が完了しても setState 連鎖が消える。
-  const onDamageDone = useCallback((id: string) => {
-    pendingDamageRemovalsRef.current.add(id);
-  }, []);
+  const onDamageDone = useCallback(
+    (id: string) => {
+      entityStore.queueRemoval('damage', id);
+    },
+    [entityStore]
+  );
 
-  const onDeathDone = useCallback((id: string) => {
-    pendingDeathRemovalsRef.current.add(id);
-  }, []);
+  const onDeathDone = useCallback(
+    (id: string) => {
+      entityStore.queueRemoval('death', id);
+    },
+    [entityStore]
+  );
 
-  const onProjectileDone = useCallback((id: string) => {
-    pendingProjectileRemovalsRef.current.add(id);
-  }, []);
+  const onProjectileDone = useCallback(
+    (id: string) => {
+      entityStore.queueRemoval('projectile', id);
+    },
+    [entityStore]
+  );
 
-  const onAppearanceDone = useCallback((id: string) => {
-    pendingAppearanceRemovalsRef.current.add(id);
-  }, []);
+  const onAppearanceDone = useCallback(
+    (id: string) => {
+      entityStore.queueRemoval('appearance', id);
+    },
+    [entityStore]
+  );
 
   // ---------------------------------------------------------------------------
   // アクティブスキル発動 (manual / auto 共通)
@@ -845,16 +872,18 @@ export function useBattleLoop({
       }
     }
 
-    // v1.3.2: スクリーンセーバー中は描画 events を蓄積しない (suspendRenderingRef=true で skip)
+    // v1.3.2 + v1.3.7 (Phase 2-A): スクリーンセーバー中は描画 events を蓄積しない。
+    // ref への push のみ (setState / entityStore.setX は tick 末尾で 1 度だけ)。
     if (!suspendRenderingRef.current) {
       if (newDamageEvents.length > 0) {
-        setDamageEvents((prev) => [...prev, ...newDamageEvents]);
+        damageEventsRef.current = [...damageEventsRef.current, ...newDamageEvents];
       }
       if (newProjectileEvents.length > 0) {
-        setProjectileEvents((prev) => [...prev, ...newProjectileEvents]);
+        projectileEventsRef.current = [...projectileEventsRef.current, ...newProjectileEvents];
       }
     }
     return true;
+    // entityStore は useRef 由来で参照不変のため deps 不要 (React 19 lint も同様の判定)。
   }, []);
 
   useEffect(() => {
@@ -872,28 +901,37 @@ export function useBattleLoop({
       }
       lastFrameMsRef.current = nowMs;
 
-      // H2-3: Fx 完了通知をバッチフラッシュ。 同フレーム内に複数 Fx (DamagePopFx 等)
-      // が完了しても setState 呼び出しを 1 回にまとめ、 BattleField の連鎖 re-render を回避。
+      // H2-3 + v1.3.7 (Phase 2-A): Fx 完了通知をバッチフラッシュ。 entityStore から削除キューを
+      // 取り出して events ref を filter。 setState / entityStore.setX は tick 末尾で 1 度だけ呼び、
+      // 同フレーム内の複数 Fx (DamagePopFx 等) 完了による setState 連鎖を回避。
       // pause/gameover 中もペンディングがあれば flush (= 残った Fx を確実にクリーンアップ)。
-      if (pendingDamageRemovalsRef.current.size > 0) {
-        const removed = pendingDamageRemovalsRef.current;
-        pendingDamageRemovalsRef.current = new Set();
-        setDamageEvents((prev) => prev.filter((e) => !removed.has(e.id)));
+      {
+        const removed = entityStore.consumePendingRemovals('damage');
+        if (removed.size > 0) {
+          damageEventsRef.current = damageEventsRef.current.filter((e) => !removed.has(e.id));
+        }
       }
-      if (pendingDeathRemovalsRef.current.size > 0) {
-        const removed = pendingDeathRemovalsRef.current;
-        pendingDeathRemovalsRef.current = new Set();
-        setDeathEvents((prev) => prev.filter((e) => !removed.has(e.id)));
+      {
+        const removed = entityStore.consumePendingRemovals('death');
+        if (removed.size > 0) {
+          deathEventsRef.current = deathEventsRef.current.filter((e) => !removed.has(e.id));
+        }
       }
-      if (pendingProjectileRemovalsRef.current.size > 0) {
-        const removed = pendingProjectileRemovalsRef.current;
-        pendingProjectileRemovalsRef.current = new Set();
-        setProjectileEvents((prev) => prev.filter((e) => !removed.has(e.id)));
+      {
+        const removed = entityStore.consumePendingRemovals('projectile');
+        if (removed.size > 0) {
+          projectileEventsRef.current = projectileEventsRef.current.filter(
+            (e) => !removed.has(e.id)
+          );
+        }
       }
-      if (pendingAppearanceRemovalsRef.current.size > 0) {
-        const removed = pendingAppearanceRemovalsRef.current;
-        pendingAppearanceRemovalsRef.current = new Set();
-        setAppearanceEvents((prev) => prev.filter((e) => !removed.has(e.id)));
+      {
+        const removed = entityStore.consumePendingRemovals('appearance');
+        if (removed.size > 0) {
+          appearanceEventsRef.current = appearanceEventsRef.current.filter(
+            (e) => !removed.has(e.id)
+          );
+        }
       }
 
       const state = useStore.getState();
@@ -1011,9 +1049,10 @@ export function useBattleLoop({
                   name: label,
                 };
               });
-              // v1.3.2: スクリーンセーバー中は描画 events を蓄積しない
+              // v1.3.2 + v1.3.7 (Phase 2-A): スクリーンセーバー中は描画 events を蓄積しない。
+              // ref への push のみ (setState は tick 末尾でまとめる)。
               if (!suspendRenderingRef.current) {
-                setAppearanceEvents((prev) => [...prev, ...newAppearances]);
+                appearanceEventsRef.current = [...appearanceEventsRef.current, ...newAppearances];
               }
             }
           }
@@ -1489,14 +1528,18 @@ export function useBattleLoop({
 
           // newDamageEvents (今フレーム発射の即時 hit) と delayedDamageEvents
           // (砲弾着弾の hit) をまとめて反映
-          // v1.3.2: スクリーンセーバー中は描画 events を蓄積しない
+          // v1.3.2 + v1.3.7 (Phase 2-A): スクリーンセーバー中は描画 events を蓄積しない。
+          // ref への push のみ (setState / entityStore.setX は tick 末尾で 1 度だけ)。
           if (!suspendRenderingRef.current) {
             const allDamageEvents = [...newDamageEvents, ...delayedDamageEvents];
             if (allDamageEvents.length > 0) {
-              setDamageEvents((prev) => [...prev, ...allDamageEvents]);
+              damageEventsRef.current = [...damageEventsRef.current, ...allDamageEvents];
             }
             if (newProjectileEvents.length > 0) {
-              setProjectileEvents((prev) => [...prev, ...newProjectileEvents]);
+              projectileEventsRef.current = [
+                ...projectileEventsRef.current,
+                ...newProjectileEvents,
+              ];
             }
           }
 
@@ -1633,9 +1676,10 @@ export function useBattleLoop({
           }
           if (newDeathEvents.length > 0) {
             enemiesRef.current = survivors;
-            // v1.3.2: スクリーンセーバー中は描画 events を蓄積しない (ロジック側 enemiesRef 更新は実施)
+            // v1.3.2 + v1.3.7 (Phase 2-A): スクリーンセーバー中は描画 events を蓄積しない
+            // (ロジック側 enemiesRef 更新は実施)。 ref への push のみ (setState は tick 末尾でまとめる)。
             if (!suspendRenderingRef.current) {
-              setDeathEvents((prev) => [...prev, ...newDeathEvents]);
+              deathEventsRef.current = [...deathEventsRef.current, ...newDeathEvents];
             }
           }
           if (!earnedScrew.isZero()) {
@@ -1793,21 +1837,24 @@ export function useBattleLoop({
         }
 
         // pause / gameover 中は表示更新もスキップ (60fps 再描画で発熱するため、 deltaSec > 0 ブロック内に置く)
-        // v1.3.5: スクリーンセーバー中も親 BattleScreen の毎フレーム re-render を止める
+        // v1.3.5 + v1.3.7 (Phase 2-A): React state と entityStore を tick 末尾で 1 度だけ同期。
+        // events は ref に積まれているので、 ref.current を渡すだけ (参照が変わっていれば re-render)。
+        // setState 呼出回数を 60fps × N → 6 / frame (= enemies / 4 events / waveElapsedSec) に削減。
         // (BattleField は unmount 済みでも HUD / BattleScreen が enemies prop で再 render されるため)。
         // 復帰時 (suspendRendering=false 切替) に useEffect で 1 回 sync する。
         if (!suspendRenderingRef.current) {
           setEnemies(enemiesRef.current);
           setWaveElapsedSec(waveElapsedMsRef.current / 1000);
-        }
-
-        // v1.3.7 (Phase 1): BattleEntityStore に最新の enemies / waveElapsedSec を同期 +
-        // notifyFrame()。 Phase 1 では BattleField はまだ React state 経由なので listener=0
-        // で実質 no-op だが、 Phase 2 で BattleField が直接購読するための土台。
-        // events の同期は Phase 2 で BattleField 切替と同時に対応。
-        if (!suspendRenderingRef.current) {
+          setDamageEvents(damageEventsRef.current);
+          setDeathEvents(deathEventsRef.current);
+          setProjectileEvents(projectileEventsRef.current);
+          setAppearanceEvents(appearanceEventsRef.current);
           entityStore.setEnemies(enemiesRef.current);
           entityStore.setWaveElapsedSec(waveElapsedMsRef.current / 1000);
+          entityStore.setDamageEvents(damageEventsRef.current);
+          entityStore.setDeathEvents(deathEventsRef.current);
+          entityStore.setProjectileEvents(projectileEventsRef.current);
+          entityStore.setAppearanceEvents(appearanceEventsRef.current);
           entityStore.notifyFrame();
         }
       }
