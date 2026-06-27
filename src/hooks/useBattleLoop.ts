@@ -535,8 +535,12 @@ export function useBattleLoop({
 
   // v1.3.6: 装着パッチを毎フレーム Array.from() で配列化していたのを、 Map 参照が変化したときだけ
   // rebuild する ref キャッシュに切替。 tick からは equippedPatchesArrRef.current を読む。
+  // 初期値は useStore.getState() で同期取得 (= 初回 mount 直後 1 フレーム空配列で tick が走る
+  // race を防ぐ)。
   const equippedPatchesMap = useStore((s) => s.equippedPatches);
-  const equippedPatchesArrRef = useRef<EquippedPatch[]>([]);
+  const equippedPatchesArrRef = useRef<EquippedPatch[]>(
+    Array.from(useStore.getState().equippedPatches.values())
+  );
   useEffect(() => {
     equippedPatchesArrRef.current = Array.from(equippedPatchesMap.values());
   }, [equippedPatchesMap]);

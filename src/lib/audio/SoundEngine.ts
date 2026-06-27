@@ -27,6 +27,13 @@ export class SoundEngine {
   private muted = false;
   private currentBgm: { id: BgmId; track: BgmTrack } | null = null;
   private visibilityHandler: (() => void) | null = null;
+  /**
+   * v1.3.6: suspendAudio() で suspend 中、 play()/playBgm() からの auto-resume を抑止する。
+   * 既存実装は state==='suspended' を検出すると無条件で resume するため、 スクリーンセーバー
+   * 中に bossPhase useEffect 等から playBgm が呼ばれると AudioContext が再開して BGM が
+   * 鳴り続ける問題を防ぐ。
+   */
+  private autoResumeSuppressed = false;
 
   init(): void {
     if (this.ctx) return;
@@ -64,7 +71,9 @@ export class SoundEngine {
 
   play(id: SoundId): void {
     if (!this.ctx || !this.seGain) return;
+    // v1.3.6: suspendAudio() で抑止中は auto-resume せず early return (= 完全 no-op)
     if (this.ctx.state === 'suspended') {
+      if (this.autoResumeSuppressed) return;
       void this.ctx.resume();
     }
     const nowMs = performance.now();
@@ -109,7 +118,13 @@ export class SoundEngine {
 
   playBgm(id: BgmId): void {
     if (!this.ctx || !this.bgmGain) return;
-    if (this.ctx.state === 'suspended') void this.ctx.resume();
+    // v1.3.6: suspendAudio() で抑止中は auto-resume せず early return。 currentBgm の id 更新も
+    // しないので、 resumeAudio 時に bossPhase useEffect 等から再度 playBgm が呼ばれて正しく
+    // 切替できるようになっている。
+    if (this.ctx.state === 'suspended') {
+      if (this.autoResumeSuppressed) return;
+      void this.ctx.resume();
+    }
     // 同じ id なら継続再生
     if (this.currentBgm?.id === id) return;
     // 違う id: 先に古い track を完全停止してから新規開始
@@ -132,16 +147,19 @@ export class SoundEngine {
   /**
    * v1.3.6: AudioContext 全体を suspend する。 BGM スケジューラ / OscillatorNode の連続稼働を
    * 停止し、 audio worklet スレッドを idle に入れる (発熱対策)。 スクリーンセーバー中に呼ぶ。
+   * autoResumeSuppressed フラグも立てて、 抑止中の play()/playBgm() からの auto-resume を防ぐ。
    * 再開は resumeAudio。
    */
   suspendAudio(): void {
     if (!this.ctx) return;
+    this.autoResumeSuppressed = true;
     if (this.ctx.state === 'running') void this.ctx.suspend();
   }
 
-  /** v1.3.6: AudioContext を再開する (suspendAudio と対) */
+  /** v1.3.6: AudioContext を再開する (suspendAudio と対)。 auto-resume 抑止も解除 */
   resumeAudio(): void {
     if (!this.ctx) return;
+    this.autoResumeSuppressed = false;
     if (this.ctx.state === 'suspended') void this.ctx.resume();
   }
 

@@ -301,8 +301,14 @@ export const createBattleSlice: StateCreator<RootStore, [], [], BattleSlice> = (
   },
 
   tickCooldowns: (deltaSecGameTime) =>
-    set((s) => ({
-      weaponSwitchCdSec: Math.max(0, s.weaponSwitchCdSec - deltaSecGameTime),
-      activeCdSec: Math.max(0, s.activeCdSec - deltaSecGameTime),
-    })),
+    set((s) => {
+      // v1.3.6: CD が両方 0 なら set 呼び出し自体を skip (= zustand subscribers が発火しない)。
+      // 60fps × 何もしないフレームで Page (= useStore((s)=>s.activeCdSec) 等を subscribe) を
+      // re-render し続ける副作用を断つ。
+      if (s.weaponSwitchCdSec === 0 && s.activeCdSec === 0) return s;
+      return {
+        weaponSwitchCdSec: Math.max(0, s.weaponSwitchCdSec - deltaSecGameTime),
+        activeCdSec: Math.max(0, s.activeCdSec - deltaSecGameTime),
+      };
+    }),
 });
