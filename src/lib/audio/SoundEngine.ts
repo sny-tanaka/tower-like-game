@@ -129,6 +129,22 @@ export class SoundEngine {
     this.currentBgm = null;
   }
 
+  /**
+   * v1.3.6: AudioContext 全体を suspend する。 BGM スケジューラ / OscillatorNode の連続稼働を
+   * 停止し、 audio worklet スレッドを idle に入れる (発熱対策)。 スクリーンセーバー中に呼ぶ。
+   * 再開は resumeAudio。
+   */
+  suspendAudio(): void {
+    if (!this.ctx) return;
+    if (this.ctx.state === 'running') void this.ctx.suspend();
+  }
+
+  /** v1.3.6: AudioContext を再開する (suspendAudio と対) */
+  resumeAudio(): void {
+    if (!this.ctx) return;
+    if (this.ctx.state === 'suspended') void this.ctx.resume();
+  }
+
   getCurrentBgm(): BgmId | null {
     return this.currentBgm?.id ?? null;
   }
