@@ -15,6 +15,9 @@ import {
 } from './useBattleLoop';
 
 import { scaledReward } from '@/game/enemies';
+import { BattleEntityStore } from '@/game/store/BattleEntityStore';
+import { MutableEnemy } from '@/game/types';
+import type { SpawnedEnemyInit } from '@/game/types';
 import { BigNum } from '@/lib/bignum';
 
 describe('calcFrameGameSec', () => {
@@ -467,5 +470,88 @@ describe('ボルト/超合金ドロップ計算 (scaledReward Refs #61)', () => 
     expect(screwDropT2).not.toBe(boltDropT2);
     expect(screwDropT2).toBe(2);
     expect(boltDropT2).toBe(4);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// v1.3.7 (Phase 3-C フォローアップ): useBattleLoop の tick が 1 frame で行う一連の状態
+// 遷移 (敵 spawn → 移動 mark → 撃破時 removeEnemy → notifyFrame) を、 hook の外側
+// (renderHook 不要の純粋シナリオ) で組み立てて、 BattleEntityStore とローカル enemiesRef 風
+// 配列の最終状態を assert する統合テスト。
+//
+// 専門家 Phase 3-B レビューで指摘された「数 tick 回して entityStore の最終状態を assert する
+// integration test を 1 件追加」 への対応。 hook 本体には useStore (zustand) や rAF が絡んで
+// いて renderHook で囲うと依存が多すぎるため、 tick の **状態遷移のみ** をシナリオ化した
+// 機能テストにとどめる。
+// ---------------------------------------------------------------------------
+
+function makeEnemyInit(id: string, hp: number, x = 50, y = 50): SpawnedEnemyInit {
+  return {
+    id,
+    kind: 'normal',
+    subtype: 'standard',
+    speed: 1,
+    reward: { screw: 1, bolt: 0, alloyChance: 0, alloyAmount: 0 },
+    hitRadius: 1.03,
+    spawnedAtMs: 0,
+    hp: BigNum.fromNumber(hp),
+    maxHp: BigNum.fromNumber(hp),
+    atk: BigNum.fromNumber(10),
+    position: { x, y },
+  };
+}
+
+describe('useBattleLoop tick シナリオ (entityStore 統合 — Phase 3-C フォローアップ)', () => {
+  test('addEnemy → 数 tick 移動 mark → 1 体撃破で removeEnemy → 最終 enemiesRef と entityStore が一致', () => {
+    const entityStore = new BattleEntityStore();
+    // ローカル enemiesRef 風 (useBattleLoop の enemiesRef.current 相当)
+    const enemiesRef: MutableEnemy[] = [];
+
+    // ---- tick 1: 3 体 spawn (= addEnemy + push) ----
+    for (const id of ['e-1', 'e-2', 'e-3']) {
+      const enemy = new MutableEnemy(makeEnemyInit(id, 100));
+      enemiesRef.push(enemy);
+      entityStore.addEnemy(enemy);
+    }
+    expect(entityStore.getEnemies()).toHaveLength(3);
+    expect(entityStore.getEnemyListVersion()).toBe(3); // addEnemy ×3
+    // notifyFrame は tick 末尾に 1 度。
+    entityStore.notifyFrame();
+    expect(entityStore.getSnapshot()).toBe(1);
+
+    // ---- tick 2: 各敵を mutateEnemyPosition 相当で移動 + markEnemyMoved ----
+    for (const enemy of enemiesRef) {
+      enemy.position.x += 1;
+      enemy.position.y += 1;
+      entityStore.markEnemyMoved(enemy.id);
+    }
+    entityStore.notifyFrame();
+    expect(entityStore.getSnapshot()).toBe(2);
+    // mark Set は notifyFrame で空になっている。
+    entityStore.markEnemyMoved('e-1');
+    entityStore.notifyFrame();
+    expect(entityStore.getSnapshot()).toBe(3);
+
+    // ---- tick 3: e-2 のみ撃破 (= HP 0 + removeEnemy + survivors 詰め替え) ----
+    enemiesRef[1].hp = BigNum.ZERO;
+    const survivors: MutableEnemy[] = [];
+    for (const enemy of enemiesRef) {
+      if (enemy.hp.lte(BigNum.ZERO)) {
+        entityStore.removeEnemy(enemy.id);
+      } else {
+        survivors.push(enemy);
+      }
+    }
+    // enemiesRef 詰め替え (= useBattleLoop の `enemiesRef.current = survivors`)
+    enemiesRef.length = 0;
+    enemiesRef.push(...survivors);
+
+    expect(enemiesRef.map((e) => e.id)).toEqual(['e-1', 'e-3']);
+    expect(entityStore.getEnemies().map((e) => e.id)).toEqual(['e-1', 'e-3']);
+    expect(entityStore.getEnemyById('e-2')).toBeUndefined();
+    // enemyListVersion は addEnemy ×3 + removeEnemy ×1 = +4
+    expect(entityStore.getEnemyListVersion()).toBe(4);
+    entityStore.notifyFrame();
+    expect(entityStore.getSnapshot()).toBe(4);
   });
 });

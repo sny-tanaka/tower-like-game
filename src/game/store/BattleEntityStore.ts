@@ -153,13 +153,14 @@ export class BattleEntityStore {
   // -------------------------------------------------------------------------
 
   /**
-   * v1.3.7 (Phase 3-B): `setEnemies()` は **後方互換 API**。 内部で `clearEnemies()` + 個別
-   * `addEnemy()` のループに展開される。 `useBattleLoop` tick は `addEnemy` / `removeEnemy` に
-   * 移行済みのため tick からは呼ばれない。 BattleField のテスト / Storybook の初期セットアップ
-   * 用にのみ残置。
+   * @deprecated v1.3.7 (Phase 3-C): 本 API は順次廃止予定。 呼び出し側は `clearEnemies()`
+   * → `addEnemy(e)` ループに展開してください。 BattleEntityStore.test.ts のみが既存仕様を
+   * 検証するために本 API を直接呼びます。 useBattleLoop tick / BattleField stories / tests
+   * からの呼び出しは Phase 3-C で全て撤去済み。
    *
-   * `enemyListVersion` は内部の addEnemy 経由で個々の敵分が +1 される (= clearEnemies で
-   * 一度 +1、 N 体 add で +N。 真の世代変化は clearEnemies の +1 が担保)。
+   * 内部実装: `clearEnemies()` + 個別 `addEnemy()` のループに展開される。 `enemyListVersion`
+   * は内部の addEnemy 経由で個々の敵分が +1 される (= clearEnemies で一度 +1、 N 体 add で
+   * +N。 真の世代変化は clearEnemies の +1 が担保)。
    */
   setEnemies(enemies: readonly MutableEnemy[]): void {
     this.clearEnemies();
@@ -410,10 +411,14 @@ export class BattleEntityStore {
   /**
    * addEnemy / removeEnemy のたびに +1 される世代番号。 「敵リストの構造的変化」 を検知したい
    * 購読側 (BattleField の敵一覧 layer 等) が getSnapshot として使う。
+   *
+   * v1.3.7 (Phase 3-C): `useSyncExternalStore(subscribe, getEnemyListVersion)` で `this`
+   * バインド漏れが起きないようアロー関数として定義 (= `store.getEnemyListVersion` の参照を
+   * そのまま渡しても this が外れない)。
    */
-  getEnemyListVersion(): number {
+  getEnemyListVersion = (): number => {
     return this.enemyListVersion;
-  }
+  };
 
   /** id → 敵オブジェクトの O(1) lookup */
   getEnemyById(id: string): MutableEnemy | undefined {

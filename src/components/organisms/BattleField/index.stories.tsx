@@ -7,6 +7,7 @@ import { BattleField } from './index';
 import { createEnemyTemplate, spawnEnemy } from '@/game/enemies';
 import { BattleEntityStore } from '@/game/store/BattleEntityStore';
 import { BattleEntityStoreProvider } from '@/game/store/BattleEntityStoreContext';
+import { MutableEnemy } from '@/game/types';
 import type { SpawnedEnemy } from '@/game/types';
 import { BigNum } from '@/lib/bignum/BigNum';
 
@@ -66,7 +67,12 @@ const meta: Meta<typeof BattleField> = {
       };
       const store = useMemo(() => {
         const s = new BattleEntityStore();
-        if (args.enemies) s.setEnemies(args.enemies);
+        // v1.3.7 (Phase 3-C): setEnemies は deprecated。 個別 addEnemy にループ展開する。
+        if (args.enemies) {
+          for (const e of args.enemies) {
+            s.addEnemy(e instanceof MutableEnemy ? e : new MutableEnemy(e));
+          }
+        }
         if (args.damageEvents) s.setDamageEvents(args.damageEvents);
         if (args.deathEvents) s.setDeathEvents(args.deathEvents);
         if (args.projectileEvents) s.setProjectileEvents(args.projectileEvents);

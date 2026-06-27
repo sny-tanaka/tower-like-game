@@ -519,6 +519,14 @@ export function useBattleLoop({
       entityStore.setDeathEvents([]);
       entityStore.setProjectileEvents([]);
       entityStore.setAppearanceEvents([]);
+      // v1.3.7 (Phase 3-C 注釈): suspendRendering 中も tick は走り続け、 markEnemyMoved /
+      // markEnemyStatusChanged で pendingMovedIds / pendingStatusChangedIds の Set にエントリが
+      // 積まれる。 ただし notifyFrame() は (タブ可視中ならば) `!suspendRenderingRef.current`
+      // ガードの外 (= tick 末尾の `if (!suspendRenderingRef.current)` ブロック) で呼ばれている
+      // ため、 suspendRendering=true 中は notifyFrame が来ない = pending Set は flush されず
+      // 蓄積し続ける。 復帰時 (suspendRendering=false 切替の useEffect で notifyFrame を 1 度
+      // 呼ぶ) にまとめて flush される。 蓄積量は最大 40 体 ×{position / status} の id 集合 ×
+      // 2 種類 = O(80) 件で、 メモリは無視できる規模。
       entityStore.consumePendingRemovals('damage');
       entityStore.consumePendingRemovals('death');
       entityStore.consumePendingRemovals('projectile');

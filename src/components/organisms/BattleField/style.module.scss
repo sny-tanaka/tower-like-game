@@ -102,16 +102,33 @@
   opacity: 0.85;
 }
 
-/* ===== 敵 ===== */
+/* ===== 敵 =====
+ * v1.3.7 (Phase 3-C): left / top を廃止し、 position は EnemySprite から JS で transform に
+ * 書き込む方式に変更。
+ *
+ * 設計:
+ *   - .field は 140cqmin × 140cqmin の正方形 (container query)
+ *   - 敵 position (0-100%) は「フィールドの % 」 = 1% = 1.4cqmin
+ *   - EnemySprite で `el.style.transform = translate3d(${x*1.4}cqmin, ${y*1.4}cqmin, 0)
+ *     translate(-50%, -50%)` を書き、 旧 `left: ${x}%; top: ${y}%; transform: translate(-50%,-50%)`
+ *     と完全に同じ位置に来る。
+ *   - 旧 .enemy の `transform: translate(-50%, -50%)` は JS 側で書く transform の末尾に含めるため
+ *     CSS からは削除する (上書きしてしまうため両立できない)。
+ *   - `will-change: transform` で GPU layer を確保し、 layout / paint をバイパスして
+ *     compositor のみで毎フレーム位置更新する。
+ */
 .enemy {
   position: absolute;
-  transform: translate(-50%, -50%);
+  top: 0;
+  left: 0;
+  /* transform は JS から el.style.transform で書く (初期値はマウント直後に EnemySprite が apply) */
   display: flex;
   flex-direction: column;
   align-items: center;
   gap: 4px;
   pointer-events: none;
   z-index: 5;
+  will-change: transform;
 }
 
 .enemyUpper {
