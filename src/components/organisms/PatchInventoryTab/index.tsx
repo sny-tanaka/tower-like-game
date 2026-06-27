@@ -82,7 +82,8 @@ export function PatchInventoryTab({
               trigger={info.trigger}
               effect={info.effect}
               selected={selectedId === key}
-              locked={isEquipped}
+              // v1.3.4: 装備中は ??? ではなく「装備中」 バッジを付けて通常表示する
+              equipped={isEquipped}
               onClick={onSelect ? () => onSelect(selectedId === key ? null : key) : undefined}
             />
           );

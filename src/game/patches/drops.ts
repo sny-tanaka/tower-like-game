@@ -60,16 +60,18 @@ export function rollPatchDrop(
 // ---------------------------------------------------------------------------
 
 /**
- * 「到達 Tier 以下のどの Tier をドロップするか」 を線形逆重みで抽選する。
- *   重み(T) = 到達Tier - T + 1
+ * 「出撃中 Tier 以下のどの Tier をドロップするか」 を線形逆重みで抽選する。
+ *   重み(T) = currentTier - T + 1
  *   出現率(T) = 重み(T) / 合計重み
  *
- * @param reachedTier  プレイヤーが現在到達している tier (1 以上)
+ * @param currentTier  プレイヤーが現在出撃中の tier (1 以上)。 store.currentTier が渡される。
+ *                     旧名は reachedTier だったが、 実装は state.currentTier を渡してきたため
+ *                     v1.3.4 で名称を実態に合わせた。
  * @param rng          0〜1 の乱数
- * @returns 1〜reachedTier のうち抽選で選ばれた tier
+ * @returns 1〜currentTier のうち抽選で選ばれた tier
  */
-export function selectPatchTier(reachedTier: number, rng: () => number): number {
-  const N = Math.max(1, Math.floor(reachedTier));
+export function selectPatchTier(currentTier: number, rng: () => number): number {
+  const N = Math.max(1, Math.floor(currentTier));
   const totalWeight = (N * (N + 1)) / 2;
   let r = rng() * totalWeight;
   for (let t = 1; t <= N; t++) {
@@ -103,18 +105,20 @@ export interface PatchDrop {
  * 敵を撃破したときに、 ドロップする (パッチ名, Tier) を返す。 ドロップしなければ null。
  *
  * @param enemyKind        撃破した敵の種別
- * @param reachedTier      プレイヤーの現在到達 Tier
+ * @param currentTier      プレイヤーが現在出撃中の Tier (= store.currentTier)。
+ *                         「最高 Tier 突破済み (highestTier) でも、 低 Tier 周回中は
+ *                         低 Tier パッチしか出ない」 仕様 (v1.3.4 で名前を実態に合わせた)。
  * @param patchDropRateMul マシン「patchDropRate」 倍率
  * @param rng              0〜1 の乱数
  */
 export function dropPatch(
   enemyKind: EnemyKind,
-  reachedTier: number,
+  currentTier: number,
   patchDropRateMul: number,
   rng: () => number
 ): PatchDrop | null {
   if (!rollPatchDrop(enemyKind, patchDropRateMul, rng)) return null;
-  const tier = selectPatchTier(reachedTier, rng);
+  const tier = selectPatchTier(currentTier, rng);
   const name = selectPatchName(rng);
   return { name, tier };
 }

@@ -26,6 +26,11 @@ export interface PatchCardProps {
   merging?: boolean;
   locked?: boolean;
   disabled?: boolean;
+  /**
+   * 装備中フラグ (v1.3.4)。 true で「装備中」 バッジを右下に表示する。
+   * locked と違いカード自体は通常通り (名前 / アイコン / 数を可視) 表示する。
+   */
+  equipped?: boolean;
   size?: PatchCardSize;
   onClick?: () => void;
 }
@@ -62,6 +67,7 @@ export function PatchCard({
   merging = false,
   locked = false,
   disabled = false,
+  equipped = false,
   size = 'md',
   onClick,
 }: PatchCardProps) {
@@ -179,6 +185,8 @@ export function PatchCard({
 
         {/* merging バッジ */}
         {merging && <span className={styles.mergingBadge}>合成中</span>}
+        {/* 装備中バッジ (v1.3.4) */}
+        {equipped && !locked && <span className={styles.equippedBadge}>装備中</span>}
       </Card>
     </div>
   );

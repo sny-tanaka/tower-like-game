@@ -1,6 +1,7 @@
 import styles from './style.module.scss';
 
 import { Text } from '@/components/atoms/Text';
+import { calcTierDiffAttackMul } from '@/game/balance/tierDiffAttackMul';
 import { useStore } from '@/store';
 
 // ---------------------------------------------------------------------------
@@ -55,6 +56,29 @@ export function TierSelectTab({ selectedTier, onSelect }: TierSelectTabProps) {
           最大 Tier {maxTier}
         </Text>
       </div>
+
+      {/* v1.3.4: 選択中 Tier の差分バフ表示 (基礎攻撃力倍率) */}
+      {(() => {
+        const tierDiffMul = calcTierDiffAttackMul(highestTier, selectedTier);
+        const pct = Math.round((tierDiffMul - 1) * 100);
+        return (
+          <div className={styles.tierDiffBuffRow}>
+            <Text
+              variant="caption"
+              color="dim"
+            >
+              選択中 Tier の差分バフ (基礎攻撃力)
+            </Text>
+            <Text
+              variant="numeric-s"
+              color={tierDiffMul > 1 ? 'text' : 'dim'}
+            >
+              ×{tierDiffMul.toFixed(2)}
+              {pct > 0 ? ` (+${pct}%)` : ''}
+            </Text>
+          </div>
+        );
+      })()}
 
       {/* Tier グリッド */}
       <div className={styles.grid}>

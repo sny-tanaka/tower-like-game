@@ -187,7 +187,12 @@ describe('executeMergeAll', () => {
 
 describe('PatchMergeTab', () => {
   it('合成可能なし時は空メッセージ表示', () => {
-    render(<PatchMergeTab overridePatches={new Map()} />);
+    render(
+      <PatchMergeTab
+        overridePatches={new Map()}
+        overrideHighestTier={100}
+      />
+    );
     expect(screen.getByText('合成可能なパッチがありません')).toBeDefined();
   });
 
@@ -195,7 +200,12 @@ describe('PatchMergeTab', () => {
     const patches = new Map<string, PatchEntry>([
       ['damageImmune#1', { name: 'damageImmune', tier: 1, count: 4 }],
     ]);
-    render(<PatchMergeTab overridePatches={patches} />);
+    render(
+      <PatchMergeTab
+        overridePatches={patches}
+        overrideHighestTier={100}
+      />
+    );
     const btn = screen.getByRole('button', { name: /一括合成/ });
     expect(btn).toBeDefined();
   });
@@ -206,7 +216,12 @@ describe('PatchMergeTab', () => {
     const patches = new Map<string, PatchEntry>([
       ['burnHit#7', { name: 'burnHit', tier: 7, count: 1 }],
     ]);
-    render(<PatchMergeTab overridePatches={patches} />);
+    render(
+      <PatchMergeTab
+        overridePatches={patches}
+        overrideHighestTier={100}
+      />
+    );
     const incrementBtn = screen.getByRole('button', { name: '増加' });
     // 初期値 maxTierLimit = 7, max = 8 → まだ上げられる
     expect(incrementBtn).not.toBeDisabled();
@@ -216,14 +231,24 @@ describe('PatchMergeTab', () => {
     const patches = new Map<string, PatchEntry>([
       ['instantKill#5', { name: 'instantKill', tier: 5, count: 2 }],
     ]);
-    render(<PatchMergeTab overridePatches={patches} />);
+    render(
+      <PatchMergeTab
+        overridePatches={patches}
+        overrideHighestTier={100}
+      />
+    );
     // 初期 maxTierLimit = 5, calcMergeable(patches, 5+1=6) → tier=5, count=2 は含まれる
     const btn = screen.getByRole('button', { name: /一括合成/ });
     expect(btn).toBeDefined();
   });
 
   it('パッチ 0 個のとき合成不可メッセージが表示され、ステッパーの値は 1 になる', () => {
-    render(<PatchMergeTab overridePatches={new Map()} />);
+    render(
+      <PatchMergeTab
+        overridePatches={new Map()}
+        overrideHighestTier={100}
+      />
+    );
     expect(screen.getByText('合成可能なパッチがありません')).toBeDefined();
     // stepperMax = Math.max(1) + 1 = 2, 初期 maxTierLimit = Math.max(1) = 1
     // ステッパー表示値が 1 であることを確認
@@ -237,12 +262,22 @@ describe('PatchMergeTab', () => {
       ['freezeHit#2', { name: 'freezeHit', tier: 2, count: 1 }],
       ['damageImmune#3', { name: 'damageImmune', tier: 3, count: 1 }],
     ]);
-    render(<PatchMergeTab overridePatches={patches} />);
+    render(
+      <PatchMergeTab
+        overridePatches={patches}
+        overrideHighestTier={100}
+      />
+    );
     expect(screen.getByText('合成可能なパッチがありません')).toBeDefined();
   });
 
   it('ステッパーの減少ボタンは min=1 のとき初期値が 1 なら無効化される (パッチ 0 個)', () => {
-    render(<PatchMergeTab overridePatches={new Map()} />);
+    render(
+      <PatchMergeTab
+        overridePatches={new Map()}
+        overrideHighestTier={100}
+      />
+    );
     const decrementBtn = screen.getByRole('button', { name: '減少' });
     // 初期値 = maxExistingTier = 1, min = 1 → 減少不可
     expect(decrementBtn).toBeDisabled();
@@ -258,17 +293,24 @@ describe('PatchMergeTab', () => {
         ['damageImmune#1', { name: 'damageImmune', tier: 1, count: 2 }],
       ]);
       // overridePatches はストア操作しないため SE は再生されない
-      render(<PatchMergeTab overridePatches={patches} />);
+      render(
+        <PatchMergeTab
+          overridePatches={patches}
+          overrideHighestTier={100}
+        />
+      );
       const mergeBtn = screen.getByRole('button', { name: /一括合成/ });
       fireEvent.click(mergeBtn);
       expect(soundEngine.play).not.toHaveBeenCalled();
     });
 
     it('ストアモードでマージ対象あり → 一括合成で purchaseOk SE が鳴る', () => {
-      // ストアに合成可能パッチ (tier=1, count=2) をセット
+      // ストアに合成可能パッチ (tier=1, count=2) をセット。
+      // v1.3.4: highestTier=100 で「最新 Tier 制約」 を実質無効化してから合成可能性を見る
       useStore.setState({
         patches: new Map([['damageImmune#1', { name: 'damageImmune', tier: 1, count: 2 }]]),
         machineLevels: { ...useStore.getState().machineLevels, patchSlots: 0 },
+        highestTier: 100,
       });
       render(<PatchMergeTab />);
       const mergeBtn = screen.getByRole('button', { name: /一括合成/ });

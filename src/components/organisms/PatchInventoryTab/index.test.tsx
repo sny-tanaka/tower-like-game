@@ -36,15 +36,16 @@ describe('PatchInventoryTab', () => {
     expect(screen.getByText('3 種類')).toBeDefined();
   });
 
-  it('装着済みパッチは locked 表示 (??? テキスト)', () => {
+  it('装着済みパッチは 「装備中」 バッジ付きで通常表示 (v1.3.4)', () => {
     render(
       <PatchInventoryTab
         overridePatches={makePatches()}
         overrideEquipped={new Map([[0, { name: 'damageImmune', tier: 1 }]])}
       />
     );
-    // locked カードは「???」というテキストを表示
-    expect(screen.getAllByText('???').length).toBeGreaterThan(0);
+    // v1.3.4: ??? ではなく「装備中」 バッジが表示される
+    expect(screen.getAllByText('装備中').length).toBeGreaterThan(0);
+    expect(screen.queryByText('???')).toBeNull();
   });
 
   it('カードをクリックすると onSelect が呼ばれる', async () => {
