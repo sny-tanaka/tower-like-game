@@ -212,10 +212,12 @@ export function laserMegaBeam(
     const dy = enemy.position.y - machineY;
     // ビーム軸方向への射影 (進行方向)
     const parallel = dx * cos + dy * sin;
-    if (parallel <= 0) continue; // ビーム背後にいる敵は当たらない
+    // v1.3.1: 敵の hitRadius を加味。 ビーム軸からの垂直距離が「halfWidth + hitRadius」 以内なら命中。
+    // parallel もマイナス側に hitRadius 食い込んでいたら背後判定を緩める (大きい敵がビーム発射元の真横でも当たる)。
+    if (parallel < -enemy.hitRadius) continue;
     // 垂直方向への射影 (ビーム軸からの離れ)
     const perpendicular = -dx * sin + dy * cos;
-    if (Math.abs(perpendicular) > halfWidth) continue;
+    if (Math.abs(perpendicular) > halfWidth + enemy.hitRadius) continue;
 
     const result = calcOutgoingDamage(
       { machine, weapon: { damageMultiplier: totalMul }, isCrit: false },

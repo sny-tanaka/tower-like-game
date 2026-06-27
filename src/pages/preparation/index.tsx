@@ -93,7 +93,7 @@ export function Page(props: PreparationPageProps) {
   }
 
   /**
-   * DEV 限定デバッグ出撃。 W28 から開始 + ネジ/ボルト/超合金を各 1A (1e9) 持って出撃。
+   * DEV 限定デバッグ出撃。 W29 から開始 + ネジ/ボルト/超合金を各 1A (1e9) 持って出撃。
    * Tier クリアフローを短時間で検証するためのショートカット。
    * 本番ビルドでは呼ばれない (UI 側の `import.meta.env.DEV` ガードで消える)。
    */
@@ -116,7 +116,7 @@ export function Page(props: PreparationPageProps) {
       baseMachineMaxHp: BigNum.fromNumber(baseMaxHpNum),
       activeCdReduction,
       initialTier: selectedTier,
-      initialWave: 28,
+      initialWave: 29,
     });
     // ネジは battle slice の中 (startRun で screw=ZERO にリセットされる) → startRun の後に加算
     useStore.getState().addScrew(huge);
@@ -155,7 +155,7 @@ export function Page(props: PreparationPageProps) {
         sticky={false}
         onLaunch={handleLaunch}
       />
-      {/* DEV 限定: W28 + ネジ/ボルト/超合金 1A デバッグ出撃。
+      {/* DEV 限定: W29 + ネジ/ボルト/超合金 1A デバッグ出撃。
           import.meta.env.DEV のリテラル false 評価で本番ビルドからは消える (tree shaking)。 */}
       {import.meta.env.DEV && (
         <div className={styles.debugContainer}>
@@ -165,7 +165,7 @@ export function Page(props: PreparationPageProps) {
             onClick={handleLaunchDebug}
             data-testid="debug-launch"
           >
-            [DEV] W28 開始 + ネジ/ボルト/合金 1A
+            [DEV] W29 開始 + ネジ/ボルト/合金 1A
           </button>
         </div>
       )}

@@ -186,7 +186,7 @@ const ENEMY_SIZE_CQMIN: Record<EnemyVisualType, string> = {
   tough: '4.6cqmin',
   elite: '6.7cqmin',
   miniboss: '9.2cqmin',
-  boss: '14.4cqmin',
+  boss: '21.6cqmin', // v1.3.1 で 14.4 → 21.6 (×1.5) に拡大
 };
 
 // ---------------------------------------------------------------------------

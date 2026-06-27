@@ -17,6 +17,7 @@ function makeEnemy(x: number, y: number, speed: number): SpawnedEnemy {
     spawnedAtMs: 0,
     position: { x, y },
     maxHp: BigNum.fromNumber(1),
+    hitRadius: 1.03,
   };
 }
 

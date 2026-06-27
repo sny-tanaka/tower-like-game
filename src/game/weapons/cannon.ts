@@ -333,12 +333,19 @@ export function cannonApplySplash(
   const hits: CannonAttackHit[] = [];
   for (const enemy of enemies) {
     const d = dist(blastX, blastY, enemy.position.x, enemy.position.y);
-    if (d > splashRadius) continue;
+    // v1.3.1: 敵のヒット判定半径 (= 描画半径 × 0.95) を加味。 ボスのような大きい敵の縁に
+    // 爆風がかかったときも命中扱いになる。 距離減衰計算は敵中心までの距離 d で行う
+    // (= 縁ギリギリで当たった敵もちゃんとフォールオフでダメが減る)。
+    const effectiveRadius = splashRadius + enemy.hitRadius;
+    if (d > effectiveRadius) continue;
     if (!isInFrontSemicircle(blastX, blastY, enemy.position.x, enemy.position.y)) continue;
 
     // 距離減衰: 中心 1.0 → 半径ギリギリ SPLASH_EDGE_FACTOR
     // splashRadius=0 (縮退) は中心の敵だけが d=0 で含まれ、 ゼロ除算回避して falloff=1.0
-    const falloff = splashRadius > 0 ? 1 - (1 - SPLASH_EDGE_FACTOR) * (d / splashRadius) : 1;
+    // フォールオフ計算は元の splashRadius を分母にする (hitRadius は判定だけの拡張、 ダメ計算には影響しない)
+    const dForFalloff = Math.min(d, splashRadius);
+    const falloff =
+      splashRadius > 0 ? 1 - (1 - SPLASH_EDGE_FACTOR) * (dForFalloff / splashRadius) : 1;
 
     const result = calcOutgoingDamage(
       {

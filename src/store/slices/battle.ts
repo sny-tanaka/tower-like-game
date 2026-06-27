@@ -51,6 +51,13 @@ export interface BattleState {
    * ラン開始時に false にリセットされる。
    */
   runPatchDropped: boolean;
+  /**
+   * ボス HP が 60% を切ったタイミング (ラン開始からの経過 ms)。 null の間は雑魚スポーンが
+   * 抑止される。 useBattleLoop が毎フレーム ボス HP を監視し、 60% を切った瞬間に
+   * このフィールドへ現在 wave 内経過 ms (ボス出現時刻基準) を書き込む。 ラン / Tier
+   * 切替時に null にリセットされる。
+   */
+  bossWeakenedAtMs: number | null;
 }
 
 // ---------------------------------------------------------------------------
@@ -85,6 +92,11 @@ export interface BattleActions {
    * 以降の dropPatch 判定をスキップさせて 1 ラン 1 個ルールを担保する。
    */
   markRunPatchDropped: () => void;
+  /**
+   * ボス HP が 60% を切ったタイミングを記録する。 すでに値が入っている場合は無視 (= 一度切ったら以降の
+   * 値は保持)。 useBattleLoop の毎フレームから「初回検知時のみ」 呼ばれることを想定。
+   */
+  markBossWeakened: (waveElapsedMs: number) => void;
   spendScrew: (amount: BigNum) => boolean;
   setMachineHp: (hp: BigNum) => void;
   damageHp: (amount: BigNum) => void;
@@ -152,6 +164,7 @@ export const defaultBattleState: BattleState = {
   runStartBolt: BigNum.ZERO,
   runStartAlloy: BigNum.ZERO,
   runPatchDropped: false,
+  bossWeakenedAtMs: null,
 };
 
 // ---------------------------------------------------------------------------
@@ -208,6 +221,8 @@ export const createBattleSlice: StateCreator<RootStore, [], [], BattleSlice> = (
       runStartAlloy: currentState.alloy,
       // ラン中パッチドロップフラグをリセット (1 ラン 1 個ルール)
       runPatchDropped: false,
+      // ボス HP 60% 切ったタイミングをリセット
+      bossWeakenedAtMs: null,
     });
   },
 
@@ -224,6 +239,9 @@ export const createBattleSlice: StateCreator<RootStore, [], [], BattleSlice> = (
   },
 
   markRunPatchDropped: () => set({ runPatchDropped: true }),
+
+  markBossWeakened: (waveElapsedMs) =>
+    set((s) => (s.bossWeakenedAtMs == null ? { bossWeakenedAtMs: waveElapsedMs } : {})),
 
   spendScrew: (amount) => {
     const cur = get().screw;

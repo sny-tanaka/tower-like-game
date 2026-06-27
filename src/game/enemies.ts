@@ -45,18 +45,52 @@ export const UPPER_HP_MULT: Record<Exclude<EnemyKind, 'normal'>, number> = {
   boss: 60,
 };
 
-/** 上位敵の ATK 倍率 */
+/**
+ * 上位敵の ATK 倍率 (v1.3.1 で全種別を強化、 ノックバック距離も同倍率で連動)。
+ * - elite: 2.5 → 3.0 (×1.2)
+ * - miniboss: 5 → 7.5 (×1.5)
+ * - boss: 8 → 24 (×3.0、 重い一撃感を更に強める追加調整)
+ */
 export const UPPER_ATK_MULT: Record<Exclude<EnemyKind, 'normal'>, number> = {
-  elite: 2.5,
-  miniboss: 5,
-  boss: 8,
+  elite: 3.0,
+  miniboss: 7.5,
+  boss: 24,
 };
 
-/** 上位敵の SPD 倍率 */
+/** 上位敵の SPD 倍率 (v1.3.1: boss は 0.1 → 0.12 で ×1.2 加速) */
 export const UPPER_SPD_MULT: Record<Exclude<EnemyKind, 'normal'>, number> = {
   elite: 0.5,
   miniboss: 0.2,
-  boss: 0.1,
+  boss: 0.12,
+};
+
+/**
+ * 敵のヒット判定半径 (% フィールド = 敵 position 0-100 と同じ単位系) v1.3.1。
+ *
+ * 各武器の距離判定で `dist ≤ targetRadius + enemy.hitRadius` を使うことで、 ボスのような
+ * 大きいスプライトの端を弾が通ったときも命中扱いになる (v1.3.1 以前は中心点のみ判定で乖離していた)。
+ *
+ * 単位換算: ENEMY_SIZE_CQMIN (端末 cqmin 単位 = root 短辺の %) は field 短辺
+ * (`width:140cqmin / height:140cqmin`) との比で field 内座標 % に変換する。
+ *   hitRadius (field %) = ENEMY_SIZE_CQMIN / 140 / 2 × 0.8
+ * = (描画直径 / field 短辺) × 100 / 2 × 0.8
+ * = 描画半径 (field 短辺基準 %) × 0.8
+ *
+ * 係数 0.8 は「描画より一回り内側で判定」 = ギリギリ掠めは外す、 8 割中以内で命中。
+ *
+ * - normal:   1.03% (= 3.6 / 140 / 2 × 0.8、 standard 基準)
+ * - elite:    1.91% (= 6.7 / 140 / 2 × 0.8)
+ * - miniboss: 2.63% (= 9.2 / 140 / 2 × 0.8)
+ * - boss:     6.17% (= 21.6 / 140 / 2 × 0.8、 v1.3.1 ボスサイズ拡大込み)
+ *
+ * 適用武器: Cannon splash / Cutter 旋回 / Laser Mega Beam (これら以外の通常攻撃は最寄り敵を
+ * 選定して必中するため hitRadius を加味しなくても問題なし)。
+ */
+export const ENEMY_HIT_RADIUS_PCT: Record<EnemyKind, number> = {
+  normal: 1.03,
+  elite: 1.91,
+  miniboss: 2.63,
+  boss: 6.17,
 };
 
 /** 上位敵の基礎ドロップ報酬 */
@@ -183,6 +217,7 @@ export function spawnEnemy(
     position: { x, y },
     maxHp: template.hp,
     thunderStacks: 0,
+    hitRadius: ENEMY_HIT_RADIUS_PCT[template.kind],
   };
 }
 
