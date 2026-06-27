@@ -56,12 +56,15 @@ export class SoundEngine {
 
     // バックグラウンド時に AudioContext を suspend して、 BGM スケジューラ / OscillatorNode の
     // 連続稼働による発熱・バッテリー消費を抑える。 復帰時に resume。
+    // v1.3.6: スクリーンセーバー中 (autoResumeSuppressed=true) は visibility 復帰しても
+    // resume しない (スクリーンセーバー解除まで suspend 状態を維持)。
     if (typeof document !== 'undefined') {
       this.visibilityHandler = () => {
         if (!this.ctx) return;
         if (document.hidden) {
           if (this.ctx.state === 'running') void this.ctx.suspend();
         } else {
+          if (this.autoResumeSuppressed) return;
           if (this.ctx.state === 'suspended') void this.ctx.resume();
         }
       };

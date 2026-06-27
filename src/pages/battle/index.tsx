@@ -256,9 +256,15 @@ export function Page() {
   useEffect(() => {
     if (currentWave !== 30) setBossPhase(false);
   }, [currentWave]);
+  // v1.3.6: スクリーンセーバー中は SoundEngine.suspendAudio + autoResumeSuppressed のため
+  // playBgm が早期 return される (= currentBgm.id 更新も skip)。 セーバー中に bossPhase が
+  // 変化したまま閉じると、 ctx.resume() 後も旧 BGM track が鳴り続けてしまうため、
+  // isScreenSaverOpen=false 復帰時に bossPhase に応じた playBgm を再呼出して正しい track に揃える。
+  // 同一 id の playBgm は SoundEngine 側で no-op なので副作用なし。
   useEffect(() => {
+    if (isScreenSaverOpen) return;
     soundEngine.playBgm(bossPhase ? 'battleBoss' : 'battleNormal');
-  }, [bossPhase]);
+  }, [bossPhase, isScreenSaverOpen]);
 
   // Wave 残り時間: 0 になったら advanceWave が走り経過秒はリセットされる
   const waveSecondsRemaining = Math.max(0, WAVE_DURATION_SEC - waveElapsedSec);
