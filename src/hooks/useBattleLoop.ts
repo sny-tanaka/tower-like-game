@@ -295,6 +295,19 @@ export interface UseBattleLoopOpts {
    * ローカル UI 状態のために外から渡す経路を用意する。
    */
   paused?: boolean;
+  /**
+   * 描画系 events (damageEvents / deathEvents / projectileEvents / appearanceEvents) の
+   * state 更新を抑止する (v1.3.2)。 ゲームループ自体は通常通り走り、 敵 HP 減算 / 撃破判定 /
+   * spawn / wave 進行は継続するが、 親が表示用に消費する Fx events だけ生成しない。
+   *
+   * 主用途: スクリーンセーバー中。 BattleField を unmount しているため Fx の完了通知
+   * (onDamageDone 等) が来ず、 通常通り setDamageEvents で append すると state に
+   * 溜まり続けて、 スクリーンセーバー閉じた瞬間に大量 Fx が一斉発火する。 これを防ぐ。
+   *
+   * true → false に切り替わったタイミングで events は再度貯まり始める。 切り替え瞬間に
+   * 既存の events もクリアされる (= 残り Fx の再生はキャンセル)。
+   */
+  suspendRendering?: boolean;
 }
 
 /**
@@ -355,10 +368,16 @@ export interface UseBattleLoopResult {
 /** 通常敵が ボルト をドロップする確率 (02-currencies.md 仕様) */
 export const NORMAL_BOLT_DROP_CHANCE = 0.5;
 
-export function useBattleLoop({ paused = false }: UseBattleLoopOpts): UseBattleLoopResult {
+export function useBattleLoop({
+  paused = false,
+  suspendRendering = false,
+}: UseBattleLoopOpts): UseBattleLoopResult {
   // paused は ref 経由で tick から最新値を読む (useEffect の再実行を避けるため)
   const pausedRef = useRef(paused);
   pausedRef.current = paused;
+  // v1.3.2: 描画 events の生成抑止フラグ (スクリーンセーバー中など)。 ref 経由で tick から最新値を読む。
+  const suspendRenderingRef = useRef(suspendRendering);
+  suspendRenderingRef.current = suspendRendering;
 
   const rafIdRef = useRef<number | null>(null);
   const lastFrameMsRef = useRef<number>(0);
@@ -467,6 +486,22 @@ export function useBattleLoop({ paused = false }: UseBattleLoopOpts): UseBattleL
   const [appearanceEvents, setAppearanceEvents] = useState<AppearanceEvent[]>([]);
   const [waveElapsedSec, setWaveElapsedSec] = useState<number>(0);
   const [isOverdriveActive, setIsOverdriveActive] = useState<boolean>(false);
+
+  // v1.3.2: suspendRendering が true になった瞬間に既存の描画 events と削除キューを全クリア
+  // (= スクリーンセーバーを開いた瞬間に残っていた Fx を全部消す)。 false に戻ったタイミング
+  // からは tick の append が再開され、 新規イベントだけ流れ始める。
+  useEffect(() => {
+    if (suspendRendering) {
+      setDamageEvents([]);
+      setDeathEvents([]);
+      setProjectileEvents([]);
+      setAppearanceEvents([]);
+      pendingDamageRemovalsRef.current = new Set();
+      pendingDeathRemovalsRef.current = new Set();
+      pendingProjectileRemovalsRef.current = new Set();
+      pendingAppearanceRemovalsRef.current = new Set();
+    }
+  }, [suspendRendering]);
 
   // ---- ラン統計 3 state ----
   const [killCount, setKillCount] = useState<number>(0);
@@ -752,11 +787,14 @@ export function useBattleLoop({ paused = false }: UseBattleLoopOpts): UseBattleL
       }
     }
 
-    if (newDamageEvents.length > 0) {
-      setDamageEvents((prev) => [...prev, ...newDamageEvents]);
-    }
-    if (newProjectileEvents.length > 0) {
-      setProjectileEvents((prev) => [...prev, ...newProjectileEvents]);
+    // v1.3.2: スクリーンセーバー中は描画 events を蓄積しない (suspendRenderingRef=true で skip)
+    if (!suspendRenderingRef.current) {
+      if (newDamageEvents.length > 0) {
+        setDamageEvents((prev) => [...prev, ...newDamageEvents]);
+      }
+      if (newProjectileEvents.length > 0) {
+        setProjectileEvents((prev) => [...prev, ...newProjectileEvents]);
+      }
     }
     return true;
   }, []);
@@ -915,7 +953,10 @@ export function useBattleLoop({ paused = false }: UseBattleLoopOpts): UseBattleL
                   name: label,
                 };
               });
-              setAppearanceEvents((prev) => [...prev, ...newAppearances]);
+              // v1.3.2: スクリーンセーバー中は描画 events を蓄積しない
+              if (!suspendRenderingRef.current) {
+                setAppearanceEvents((prev) => [...prev, ...newAppearances]);
+              }
             }
           }
 
@@ -1388,12 +1429,15 @@ export function useBattleLoop({ paused = false }: UseBattleLoopOpts): UseBattleL
 
           // newDamageEvents (今フレーム発射の即時 hit) と delayedDamageEvents
           // (砲弾着弾の hit) をまとめて反映
-          const allDamageEvents = [...newDamageEvents, ...delayedDamageEvents];
-          if (allDamageEvents.length > 0) {
-            setDamageEvents((prev) => [...prev, ...allDamageEvents]);
-          }
-          if (newProjectileEvents.length > 0) {
-            setProjectileEvents((prev) => [...prev, ...newProjectileEvents]);
+          // v1.3.2: スクリーンセーバー中は描画 events を蓄積しない
+          if (!suspendRenderingRef.current) {
+            const allDamageEvents = [...newDamageEvents, ...delayedDamageEvents];
+            if (allDamageEvents.length > 0) {
+              setDamageEvents((prev) => [...prev, ...allDamageEvents]);
+            }
+            if (newProjectileEvents.length > 0) {
+              setProjectileEvents((prev) => [...prev, ...newProjectileEvents]);
+            }
           }
 
           // ---- 撃破処理 (HP <= 0) + onKill / onDropRoll パッチ評価 + 報酬獲得 + 各 Event ----
@@ -1528,7 +1572,10 @@ export function useBattleLoop({ paused = false }: UseBattleLoopOpts): UseBattleL
           }
           if (newDeathEvents.length > 0) {
             enemiesRef.current = survivors;
-            setDeathEvents((prev) => [...prev, ...newDeathEvents]);
+            // v1.3.2: スクリーンセーバー中は描画 events を蓄積しない (ロジック側 enemiesRef 更新は実施)
+            if (!suspendRenderingRef.current) {
+              setDeathEvents((prev) => [...prev, ...newDeathEvents]);
+            }
           }
           if (!earnedScrew.isZero()) {
             state.addScrew(earnedScrew);
