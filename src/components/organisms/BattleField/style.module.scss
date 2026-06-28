@@ -129,7 +129,11 @@
   gap: 4px;
   pointer-events: none;
   z-index: 5;
-  will-change: transform;
+  /* v1.3.9: will-change: transform を撤去 (iOS Safari の GPU layer メモリプレッシャー軽減)。
+   * EnemySprite が JS で書く `translate3d(...)` の z 引数=0 で GPU layer 自体は強制確保される
+   * (translate3d は 3D context を作るため compositor は自動で layer を割当)。
+   * 一方 will-change は「永続的に GPU layer を保つ」 ヒントで、 敵 25 体 × 常時の合計は
+   * Safari の GPU memory を圧迫し、 fps drop の遠因になる。 */
 }
 
 .enemyUpper {
