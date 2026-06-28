@@ -68,7 +68,8 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  filter: drop-shadow(var(--glow-cyan-sm));
+  /* v1.3.9: filter: drop-shadow を撤去 (iOS Safari の GPU compositor 負荷主因)。
+   * .machineRingOuter の box-shadow が既に tower 周囲のグローを担うため見た目影響は最小。 */
 
   /* Icon (tower SVG) を .machine 全体に伸ばす。 旧実装は <Icon size={22} /> で 22px 固定
      だったが、 .machine が cqmin スケールするので Icon も追従する必要がある。
@@ -86,9 +87,10 @@
   inset: 0;
   border-radius: 50%;
   border: 1.5px solid var(--c-primary);
-  box-shadow:
-    0 0 10px rgba(78, 228, 246, 0.55),
-    inset 0 0 10px rgba(78, 228, 246, 0.2);
+  /* v1.3.9: inset 0 0 10px shadow を撤去 (二重 box-shadow を単重に)。
+   * battle 中常時表示のリングなので、 GPU compositor 負荷を最小化する。
+   * 外側 glow だけで tower 周囲のサイバー感は維持できる。 */
+  box-shadow: 0 0 10px rgba(78, 228, 246, 0.55);
   pointer-events: none;
 }
 
@@ -98,7 +100,7 @@
   transform: translate(-50%, -50%);
   pointer-events: none;
   z-index: 4;
-  filter: drop-shadow(0 0 4px currentColor);
+  /* v1.3.9: filter: drop-shadow を撤去。 装飾用ピンに常時 GPU フィルタは過剰負荷。 */
   opacity: 0.85;
 }
 
@@ -128,7 +130,11 @@
   gap: 4px;
   pointer-events: none;
   z-index: 5;
-  will-change: transform;
+  /* v1.3.9: will-change: transform を撤去 (iOS Safari の GPU layer メモリプレッシャー軽減)。
+   * EnemySprite が JS で書く `translate3d(...)` の z 引数=0 で GPU layer 自体は強制確保される
+   * (translate3d は 3D context を作るため compositor は自動で layer を割当)。
+   * 一方 will-change は「永続的に GPU layer を保つ」 ヒントで、 敵 25 体 × 常時の合計は
+   * Safari の GPU memory を圧迫し、 fps drop の遠因になる。 */
 }
 
 .enemyUpper {

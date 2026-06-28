@@ -1,21 +1,13 @@
 /**
- * WeaponReadyFx — 武器スロットが ready 状態のとき発光する繰り返しアニメ Fx。
+ * WeaponReadyFx — 武器スロットが ready 状態のときの発光 Fx。
  *
- * @keyframes はここ（Fx コンポーネント）にのみ書く。
+ * v1.3.9: 旧 readyPulse keyframe (1.4s ease-in-out infinite で box-shadow を補間) を撤去。
+ * battle 中、 アクティブスキル CD 完了 + 非装備武器の各スロットに常時 pulse が走り、
+ * iOS Safari の compositor で box-shadow raster cache 連続再生成 → FRAME spike の補助犯
+ * になっていた。 静的な glow + border-color で「ready」 を表現するだけに簡素化。
+ *
  * 親コンポーネントは条件付きレンダリングで mount / unmount を制御する。
  */
-
-@keyframes readyPulse {
-  0%,
-  100% {
-    box-shadow: var(--glow-purple-sm);
-    border-color: var(--c-secondary);
-  }
-  50% {
-    box-shadow: var(--glow-purple-md);
-    border-color: var(--c-secondary);
-  }
-}
 
 .pulse {
   position: absolute;
@@ -24,14 +16,5 @@
   border: 1px solid var(--c-secondary);
   box-shadow: var(--glow-purple-sm);
   pointer-events: none;
-  animation: readyPulse 1.4s ease-in-out infinite;
   z-index: 0;
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .pulse {
-    animation: none;
-    /* 静止状態でも視覚的に ready であることは維持する */
-    box-shadow: var(--glow-purple-sm);
-  }
 }

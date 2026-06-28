@@ -1,31 +1,73 @@
 # パフォーマンス計測手順 (perf-bench)
 
-v1.3.7 大規模リファクタの効果を **客観計測** するためのハーネスと手順。 機能変更はゼロ。
+実機 (スマホ) で 1 ラン回すと端末が温まる発熱問題を、 **オフラインで原因切り分け**
+するための計測ハーネスと手順。 v1.3.7 大規模リファクタの効果計測 → v1.3.8 で
+発熱原因のさらなる絞り込みに活用。 機能変更はゼロ。
 
-## 1. dev サーバ起動時に自動表示される perf overlay
+## 1. dev サーバ起動時に自動表示される PerfOverlay
 
-`yarn dev` を起動するとブラウザ右上に半透明の overlay が **自動で出る**。 クエリパラメータ不要。
-production ビルド (`yarn build` の出力) では絶対に表示されない (= 描画コスト 0)。
+`yarn dev` を起動するとブラウザ右上に半透明のオーバーレイが **自動で出る** (クエリ不要)。
+production ビルド (`yarn build` 出力) では絶対に表示されない (= 描画コスト 0)。
 
-表示項目:
+### 表示項目
 
-| 項目 | 内容 |
+| 項目 | 意味 |
 |---|---|
-| **FPS** | 直近 1 秒の `requestAnimationFrame` コール回数 (rolling window) |
-| **HEAP** | Chrome 限定 (`performance.memory.usedJSHeapSize`)。 MB 単位 |
-| **ENEMIES** | DOM 内の `[data-enemy-id]` 要素数 (= 描画中の敵 sprite 数) |
+| **FPS** | 直近 1 秒の `requestAnimationFrame` コール回数 |
+| **HEAP** | Chrome のみ (`performance.memory.usedJSHeapSize`)。 MB 単位 |
+| **LOOP** | useBattleLoop tick の self time (avg ms / max ms)。 1 秒平均 |
+| **BUDGET** | LOOP avg を targetFps の 1 frame budget で割った % (= CPU 占有率の目安) |
+| **PROJ** | 表示中 projectile event 数 |
+| **ENEMIES** | DOM 内 `[data-enemy-id]` 要素数 (= 表示中の敵 sprite) |
+| **DOM** | `document.getElementsByTagName('*').length` — 全 DOM ノード数 |
+| **LONG** | 直近 1 秒の long task (>= 50ms) 数。 `PerformanceObserver` 経由 |
 
-実装は [src/components/atoms/PerfOverlay/](../src/components/atoms/PerfOverlay/index.tsx)。 表示制御は
-`import.meta.env.DEV` で行うため、 vite の env が dev モードかどうかで自動切替。
+実装: [src/components/atoms/PerfOverlay/](../src/components/atoms/PerfOverlay/index.tsx) /
+[src/lib/perfBus.ts](../src/lib/perfBus.ts)。 表示制御は `import.meta.env.DEV` で
+行うため、 vite が dev モードかどうかで自動切替。
+
+### 発熱原因の切り分け早見表
+
+| 症状 | 推定原因 |
+|---|---|
+| BUDGET > 60% / LOOP avg が targetFps 1 frame の半分以上 | JS ゲームループが支配的。 weaponDispatch / 状態異常 / spawn / collide のいずれか |
+| BUDGET 低いのに FPS < targetFps | レンダリング/合成側 (GPU compositor / paint) が遅い |
+| LONG > 0 / max ms が突出 | 1 フレーム内で重い同期処理 (BigNum 演算 / wave スポーン爆発) が走っている |
+| ENEMIES / DOM が際限なく増える | 削除キュー (queueRemoval) が消費されていない可能性 |
+| HEAP が単調増加 | リーク。 events ref / pendingRemovals / closure 参照を疑う |
 
 ### 起動例
 
 - ローカル dev (PC): `http://localhost:5173/tower-like-game/`
 - ローカル dev (スマホ): `http://<private IP>:5173/tower-like-game/`
 
-## 2. Chrome DevTools Performance での詳細計測
+## 2. dev サーバへの **自動ログ送信** (v1.3.8 追加)
 
-実機 + USB デバッグで以下を取る:
+PerfOverlay は 1 秒ごとに上記スナップショットを `navigator.sendBeacon('/__perf', JSON)`
+で Vite dev サーバに送る。 サーバ側 plugin `perfLogCollector`
+([vite.config.ts](../vite.config.ts) 内) が **リポジトリ直下** の `dev-perf-log.jsonl`
+に追記する。
+
+```jsonl
+2026-06-28T12:34:56.789Z {"ts":1751108096789,"fps":58,"heapMb":"42.1","loopAvgMs":3.2,"loopMaxMs":11.4,"budgetPct":19.2,"projCount":18,"enemyCount":24,"domCount":612,"longTaskCount":0,"targetFps":60,"loopCount":58,"currentTier":5,"currentWave":12,"isRunActive":true,"isPaused":false,"screenSaverOpen":false}
+```
+
+- 各行の先頭は **dev サーバ受信時刻 (ISO 文字列)** — 解析側のタイムライン基準
+- 各行の本文は ServerSnapshot (PerfOverlay → sendBeacon が組み立てた JSON)
+- ファイルは `.gitignore` 済 — リポジトリには絶対入らない
+- production には plugin が `apply: 'serve'` で除外されるため一切混入しない
+
+### 解析手順 (Claude Code 担当者向け)
+
+1. ユーザがスマホで `yarn dev` (Mac で `--host 0.0.0.0` 起動) を開き、 1 ラン回す
+2. Mac 側に `dev-perf-log.jsonl` が蓄積される
+3. Claude が `Read /Users/<user>/work/tower-like-game/dev-perf-log.jsonl` で全行を読む
+4. 各秒の FPS / BUDGET / LOOP の推移、 long task の発生時刻、 enemy 数との相関を分析
+5. 発熱原因 (JS bound / paint bound / GC bound) を確定して次の改善案を提示
+
+## 3. (任意) Chrome DevTools Performance タブでの詳細プロファイル
+
+`PerfOverlay` だけでは絞り込めない場合の補助手段。 実機 + USB デバッグで:
 
 1. Chrome DevTools の Performance タブを開く
 2. 「Record」 を 10 秒間。 ランは通常プレイ (T1 / T5 など)
@@ -33,39 +75,16 @@ production ビルド (`yarn build` の出力) では絶対に表示されない 
    - **Scripting** (黄): rAF tick / React reconciliation / BigNum 演算
    - **Rendering** (紫): layout 再計算
    - **Painting** (緑): DOM repaint, GPU compositor
-   - **Total commits per frame**: React DevTools Profiler の Commits タブ
-4. 各 phase 後に同条件で 1 回ずつ取って比較
-
-### 主要な観察対象
-
-- `useBattleLoop` の tick callback のセルフ時間 → ロジック負荷
-- React `commitLayoutEffects` / `commitMutationEffects` の数 → render コスト
-- `layout` の頻度と要素数 → DOM 描画コスト (敵 sprite の inline style 更新)
-- GC (`MinorGC` / `MajorGC`) → heap allocation コスト
-
-## 3. v1.3.7 各 Phase の目標値
-
-| Phase | 目標 |
-|---|---|
-| **Phase 0 (今回)** | ベースライン取得。 fps が 60 上限で安定、 5 分プレイで heap が 60MB 以下に収まる程度 |
-| **Phase 1 (EntityStore 導入)** | 機能変更なし。 同じ fps / heap を維持できれば OK |
-| **Phase 2 (BattleField 直接 subscribe)** | Page の re-render が 1 ラン中 10 回以下 |
-| **Phase 3 (mutable + CSS 変数 transform)** | scripting -30〜50%、 layout/paint ほぼゼロ |
-| **Phase 4 (Page useStore 分散)** | Page render が 1 ラン中 5 回以下 |
-| **Phase 5 (量子化)** | 実機 5 分プレイで端末温度が前 phase より体感低下 |
+4. 必要に応じて React DevTools Profiler の Commits タブで render 回数を確認
 
 ## 4. 実機ベンチ手順
 
-スマホ (iOS / Android) で:
-
 1. 端末温度を計測前に **安静状態** に戻す (5 分以上アプリ未起動)
-2. ローカル dev に Wi-Fi 経由でアクセスし `?debug=perf` で起動
+2. ローカル dev (`yarn dev --host 0.0.0.0`) に Wi-Fi 経由でアクセス
 3. T5 などボリュームのある Tier を 5 分プレイ
 4. 端末背面の温度を **手で触って** 体感で記録 (温度計があれば数値で)
-5. perf overlay の FPS / HEAP の推移を記録
-6. プレイ終了後、 Performance タブで profile を保存
-
-各 phase 後に同手順で再測定して比較する。 体感とプロファイル両方で改善を確認できれば次 phase へ進む。
+5. PerfOverlay の数値推移を見る + Mac 側で `dev-perf-log.jsonl` を保存
+6. プレイ終了後、 jsonl を解析者 (Claude) に渡す
 
 ## 関連ドキュメント
 

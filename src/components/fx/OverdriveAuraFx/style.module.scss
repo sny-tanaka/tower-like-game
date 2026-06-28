@@ -37,8 +37,9 @@
   position: absolute;
   inset: 0;
   border-radius: 50%;
+  /* v1.3.9: box-shadow 撤去 (rot animation 中の raster cache 再生成回避)。
+   * border 2px dashed の点線 + 回転で十分「強化中」 感は出る。 */
   border: 2px dashed var(--oa-color);
-  box-shadow: 0 0 16px color-mix(in srgb, var(--oa-color) 53%, transparent);
   animation: rot 2.4s linear infinite;
 }
 

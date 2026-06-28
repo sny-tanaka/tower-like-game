@@ -38,6 +38,7 @@ import { thunderPlasmaDischarge, thunderStats } from '@/game/weapons/thunder';
 import { soundEngine } from '@/lib/audio';
 import type { SoundId } from '@/lib/audio';
 import { BigNum } from '@/lib/bignum';
+import { markFrameInterval, markTickEnd, markTickStart, setProjectileCount } from '@/lib/perfBus';
 import { useStore } from '@/store/index';
 import { DEFAULT_ACTIVE_MAX_SEC } from '@/store/slices/battle';
 import type { WeaponType } from '@/store/slices/weapons';
@@ -867,6 +868,11 @@ export function useBattleLoop({
     if (!isRunActive) return;
 
     const tick = (nowMs: number) => {
+      // dev のみ: 1 フレーム間隔の wall-clock 差分を記録 (描画 fps キャップで skip した
+      // フレームも含めた全 rAF callback 間の経過時間を集計)。 LOOP avg では取れない
+      // React commit / paint / 合成までを含む実フレーム長を捉える。
+      markFrameInterval(nowMs);
+
       const elapsedMs = nowMs - lastFrameMsRef.current;
 
       // 発熱対策: 描画 fps キャップ。 前回描画からの経過が targetFps の閾値未満なら
@@ -877,6 +883,8 @@ export function useBattleLoop({
         return;
       }
       lastFrameMsRef.current = nowMs;
+      // dev のみ: ゲームロジックの self time を計測 (production では perfBus が no-op)
+      markTickStart();
 
       // H2-3 + v1.3.7 (Phase 2-A): Fx 完了通知をバッチフラッシュ。 entityStore から削除キューを
       // 取り出して events ref を filter。 setState / entityStore.setX は tick 末尾で 1 度だけ呼び、
@@ -1827,6 +1835,10 @@ export function useBattleLoop({
           entityStore.notifyFrame();
         }
       }
+
+      // dev のみ: 計測終了。 projectile 数も最後にスナップショット (PerfOverlay 表示用)
+      setProjectileCount(projectileEventsRef.current.length);
+      markTickEnd();
 
       rafIdRef.current = requestAnimationFrame(tick);
     };

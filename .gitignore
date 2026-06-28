@@ -30,3 +30,8 @@ npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 design-docs/claude-design
+
+# PerfOverlay → /__perf middleware で蓄積される dev 限定の発熱計測ログ。
+# 実機 → 開発機の経路で計測する想定。 production には絶対に混入しない。
+dev-perf-log.jsonl
+

@@ -32,14 +32,16 @@
 
 .badge {
   padding: 8px 16px;
-  background: rgba(10, 15, 28, 0.85);
+  /* v1.3.9: 背景 alpha を 0.85 → 0.92 に上げ、 backdrop-filter: blur(6px) を撤去
+   * (iOS Safari の鬼門)。 wave 切替のたびに数秒だけだが、 30 wave で 30 回発火する
+   * ため compositor 負荷の累積寄与を消す。 不透明寄りで背景透けは抑えつつ視認性維持。 */
+  background: rgba(10, 15, 28, 0.92);
   border: 1px solid var(--c-primary);
   border-radius: var(--r-pill);
   box-shadow: var(--glow-cyan-md);
   display: inline-flex;
   align-items: baseline;
   gap: 8px;
-  backdrop-filter: blur(6px);
 }
 
 /* WAVE ラベル / 数字の静的 font-size (旧: inline style) */

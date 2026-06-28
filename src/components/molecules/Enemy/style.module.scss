@@ -22,15 +22,9 @@
      視認できる)。 status による色切替は引き続き data-status 属性セレクタで行う。 */
 }
 
-.root[data-status='frozen'] .shape {
-  /* 凍結: シアン系のグロー (Thunder と同系色だが太く半透明) */
-  filter: drop-shadow(0 0 calc(var(--enemy-glow-px, 4px) * 1.5) rgba(138, 243, 255, 0.9));
-}
-
-.root[data-status='burning'] .shape {
-  /* 燃焼: オレンジ系のグロー (Warning と同系色) */
-  filter: drop-shadow(0 0 calc(var(--enemy-glow-px, 4px) * 1.5) rgba(255, 167, 38, 0.9));
-}
+/* v1.3.9: 状態異常時の filter: drop-shadow を撤去 (iOS Safari GPU compositor 主因)。
+ * frozen / burning は SVG 自体の fill (status 別) と DamagePopFx の継続表示で判別可能。
+ * 多数同時 frozen/burning 時の drop-shadow 連続レンダリングが FRAME spike を生んでいた。 */
 
 /* H2-6: 旧 prefers-reduced-motion ブロックは .shape の transition: transform を
    none にしていたが、 H2-6 で常時 transition を廃止したため不要に。 */
@@ -47,5 +41,7 @@
 
 .hpFill {
   height: 100%;
-  transition: width 200ms var(--ease-out);
+  /* v1.3.9: transition: width 200ms を撤去。 敵 25 体規模で Thunder の高頻度 hit のたび
+   * HP バー width transition machinery が連続起動 → ブラウザ内 transition pipeline が
+   * 常時動いて発熱寄与。 即時反映に変更 (補間なしでも視認影響は最小)。 */
 }

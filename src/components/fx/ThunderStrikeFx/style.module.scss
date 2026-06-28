@@ -76,10 +76,11 @@
   width: 8vmin;
   height: 8vmin;
   border-radius: 50%;
+  /* v1.3.9: 二重 box-shadow (blur 20px + 40px) を撤去 (iOS Safari の compositor 主因)。
+   * Thunder 攻撃ごとに 320ms × 同時 12 個まで並行発火するため、 巨大 blur の
+   * raster cache 連続再生成が FRAME spike を生んでいた。 radial-gradient で
+   * 中心から外側のグロー感は表現済 (rasterize 1 回で済む)。 */
   background: radial-gradient(circle, #fff 0%, var(--thn-color) 30%, transparent 70%);
-  box-shadow:
-    0 0 20px var(--thn-color),
-    0 0 40px var(--thn-color);
   animation: flash var(--thn-flash-duration, 208ms) var(--thn-strike-duration, 112ms)
     var(--ease-out) both;
   pointer-events: none;

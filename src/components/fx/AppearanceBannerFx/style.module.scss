@@ -49,8 +49,10 @@
 .flash {
   position: absolute;
   inset: 0;
-  background: var(--app-color);
-  mix-blend-mode: screen;
+  /* v1.3.9: mix-blend-mode: screen を撤去 (iOS Safari の全画面 GPU 合成負荷)。
+   * 上位敵 (elite/miniboss/boss) 出現時、 画面全体に blend が当たり paint invalidation を
+   * 強制していた。 半透明色 background だけで「警告フラッシュ」 の体感は維持。 */
+  background: color-mix(in srgb, var(--app-color) 35%, transparent);
   animation: flash var(--app-duration, 1600ms) var(--ease-out) both;
 }
 
