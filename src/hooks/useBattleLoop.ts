@@ -38,7 +38,7 @@ import { thunderPlasmaDischarge, thunderStats } from '@/game/weapons/thunder';
 import { soundEngine } from '@/lib/audio';
 import type { SoundId } from '@/lib/audio';
 import { BigNum } from '@/lib/bignum';
-import { markTickEnd, markTickStart, setProjectileCount } from '@/lib/perfBus';
+import { markFrameInterval, markTickEnd, markTickStart, setProjectileCount } from '@/lib/perfBus';
 import { useStore } from '@/store/index';
 import { DEFAULT_ACTIVE_MAX_SEC } from '@/store/slices/battle';
 import type { WeaponType } from '@/store/slices/weapons';
@@ -868,6 +868,11 @@ export function useBattleLoop({
     if (!isRunActive) return;
 
     const tick = (nowMs: number) => {
+      // dev のみ: 1 フレーム間隔の wall-clock 差分を記録 (描画 fps キャップで skip した
+      // フレームも含めた全 rAF callback 間の経過時間を集計)。 LOOP avg では取れない
+      // React commit / paint / 合成までを含む実フレーム長を捉える。
+      markFrameInterval(nowMs);
+
       const elapsedMs = nowMs - lastFrameMsRef.current;
 
       // 発熱対策: 描画 fps キャップ。 前回描画からの経過が targetFps の閾値未満なら

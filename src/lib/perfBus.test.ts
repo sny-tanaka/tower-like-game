@@ -2,10 +2,14 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import {
   _resetPerfBusForTest,
+  drainFrameStats,
+  drainLoafStats,
   drainTickStats,
   getProjectileCount,
+  markFrameInterval,
   markTickEnd,
   markTickStart,
+  recordLoaf,
   setProjectileCount,
 } from './perfBus';
 
@@ -97,5 +101,51 @@ describe('perfBus', () => {
     // drainTickStats を呼んでもリセットされない
     drainTickStats();
     expect(getProjectileCount()).toBe(12);
+  });
+
+  it('markFrameInterval: 初回は基準時刻として保存のみ、 2回目以降が集計される', () => {
+    // 初回は基準だけ
+    markFrameInterval(1000);
+    expect(drainFrameStats()).toEqual({ avgMs: 0, maxMs: 0, count: 0 });
+
+    // 2 回目 (16.67ms 後), 3 回目 (33.34ms = +16.67ms 後), 4 回目 (50ms = +20ms 後 → fps drop)
+    markFrameInterval(1100);
+    markFrameInterval(1116);
+    markFrameInterval(1133);
+    markFrameInterval(1183); // +50ms (fps drop の瞬間)
+
+    const stats = drainFrameStats();
+    expect(stats.count).toBe(4);
+    expect(stats.maxMs).toBeCloseTo(100, 1); // 最初の +100ms (基準→2回目)
+    expect(stats.avgMs).toBeGreaterThan(0);
+  });
+
+  it('markFrameInterval: 500ms 超のフレーム (タブ非アクティブ復帰等) は無視される', () => {
+    markFrameInterval(0);
+    markFrameInterval(700); // 700ms ジャンプ → 集計対象外
+    expect(drainFrameStats()).toEqual({ avgMs: 0, maxMs: 0, count: 0 });
+  });
+
+  it('recordLoaf: count / maxMs / avgScriptMs が正しく集計される', () => {
+    recordLoaf(60, 30); // duration=60ms, script=30ms
+    recordLoaf(120, 80); // duration=120ms, script=80ms
+    recordLoaf(80, 50);
+
+    const stats = drainLoafStats();
+    expect(stats.count).toBe(3);
+    expect(stats.maxMs).toBe(120);
+    expect(stats.avgMs).toBeCloseTo((60 + 120 + 80) / 3, 5);
+    expect(stats.avgScriptMs).toBeCloseTo((30 + 80 + 50) / 3, 5);
+  });
+
+  it('drainLoafStats / drainFrameStats: drain で内部 accumulator がリセットされる', () => {
+    markFrameInterval(0);
+    markFrameInterval(100);
+    drainFrameStats();
+    expect(drainFrameStats()).toEqual({ avgMs: 0, maxMs: 0, count: 0 });
+
+    recordLoaf(60, 30);
+    drainLoafStats();
+    expect(drainLoafStats()).toEqual({ count: 0, avgMs: 0, maxMs: 0, avgScriptMs: 0 });
   });
 });

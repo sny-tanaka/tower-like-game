@@ -18,6 +18,8 @@ describe('PerfOverlay', () => {
     // v1.3.8 で追加した発熱解析向けラベル
     expect(screen.getByText('LOOP')).toBeDefined();
     expect(screen.getByText('BUDGET')).toBeDefined();
+    expect(screen.getByText('FRAME')).toBeDefined();
+    expect(screen.getByText('LOAF')).toBeDefined();
     expect(screen.getByText('PROJ')).toBeDefined();
     expect(screen.getByText('DOM')).toBeDefined();
     expect(screen.getByText('LONG')).toBeDefined();

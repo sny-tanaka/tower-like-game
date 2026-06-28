@@ -2,20 +2,28 @@ import { useEffect, useRef, useState } from 'react';
 
 import styles from './style.module.scss';
 
-import { drainTickStats, getProjectileCount } from '@/lib/perfBus';
+import {
+  drainFrameStats,
+  drainLoafStats,
+  drainTickStats,
+  getProjectileCount,
+  recordLoaf,
+} from '@/lib/perfBus';
 import { useStore } from '@/store/index';
 
 /**
  * PerfOverlay — dev サーバ起動時に画面右上に自動表示される開発用パフォーマンスオーバーレイ。
  *
- * **表示内容 (v1.3.8 拡張)**:
+ * **表示内容 (v1.3.8 拡張 → v1.3.8 第2弾で FRAME / LOAF 追加)**:
  *
  * | 項目 | 内容 |
  * |---|---|
  * | FPS | 直近 1 秒の `requestAnimationFrame` コール回数 |
  * | HEAP | Chrome 限定 (`performance.memory.usedJSHeapSize`)。 MB |
- * | LOOP | useBattleLoop の tick self time (avg / max ms) — 1 秒平均 |
- * | BUDGET | LOOP avg を targetFps の 1 frame budget で割った % (= CPU 占有率の目安) |
+ * | LOOP | useBattleLoop tick の純 JS ロジック self time (avg / max ms) — React commit 含まず |
+ * | BUDGET | LOOP avg を targetFps の 1 frame budget で割った % (= JS 占有率の目安) |
+ * | FRAME | rAF callback 間の wall-clock 差分 (avg / max ms) — React commit + paint + 合成を含む実フレーム長 |
+ * | LOAF | long-animation-frame 件数 / 最大 duration (ms) — iOS Safari 18+ で対応 |
  * | PROJ | 表示中 projectile 数 |
  * | ENEMIES | DOM 内 `[data-enemy-id]` 要素数 |
  * | DOM | `document.getElementsByTagName('*').length` — 全 DOM ノード数 |
@@ -81,6 +89,20 @@ interface DisplaySnapshot {
   loopAvgMs: number;
   loopMaxMs: number;
   budgetPct: number;
+  /**
+   * frame interval (= rAF callback 間の wall-clock 差分) の集計 (1秒分)。
+   * 60fps 安定なら avg=16.67ms、 fps drop の瞬間に max が突発的に伸びる。
+   */
+  frameAvgMs: number;
+  frameMaxMs: number;
+  /**
+   * long-animation-frame (LoAF) の集計 (1秒分)。 iOS Safari 18+ で対応。
+   * 「フレーム全工程が 50ms 超」 のフレームを直接捉える。 longTaskCount が JS スレッド
+   * ブロック検知なのに対し、 loafCount は描画/合成側のブロックも含む。
+   */
+  loafCount: number;
+  loafMaxMs: number;
+  loafAvgScriptMs: number;
   projCount: number;
   enemyCount: number;
   domCount: number;
@@ -95,6 +117,7 @@ interface ServerSnapshot extends DisplaySnapshot {
   ts: number;
   targetFps: number;
   loopCount: number;
+  frameCount: number;
   currentTier?: number;
   currentWave?: number;
   isRunActive?: boolean;
@@ -178,6 +201,34 @@ export function PerfOverlay({ forceShow }: PerfOverlayProps) {
     return () => po.disconnect();
   }, [enabled]);
 
+  // ---- PerformanceObserver: long-animation-frame (LoAF) — iOS Safari 18+ 対応 ----
+  // フレーム全工程 (script / styleAndLayout / paint / composite) が 50ms 超のフレームを
+  // 直接捉える。 PerformanceLongAnimationFrameTiming は標準で entry.duration (= フレーム長)
+  // と renderStart (= ブラウザが render phase に入った時刻) を持つ。
+  useEffect(() => {
+    if (!enabled) return;
+    if (typeof PerformanceObserver === 'undefined') return;
+    type SupportedPO = typeof PerformanceObserver & { supportedEntryTypes?: string[] };
+    const supported = (PerformanceObserver as SupportedPO).supportedEntryTypes ?? [];
+    if (!supported.includes('long-animation-frame')) return;
+    // LoAF entry の型 (まだ TypeScript lib に入っていない部分があるため最小限の構造のみ拾う)
+    type LoafEntry = PerformanceEntry & { renderStart?: number };
+    const po = new PerformanceObserver((list) => {
+      for (const e of list.getEntries() as LoafEntry[]) {
+        const renderStart = e.renderStart ?? 0;
+        // script 部分 = renderStart - startTime。 renderStart=0 のときは duration 全体が script
+        const scriptMs = renderStart > 0 ? renderStart - e.startTime : e.duration;
+        recordLoaf(e.duration, scriptMs);
+      }
+    });
+    try {
+      po.observe({ entryTypes: ['long-animation-frame'] });
+    } catch {
+      return;
+    }
+    return () => po.disconnect();
+  }, [enabled]);
+
   // ---- rAF: fps 計測 + 200ms ごと表示更新 + 1秒ごとサーバ送信 ----
   useEffect(() => {
     if (!enabled) return;
@@ -206,23 +257,30 @@ export function PerfOverlay({ forceShow }: PerfOverlayProps) {
 
         if (isServerTick) {
           lastServerSampleMs = now;
-          const { avgMs, maxMs, count } = drainTickStats();
+          const tick = drainTickStats();
+          const frame = drainFrameStats();
+          const loafStats = drainLoafStats();
           const projCount = getProjectileCount();
           const longTaskCount = longTaskCountRef.current;
           longTaskCountRef.current = 0;
           const ctx = readStoreContext();
           const targetFps = ctx.targetFps ?? 60;
           const budgetMs = targetFps > 0 ? 1000 / targetFps : 16.67;
-          const budgetPct = budgetMs > 0 ? (avgMs / budgetMs) * 100 : 0;
+          const budgetPct = budgetMs > 0 ? (tick.avgMs / budgetMs) * 100 : 0;
           const domCount =
             typeof document !== 'undefined' ? document.getElementsByTagName('*').length : 0;
 
           const display: DisplaySnapshot = {
             fps,
             heapMb,
-            loopAvgMs: avgMs,
-            loopMaxMs: maxMs,
+            loopAvgMs: tick.avgMs,
+            loopMaxMs: tick.maxMs,
             budgetPct,
+            frameAvgMs: frame.avgMs,
+            frameMaxMs: frame.maxMs,
+            loafCount: loafStats.count,
+            loafMaxMs: loafStats.maxMs,
+            loafAvgScriptMs: loafStats.avgScriptMs,
             projCount,
             enemyCount,
             domCount,
@@ -232,7 +290,8 @@ export function PerfOverlay({ forceShow }: PerfOverlayProps) {
             ...display,
             ts: Date.now(),
             targetFps,
-            loopCount: count,
+            loopCount: tick.count,
+            frameCount: frame.count,
             currentTier: ctx.currentTier,
             currentWave: ctx.currentWave,
             isRunActive: ctx.isRunActive,
@@ -242,7 +301,7 @@ export function PerfOverlay({ forceShow }: PerfOverlayProps) {
           postSnapshot(server);
           setSnap(display);
         } else if (isUiTick) {
-          // 200ms 更新: LOOP / BUDGET / PROJ / DOM / LONG は前回 server サンプル値を保持。
+          // 200ms 更新: LOOP / BUDGET / FRAME / LoAF / PROJ / DOM / LONG は前回 server サンプル値を保持。
           // FPS / HEAP / ENEMIES (= 軽い計測値) のみ更新。
           lastUiUpdateMs = now;
           setSnap((prev) => ({
@@ -251,6 +310,11 @@ export function PerfOverlay({ forceShow }: PerfOverlayProps) {
             loopAvgMs: prev?.loopAvgMs ?? 0,
             loopMaxMs: prev?.loopMaxMs ?? 0,
             budgetPct: prev?.budgetPct ?? 0,
+            frameAvgMs: prev?.frameAvgMs ?? 0,
+            frameMaxMs: prev?.frameMaxMs ?? 0,
+            loafCount: prev?.loafCount ?? 0,
+            loafMaxMs: prev?.loafMaxMs ?? 0,
+            loafAvgScriptMs: prev?.loafAvgScriptMs ?? 0,
             projCount: prev?.projCount ?? 0,
             enemyCount,
             domCount: prev?.domCount ?? 0,
@@ -295,6 +359,18 @@ export function PerfOverlay({ forceShow }: PerfOverlayProps) {
       <div className={styles.row}>
         <span className={styles.label}>BUDGET</span>
         <span className={styles.value}>{(snap?.budgetPct ?? 0).toFixed(0)}%</span>
+      </div>
+      <div className={styles.row}>
+        <span className={styles.label}>FRAME</span>
+        <span className={styles.value}>
+          {(snap?.frameAvgMs ?? 0).toFixed(1)}/{(snap?.frameMaxMs ?? 0).toFixed(1)}
+        </span>
+      </div>
+      <div className={styles.row}>
+        <span className={styles.label}>LOAF</span>
+        <span className={styles.value}>
+          {snap?.loafCount ?? 0}/{(snap?.loafMaxMs ?? 0).toFixed(0)}
+        </span>
       </div>
       <div className={styles.row}>
         <span className={styles.label}>PROJ</span>
