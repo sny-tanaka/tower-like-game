@@ -58,8 +58,11 @@
   top: 0;
   width: 4px;
   height: 4px;
+  /* v1.3.9: box-shadow 撤去 (iOS Safari GPU compositor 負荷)。
+   * EnemyDeathFx 発火時 8 shards × 倒した敵数 × Thunder の連続撃破で
+   * 大量の box-shadow + rotate animation が並行 → raster cache 再生成多発。
+   * 4px 角の色シャードで撃破感は十分。 */
   background: var(--death-color);
-  box-shadow: 0 0 4px var(--death-color);
   animation: shard var(--death-duration, 480ms) var(--ease-out) both;
 }
 
