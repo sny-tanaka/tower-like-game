@@ -44,7 +44,9 @@
 /* active (使用中 / 選択中) */
 .active {
   border-color: var(--c-primary);
-  box-shadow: var(--glow-cyan-md);
+  /* v1.3.9: --glow-cyan-md (二重 box-shadow: 0 0 12px + 0 0 24px) → --glow-cyan-sm (単重)
+   * battle 中常時表示のスロットに二重 box-shadow は過剰負荷。 単重で active 識別は十分。 */
+  box-shadow: var(--glow-cyan-sm);
   background: var(--c-primary-bg);
 }
 

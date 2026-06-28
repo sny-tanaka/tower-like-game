@@ -41,5 +41,7 @@
 
 .hpFill {
   height: 100%;
-  transition: width 200ms var(--ease-out);
+  /* v1.3.9: transition: width 200ms を撤去。 敵 25 体規模で Thunder の高頻度 hit のたび
+   * HP バー width transition machinery が連続起動 → ブラウザ内 transition pipeline が
+   * 常時動いて発熱寄与。 即時反映に変更 (補間なしでも視認影響は最小)。 */
 }

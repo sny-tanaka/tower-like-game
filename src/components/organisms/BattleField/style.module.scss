@@ -87,9 +87,10 @@
   inset: 0;
   border-radius: 50%;
   border: 1.5px solid var(--c-primary);
-  box-shadow:
-    0 0 10px rgba(78, 228, 246, 0.55),
-    inset 0 0 10px rgba(78, 228, 246, 0.2);
+  /* v1.3.9: inset 0 0 10px shadow を撤去 (二重 box-shadow を単重に)。
+   * battle 中常時表示のリングなので、 GPU compositor 負荷を最小化する。
+   * 外側 glow だけで tower 周囲のサイバー感は維持できる。 */
+  box-shadow: 0 0 10px rgba(78, 228, 246, 0.55);
   pointer-events: none;
 }
 
