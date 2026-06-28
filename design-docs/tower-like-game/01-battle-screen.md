@@ -119,6 +119,34 @@
 - 自動: CD 明け次フレームで自動発動（手動タップは無効化）
 - **ラン開始時はゲージ 0 = CD 満タン状態**から始まり、`DEFAULT_ACTIVE_MAX_SEC`（= 60 秒）経過で初めて発動可能になる（出撃直後の即発動は不可）
 
+### 5.1.1 手動タップ攻撃 (v1.4.0)
+
+「手動要素を増やす」 目的で、 バトル画面の任意位置タップで **マシン最寄敵 (索敵範囲内) に 1 発手動攻撃** を入れられる。
+
+- **対象**: マシン中心からの距離が最短の敵 1 体。 索敵範囲内 (= 通常攻撃と同じ判定半径) に敵がいなければタップは無効
+- **ダメージ計算**: 各武器の damageMul の位置に `TAP_WEAPON_DAMAGE_MUL = 2.0` を入れて `calcOutgoingDamage` を呼ぶ:
+  - `rawDmg = baseAttack × (2.0 × runWorkshop.attackMul)`
+  - クリ時: `rawDmg ×= critMultiplier` (通常攻撃と同じく `critRate / critMultiplier` で判定)
+  - 敵防御: `finalDmg = max(0, rawDmg × (1 - enemyDR) - enemyDefense)`
+- **武器特性は乗らない**: Thunder スタック / Laser 上位敵ボーナス / Cannon splash / Cutter Overdrive 等は無関係
+- **パッチ評価**: v1.4.0 初版では未対応 (氷結トリガ / 燃焼 / 2連射 などはタップでは発火しない)
+- **CD**: 50ms (`TAP_MIN_INTERVAL_MS`)。 同フレーム多重 / iOS pointer 二重発火対策
+- **抑止条件**:
+  - pause / ResultDialog 中: Page が `onTap={undefined}` で BattleField の handler を外す
+  - スクリーンセーバー中: BattleField 自体が unmount される
+- **演出**: `DamagePopFx` (敵位置) + `TapRingFx` (敵位置、 シアンリング 1-shot 800ms)
+
+#### 武器倍率比較表 (v1.4.0)
+
+| 武器 | 通常攻撃 damageMul | タップ damageMul |
+|---|---:|---:|
+| Laser | 1.6 | **2.0** |
+| Cannon | 6.0 | 2.0 |
+| Thunder | 0.9 | **2.0** |
+| Cutter | 2.4 | 2.0 |
+
+Laser / Thunder 装備時はタップが補強として機能、 Cannon / Cutter 装備時は通常攻撃の方が強い設計。
+
 ### 5.2 一時停止とメニュー（統合）
 
 - 専用の一時停止ボタンをタップすると **「pause 状態に入る」と「メニューオーバーレイ (`BattleMenuOverlay`) を開く」 が同時に実行される**（v0.2.0 で統合）

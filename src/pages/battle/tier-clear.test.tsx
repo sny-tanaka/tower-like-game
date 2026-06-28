@@ -61,6 +61,8 @@ function makeUseBattleLoopReturn(
     tierCleared: false,
     onTierClearedAck: vi.fn(),
     entityStore: new BattleEntityStore(),
+    // v1.4.0: 手動タップ攻撃の callback。 tier-clear テストではタップは使わないので no-op。
+    enqueueTap: vi.fn(),
     ...overrides,
   };
 }

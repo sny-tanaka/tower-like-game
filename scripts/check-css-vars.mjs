@@ -52,6 +52,7 @@ const BLESSED = new Set([
   'wv-duration', // WaveStartFx
   'tc-duration', 'tc-ray-duration', 'tc-a', // TierClearFx
   'ss-cycle', 'ss-delay', // ScreenSaverFx
+  'tap-x', 'tap-y', 'tap-duration', // TapRingFx (v1.4.0 タップ攻撃のフィードバック)
   'upgrade-cols', // UpgradeCard: ボタン列の grid-template-columns 数 (JSX が options.length を inline で渡す)
 ]);
 

@@ -229,6 +229,7 @@ export function Page() {
     tierCleared,
     onTierClearedAck,
     entityStore,
+    enqueueTap,
   } = useBattleLoop({
     paused: isResultOpen,
     // v1.3.2: スクリーンセーバー中は描画 events (damageEvents 等) の生成を停止して
@@ -472,6 +473,9 @@ export function Page() {
                   CUTTER_BLADES
                 )}
                 range={WEAPON_RANGE_PCT[currentWeapon] * (machineRangePx / 150)}
+                // v1.4.0: 戦闘進行中のときだけタップ攻撃を有効化。
+                // ResultDialog / pause 中は無効 (= undefined を渡して handler 未登録にする)。
+                onTap={!isPaused && !isResultOpen ? enqueueTap : undefined}
               />
             )}
           </AppShell>
