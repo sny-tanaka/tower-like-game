@@ -275,7 +275,7 @@ export function Page() {
 
   // v1.3.7 Phase 5: マシン強化の派生 (索敵距離 px / 攻撃速度倍率) を useDerivedMachineStats
   // hook に集約。 Page から `machineLevels` selector と useMemo 2 本が消える。
-  // (range linear v1.3.10: 150 + 3/Lv, maxLv 100 で 450 ハードキャップ / 攻撃速度 linear: 1.0 + 0.05/Lv, maxLv 99)
+  // (range linear v1.3.11: 150 + 1.5/Lv, maxLv 100 で 300 ハードキャップ / 攻撃速度 linear: 1.0 + 0.05/Lv, maxLv 99)
   //
   // BattleField の range prop は **直径 %** を渡す: WEAPON_RANGE_PCT × (machineRangePx / 150)。
   // useBattleLoop 側は machineTick.range を読んで /2 して半径として当たり判定に使う (二重計算)。
