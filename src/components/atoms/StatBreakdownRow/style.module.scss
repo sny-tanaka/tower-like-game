@@ -1,0 +1,109 @@
+/* StatBreakdownRow — マシンスタッツの「基礎 × 倍率 = 最終値」 1 行表示 atom */
+
+.root {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-xxs);
+  padding: var(--sp-s);
+  background: var(--c-surface);
+  border: 1px solid var(--c-border-faint);
+  border-radius: var(--r-s);
+}
+
+.header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--sp-s);
+}
+
+.title {
+  font-family: var(--ff-display);
+  font-size: var(--fs-body);
+  font-weight: var(--fw-semibold);
+  color: var(--c-text);
+  letter-spacing: var(--ls-loose);
+}
+
+.cap {
+  font-family: var(--ff-body);
+  font-size: var(--fs-label);
+  color: var(--c-text-dim);
+}
+
+/* 数式部 — 横並び、 狭い画面で折り返す */
+.formula {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: var(--sp-xs);
+  font-family: var(--ff-numeric);
+  font-size: var(--fs-body);
+  letter-spacing: var(--ls-num);
+  color: var(--c-text-mid);
+}
+
+/* 演算記号 (× / + / =) — 値の左に配置、 ラベルは持たない */
+.op {
+  display: inline-block;
+  margin-right: 2px;
+  color: var(--c-text-dim);
+  font-size: var(--fs-label);
+}
+
+/* 値とラベルを 2 行に並べるコンテナ */
+.partBody {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: flex-start;
+  line-height: 1.1;
+}
+
+.value {
+  font-weight: var(--fw-semibold);
+  color: var(--c-text);
+}
+
+.label {
+  font-family: var(--ff-body);
+  font-size: var(--fs-label);
+  color: var(--c-text-dim);
+  letter-spacing: normal;
+  margin-top: 1px;
+}
+
+/* 種類別の色付け */
+.part-base .value {
+  color: var(--c-text);
+}
+
+.part-mul .value {
+  color: var(--c-primary); /* シアン — 乗算項 (ポジティブ強化) */
+}
+
+.part-add .value {
+  color: var(--c-secondary); /* 紫 — 加算項 */
+}
+
+.part-final {
+  & .op {
+    color: var(--c-primary);
+    font-weight: var(--fw-bold);
+  }
+
+  & .value {
+    color: var(--c-primary);
+    font-weight: var(--fw-bold);
+    font-size: var(--fs-h3);
+  }
+}
+
+/* 補足ノート (例: "クリ時 ×200% = 1.61K", "→ 0.385秒/発") */
+.note {
+  font-family: var(--ff-body);
+  font-size: var(--fs-label);
+  color: var(--c-text-dim);
+  padding-left: var(--sp-xs);
+  border-left: 2px solid var(--c-border-faint);
+  margin-top: var(--sp-xxs);
+}

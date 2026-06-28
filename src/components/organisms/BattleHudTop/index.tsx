@@ -3,6 +3,7 @@ import { memo, useMemo } from 'react';
 import styles from './style.module.scss';
 
 import { Badge } from '@/components/atoms/Badge';
+import { IconButton } from '@/components/atoms/IconButton';
 import { NumericDisplay } from '@/components/atoms/NumericDisplay';
 import { ProgressBar } from '@/components/atoms/ProgressBar';
 import { Text } from '@/components/atoms/Text';
@@ -28,6 +29,12 @@ export interface BattleHudTopProps {
    * 内部の `isPaused || isResultOpen` 判定に使う (= リザルト中も Wave タイマーアニメを停止)。
    */
   isResultOpen?: boolean;
+  /**
+   * マシンスタッツ詳細オーバーレイを開く callback (v1.3.9 新設)。
+   * 渡されたとき、 ヘッダ右端に「i」 ボタンを表示する。 Page は MachineStatsBreakdownOverlay の
+   * open state を持っており、 ここで toggle する。
+   */
+  onOpenStatsOverlay?: () => void;
 }
 
 /**
@@ -62,6 +69,7 @@ function BattleHudTopImpl({
   isBossWave = false,
   nextMilestone,
   isResultOpen = false,
+  onOpenStatsOverlay,
 }: BattleHudTopProps) {
   // ── store から直接 subscribe (Page を経由しない) ──
   // selector を 1 値ずつ書くことで、 zustand のデフォルト Object.is 比較に乗る。
@@ -148,6 +156,19 @@ function BattleHudTopImpl({
               value={shieldCurrent}
               size="xs"
               accentColor="primary"
+            />
+          </span>
+        )}
+        {/* v1.3.9: マシンスタッツ詳細オーバーレイを開く i ボタン (Page が onOpenStatsOverlay を渡したときのみ表示) */}
+        {onOpenStatsOverlay && (
+          <span className={styles.statsButton}>
+            <IconButton
+              icon="info"
+              label="マシンスタッツ詳細を開く"
+              size="sm"
+              variant="ghost"
+              shape="round"
+              onClick={onOpenStatsOverlay}
             />
           </span>
         )}

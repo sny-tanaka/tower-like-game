@@ -131,10 +131,18 @@
 }
 
 /* 合成中バッジ */
+/* v1.3.9: 親 .card / .root に overflow 指定がないため、 負値オフセット (top/right: -4px) では
+ * カード枠の外側にはみ出して見える。 また右上は count バッジ (×n) が常駐しているので、
+ * 「合成中」 バッジは左下 (bottom/left: 2px) に置いて 4 隅で重ならない配置にする。
+ *   - 左上: Tier バッジ
+ *   - 右上: count (×n)
+ *   - 左下: 合成中 ← ここ
+ *   - 右下: 装備中
+ */
 .mergingBadge {
   position: absolute;
-  top: -4px;
-  right: -4px;
+  bottom: 2px;
+  left: 2px;
   font-family: var(--ff-display);
   font-size: 9px;
   font-weight: var(--fw-bold);
@@ -148,10 +156,11 @@
 }
 
 /* 装備中バッジ (v1.3.4) — カード右下、 シアン (primary) で「装備中」 を出す */
+/* v1.3.9: 負値オフセット → 内側オフセット (bottom/right: 2px) に変更 */
 .equippedBadge {
   position: absolute;
-  bottom: -4px;
-  right: -4px;
+  bottom: 2px;
+  right: 2px;
   font-family: var(--ff-display);
   font-size: 9px;
   font-weight: var(--fw-bold);

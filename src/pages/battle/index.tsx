@@ -13,6 +13,7 @@ import { AppearanceBannerLayer } from '@/components/organisms/BattleField/Appear
 import { BattleHudBottom } from '@/components/organisms/BattleHudBottom';
 import { BattleHudTop } from '@/components/organisms/BattleHudTop';
 import { BattleMenuOverlay } from '@/components/organisms/BattleMenuOverlay';
+import { MachineStatsBreakdownOverlay } from '@/components/organisms/MachineStatsBreakdownOverlay';
 import { ResultDialog } from '@/components/organisms/ResultDialog';
 import { RunWorkshopBottomSheet } from '@/components/organisms/RunWorkshopBottomSheet';
 import {
@@ -116,6 +117,11 @@ export function Page() {
   // 「メニュー開いてるけど pause じゃない」 状態を作らないため、 isMenuOpen 単独 state は持たない。
   const [isWorkshopOpen, setIsWorkshopOpen] = useState(false);
   const [isScreenSaverOpen, setIsScreenSaverOpen] = useState(false);
+  // v1.3.9: マシンスタッツ詳細オーバーレイ (i ボタンから開く)。
+  // ゲームは pause しない (ラン中強化の効きをリアルタイムで観察できるように)。
+  const [isStatsOverlayOpen, setIsStatsOverlayOpen] = useState(false);
+  const handleOpenStatsOverlay = useCallback(() => setIsStatsOverlayOpen(true), []);
+  const handleCloseStatsOverlay = useCallback(() => setIsStatsOverlayOpen(false), []);
 
   // ── 被ダメ検知 (machineHp の prev/current 比較) ──
   // HP が前フレームより減少したとき machineHitKey を +1 して MachineHitFx を再マウント (= 再生開始)。
@@ -414,6 +420,7 @@ export function Page() {
                 totalWaves={TOTAL_WAVES}
                 isBossWave={currentWave === TOTAL_WAVES}
                 isResultOpen={isResultOpen}
+                onOpenStatsOverlay={handleOpenStatsOverlay}
               />
             }
             footer={
@@ -483,6 +490,13 @@ export function Page() {
               // メニューを閉じる = pause 解除
               setPaused(false);
             }}
+          />
+
+          {/* v1.3.9: マシンスタッツ詳細オーバーレイ (BattleHudTop の i ボタンから開く)。
+              ゲームは pause しないので、 ラン中強化の倍率がリアルタイムで動く。 */}
+          <MachineStatsBreakdownOverlay
+            open={isStatsOverlayOpen}
+            onClose={handleCloseStatsOverlay}
           />
 
           {/* リザルトダイアログ
