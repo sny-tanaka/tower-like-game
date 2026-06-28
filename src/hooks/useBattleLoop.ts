@@ -1238,8 +1238,8 @@ export function useBattleLoop({
           if (fireAccumulatorMsRef.current >= intervalMs) {
             // 当たり判定半径: 武器別マップ WEAPON_RANGE_PCT (= 直径) × マシン索敵距離倍率 / 2
             // - 武器固定射程 (v1.1.1: cutter 10.89 / laser/thunder 27.22 / cannon 35) は **直径** %
-            // - マシン本体「索敵距離」強化で漸近的に拡大
-            //   (range_asymptotic: 150→450px、 倍率は range/150 で Lv 0 のとき 1.0)
+            // - マシン本体「索敵距離」強化で線形に拡大 (v1.3.10)
+            //   (linear: 150→450px, +3/Lv, maxLv 100、 倍率は range/150 で Lv 0 のとき 1.0、 Lv 100 で 3.0)
             // - distanceFromMachine は中心 (50, 50) からの距離なので半径と比較する
             const machineRangeMul = machineTick.range / 150;
             const effectiveRangeRadius =

@@ -97,16 +97,16 @@ export const DamageReduction: Story = {
   },
 };
 
-/** 索敵距離: 加算項が文字列 (漸近成長) */
+/** 索敵距離: 線形成長 (v1.3.10) — base 150 + 3/Lv, Lv 100 で 450px ハードキャップ */
 export const Range: Story = {
   args: {
     title: '索敵距離',
     parts: [
       { kind: 'base', display: '150' },
-      { kind: 'add', display: '漸近成長', label: '永続' },
-      { kind: 'final', display: '263px' },
+      { kind: 'add', display: '+150', label: '永続' },
+      { kind: 'final', display: '300px' },
     ],
-    cap: '上限 450px',
+    cap: '上限 450px (Lv100)',
   },
 };
 

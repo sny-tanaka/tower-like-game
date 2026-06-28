@@ -392,16 +392,18 @@ function buildDamageReduction(ctx: BuildContext): StatBreakdown {
 }
 
 function buildRange(ctx: BuildContext): StatBreakdown {
-  const value = effect('range', ctx.machineLevels.range, 150);
-  // range は asymptotic 成長 (= 中間ステップが「+漸近」 で抽象化される)
+  const baseValue = 150;
+  const value = effect('range', ctx.machineLevels.range, baseValue);
+  // v1.3.10: range を線形成長 +3px/Lv に変更したので、 加算量を直接表示できるようになった
+  const perpAdd = value - baseValue;
   return {
     title: '索敵距離',
     parts: [
       { kind: 'base', display: '150' },
-      { kind: 'add', display: '漸近成長', label: '永続' },
+      { kind: 'add', display: `+${perpAdd}`, label: '永続' },
       { kind: 'final', display: `${value}px` },
     ],
-    cap: '上限 450px',
+    cap: '上限 450px (Lv100)',
   };
 }
 
