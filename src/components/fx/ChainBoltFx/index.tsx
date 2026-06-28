@@ -93,7 +93,8 @@ export function ChainBoltFx({
       style={svgStyle}
       onAnimationEnd={onDone}
     >
-      {/* 外側 glow */}
+      {/* v1.3.9: drop-shadow を撤去 (iOS Safari GPU compositor 主因)。
+          外側 glow を半透明太 stroke、 内側コアを白細 stroke で 2 層表現。 */}
       <path
         className={styles.path}
         d={d}
@@ -103,9 +104,8 @@ export function ChainBoltFx({
         strokeLinecap="round"
         strokeLinejoin="round"
         strokeDasharray={300}
-        style={{ filter: `drop-shadow(0 0 3px ${color})`, opacity: 0.5 }}
+        style={{ opacity: 0.5 }}
       />
-      {/* 内側コア (白) */}
       <path
         className={styles.path}
         d={d}
@@ -115,7 +115,6 @@ export function ChainBoltFx({
         strokeLinecap="round"
         strokeLinejoin="round"
         strokeDasharray={300}
-        style={{ filter: `drop-shadow(0 0 1.5px ${color}) drop-shadow(0 0 3px ${color})` }}
       />
     </svg>
   );

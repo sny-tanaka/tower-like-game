@@ -80,6 +80,9 @@ export function ThunderStrikeFx({
         className={styles.svg}
         style={flashStyle}
       >
+        {/* v1.3.9: drop-shadow を撤去 (iOS Safari GPU compositor 主因)。
+            Thunder 攻撃ごとに 320ms × 多数体ヒット分発火するため発熱寄与が極めて大きかった。
+            boltGlow (半透明太 stroke) + flash で「光った落雷」 の印象を維持。 */}
         <path
           className={styles.boltGlow}
           d={path}
@@ -89,7 +92,7 @@ export function ThunderStrikeFx({
           strokeLinecap="round"
           strokeLinejoin="round"
           strokeDasharray={300}
-          style={{ filter: `drop-shadow(0 0 3px ${color})`, opacity: 0.5 }}
+          style={{ opacity: 0.5 }}
         />
         <path
           className={styles.bolt}
@@ -100,7 +103,6 @@ export function ThunderStrikeFx({
           strokeLinecap="round"
           strokeLinejoin="round"
           strokeDasharray={300}
-          style={{ filter: `drop-shadow(0 0 2px ${color}) drop-shadow(0 0 4px ${color})` }}
         />
       </svg>
       <div

@@ -49,10 +49,10 @@
   height: var(--ct-blade-height);
   margin-top: var(--ct-blade-margin);
   transform-origin: 0 50%;
-  /* drop-shadow を 2 重 → 1 重に減らして GPU 合成コストを削減 (Issue #79 M-4)。
-     H2-5: blur radius を 4px → 2px に削減。 blades × 60fps の GPU フィルタ計算を軽量化。
-     視覚的には光の広がりが少し控えめになる程度 (Cutter の本体ラインは保たれる)。 */
-  filter: drop-shadow(0 0 2px var(--ct-color));
+  /* v1.3.9: drop-shadow を撤去 (iOS Safari GPU compositor 主因)。
+   * Cutter 装備中、 刃が 60fps で回転しているため drop-shadow 連続レンダリングが
+   * FRAME spike を生んでいた。 刃本体の色 (var(--ct-color)) と sweep の薄い扇形で
+   * 「光る刃」 の印象を維持。 */
   color: var(--ct-color);
 }
 

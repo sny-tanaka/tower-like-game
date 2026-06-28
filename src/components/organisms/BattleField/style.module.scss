@@ -68,7 +68,8 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  filter: drop-shadow(var(--glow-cyan-sm));
+  /* v1.3.9: filter: drop-shadow を撤去 (iOS Safari の GPU compositor 負荷主因)。
+   * .machineRingOuter の box-shadow が既に tower 周囲のグローを担うため見た目影響は最小。 */
 
   /* Icon (tower SVG) を .machine 全体に伸ばす。 旧実装は <Icon size={22} /> で 22px 固定
      だったが、 .machine が cqmin スケールするので Icon も追従する必要がある。
@@ -98,7 +99,7 @@
   transform: translate(-50%, -50%);
   pointer-events: none;
   z-index: 4;
-  filter: drop-shadow(0 0 4px currentColor);
+  /* v1.3.9: filter: drop-shadow を撤去。 装飾用ピンに常時 GPU フィルタは過剰負荷。 */
   opacity: 0.85;
 }
 
