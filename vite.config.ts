@@ -1,7 +1,9 @@
+import { appendFileSync, mkdirSync } from 'node:fs';
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
 
 import react from '@vitejs/plugin-react';
+import { type Plugin } from 'vite';
 import { VitePWA } from 'vite-plugin-pwa';
 import { defineConfig } from 'vitest/config';
 
@@ -20,10 +22,65 @@ const pkgJson = JSON.parse(readFileSync(path.resolve(__dirname, './package.json'
 };
 const APP_VERSION = pkgJson.version ?? '0.0.0';
 
+// ---------------------------------------------------------------------------
+// perfLogCollector — dev サーバ専用の発熱計測ログ収集 middleware
+// ---------------------------------------------------------------------------
+//
+// PerfOverlay (dev のみ) が `navigator.sendBeacon('/__perf', JSON)` で送信した
+// 計測スナップショットを受け取り、 リポジトリ直下の dev-perf-log.jsonl に追記する。
+//
+// `apply: 'serve'` で dev サーバ起動時のみ register され、 `vite build` の出力には
+// 一切混入しない (production には絶対影響なし)。
+//
+// 旧来は Chrome DevTools の Performance タブで手動取得していたが、 スマホ実機計測では
+// USB デバッグが面倒。 dev サーバを Wi-Fi 経由でスマホから叩く運用に合わせ、
+// 端末 → 開発機 への経路に集約することで「スマホで battle 回すだけ」 で計測可能になる。
+//
+// ファイルは Mac 上で生成され、 解析側 (Claude Code) が直接 Read する想定。
+// ---------------------------------------------------------------------------
+
+const PERF_LOG_PATH = path.resolve(__dirname, 'dev-perf-log.jsonl');
+
+function perfLogCollector(): Plugin {
+  return {
+    name: 'perf-log-collector',
+    apply: 'serve',
+    configureServer(server) {
+      // 初回起動時にディレクトリ存在保証 (リポジトリ直下なので普通は存在するが、 念のため)
+      mkdirSync(path.dirname(PERF_LOG_PATH), { recursive: true });
+      server.middlewares.use('/__perf', (req, res, next) => {
+        if (req.method !== 'POST') {
+          next();
+          return;
+        }
+        const chunks: Buffer[] = [];
+        req.on('data', (c: Buffer) => chunks.push(c));
+        req.on('end', () => {
+          try {
+            const body = Buffer.concat(chunks).toString('utf8');
+            // 1 行 1 JSON でファイル末尾に追記 (JSONL 形式)。 先頭に dev サーバ受信時刻を付与
+            // しておくとログ解析時に「サーバ受信ラグ」 込みのタイムラインが組める。
+            const serverTs = new Date().toISOString();
+            appendFileSync(PERF_LOG_PATH, `${serverTs} ${body}\n`);
+            res.statusCode = 204;
+            res.end();
+          } catch (e) {
+            // 計測ログの失敗で dev サーバを落とさない
+            console.error('[perf-log-collector] failed to append:', e);
+            res.statusCode = 500;
+            res.end();
+          }
+        });
+      });
+    },
+  };
+}
+
 export default defineConfig({
   base: BASE,
   plugins: [
     react(),
+    perfLogCollector(),
     VitePWA({
       registerType: 'autoUpdate',
       injectRegister: 'auto',
