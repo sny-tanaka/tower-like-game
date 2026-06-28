@@ -18,13 +18,7 @@ export interface MachineUpgradeItem {
   /** Lv ごとの上昇係数（growthType によって意味が変わる） */
   growthFactor: number;
   /** 効果スケールの種類 */
-  growthType:
-    | 'multiply'
-    | 'linear'
-    | 'asymptotic'
-    | 'asymptotic_half'
-    | 'range_asymptotic'
-    | 'fixed_step';
+  growthType: 'multiply' | 'linear' | 'asymptotic' | 'asymptotic_half' | 'fixed_step';
   /** Lv 1 のコスト（cost(Lv→Lv+1) = baseCost × costGrowth^Lv で切り上げ） */
   baseCost: number;
   /** Lv ごとのコスト上昇率 */
@@ -146,13 +140,17 @@ export const MACHINE_UPGRADE_ITEMS: readonly MachineUpgradeItem[] = [
     key: 'range',
     title: '索敵距離',
     category: 'offense',
-    // v1.1 リバランス: WEAPON_RANGE_PCT × (range / 150) で武器射程を伸ばす倍率の基準。
-    // base=150 / 漸近 max=450 (旧 400) / α=0.01 / maxLv=100。
-    // Lv 100 で range=300px (倍率 2.0) → Cannon の base 45% が実効 90% に到達して打ち止め。
-    // 画面外（実効射程 100% 以上）に飛び出さないハードキャップを兼ねる。
+    // v1.3.10: 漸近成長 → 線形成長に切替 (他ステ v1.0 リバランスへの追従)。
+    // base=150 / +3px/Lv / maxLv=100 で Lv 100 = 450px ハードキャップ。
+    // 旧仕様 (range_asymptotic) は Lv 100 で 300px / 理論上限 450px に「漸近」 だったが、
+    // (1) maxLv=100 のキャップで漸近の意味が失われていた (2) UI 上で「漸近成長」 と
+    // 表示しても意図が伝わりにくい、 の 2 点から純粋な線形に。
+    // 倍率換算 (WEAPON_RANGE_PCT × range / 150) は同じ式で連続。 Lv 100 では倍率 3.0
+    // となるが、 武器射程は WEAPON_RANGE_PCT * 3.0 で頭打ち (Cannon base 45% → 135%)
+    // → ただし pages/battle 側で実効射程は cap されるので画面外飛び出しはない。
     baseValue: 150,
-    growthFactor: 0.01,
-    growthType: 'range_asymptotic',
+    growthFactor: 3,
+    growthType: 'linear',
     maxLv: 100,
     baseCost: 100,
     costGrowth: 1.1,
@@ -317,7 +315,8 @@ function multiplyDelta(baseValue: number, growthFactor: number, k: number): numb
  *             maxLv 指定時は Lv をクランプして MAX 値を超えないようにする。
  * - asymptotic: r = growthFactor × Lv, 値 = 1 - 1/(1+r)（割合、0〜1）※v1.0.0 でいずれの項目も未使用
  * - asymptotic_half: r = growthFactor × Lv, 値 = 0.5 × (1 - 1/(1+r))（割合、0〜0.5）※v1.0.0 で未使用
- * - range_asymptotic: r = growthFactor × Lv, 値 = 150 + 250 × (1 - 1/(1+r))（range のみ）
+ *
+ * v1.3.10: 旧 'range_asymptotic' は削除 (range は 'linear' + maxLv=100 に統一)。
  */
 export function calcEffectValue(item: MachineUpgradeItem, lv: number): number {
   switch (item.growthType) {
@@ -340,13 +339,6 @@ export function calcEffectValue(item: MachineUpgradeItem, lv: number): number {
     case 'asymptotic_half': {
       const r = item.growthFactor * lv;
       return 0.5 * (1 - 1 / (1 + r));
-    }
-    case 'range_asymptotic': {
-      const base = 150;
-      const max = 450; // v1.1: 400→450 で Lv 100 (maxLv) ちょうど 300px に到達するよう調整
-      const cappedLv = item.maxLv != null ? Math.min(lv, item.maxLv) : lv;
-      const r = item.growthFactor * cappedLv;
-      return Math.ceil(base + (max - base) * (1 - 1 / (1 + r)));
     }
     default:
       return item.baseValue;

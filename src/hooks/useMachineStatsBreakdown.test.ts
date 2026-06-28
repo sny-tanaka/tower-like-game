@@ -116,10 +116,13 @@ describe('buildMachineStatsBreakdown', () => {
       expect(result.damageReduction.cap).toBe('上限 98%');
     });
 
-    it('索敵距離: 150px (上限 450px)', () => {
+    it('索敵距離 (v1.3.10 線形): Lv 0 = 150px、 cap = 上限 450px (Lv100)', () => {
       const last = result.range.parts[result.range.parts.length - 1];
       expect(last.display).toBe('150px');
-      expect(result.range.cap).toBe('上限 450px');
+      // 永続加算 part が +0 (Lv 0)
+      const perp = result.range.parts[1];
+      expect(perp.display).toBe('+0');
+      expect(result.range.cap).toBe('上限 450px (Lv100)');
     });
 
     it('アクティブ威力: 1.00× +0.00 = 1.00×', () => {

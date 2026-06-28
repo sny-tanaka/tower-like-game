@@ -44,7 +44,7 @@ export const DEFAULT_MACHINE_ATTACK_SPEED_MUL = 1;
 
 export interface DerivedMachineStats {
   /**
-   * マシン索敵距離 (px)。 range_asymptotic: 150 → 450 px (Lv 100 で 300)。
+   * マシン索敵距離 (px)。 linear: base 150 + 3/Lv、 Lv 100 (maxLv) で 450 ハードキャップ (v1.3.10)。
    * BattleField の `range` props は **直径 %** = `WEAPON_RANGE_PCT × (machineRangePx / 150)` で計算する。
    */
   machineRangePx: number;
