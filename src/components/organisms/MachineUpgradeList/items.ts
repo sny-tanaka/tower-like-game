@@ -140,16 +140,14 @@ export const MACHINE_UPGRADE_ITEMS: readonly MachineUpgradeItem[] = [
     key: 'range',
     title: '索敵距離',
     category: 'offense',
-    // v1.3.10: 漸近成長 → 線形成長に切替 (他ステ v1.0 リバランスへの追従)。
-    // base=150 / +3px/Lv / maxLv=100 で Lv 100 = 450px ハードキャップ。
-    // 旧仕様 (range_asymptotic) は Lv 100 で 300px / 理論上限 450px に「漸近」 だったが、
-    // (1) maxLv=100 のキャップで漸近の意味が失われていた (2) UI 上で「漸近成長」 と
-    // 表示しても意図が伝わりにくい、 の 2 点から純粋な線形に。
-    // 倍率換算 (WEAPON_RANGE_PCT × range / 150) は同じ式で連続。 Lv 100 では倍率 3.0
-    // となるが、 武器射程は WEAPON_RANGE_PCT * 3.0 で頭打ち (Cannon base 45% → 135%)
-    // → ただし pages/battle 側で実効射程は cap されるので画面外飛び出しはない。
+    // v1.3.11: v1.3.10 で Lv 100 = 450 に倒したが旧仕様 (Lv 100 = 300) が正なので合わせ直し。
+    // base=150 / +1.5px/Lv / maxLv=100 で Lv 100 = 300px ハードキャップ。
+    // 旧仕様 (range_asymptotic, base=150 / max=450 / α=0.01 / maxLv=100) も Lv 100 で 300 だった
+    // (理論上限 450 は ∞ Lv 漸近値で到達不可)。 v1.3.10 でその「理論上限 450」 を実 cap に
+    // 引き上げてしまったのを元に戻し、 純粋な線形のまま到達可能 cap=300 で揃える。
+    // 倍率換算 (WEAPON_RANGE_PCT × range / 150) は Lv 0 で 1.0 / Lv 100 で 2.0。
     baseValue: 150,
-    growthFactor: 3,
+    growthFactor: 1.5,
     growthType: 'linear',
     maxLv: 100,
     baseCost: 100,

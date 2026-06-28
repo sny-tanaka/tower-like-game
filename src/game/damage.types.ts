@@ -25,10 +25,10 @@ export interface MachineStats {
   /** アクティブ CD 短縮率 (#11)。0〜0.5 の漸近値。Lv0 = 0 */
   activeCdReduction: number;
   /**
-   * 索敵距離 (#7)。linear (v1.3.10): base 150 + 3/Lv、 Lv 100 (maxLv) で 450 ハードキャップ (px)。
+   * 索敵距離 (#7)。linear (v1.3.11): base 150 + 1.5/Lv、 Lv 100 (maxLv) で 300 ハードキャップ (px)。
    * useBattleLoop は WEAPON_RANGE_PCT[currentWeapon] (= 直径 %) × (range / 150) / 2 を
    * 半径として当たり判定に使う。 Lv 0 で 1.0 倍 = 武器固定射程そのまま、
-   * Lv 100 で 3.0 倍。 (旧 v1.1 = Lv 100 で 2.0 倍 / 漸近)
+   * Lv 100 で 2.0 倍 (v1.1 漸近時代と同じ実効値、 v1.3.10 で誤って 3.0 倍に上がっていたのを戻し)。
    */
   range: number;
 }

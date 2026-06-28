@@ -394,7 +394,7 @@ function buildDamageReduction(ctx: BuildContext): StatBreakdown {
 function buildRange(ctx: BuildContext): StatBreakdown {
   const baseValue = 150;
   const value = effect('range', ctx.machineLevels.range, baseValue);
-  // v1.3.10: range を線形成長 +3px/Lv に変更したので、 加算量を直接表示できるようになった
+  // v1.3.11: 線形成長 +1.5px/Lv、 Lv 100 (maxLv) で 300px キャップ
   const perpAdd = value - baseValue;
   return {
     title: '索敵距離',
@@ -403,7 +403,7 @@ function buildRange(ctx: BuildContext): StatBreakdown {
       { kind: 'add', display: `+${perpAdd}`, label: '永続' },
       { kind: 'final', display: `${value}px` },
     ],
-    cap: '上限 450px (Lv100)',
+    cap: '上限 300px (Lv100)',
   };
 }
 

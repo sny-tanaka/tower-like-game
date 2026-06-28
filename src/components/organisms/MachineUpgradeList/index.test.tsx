@@ -115,27 +115,27 @@ describe('calcEffectValue', () => {
     expect(calcEffectValue(item, 300)).toBeCloseTo(0.98);
   });
 
-  test('range (linear, v1.3.10): Lv 0 は 150 (base)', () => {
+  test('range (linear, v1.3.11): Lv 0 は 150 (base)', () => {
     const item = MACHINE_UPGRADE_ITEMS.find((i) => i.key === 'range')!;
     expect(calcEffectValue(item, 0)).toBe(150);
   });
 
-  test('range (linear, v1.3.10): Lv 50 で 300 px (中間点)', () => {
+  test('range (linear, v1.3.11): Lv 50 で 225 px (中間点)', () => {
     const item = MACHINE_UPGRADE_ITEMS.find((i) => i.key === 'range')!;
-    // 150 + 3 × 50 = 300
-    expect(calcEffectValue(item, 50)).toBe(300);
+    // 150 + 1.5 × 50 = 225
+    expect(calcEffectValue(item, 50)).toBe(225);
   });
 
-  test('range (linear, v1.3.10): Lv 100 (maxLv) で 450 px (ハードキャップ)', () => {
+  test('range (linear, v1.3.11): Lv 100 (maxLv) で 300 px (ハードキャップ)', () => {
     const item = MACHINE_UPGRADE_ITEMS.find((i) => i.key === 'range')!;
-    // 150 + 3 × 100 = 450
-    expect(calcEffectValue(item, 100)).toBe(450);
+    // 150 + 1.5 × 100 = 300
+    expect(calcEffectValue(item, 100)).toBe(300);
   });
 
-  test('range (linear, v1.3.10): Lv 100 超は maxLv で固定 (450px ハードキャップ)', () => {
+  test('range (linear, v1.3.11): Lv 100 超は maxLv で固定 (300px ハードキャップ)', () => {
     const item = MACHINE_UPGRADE_ITEMS.find((i) => i.key === 'range')!;
-    expect(calcEffectValue(item, 200)).toBe(450);
-    expect(calcEffectValue(item, 1000)).toBe(450);
+    expect(calcEffectValue(item, 200)).toBe(300);
+    expect(calcEffectValue(item, 1000)).toBe(300);
   });
 
   test('fixed_step: patchSlots Lv 0 = 1', () => {

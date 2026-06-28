@@ -49,7 +49,7 @@ export function calcMachineBaseAttack(baseAttackLv: number): number {
   return item != null ? calcEffectValue(item, baseAttackLv) : 1;
 }
 
-/** machine の索敵距離 (機体共通の射程) を Lv から算出 (linear: 150→450px, +3/Lv, maxLv 100, v1.3.10) */
+/** machine の索敵距離 (機体共通の射程) を Lv から算出 (linear: 150→300px, +1.5/Lv, maxLv 100, v1.3.11) */
 export function calcMachineRange(rangeLv: number): number {
   const item = MACHINE_UPGRADE_ITEMS.find((i) => i.key === 'range');
   return item != null ? calcEffectValue(item, rangeLv) : 150;

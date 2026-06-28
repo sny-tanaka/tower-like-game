@@ -68,7 +68,7 @@ export function buildMachineStats({
     attackSpeed: effect('attackSpeed', machineLevels.attackSpeed, 1),
     activePower: effect('activePower', machineLevels.activePower, 1),
     activeCdReduction: effect('activeCdReduction', machineLevels.activeCdReduction, 0),
-    // 索敵距離 (linear, v1.3.10): Lv 0 = 150、 Lv 100 (maxLv) = 450 ハードキャップ (px)
+    // 索敵距離 (linear, v1.3.11): Lv 0 = 150、 Lv 100 (maxLv) = 300 ハードキャップ (px)
     range: effect('range', machineLevels.range, 150),
   };
 }
