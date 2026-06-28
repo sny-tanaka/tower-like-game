@@ -62,6 +62,14 @@
   flex-shrink: 0;
 }
 
+/* v1.3.9: マシンスタッツ詳細オーバーレイを開く i ボタンの右寄せ配置 */
+.statsButton {
+  margin-left: auto;
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+}
+
 /* SR (visually hidden) — 既存テスト互換のため wave/total を残す */
 .srOnly {
   position: absolute;

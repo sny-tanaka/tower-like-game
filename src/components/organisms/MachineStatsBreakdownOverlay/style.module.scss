@@ -1,0 +1,77 @@
+/* MachineStatsBreakdownOverlay — v1.3.9 */
+
+.panel {
+  width: min(560px, 92vw);
+  /* v1.3.9: Overlay atom が `padding: 16px` (上下 16px ずつ = 32px) を効かせるため、
+   * panel の max-height はその分を引いておく。 さらに iOS Safari の URL バー込みを避けるため
+   * 100dvh (動的 viewport) を使い、 未対応ブラウザ向けに 100vh のフォールバックを並べる。
+   * 旧版は `100dvh - 16px` で計算していたが Overlay の base padding を見落としており、
+   * 親の利用可能領域 (100dvh - 32px) より panel が大きくなって下端がはみ出していた。 */
+  max-height: calc(100vh - var(--sp-m) * 2);
+  max-height: calc(100dvh - var(--sp-m) * 2);
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  background: var(--c-bg-deep);
+  border: 1px solid var(--c-primary-deep);
+  border-radius: var(--r-m);
+  box-shadow: var(--glow-cyan-sm);
+  overflow: hidden;
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-m);
+  padding: var(--sp-m);
+  background: var(--c-surface);
+  border-bottom: 1px solid var(--c-border-faint);
+}
+
+.title {
+  font-family: var(--ff-display);
+  font-size: var(--fs-h3);
+  font-weight: var(--fw-bold);
+  color: var(--c-primary);
+  letter-spacing: var(--ls-loose);
+  margin: 0;
+}
+
+.body {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  /* スクロール末尾に十分な余白 (= iOS Safari の home indicator 領域込みで最後の行が
+   * 読める高さを確保)。 上 < 下 で重みを変える。 */
+  padding: var(--sp-m) var(--sp-m) var(--sp-xl);
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-l);
+  /* iOS Safari でスクロール慣性を有効化 (overflow-y: auto だけだと iOS は慣性なしになる) */
+  -webkit-overflow-scrolling: touch;
+}
+
+.section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-s);
+}
+
+.sectionTitle {
+  font-family: var(--ff-display);
+  font-size: var(--fs-body);
+  font-weight: var(--fw-semibold);
+  color: var(--c-text-mid);
+  letter-spacing: var(--ls-loose);
+  text-transform: uppercase;
+  margin: 0;
+  padding-bottom: var(--sp-xxs);
+  border-bottom: 1px dashed var(--c-border-faint);
+}
+
+.rows {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-s);
+}

@@ -5,4 +5,8 @@
   flex-direction: column;
   gap: var(--sp-m);
   min-height: 0;
+  /* v1.3.9: コンテンツ下端の余白。 各タブ organism (PatchEquipTab / PatchInventoryTab /
+   * PatchMergeTab) は自前 padding を持たないため、 page の .content 側で一括して bottom 余白を
+   * 確保する。 最後のカードが画面下端にぴったり付くのを防ぐ。 */
+  padding-bottom: var(--sp-l);
 }
