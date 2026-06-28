@@ -92,6 +92,52 @@ export function calcOutgoingDamage(
 }
 
 /**
+ * タップ攻撃の「武器ダメージ倍率」 (v1.4.0)。 各武器の damageMul の位置に入る基準値。
+ *
+ * 現行武器倍率 (v1.3.x): Laser 1.6 / Cannon 6.0 / Thunder 0.9 / Cutter 2.4
+ * タップは武器特性 (Thunder スタック、 Laser 上位敵ボーナス、 Cannon splash 等) を持たない
+ * 素の手動攻撃。 「手動要素を加える」 目的のためタップは武器より基本的に強くなる位置 (2.0) で固定。
+ * Laser (1.6) / Cutter (2.4) / Thunder (0.9) より高め、 Cannon (6.0) よりは低い。
+ */
+export const TAP_WEAPON_DAMAGE_MUL = 2.0;
+
+/**
+ * タップ攻撃のダメージ計算 (v1.4.0)。
+ *
+ * 武器の damageMul の位置に `TAP_WEAPON_DAMAGE_MUL × attackMul` を入れて calcOutgoingDamage を
+ * 呼ぶラッパー。 通常攻撃と同じく critRate / critMultiplier を適用するため、 isCrit と
+ * critRate は呼出側で `rollCrit(machine.critRate, rng)` で判定して渡す。
+ *
+ * 計算式:
+ *   rawDmg = baseAttack × (TAP_WEAPON_DAMAGE_MUL × attackMul)
+ *   クリ時:  rawDmg ×= critMultiplier
+ *   finalDmg = max(0, rawDmg × (1 − enemyDR) − enemyDefense)
+ *
+ * @param machine             マシンスタッツ (baseAttack / critMultiplier 等)
+ * @param attackMul           ラン中強化 (RunWorkshop attackMul) の倍率 = 1.0 + 0.1 × Lv
+ * @param isCrit              呼出側で rollCrit 判定した結果
+ * @param enemyDefense        敵防御 (絶対値)
+ * @param enemyDamageReduction 敵割合軽減 (0〜1)
+ */
+export function calcTapDamage(
+  machine: MachineStats,
+  attackMul: number,
+  isCrit: boolean,
+  enemyDefense: BigNum,
+  enemyDamageReduction: number
+): DamageCalcResult {
+  return calcOutgoingDamage(
+    {
+      machine,
+      weapon: { damageMultiplier: TAP_WEAPON_DAMAGE_MUL * attackMul },
+      isCrit,
+    },
+    enemyDefense,
+    enemyDamageReduction
+  );
+}
+
+/**
  * 被弾側ダメージ計算（敵 → マシン）。
  * マシンの防御 / 軽減を考慮する。
  *

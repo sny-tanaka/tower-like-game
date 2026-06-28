@@ -28,6 +28,12 @@ export interface DamageEvent {
   value: BigNum;
   /** クリティカルか */
   crit?: boolean;
+  /**
+   * v1.4.0: タップ攻撃由来のダメージか。
+   * true のとき FxLayer が DamagePopFx と並行で TapRingFx を敵位置に発生させる。
+   * 通常攻撃 (false / undefined) では TapRingFx は出さない。
+   */
+  isTap?: boolean;
 }
 
 export interface HitEvent {
@@ -179,6 +185,17 @@ export interface BattleFieldProps {
    * 0 ならマウントしない (初期状態)。
    */
   machineHitKey?: number;
+  /**
+   * v1.4.0: タップ攻撃のコールバック。 BattleField の root 領域 (= 戦闘画面のメイン領域)
+   * の pointerdown で発火する。 渡さなければタップ処理は無効。
+   *
+   * Page 側は useBattleLoop の enqueueTap を渡す。 タップが「どこを押したか」 という座標は
+   * 攻撃対象敵が「マシン最寄」 で決まるため、 callback には座標を含めない (素の通知のみ)。
+   *
+   * pause / ResultDialog / RunWorkshop シート展開中などに無効化したい場合は、 Page 側で
+   * 条件付きに渡す or undefined を渡せばよい。
+   */
+  onTap?: () => void;
 }
 
 // ---------------------------------------------------------------------------
@@ -223,6 +240,7 @@ export function BattleField({
   range,
   dummyPins = [],
   machineHitKey = 0,
+  onTap,
 }: BattleFieldProps) {
   // v1.3.7 (Phase 2-B): enemies / damageEvents / deathEvents / projectileEvents 及び
   // onDamageDone / onDeathDone / onProjectileDone props は 3 layer (EnemyLayer / FxLayer /
@@ -244,6 +262,9 @@ export function BattleField({
       className={styles.root}
       role="img"
       aria-label="バトルフィールド"
+      // v1.4.0: タップ攻撃。 pointerdown のみ listen して click は無視 (二重発火防止)。
+      // onTap が undefined の場合は handler 自体を付けない (HUD ボタンの hit-test を邪魔しない)。
+      onPointerDown={onTap}
     >
       {/* 内部座標系（短辺基準の正方形）。 全ての描画はこの .field 内 % で配置する。 */}
       <div className={styles.field}>

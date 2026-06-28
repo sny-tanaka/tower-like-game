@@ -6,7 +6,7 @@ import {
   calcEffectValue,
 } from '@/components/organisms/MachineUpgradeList/items';
 import { calcRunWorkshopMultiplier } from '@/components/organisms/RunWorkshopBottomSheet/items';
-import { calcReceivedDamage } from '@/game/damage';
+import { calcReceivedDamage, calcTapDamage, rollCrit } from '@/game/damage';
 import type { MachineStats } from '@/game/damage.types';
 import { scaledReward } from '@/game/enemies';
 import { mutateEnemyPosition } from '@/game/loop/enemyMovement';
@@ -359,7 +359,21 @@ export interface UseBattleLoopResult {
    * いないため notifyFrame() は実質 no-op。
    */
   entityStore: BattleEntityStore;
+  /**
+   * v1.4.0: 手動タップ攻撃をキューイングする。 BattleField の onPointerDown handler から呼ぶ。
+   *
+   * - 最小タップ間隔 50ms (CD)。 50ms 未満の連続呼出は黙って捨てる
+   * - 実際のダメージ計算と敵 HP 減算は次の tick で行う (CD・最寄敵検索・ダメージ計算を一括)
+   * - 索敵範囲内の最寄敵 (マシン中心からの距離が最短) に対し
+   *   calcTapDamage で「武器倍率 1.0 × ラン強化 × クリ判定」 のダメージを 1 発入れる
+   * - 索敵範囲内に敵がいなければ何も起こらない (タップ自体は CD だけ進む)
+   * - paused / suspendRendering 中は呼ばれても tick 側で消費されず無視される
+   */
+  enqueueTap: () => void;
 }
+
+/** v1.4.0: タップ攻撃の最小クールダウン (ms)。 同フレーム多重 / iOS pointer 重複発火を防ぐ */
+const TAP_MIN_INTERVAL_MS = 50;
 
 /** 通常敵が ボルト をドロップする確率 (02-currencies.md 仕様) */
 export const NORMAL_BOLT_DROP_CHANCE = 0.5;
@@ -380,6 +394,12 @@ export function useBattleLoop({
   const waveElapsedMsRef = useRef<number>(0);
   const prevWaveElapsedMsRef = useRef<number>(0);
   const enemiesRef = useRef<SpawnedEnemy[]>([]);
+  // v1.4.0: 手動タップ攻撃の pending キュー。 enqueueTap() でインクリメントされ、 tick で消費される。
+  const pendingTapCountRef = useRef<number>(0);
+  // v1.4.0: 直前のタップ時刻 (performance.now())。 50ms CD の判定用。
+  const lastTapMsRef = useRef<number>(0);
+  // v1.4.0: タップ由来の DamagePop event ID 生成用 (通常攻撃の damageEventIdRef とは分離)。
+  const tapEventIdRef = useRef<number>(0);
   const enemyIdCounterRef = useRef<number>(0);
   const fireAccumulatorMsRef = useRef<number>(0);
   const cutterAngleDegRef = useRef<number>(0);
@@ -661,6 +681,15 @@ export function useBattleLoop({
       projectileEventIdRef.current = 0;
       appearanceEventIdRef.current = 0;
       enemyIdCounterRef.current = 0;
+      // v1.4.0: タップ攻撃 ref もラン跨ぎでリセット。
+      // - tapEventIdRef は他 ID と prefix で分離しているので衝突は起きないが、 統一性のため。
+      // - pendingTapCountRef を残すと前ラン終了直後の取り残し tap (ResultDialog 表示直前の連打など)
+      //   が次ランの開始フレームで誤発火するため必須。
+      // - lastTapMsRef はラン跨ぎでも CD だけ守ればよいが、 開始時の最初のタップを確実に受ける
+      //   ためにも 0 リセットする。
+      tapEventIdRef.current = 0;
+      pendingTapCountRef.current = 0;
+      lastTapMsRef.current = 0;
       // 着弾遅延砲弾 / Cutter pop キューは前ラン途中の未着弾分が残るとロジック不整合の元
       pendingCannonShellsRef.current = [];
       pendingCutterPopsRef.current = [];
@@ -1499,6 +1528,57 @@ export function useBattleLoop({
             } // close else
           } // close if (fireAccumulatorMsRef.current >= intervalMs)
 
+          // ---- v1.4.0: 手動タップ攻撃 (pending tap キュー消費) ----
+          // 通常攻撃が走らないフレーム (= 攻撃 accumulator が intervalMs 未満) でもタップは
+          // 毎フレーム処理する。 newDamageEvents に push して、 同じ damage commit パスに乗せる。
+          //
+          // 仕様 (v1.4.0):
+          //   - 索敵範囲内のマシン中心からの距離最短の敵 1 体に攻撃
+          //   - calcTapDamage = baseAttack × (1.0 × attackMul)、 クリ時 ×critMultiplier
+          //   - 範囲内に敵がいない場合は pending を消費せず終了 (次フレームで再判定)
+          //   - DamageEvent には isTap: true を付与 → FxLayer が TapRingFx を敵位置に並行 mount
+          //   - パッチ連携 (氷結トリガ / 燃焼など) は v1.4.0 初版では未対応 (将来拡張)
+          //
+          // CD (50ms) は enqueueTap 側で判定済み。 ここでは pending = 実行カウント。
+          {
+            const pendingTaps = pendingTapCountRef.current;
+            if (pendingTaps > 0) {
+              pendingTapCountRef.current = 0;
+              const machineRangeMul = machineTick.range / 150;
+              const effectiveRangeRadius =
+                (WEAPON_RANGE_PCT[state.currentWeapon] * machineRangeMul) / 2;
+              for (let t = 0; t < pendingTaps; t++) {
+                let nearestEnemy: SpawnedEnemy | null = null;
+                let nearestDist = Infinity;
+                for (const e of enemiesRef.current) {
+                  if (e.hp.lte(BigNum.ZERO)) continue;
+                  const dx = e.position.x - MACHINE_CENTER_X;
+                  const dy = e.position.y - MACHINE_CENTER_Y;
+                  const d = Math.hypot(dx, dy);
+                  if (d > effectiveRangeRadius + e.hitRadius) continue;
+                  if (d < nearestDist) {
+                    nearestDist = d;
+                    nearestEnemy = e;
+                  }
+                }
+                if (nearestEnemy == null) break;
+                const isCrit = rollCrit(machineTick.critRate, Math.random);
+                const result = calcTapDamage(machineTick, attackMul, isCrit, BigNum.ZERO, 0);
+                nearestEnemy.hp = nearestEnemy.hp.sub(result.finalDmg);
+                entityStore.markEnemyStatusChanged(nearestEnemy.id);
+                tapEventIdRef.current += 1;
+                newDamageEvents.push({
+                  id: `tap-${tapEventIdRef.current}`,
+                  x: nearestEnemy.position.x,
+                  y: nearestEnemy.position.y,
+                  value: result.finalDmg,
+                  crit: isCrit,
+                  isTap: true,
+                });
+              }
+            }
+          }
+
           // newDamageEvents (今フレーム発射の即時 hit) と delayedDamageEvents
           // (砲弾着弾の hit) をまとめて反映
           // v1.3.2 + v1.3.7 (Phase 2-A): スクリーンセーバー中は描画 events を蓄積しない。
@@ -1874,6 +1954,20 @@ export function useBattleLoop({
     // entityStore は useRef による安定参照なので毎 render 同一だが、 lint 警告解消のため deps に含める
   }, [isRunActive, tierWaves, fireActive, entityStore]);
 
+  // v1.4.0: 手動タップ攻撃のキューイング callback。
+  // BattleField の root に onPointerDown handler を付けて、 そこから呼び出す。
+  // CD (50ms) と pending インクリメントだけを行い、 実際のダメージ計算は次の tick で実行する
+  // (タップした瞬間と「敵にダメージが入る」 タイミングの差は最大 1 フレーム = ~16ms)。
+  const enqueueTap = useCallback(() => {
+    const now = performance.now();
+    if (now - lastTapMsRef.current < TAP_MIN_INTERVAL_MS) {
+      // 50ms 以内の連続呼出は無視 (iOS Safari の pointer + click 二重発火対策)
+      return;
+    }
+    lastTapMsRef.current = now;
+    pendingTapCountRef.current += 1;
+  }, []);
+
   return {
     fireActive,
     isOverdriveActive,
@@ -1883,5 +1977,6 @@ export function useBattleLoop({
     tierCleared,
     onTierClearedAck,
     entityStore,
+    enqueueTap,
   };
 }

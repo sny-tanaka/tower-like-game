@@ -1,6 +1,12 @@
 import { describe, expect, it } from 'vitest';
 
-import { calcOutgoingDamage, calcReceivedDamage, rollCrit } from './damage';
+import {
+  TAP_WEAPON_DAMAGE_MUL,
+  calcOutgoingDamage,
+  calcReceivedDamage,
+  calcTapDamage,
+  rollCrit,
+} from './damage';
 import type { MachineStats, WeaponStats } from './damage.types';
 
 import { BigNum } from '@/lib/bignum/BigNum';
@@ -267,5 +273,61 @@ describe('calcReceivedDamage', () => {
     // enemyAttack=110 → 110 × 0.75 = 82.5 (mulNumber は切り上げで 83) → 83 - 10 = 73
     const result = calcReceivedDamage(BigNum.fromNumber(110), machine);
     expect(result.toString()).toBe('73');
+  });
+});
+
+// ---------------------------------------------------------------------------
+// calcTapDamage (v1.4.0)
+// ---------------------------------------------------------------------------
+
+describe('calcTapDamage (v1.4.0 タップ攻撃)', () => {
+  it('TAP_WEAPON_DAMAGE_MUL は 2.0 で固定 (各武器の damageMul 位置)', () => {
+    expect(TAP_WEAPON_DAMAGE_MUL).toBe(2.0);
+  });
+
+  it('attackMul=1 / isCrit=false / 敵無防御 → baseAttack × 2.0', () => {
+    const machine = makeMachine({ baseAttack: BigNum.fromNumber(100) });
+    const result = calcTapDamage(machine, 1.0, false, BigNum.ZERO, 0);
+    // 100 × (2.0 × 1.0) = 200
+    expect(result.finalDmg.toString()).toBe('200');
+    expect(result.isCrit).toBe(false);
+  });
+
+  it('ラン強化 attackMul 1.5 → baseAttack × 2.0 × 1.5', () => {
+    const machine = makeMachine({ baseAttack: BigNum.fromNumber(100) });
+    const result = calcTapDamage(machine, 1.5, false, BigNum.ZERO, 0);
+    // 100 × (2.0 × 1.5) = 300
+    expect(result.finalDmg.toString()).toBe('300');
+  });
+
+  it('クリ時 → ×critMultiplier 適用', () => {
+    const machine = makeMachine({
+      baseAttack: BigNum.fromNumber(100),
+      critMultiplier: 2.0,
+    });
+    const result = calcTapDamage(machine, 1.0, true, BigNum.ZERO, 0);
+    // 100 × 2.0 × 2.0 (crit) = 400
+    expect(result.finalDmg.toString()).toBe('400');
+    expect(result.isCrit).toBe(true);
+  });
+
+  it('敵 defense / damageReduction が calcOutgoingDamage と同じく適用される', () => {
+    const machine = makeMachine({
+      baseAttack: BigNum.fromNumber(100),
+    });
+    const enemyDefense = BigNum.fromNumber(20);
+    const enemyDR = 0.5;
+    const result = calcTapDamage(machine, 1.0, false, enemyDefense, enemyDR);
+    // raw 100 × 2.0 = 200、 軽減 200 × 0.5 = 100、 防御 100 - 20 = 80
+    expect(result.finalDmg.toString()).toBe('80');
+  });
+
+  it('武器特性 (Thunder スタック / Laser 上位敵ボーナス) は乗らない (素のダメージ)', () => {
+    // 「タップ攻撃は武器を問わずダメージ倍率 1.0 固定」 仕様の回帰チェック。
+    // calcTapDamage の引数に weapon 情報がそもそも入らないため武器分岐できない構造になっている。
+    const machine = makeMachine({ baseAttack: BigNum.fromNumber(100) });
+    const a = calcTapDamage(machine, 1.0, false, BigNum.ZERO, 0);
+    const b = calcTapDamage(machine, 1.0, false, BigNum.ZERO, 0);
+    expect(a.finalDmg.toString()).toBe(b.finalDmg.toString());
   });
 });

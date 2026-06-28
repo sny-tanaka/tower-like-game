@@ -1,7 +1,8 @@
-import { useCallback, useSyncExternalStore } from 'react';
+import { Fragment, useCallback, useSyncExternalStore } from 'react';
 
 import { DamagePopFx } from '@/components/fx/DamagePopFx';
 import { EnemyDeathFx } from '@/components/fx/EnemyDeathFx';
+import { TapRingFx } from '@/components/fx/TapRingFx';
 import { useEntityStore } from '@/game/store/BattleEntityStoreContext';
 
 // ---------------------------------------------------------------------------
@@ -41,15 +42,26 @@ export function FxLayer() {
 
   return (
     <>
+      {/* v1.4.0: damageEvents を 1 回の map で DamagePopFx + (isTap なら) TapRingFx を並行 mount。
+          TapRingFx はリング寿命を DamagePopFx と同じ 800ms に合わせてあるため、 同 ID の
+          queueRemoval (= DamagePopFx の onDone) と同タイミングでアンマウントされる
+          (= TapRingFx 完了後の不活性 DOM 残留問題を解消)。 */}
       {damageEvents.map((evt) => (
-        <DamagePopFx
-          key={evt.id}
-          value={Number(evt.value.toString())}
-          x={evt.x}
-          y={evt.y}
-          crit={evt.crit}
-          onDone={() => handleDamageDone(evt.id)}
-        />
+        <Fragment key={evt.id}>
+          <DamagePopFx
+            value={Number(evt.value.toString())}
+            x={evt.x}
+            y={evt.y}
+            crit={evt.crit}
+            onDone={() => handleDamageDone(evt.id)}
+          />
+          {evt.isTap && (
+            <TapRingFx
+              x={evt.x}
+              y={evt.y}
+            />
+          )}
+        </Fragment>
       ))}
       {deathEvents.map((evt) => (
         <EnemyDeathFx

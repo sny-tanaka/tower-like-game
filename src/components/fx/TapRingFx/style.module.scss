@@ -1,0 +1,56 @@
+/* TapRingFx — v1.4.0 タップ攻撃の敵位置フィードバック Fx
+ *
+ * 静的 @keyframes、 インスタンス固有値は CSS 変数で受ける:
+ *   --tap-x / --tap-y     : 攻撃対象の敵位置 (%、 JSX inline)
+ *   --tap-duration        : アニメ時間 (ms、 JSX inline)
+ */
+
+/* v1.4.0: 全 800ms (DamagePopFx と同じ寿命)。 前半 40% (= 320ms) でリングが広がり、 残りは
+ * opacity 0 / scale 固定で「視覚的には消えた」 状態を保ち、 親 FxLayer の queueRemoval (= DamagePopFx
+ * の onDone) と同タイミングでアンマウントされる。 これで完了後の不活性 DOM 残留 480ms を解消。 */
+@keyframes tapRing {
+  0% {
+    transform: translate(-50%, -50%) scale(0.4);
+    opacity: 0.9;
+  }
+  40% {
+    transform: translate(-50%, -50%) scale(2.2);
+    opacity: 0;
+  }
+  100% {
+    transform: translate(-50%, -50%) scale(2.2);
+    opacity: 0;
+  }
+}
+
+.wrap {
+  position: absolute;
+  left: var(--tap-x);
+  top: var(--tap-y);
+  pointer-events: none;
+  z-index: var(--z-fx-field);
+}
+
+.ring {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  border: 2px solid var(--c-primary);
+  /* 内側うっすらの fill (border だけだとモバイルで細く見える) */
+  background: radial-gradient(
+    circle,
+    rgba(78, 228, 246, 0.18) 0%,
+    transparent 65%
+  );
+  animation: tapRing var(--tap-duration, 320ms) var(--ease-out) both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ring {
+    animation-duration: 1ms;
+    opacity: 0;
+  }
+}
