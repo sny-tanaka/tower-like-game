@@ -408,12 +408,13 @@ describe('HP リジェネ天井丸めバグ 回帰防止', () => {
 
 // ---------------------------------------------------------------------------
 // #61: scaledReward × gainMul × dropMul の結合テスト (Refs #61)
-// useBattleLoop では baseBolt × T² × boltGainMul × dropMul の順で計算する。
+// useBattleLoop では baseBolt × scaledReward × boltGainMul × dropMul の順で計算する。
 // 純粋関数 scaledReward を使った数値検証でドロップ計算ロジックを保護する。
+// スケール式は hybrid (T ≤ 3: T², T ≥ 4: 9 × 2.25^(T-3))。
 // ---------------------------------------------------------------------------
 
 describe('ボルト/超合金ドロップ計算 (scaledReward Refs #61)', () => {
-  // 仕様: base × T² × gainMul × dropMul
+  // 仕様: base × scaledReward(T) × gainMul × dropMul
   // calcBoltDrop のような専用エクスポートはないため、式を直接テストする。
 
   test('T=1 baseBolt=1 gainMul=1.0 dropMul=1 → 1（T=1 で変化なし）', () => {
@@ -425,48 +426,53 @@ describe('ボルト/超合金ドロップ計算 (scaledReward Refs #61)', () => 
     expect(earned).toBe(1);
   });
 
-  test('T=2 baseBolt=1 gainMul=1.0 dropMul=1 → 4（T² = 4）', () => {
+  test('T=2 baseBolt=1 gainMul=1.0 dropMul=1 → 4（T² ブランチ）', () => {
     expect(scaledReward(1, 2) * 1.0 * 1).toBe(4);
   });
 
-  test('T=5 baseBolt=2 gainMul=1.06 dropMul=1 → 2 × 25 × 1.06 = 53', () => {
+  test('T=5 baseBolt=2 gainMul=1.06 dropMul=1 → 2 × 45.5625 × 1.06 ≒ 96.59', () => {
     // Lv=2 時の boltGainMul = 1.0 + 0.03*2 = 1.06
+    // T=5 は指数ブランチ: 9 × 2.25^2 = 45.5625
     const result = scaledReward(2, 5) * 1.06 * 1;
-    expect(result).toBeCloseTo(53);
+    expect(result).toBeCloseTo(2 * 45.5625 * 1.06);
   });
 
-  test('T=10 baseBolt=10 gainMul=1.0 dropMul=2 → 10 × 100 × 1.0 × 2 = 2000', () => {
-    expect(scaledReward(10, 10) * 1.0 * 2).toBe(2000);
+  test('T=10 baseBolt=10 gainMul=1.0 dropMul=2 → 10 × (9 × 2.25^7) × 2', () => {
+    const expected = 10 * 9 * Math.pow(2.25, 7) * 2;
+    expect(scaledReward(10, 10) * 1.0 * 2).toBeCloseTo(expected, 4);
   });
 
-  test('T=100 boss.bolt=250 gainMul=1.0 dropMul=1 → 250 × 10000 = 2500000', () => {
-    expect(scaledReward(250, 100) * 1.0 * 1).toBe(2_500_000);
+  test('T=20 boss.bolt=250 gainMul=1.0 dropMul=1 → 250 × (9 × 2.25^17)', () => {
+    // 実プレイで届きうる高 Tier の代表値 (T=100 は非現実的なので T=20 に変更)。
+    const expected = 250 * 9 * Math.pow(2.25, 17);
+    expect(scaledReward(250, 20) * 1.0 * 1).toBeCloseTo(expected, 0);
   });
 
   test('超合金: T=3 alloyAmount=1 gainMul=1.09 dropMul=1 → 9 × 1.09 ≒ 9.81', () => {
     // alloyGainMul Lv=3: 1.0 + 0.03*3 = 1.09
+    // T=3 は T² ブランチで変化なし。
     const result = scaledReward(1, 3) * 1.09 * 1;
     expect(result).toBeCloseTo(9.81);
   });
 
-  test('超合金: boss alloyAmount=5 T=10 gainMul=1.0 dropMul=1 → 5 × 100 = 500', () => {
-    expect(scaledReward(5, 10) * 1.0 * 1).toBe(500);
+  test('超合金: boss alloyAmount=5 T=10 gainMul=1.0 dropMul=1 → 5 × (9 × 2.25^7)', () => {
+    const expected = 5 * 9 * Math.pow(2.25, 7);
+    expect(scaledReward(5, 10) * 1.0 * 1).toBeCloseTo(expected, 6);
   });
 
   test('NORMAL_BOLT_DROP_CHANCE は 0.5 (通常敵は 50% 確率)', () => {
     expect(NORMAL_BOLT_DROP_CHANCE).toBe(0.5);
   });
 
-  test('screw に scaledReward を使うと tier² スケールになるが、実装ではならない', () => {
-    // screw ドロップは waveScrewFactor × tierScrewFactor を使い T² とは異なる。
-    // T=2 の tierScrewFactor = 1.5^1 = 1.5 (T² = 4 とは違う)。
+  test('screw に scaledReward を使うと bolt スケールになるが、実装ではならない', () => {
+    // screw ドロップは waveScrewFactor × tierScrewFactor を使い bolt/alloy とは異なる。
+    // T=2 の tierScrewFactor = 1.5^1 = 1.5 (bolt の T²=4 とは違う)。
     // このテストはその乖離を確認するドキュメンテーションテスト。
     const tierScrewFactor = Math.pow(1.5, 2 - 1); // = 1.5
     const waveScrewFactor = 1.0;
     const baseScrew = 1;
     const screwDropT2 = Math.round(baseScrew * tierScrewFactor * waveScrewFactor);
-    const boltDropT2 = scaledReward(baseScrew, 2); // = 4 (T²)
-    // screw の倍率 (1.5) と T² bolt の倍率 (4) は異なる
+    const boltDropT2 = scaledReward(baseScrew, 2); // = 4 (T² ブランチ)
     expect(screwDropT2).not.toBe(boltDropT2);
     expect(screwDropT2).toBe(2);
     expect(boltDropT2).toBe(4);
