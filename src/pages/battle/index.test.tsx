@@ -16,7 +16,15 @@ vi.mock('@/store/sync', () => ({
 
 // soundEngine をモック
 vi.mock('@/lib/audio', () => ({
-  soundEngine: { play: vi.fn(), playBgm: vi.fn(), stopBgm: vi.fn(), init: vi.fn() },
+  soundEngine: {
+    play: vi.fn(),
+    playBgm: vi.fn(),
+    stopBgm: vi.fn(),
+    init: vi.fn(),
+    // v1.4.2: ScreenSaverDialog がマウント時に suspendAudio / unmount で resumeAudio を呼ぶ
+    suspendAudio: vi.fn(),
+    resumeAudio: vi.fn(),
+  },
 }));
 
 /** NavigationProvider でラップするヘルパー */
@@ -50,6 +58,83 @@ describe('BattleScreen Page', () => {
     expect(
       screen.queryByRole('button', { name: 'スクリーンセーバーを終了' })
     ).not.toBeInTheDocument();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// v1.4.2: スクリーンセーバーと一時停止ダイアログの両立防止
+// ---------------------------------------------------------------------------
+
+describe('v1.4.2 — スクリーンセーバーと一時停止ダイアログの両立防止', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    useStore.getState().endRun();
+  });
+
+  afterEach(() => {
+    useStore.getState().endRun();
+    useStore.getState().setPaused(false);
+    vi.clearAllMocks();
+  });
+
+  test('スクリーンセーバー表示中に pause が立つとセーバーが閉じる', async () => {
+    useStore.getState().startRun({
+      initialWeapon: 'laser',
+      baseMachineMaxHp: BigNum.fromNumber(100),
+      initialTier: 1,
+    });
+
+    renderPage();
+
+    // スクリーンセーバーを起動
+    const openBtn = screen.getByRole('button', { name: 'スクリーンセーバーを起動' });
+    await act(async () => {
+      fireEvent.click(openBtn);
+    });
+    expect(screen.getByRole('button', { name: 'スクリーンセーバーを終了' })).toBeInTheDocument();
+
+    // pause を立てる (visibilitychange 由来をシミュレート: store の setPaused 直接呼び)
+    await act(async () => {
+      useStore.getState().setPaused(true);
+    });
+
+    // セーバーは閉じている (= 「セーバーの裏で pause」 という状態を作らない)
+    expect(
+      screen.queryByRole('button', { name: 'スクリーンセーバーを終了' })
+    ).not.toBeInTheDocument();
+    // 代わりに pause メニューが表示されている
+    expect(screen.getByRole('heading', { name: 'メニュー' })).toBeInTheDocument();
+  });
+
+  test('スクリーンセーバー表示中に visibilitychange (hidden) で pause が立ち、 セーバーが閉じる', async () => {
+    useStore.getState().startRun({
+      initialWeapon: 'laser',
+      baseMachineMaxHp: BigNum.fromNumber(100),
+      initialTier: 1,
+    });
+
+    renderPage();
+
+    const openBtn = screen.getByRole('button', { name: 'スクリーンセーバーを起動' });
+    await act(async () => {
+      fireEvent.click(openBtn);
+    });
+    expect(screen.getByRole('button', { name: 'スクリーンセーバーを終了' })).toBeInTheDocument();
+
+    // タブ非表示をシミュレート
+    await act(async () => {
+      Object.defineProperty(document, 'hidden', { configurable: true, value: true });
+      document.dispatchEvent(new Event('visibilitychange'));
+    });
+
+    // 自動 pause が立ち、 セーバーは閉じている
+    expect(useStore.getState().isPaused).toBe(true);
+    expect(
+      screen.queryByRole('button', { name: 'スクリーンセーバーを終了' })
+    ).not.toBeInTheDocument();
+
+    // teardown: hidden プロパティを戻す
+    Object.defineProperty(document, 'hidden', { configurable: true, value: false });
   });
 });
 

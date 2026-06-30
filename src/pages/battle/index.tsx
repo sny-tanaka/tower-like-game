@@ -171,6 +171,15 @@ export function Page() {
     };
   }, [setPaused]);
 
+  // v1.4.2: pause が立ったらスクリーンセーバーを必ず解除する。
+  // 「セーバーの裏で停止しているだけの不可視状態」 を作らないため、
+  // どこから pause が立っても (メニューボタン / visibilitychange) 同じ挙動にする。
+  useEffect(() => {
+    if (isPaused) {
+      setIsScreenSaverOpen(false);
+    }
+  }, [isPaused]);
+
   // ── WaveStartFx: 「次の wave へ進んだ瞬間」のみ表示 (出撃直後は出さない) ──
   const prevWaveRef = useRef(currentWave);
   const [waveStartKey, setWaveStartKey] = useState<number | null>(null);
