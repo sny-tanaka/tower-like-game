@@ -2,9 +2,7 @@ import { openDatabase } from '@/data/db';
 import {
   loadSaveState,
   putCurrencies,
-  putEquippedPatch,
   putMachine,
-  putPatch,
   putProfile,
   putSettings,
   putWeapons,
@@ -16,6 +14,7 @@ import {
   DEFAULT_SETTINGS,
   DEFAULT_WEAPONS,
   MACHINE_UPGRADE_KEYS,
+  STORES,
 } from '@/data/schema';
 import type {
   CurrenciesRecord,
@@ -188,29 +187,44 @@ export async function syncProfile(): Promise<void> {
   });
 }
 
-/** patches slice を IndexedDB に書き戻す */
+/**
+ * patches slice を IndexedDB に書き戻す。
+ *
+ * v1.4.1: 旧実装は put のみだったため、 合成 / consumePatch で削除された
+ * (name, tier) のエントリが IDB に残存し、 次回 hydrate 時に「ドロップしてないのに
+ * パッチが増える」 不具合の原因になっていた。 1 トランザクション内で clear → put
+ * 全件に置換し、 メモリ状態を IDB に厳密に反映する。
+ */
 export async function syncPatches(): Promise<void> {
   const db = await getDb();
   const { patches } = useStore.getState();
-  // 全パッチを put（count>0 のみ）
-  const ops: Promise<void>[] = [];
+  const tx = db.transaction(STORES.patches, 'readwrite');
+  const store = tx.objectStore(STORES.patches);
+  await store.clear();
   for (const entry of patches.values()) {
     if (entry.count > 0) {
-      ops.push(putPatch(db, { name: entry.name, tier: entry.tier, count: entry.count }));
+      await store.put({ name: entry.name, tier: entry.tier, count: entry.count });
     }
   }
-  await Promise.all(ops);
+  await tx.done;
 }
 
-/** equippedPatches slice を IndexedDB に書き戻す */
+/**
+ * equippedPatches slice を IndexedDB に書き戻す。
+ *
+ * v1.4.1: 旧実装は put のみだったため、 装着解除で消えたスロットが IDB に
+ * 残存していた。 syncPatches と同じく clear → put 全件で置換する。
+ */
 export async function syncEquippedPatches(): Promise<void> {
   const db = await getDb();
   const { equippedPatches } = useStore.getState();
-  const ops: Promise<void>[] = [];
+  const tx = db.transaction(STORES.equippedPatches, 'readwrite');
+  const store = tx.objectStore(STORES.equippedPatches);
+  await store.clear();
   for (const [slotIndex, entry] of equippedPatches) {
-    ops.push(putEquippedPatch(db, { slotIndex, name: entry.name, tier: entry.tier }));
+    await store.put({ slotIndex, name: entry.name, tier: entry.tier });
   }
-  await Promise.all(ops);
+  await tx.done;
 }
 
 // ---------------------------------------------------------------------------
