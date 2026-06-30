@@ -11,7 +11,9 @@ import {
   flushAfterRun,
   hydrateStore,
   syncCurrencies,
+  syncEquippedPatches,
   syncMachine,
+  syncPatches,
   syncSettings,
   syncWeapons,
 } from '@/store/sync';
@@ -203,6 +205,76 @@ describe('sync: settings round-trip', () => {
     await hydrateStore();
 
     expect(useStore.getState().targetFps).toBe(30);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// syncPatches + hydrateStore の round-trip
+// ---------------------------------------------------------------------------
+
+describe('sync: patches round-trip', () => {
+  it('addPatch / consumePatch 後の在庫が hydrate 後も一致する', async () => {
+    const store = useStore.getState();
+    store.addPatch('boltCast', 1, 4);
+    store.addPatch('instantKill', 2, 1);
+
+    await syncPatches();
+
+    useStore.setState({ patches: new Map() });
+    await hydrateStore();
+
+    const patches = useStore.getState().patches;
+    expect(patches.get('boltCast#1')?.count).toBe(4);
+    expect(patches.get('instantKill#2')?.count).toBe(1);
+    expect(patches.size).toBe(2);
+  });
+
+  it('consumePatch で消えたエントリは hydrate 後も復活しない (合成バグ回帰)', async () => {
+    // boltCast#1 × 4 を put して IDB に書き込む
+    const store = useStore.getState();
+    store.addPatch('boltCast', 1, 4);
+    await syncPatches();
+
+    // 合成で boltCast#1 をすべて消費し、 boltCast#3 を 1 個追加 (合成結果を模擬)
+    expect(store.consumePatch('boltCast', 1, 4)).toBe(true);
+    store.addPatch('boltCast', 3, 1);
+    await syncPatches();
+
+    // IDB から読み直したとき、 boltCast#1 が復活していないこと
+    useStore.setState({ patches: new Map() });
+    await hydrateStore();
+
+    const patches = useStore.getState().patches;
+    expect(patches.has('boltCast#1')).toBe(false);
+    expect(patches.get('boltCast#3')?.count).toBe(1);
+    expect(patches.size).toBe(1);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// syncEquippedPatches + hydrateStore の round-trip
+// ---------------------------------------------------------------------------
+
+describe('sync: equippedPatches round-trip', () => {
+  it('unequip 後のスロット空きが hydrate 後も維持される', async () => {
+    const store = useStore.getState();
+    store.addPatch('boltCast', 1, 1);
+    store.addPatch('instantKill', 1, 1);
+    expect(store.equipPatch(0, 'boltCast', 1)).toBe(true);
+    expect(store.equipPatch(1, 'instantKill', 1)).toBe(true);
+    await syncEquippedPatches();
+
+    // スロット 0 を外す
+    store.unequipPatch(0);
+    await syncEquippedPatches();
+
+    useStore.setState({ equippedPatches: new Map() });
+    await hydrateStore();
+
+    const equipped = useStore.getState().equippedPatches;
+    expect(equipped.has(0)).toBe(false);
+    expect(equipped.get(1)?.name).toBe('instantKill');
+    expect(equipped.size).toBe(1);
   });
 });
 
