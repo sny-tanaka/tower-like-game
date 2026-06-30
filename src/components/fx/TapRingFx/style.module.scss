@@ -31,6 +31,9 @@
   z-index: var(--z-fx-field);
 }
 
+/* v1.4.2: 手動タップが自動攻撃 (シアン系) と見分けにくかったため、
+ * リング色をシアン → セカンダリ紫 (--c-secondary #a96bff) に変更。
+ * 「自分のアクション」 だと一瞬で識別できるようにする。 */
 .ring {
   position: absolute;
   left: 0;
@@ -38,11 +41,11 @@
   width: 24px;
   height: 24px;
   border-radius: 50%;
-  border: 2px solid var(--c-primary);
+  border: 2px solid var(--c-secondary);
   /* 内側うっすらの fill (border だけだとモバイルで細く見える) */
   background: radial-gradient(
     circle,
-    rgba(78, 228, 246, 0.18) 0%,
+    rgba(169, 107, 255, 0.18) 0%,
     transparent 65%
   );
   animation: tapRing var(--tap-duration, 320ms) var(--ease-out) both;

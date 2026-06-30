@@ -76,6 +76,10 @@ export function ProjectileLayer() {
                 x={evt.x}
                 y={evt.y}
                 duration={evt.durationMs}
+                /* v1.4.2: variant='plasma' (Plasma Discharge) は通常攻撃 (シアン) と
+                 * 見分けがつくよう紫で描画する。 通常攻撃は ThunderStrikeFx のデフォルト
+                 * 色 (var(--c-primary)) のままにする。 */
+                color={evt.variant === 'plasma' ? 'var(--c-secondary)' : undefined}
                 onDone={() => handleDone(evt.id)}
               />
             );

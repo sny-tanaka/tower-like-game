@@ -60,6 +60,8 @@ export interface DeathEvent {
  * - cannonShell: マシン → 着弾点に砲弾飛翔 (CannonShellFx)。 duration 後に blast を別 event で出す
  * - blast: 着弾点で範囲爆発 (BlastFx)
  * - thunderStrike: 着弾点の真上から雷 (ThunderStrikeFx)。 duration 後に chain を別 event で出す
+ *   - variant: 'normal' (通常攻撃, シアン) / 'plasma' (Plasma Discharge アクティブ, 紫)。
+ *     v1.4.2 で「通常攻撃とアクティブの見た目が同じでわかりづらい」 対応として追加。
  * - chain: 各 hit を結ぶ連鎖電撃 (ChainBoltFx)。 delayMs で発火を遅らせ可能
  *
  * 各 event は単体で完結する Fx。 cannon = shell + blast、 thunder = strike + chain は
@@ -88,7 +90,15 @@ export type ProjectileEvent =
       radius?: number;
       delayMs?: number;
     }
-  | { id: string; kind: 'thunderStrike'; x: number; y: number; durationMs: number }
+  | {
+      id: string;
+      kind: 'thunderStrike';
+      x: number;
+      y: number;
+      durationMs: number;
+      /** v1.4.2: 'normal' (通常攻撃, シアン) / 'plasma' (Plasma Discharge, 紫)。 既定は normal */
+      variant?: 'normal' | 'plasma';
+    }
   | { id: string; kind: 'chain'; points: { x: number; y: number }[]; delayMs?: number }
   | { id: string; kind: 'megaBeam'; x: number; y: number; angle: number; widthPct?: number };
 

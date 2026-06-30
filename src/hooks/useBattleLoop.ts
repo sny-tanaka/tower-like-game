@@ -845,8 +845,9 @@ export function useBattleLoop({
         const s = thunderStats(state.weaponLv);
         const boosted = { ...s, damageMul: s.damageMul * attackMul * machine.activePower };
         const r = thunderPlasmaDischarge(machine, boosted, enemiesRef.current);
-        // 全体攻撃の視覚: 対象全員に通常攻撃と同じ ThunderStrikeFx を落とす
+        // 全体攻撃の視覚: 対象全員に ThunderStrikeFx を落とす
         // (v1.1 で連鎖 → 全体落雷に変更。 ChainBoltFx は廃止)
+        // v1.4.2: 通常攻撃 (シアン) と区別するため variant='plasma' で紫描画する。
         const strikeMs = 320;
         for (const hit of r.hits) {
           const enemy = enemiesRef.current.find((e) => e.id === hit.enemyId);
@@ -858,6 +859,7 @@ export function useBattleLoop({
             x: enemy.position.x,
             y: enemy.position.y,
             durationMs: strikeMs,
+            variant: 'plasma',
           });
         }
         applyHits(r.hits);

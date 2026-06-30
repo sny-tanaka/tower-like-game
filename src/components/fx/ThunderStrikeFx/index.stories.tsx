@@ -63,3 +63,17 @@ export const HighJaggedness: Story = {
     />
   ),
 };
+
+/**
+ * v1.4.2: Plasma Discharge アクティブスキル用の紫サンダー。
+ * 通常攻撃 (シアン) と Plasma Discharge (全体落雷) を見た目で区別する。
+ */
+export const PlasmaPurple: Story = {
+  args: { x: 50, y: 60, fromY: 0, duration: 320, color: 'var(--c-secondary)' },
+  render: (args) => (
+    <ThunderStrikeFx
+      key={JSON.stringify(args)}
+      {...args}
+    />
+  ),
+};
