@@ -262,53 +262,73 @@ describe('spawnEnemy', () => {
 // ---------------------------------------------------------------------------
 
 describe('scaledReward', () => {
-  it('T=1 の倍率は 1（1*1=1）', () => {
+  // hybrid 方式 (02-currencies.md § 3.1):
+  //   T ≤ 3: T² (1, 4, 9)
+  //   T ≥ 4: 9 × 2.25^(T-3) (20.25, 45.5625, 102.515625, ...)
+  // 設計意図: 純 T² は Tier 上昇 1段あたりの倍率が漸減するため、
+  // T4 以降を 2.25× 固定化して敵 HP 1.8×/Tier を上回る経済を確保する。
+
+  it('T=1 の倍率は 1（T² ブランチ）', () => {
     expect(scaledReward(10, 1)).toBe(10);
   });
 
-  it('T=2 の倍率は 4（2*2=4）', () => {
+  it('T=2 の倍率は 4（T² ブランチ）', () => {
     expect(scaledReward(10, 2)).toBe(40);
   });
 
-  it('T=5 の倍率は 25', () => {
-    expect(scaledReward(1, 5)).toBe(25);
+  it('T=3 の倍率は 9（T² ブランチの上限）', () => {
+    expect(scaledReward(5, 3)).toBe(45); // 5 × 9
   });
 
-  it('T=10 の倍率は 100', () => {
-    expect(scaledReward(50, 10)).toBe(5000);
+  it('T=4 の倍率は 20.25（指数ブランチに切り替わる: 9 × 2.25^1）', () => {
+    expect(scaledReward(1, 4)).toBe(20.25);
+    expect(scaledReward(4, 4)).toBe(81); // 4 × 20.25
   });
 
-  // ---- 追加: BigNum 耐性 / 境界値 / 乗算順序 (Refs #61) ----
+  it('T=5 の倍率は 45.5625（9 × 2.25^2）', () => {
+    expect(scaledReward(1, 5)).toBeCloseTo(45.5625, 10);
+  });
+
+  it('T=10 の倍率は 9 × 2.25^7 ≈ 2627.43', () => {
+    expect(scaledReward(1, 10)).toBeCloseTo(9 * Math.pow(2.25, 7), 6);
+  });
+
+  // ---- 境界値 / 乗算順序 (Refs #61) ----
 
   it('base=0 なら Tier に関わらず 0', () => {
     expect(scaledReward(0, 1)).toBe(0);
-    expect(scaledReward(0, 100)).toBe(0);
+    expect(scaledReward(0, 50)).toBe(0);
   });
 
-  it('T=100 では base × 10000 になる', () => {
-    expect(scaledReward(3, 100)).toBe(30_000);
+  it('T=30 でも Number.MAX_SAFE_INTEGER 内 (9 × 2.25^27 ≈ 8.4e10)', () => {
+    // 実プレイで想定し得る現実的な上限。 Number.MAX_SAFE_INTEGER (2^53 ≈ 9e15) 未満。
+    const r = scaledReward(1, 30);
+    expect(Number.isFinite(r)).toBe(true);
+    expect(r).toBeLessThan(Number.MAX_SAFE_INTEGER);
   });
 
-  it('T=1000 でも Number 範囲内（overflow なし）', () => {
-    // 5 × 1000² = 5_000_000（IEEE754 で問題なく表現できる）
-    expect(scaledReward(5, 1000)).toBe(5_000_000);
-  });
-
-  it('Tier が増えると T² スケールで単調増加する', () => {
+  it('Tier が増えると単調増加する', () => {
     const base = 10;
     const r1 = scaledReward(base, 1);
-    const r2 = scaledReward(base, 2);
+    const r3 = scaledReward(base, 3);
+    const r4 = scaledReward(base, 4);
     const r10 = scaledReward(base, 10);
-    expect(r2).toBeGreaterThan(r1);
-    expect(r10).toBeGreaterThan(r2);
-    // T=2 は T=1 の 4 倍、T=10 は T=2 の 25 倍
-    expect(r2 / r1).toBe(4);
-    expect(r10 / r2).toBe(25);
+    expect(r3).toBeGreaterThan(r1);
+    expect(r4).toBeGreaterThan(r3);
+    expect(r10).toBeGreaterThan(r4);
+    // T3→T4 で T² から指数に切り替わり、 比率は 20.25/9 = 2.25
+    expect(r4 / r3).toBeCloseTo(2.25, 10);
+    // T4→T10 は 2.25^6
+    expect(r10 / r4).toBeCloseTo(Math.pow(2.25, 6), 6);
   });
 
-  it('小数 base は JS Number の精度範囲内で正確', () => {
-    // boss.alloyAmount=5 での代表値
-    expect(scaledReward(5, 3)).toBe(45); // 5 × 9
+  it('T ≥ 4 の Tier 上昇 1段あたりの倍率は常に 2.25', () => {
+    const base = 1;
+    for (let t = 4; t <= 20; t++) {
+      const r = scaledReward(base, t);
+      const rNext = scaledReward(base, t + 1);
+      expect(rNext / r).toBeCloseTo(2.25, 10);
+    }
   });
 
   // ---- screw に scaledReward が適用されていないことを型レベルで確認 ----
