@@ -40,7 +40,10 @@ export interface RunWorkshopActions {
    *   - false: ネジ不足 / 未知の key / 'max' で買える Lv がない場合
    */
   upgradeRunWorkshop: (key: RunWorkshopKey, delta: 1 | 5 | 'max') => boolean;
-  /** ラン開始 / 終了時に全 Lv を 0 に戻す。AUTO ON/OFF も全 false に戻す */
+  /**
+   * ラン開始 / 終了時に全 Lv を 0 に戻す。
+   * v1.4.4: AUTO ON/OFF はセッション跨ぎ永続化のためリセット対象外 (Lv のみリセット)。
+   */
   resetRunWorkshop: () => void;
   /** 指定項目の AUTO ON/OFF を切り替える */
   setRunWorkshopAuto: (key: RunWorkshopKey, enabled: boolean) => void;
@@ -139,9 +142,9 @@ export const createRunWorkshopSlice: StateCreator<RootStore, [], [], RunWorkshop
   },
 
   resetRunWorkshop: () =>
+    // v1.4.4: AUTO 設定はセッション跨ぎで保持したいので触らない。 Lv のみ 0 に戻す。
     set({
       runWorkshopLevels: defaultRunWorkshopLevels,
-      runWorkshopAutoEnabled: defaultRunWorkshopAutoEnabled,
     }),
 
   setRunWorkshopAuto: (key, enabled) =>

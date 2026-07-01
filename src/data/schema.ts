@@ -123,12 +123,34 @@ export type EquippedPatchRecord = {
 export type TargetFps = 30 | 45 | 60;
 export const TARGET_FPS_OPTIONS: readonly TargetFps[] = [30, 45, 60];
 
+/**
+ * ラン中ワークショップ 4 項目の AUTO ON/OFF (v1.4.4)。
+ * schema 自己完結のため、 store 側の `RunWorkshopAutoEnabled` とは別に定義しつつ
+ * key 名は一致させている。
+ */
+export type RunWorkshopAutoSettings = {
+  attackMul: boolean;
+  attackSpeedMul: boolean;
+  hpMul: boolean;
+  screwGainMul: boolean;
+};
+
 export type SettingsRecord = {
   id: 'singleton';
   bgmVolume: number; // 0.0 〜 1.0
   seVolume: number; // 0.0 〜 1.0
   muted: boolean;
   targetFps?: TargetFps; // 未保存の旧データは DEFAULT_SETTINGS.targetFps で補完
+  /**
+   * アクティブスキルの AUTO ON/OFF (v1.4.4)。
+   * 未保存の旧データは false で補完。 ラン跨ぎで保持される。
+   */
+  autoActive?: boolean;
+  /**
+   * ラン中ワークショップ 4 項目の AUTO ON/OFF (v1.4.4)。
+   * 未保存の旧データは全 false で補完。 ラン跨ぎで保持される。
+   */
+  runWorkshopAuto?: RunWorkshopAutoSettings;
 };
 
 // --- SaveState: 全ストアをまとめた型 ---
@@ -169,10 +191,19 @@ export const DEFAULT_WEAPONS: WeaponsRecord = {
   initialWeapon: 'laser',
 };
 
+export const DEFAULT_RUN_WORKSHOP_AUTO: RunWorkshopAutoSettings = {
+  attackMul: false,
+  attackSpeedMul: false,
+  hpMul: false,
+  screwGainMul: false,
+};
+
 export const DEFAULT_SETTINGS: SettingsRecord = {
   id: 'singleton',
   bgmVolume: 0.8,
   seVolume: 0.8,
   muted: false,
   targetFps: 60,
+  autoActive: false,
+  runWorkshopAuto: DEFAULT_RUN_WORKSHOP_AUTO,
 };

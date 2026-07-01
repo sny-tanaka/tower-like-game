@@ -206,6 +206,41 @@ describe('sync: settings round-trip', () => {
 
     expect(useStore.getState().targetFps).toBe(30);
   });
+
+  // ---- v1.4.4: AUTO 状態のセッション跨ぎ永続化 ----
+
+  it('settings の isAutoActive を書いて読み直すと同じ値になる', async () => {
+    useStore.getState().setAutoActive(true);
+    await syncSettings();
+
+    useStore.setState({ isAutoActive: false });
+    await hydrateStore();
+
+    expect(useStore.getState().isAutoActive).toBe(true);
+  });
+
+  it('settings の runWorkshopAutoEnabled を書いて読み直すと同じ値になる', async () => {
+    useStore.getState().setRunWorkshopAuto('attackMul', true);
+    useStore.getState().setRunWorkshopAuto('hpMul', true);
+    await syncSettings();
+
+    useStore.setState({
+      runWorkshopAutoEnabled: {
+        attackMul: false,
+        attackSpeedMul: false,
+        hpMul: false,
+        screwGainMul: false,
+      },
+    });
+    await hydrateStore();
+
+    expect(useStore.getState().runWorkshopAutoEnabled).toEqual({
+      attackMul: true,
+      attackSpeedMul: false,
+      hpMul: true,
+      screwGainMul: false,
+    });
+  });
 });
 
 // ---------------------------------------------------------------------------
