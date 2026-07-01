@@ -71,6 +71,58 @@ export function shouldDrawFrame(elapsedMs: number, targetFps: number): boolean {
 }
 
 // ---------------------------------------------------------------------------
+// v1.4.5: Fx イベントの時間ベース強制回収 (iOS Safari のメモリ枯渇クラッシュ対策)
+// ---------------------------------------------------------------------------
+//
+// 各 Fx (DamagePopFx / EnemyDeathFx / …) は CSS animation 完了時に onAnimationEnd で
+// queueRemoval('damage', id) を呼び出し、 tick 冒頭で events ref から filter で削除される。
+// しかし iOS Safari / WKWebView は高負荷時 (T5 以降の高頻度戦闘) に onAnimationEnd を
+// 確率的に落とすことが知られており、 削除されない events が damageEventsRef に
+// 無限蓄積 → 毎フレーム [...damageEventsRef, ...new] の O(N) allocate が積み上がり →
+// タブメモリが ~1GB に達して WebKit がページ強制リロード (= プレイヤーには「戦闘中に
+// 真っ白 → タイトル画面」 と見える) が発生する。
+//
+// 対策として、 各イベント生成時刻を並行 Map に保持し、 想定アニメ時間 + 500ms を超えた
+// ものは onAnimationEnd に頼らず tick 冒頭で強制回収する。 正常発火する場合はこの GC が
+// 走る前に queueRemoval 経由で消えるため見た目に副作用なし。
+export const DAMAGE_EVENT_MAX_AGE_MS = 800 + 500; // DamagePopFx default duration + margin
+export const DEATH_EVENT_MAX_AGE_MS = 480 + 500; // EnemyDeathFx default duration + margin
+// ProjectileEvent は kind により実寿命が変わる (megaBeam=600, cannonShell=~600, blast=520+delay,
+// thunderStrike=320, chain=380+delay)。 全 kind を安全に包含する上限として 3000ms を採用。
+export const PROJECTILE_EVENT_MAX_AGE_MS = 3000;
+export const APPEARANCE_EVENT_MAX_AGE_MS = 1600 + 500; // AppearanceBannerFx default duration + margin
+
+/**
+ * v1.4.5: 時間ベースの Fx イベント強制回収。
+ * createdAtMap の各 (id, createdAtMs) を走査し、 `nowMs - createdAt > maxAgeMs`
+ * となった id を Map から削除する。 1 つでも期限切れがあった場合のみ events を
+ * filter して新配列を返す (削除ゼロなら参照そのまま = 呼出側の React 再 render を
+ * 発生させない)。
+ *
+ * この関数は Map を副作用として mutate する (期限切れの id を delete する) が、
+ * events 配列は immutable に扱う (新配列を返すか参照そのまま)。 呼出側は
+ * events ref を戻り値で置き換えるだけで良い。
+ */
+export function sweepExpiredEvents<T extends { id: string }>(
+  events: readonly T[],
+  createdAtMap: Map<string, number>,
+  nowMs: number,
+  maxAgeMs: number
+): readonly T[] {
+  const cutoff = nowMs - maxAgeMs;
+  let expired: Set<string> | null = null;
+  for (const [id, createdAt] of createdAtMap) {
+    if (createdAt < cutoff) {
+      if (expired === null) expired = new Set();
+      expired.add(id);
+      createdAtMap.delete(id);
+    }
+  }
+  if (expired === null) return events;
+  return events.filter((e) => !expired.has(e.id));
+}
+
+// ---------------------------------------------------------------------------
 // 純粋関数: Wave 終了判定
 // ---------------------------------------------------------------------------
 
@@ -506,6 +558,14 @@ export function useBattleLoop({
   const projectileEventsRef = useRef<ProjectileEvent[]>([]);
   const appearanceEventsRef = useRef<AppearanceEvent[]>([]);
 
+  // v1.4.5: 各 events ref と対になる「id → 生成時刻 (performance.now())」 Map。
+  // tick 冒頭で「now - createdAt > MAX_AGE_MS」 の古い event を強制回収する。
+  // 詳細な背景はモジュール冒頭の DAMAGE_EVENT_MAX_AGE_MS コメント参照。
+  const damageEventCreatedAtRef = useRef<Map<string, number>>(new Map());
+  const deathEventCreatedAtRef = useRef<Map<string, number>>(new Map());
+  const projectileEventCreatedAtRef = useRef<Map<string, number>>(new Map());
+  const appearanceEventCreatedAtRef = useRef<Map<string, number>>(new Map());
+
   // v1.3.7 (Phase 1): BattleEntityStore を hook ローカルで生成。 StrictMode の double-invoke を
   // 避けるため useRef で 1 度だけインスタンス化。 Phase 2 で BattleField が直接購読するための
   // 土台。 Phase 1 では tick 末尾で notifyFrame を呼ぶだけ (listener=0 なので実質 no-op)。
@@ -532,6 +592,10 @@ export function useBattleLoop({
       deathEventsRef.current = [];
       projectileEventsRef.current = [];
       appearanceEventsRef.current = [];
+      damageEventCreatedAtRef.current.clear();
+      deathEventCreatedAtRef.current.clear();
+      projectileEventCreatedAtRef.current.clear();
+      appearanceEventCreatedAtRef.current.clear();
       entityStore.setDamageEvents([]);
       entityStore.setDeathEvents([]);
       entityStore.setProjectileEvents([]);
@@ -699,6 +763,10 @@ export function useBattleLoop({
       deathEventsRef.current = [];
       projectileEventsRef.current = [];
       appearanceEventsRef.current = [];
+      damageEventCreatedAtRef.current.clear();
+      deathEventCreatedAtRef.current.clear();
+      projectileEventCreatedAtRef.current.clear();
+      appearanceEventCreatedAtRef.current.clear();
       entityStore.reset();
       // 浮動小数 accumulator も初期化して低 fps 時の累積誤差をリセット
       fireAccumulatorMsRef.current = 0;
@@ -886,9 +954,17 @@ export function useBattleLoop({
     if (!suspendRenderingRef.current) {
       if (newDamageEvents.length > 0) {
         damageEventsRef.current = [...damageEventsRef.current, ...newDamageEvents];
+        const nowMs = performance.now();
+        for (const e of newDamageEvents) {
+          damageEventCreatedAtRef.current.set(e.id, nowMs);
+        }
       }
       if (newProjectileEvents.length > 0) {
         projectileEventsRef.current = [...projectileEventsRef.current, ...newProjectileEvents];
+        const nowMs = performance.now();
+        for (const e of newProjectileEvents) {
+          projectileEventCreatedAtRef.current.set(e.id, nowMs);
+        }
       }
     }
     return true;
@@ -925,12 +1001,14 @@ export function useBattleLoop({
         const removed = entityStore.consumePendingRemovals('damage');
         if (removed.size > 0) {
           damageEventsRef.current = damageEventsRef.current.filter((e) => !removed.has(e.id));
+          for (const id of removed) damageEventCreatedAtRef.current.delete(id);
         }
       }
       {
         const removed = entityStore.consumePendingRemovals('death');
         if (removed.size > 0) {
           deathEventsRef.current = deathEventsRef.current.filter((e) => !removed.has(e.id));
+          for (const id of removed) deathEventCreatedAtRef.current.delete(id);
         }
       }
       {
@@ -939,6 +1017,7 @@ export function useBattleLoop({
           projectileEventsRef.current = projectileEventsRef.current.filter(
             (e) => !removed.has(e.id)
           );
+          for (const id of removed) projectileEventCreatedAtRef.current.delete(id);
         }
       }
       {
@@ -947,7 +1026,41 @@ export function useBattleLoop({
           appearanceEventsRef.current = appearanceEventsRef.current.filter(
             (e) => !removed.has(e.id)
           );
+          for (const id of removed) appearanceEventCreatedAtRef.current.delete(id);
         }
+      }
+
+      // v1.4.5: iOS Safari / WKWebView で onAnimationEnd が高負荷時に落ちて events が
+      // 無限成長し、 タブメモリ枯渇で強制リロード (プレイヤーには「戦闘中に真っ白 →
+      // タイトル画面」 と見える) される問題への対策。 想定アニメ時間 + 500ms を超えた
+      // event は onAnimationEnd に頼らず強制回収する。 正常発火する Chrome / 大半の
+      // iOS では GC が走る前に queueRemoval 経由で消えるため見た目の副作用はない。
+      {
+        const nowMs = performance.now();
+        damageEventsRef.current = sweepExpiredEvents(
+          damageEventsRef.current,
+          damageEventCreatedAtRef.current,
+          nowMs,
+          DAMAGE_EVENT_MAX_AGE_MS
+        ) as DamageEvent[];
+        deathEventsRef.current = sweepExpiredEvents(
+          deathEventsRef.current,
+          deathEventCreatedAtRef.current,
+          nowMs,
+          DEATH_EVENT_MAX_AGE_MS
+        ) as DeathEvent[];
+        projectileEventsRef.current = sweepExpiredEvents(
+          projectileEventsRef.current,
+          projectileEventCreatedAtRef.current,
+          nowMs,
+          PROJECTILE_EVENT_MAX_AGE_MS
+        ) as ProjectileEvent[];
+        appearanceEventsRef.current = sweepExpiredEvents(
+          appearanceEventsRef.current,
+          appearanceEventCreatedAtRef.current,
+          nowMs,
+          APPEARANCE_EVENT_MAX_AGE_MS
+        ) as AppearanceEvent[];
       }
 
       const state = useStore.getState();
@@ -1075,6 +1188,10 @@ export function useBattleLoop({
               // ref への push のみ (setState は tick 末尾でまとめる)。
               if (!suspendRenderingRef.current) {
                 appearanceEventsRef.current = [...appearanceEventsRef.current, ...newAppearances];
+                const nowMs = performance.now();
+                for (const e of newAppearances) {
+                  appearanceEventCreatedAtRef.current.set(e.id, nowMs);
+                }
               }
             }
           }
@@ -1589,12 +1706,20 @@ export function useBattleLoop({
             const allDamageEvents = [...newDamageEvents, ...delayedDamageEvents];
             if (allDamageEvents.length > 0) {
               damageEventsRef.current = [...damageEventsRef.current, ...allDamageEvents];
+              const stampMs = performance.now();
+              for (const e of allDamageEvents) {
+                damageEventCreatedAtRef.current.set(e.id, stampMs);
+              }
             }
             if (newProjectileEvents.length > 0) {
               projectileEventsRef.current = [
                 ...projectileEventsRef.current,
                 ...newProjectileEvents,
               ];
+              const stampMs = performance.now();
+              for (const e of newProjectileEvents) {
+                projectileEventCreatedAtRef.current.set(e.id, stampMs);
+              }
             }
           }
 
@@ -1743,6 +1868,10 @@ export function useBattleLoop({
             // (ロジック側 enemiesRef 更新は実施)。 ref への push のみ (setState は tick 末尾でまとめる)。
             if (!suspendRenderingRef.current) {
               deathEventsRef.current = [...deathEventsRef.current, ...newDeathEvents];
+              const stampMs = performance.now();
+              for (const e of newDeathEvents) {
+                deathEventCreatedAtRef.current.set(e.id, stampMs);
+              }
             }
           }
           if (!earnedScrew.isZero()) {
