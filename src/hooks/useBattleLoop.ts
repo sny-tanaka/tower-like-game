@@ -92,6 +92,38 @@ export const DEATH_EVENT_MAX_AGE_MS = 480 + 500; // EnemyDeathFx default duratio
 export const PROJECTILE_EVENT_MAX_AGE_MS = 3000;
 export const APPEARANCE_EVENT_MAX_AGE_MS = 1600 + 500; // AppearanceBannerFx default duration + margin
 
+// v1.4.5: Fx イベント数のハードキャップ (バックプレッシャ)。 iOS Safari には信頼できる
+// メモリ API がなく onAnimationEnd も高負荷時に落ちるため、 events 配列の「見えている」
+// 長さそのものに上限を設ける。 上限に達した状態で push が来たら超過分をスキップする
+// (ダメージ計算 / 敵撃破 / 報酬などのゲームロジックには影響なし。 skip される
+// のは Fx の視覚だけ)。 sweep GC が時間軸の対策、 こちらは瞬間ピークの対策で相補的。
+// 上限値は 60fps × アニメ寿命 での理論最大同時存在数の 2〜3 倍を目安に設定。
+export const DAMAGE_EVENT_MAX_COUNT = 150;
+export const DEATH_EVENT_MAX_COUNT = 60;
+export const PROJECTILE_EVENT_MAX_COUNT = 100;
+
+/**
+ * v1.4.5: 既存 events + 新規 events が maxCount を超える場合、 超過分を切り捨てて
+ * admit する。 admit した event は createdAtMap にも stamp する。
+ *
+ * incoming が空 or 既存が既に満杯なら existing 参照をそのまま返す (呼出側の
+ * ref 代入が実質 no-op = 参照維持)。 admit ゼロなら createdAtMap にも触らない。
+ */
+export function admitEventsWithCap<T extends { id: string }>(
+  existing: readonly T[],
+  incoming: readonly T[],
+  createdAtMap: Map<string, number>,
+  nowMs: number,
+  maxCount: number
+): readonly T[] {
+  if (incoming.length === 0) return existing;
+  const availableSlots = maxCount - existing.length;
+  if (availableSlots <= 0) return existing;
+  const admitted = incoming.length <= availableSlots ? incoming : incoming.slice(0, availableSlots);
+  for (const e of admitted) createdAtMap.set(e.id, nowMs);
+  return [...existing, ...admitted];
+}
+
 /**
  * v1.4.5: 時間ベースの Fx イベント強制回収。
  * createdAtMap の各 (id, createdAtMs) を走査し、 `nowMs - createdAt > maxAgeMs`
@@ -952,20 +984,21 @@ export function useBattleLoop({
     // v1.3.2 + v1.3.7 (Phase 2-A): スクリーンセーバー中は描画 events を蓄積しない。
     // ref への push のみ (setState / entityStore.setX は tick 末尾で 1 度だけ)。
     if (!suspendRenderingRef.current) {
-      if (newDamageEvents.length > 0) {
-        damageEventsRef.current = [...damageEventsRef.current, ...newDamageEvents];
-        const nowMs = performance.now();
-        for (const e of newDamageEvents) {
-          damageEventCreatedAtRef.current.set(e.id, nowMs);
-        }
-      }
-      if (newProjectileEvents.length > 0) {
-        projectileEventsRef.current = [...projectileEventsRef.current, ...newProjectileEvents];
-        const nowMs = performance.now();
-        for (const e of newProjectileEvents) {
-          projectileEventCreatedAtRef.current.set(e.id, nowMs);
-        }
-      }
+      const nowMs = performance.now();
+      damageEventsRef.current = admitEventsWithCap(
+        damageEventsRef.current,
+        newDamageEvents,
+        damageEventCreatedAtRef.current,
+        nowMs,
+        DAMAGE_EVENT_MAX_COUNT
+      ) as DamageEvent[];
+      projectileEventsRef.current = admitEventsWithCap(
+        projectileEventsRef.current,
+        newProjectileEvents,
+        projectileEventCreatedAtRef.current,
+        nowMs,
+        PROJECTILE_EVENT_MAX_COUNT
+      ) as ProjectileEvent[];
     }
     return true;
     // entityStore は useRef 由来で参照不変のため毎 render 同一だが、 lint 警告解消のため deps に含める
@@ -1704,23 +1737,21 @@ export function useBattleLoop({
           // ref への push のみ (setState / entityStore.setX は tick 末尾で 1 度だけ)。
           if (!suspendRenderingRef.current) {
             const allDamageEvents = [...newDamageEvents, ...delayedDamageEvents];
-            if (allDamageEvents.length > 0) {
-              damageEventsRef.current = [...damageEventsRef.current, ...allDamageEvents];
-              const stampMs = performance.now();
-              for (const e of allDamageEvents) {
-                damageEventCreatedAtRef.current.set(e.id, stampMs);
-              }
-            }
-            if (newProjectileEvents.length > 0) {
-              projectileEventsRef.current = [
-                ...projectileEventsRef.current,
-                ...newProjectileEvents,
-              ];
-              const stampMs = performance.now();
-              for (const e of newProjectileEvents) {
-                projectileEventCreatedAtRef.current.set(e.id, stampMs);
-              }
-            }
+            const stampMs = performance.now();
+            damageEventsRef.current = admitEventsWithCap(
+              damageEventsRef.current,
+              allDamageEvents,
+              damageEventCreatedAtRef.current,
+              stampMs,
+              DAMAGE_EVENT_MAX_COUNT
+            ) as DamageEvent[];
+            projectileEventsRef.current = admitEventsWithCap(
+              projectileEventsRef.current,
+              newProjectileEvents,
+              projectileEventCreatedAtRef.current,
+              stampMs,
+              PROJECTILE_EVENT_MAX_COUNT
+            ) as ProjectileEvent[];
           }
 
           // ---- 撃破処理 (HP <= 0) + onKill / onDropRoll パッチ評価 + 報酬獲得 + 各 Event ----
@@ -1867,11 +1898,13 @@ export function useBattleLoop({
             // v1.3.2 + v1.3.7 (Phase 2-A): スクリーンセーバー中は描画 events を蓄積しない
             // (ロジック側 enemiesRef 更新は実施)。 ref への push のみ (setState は tick 末尾でまとめる)。
             if (!suspendRenderingRef.current) {
-              deathEventsRef.current = [...deathEventsRef.current, ...newDeathEvents];
-              const stampMs = performance.now();
-              for (const e of newDeathEvents) {
-                deathEventCreatedAtRef.current.set(e.id, stampMs);
-              }
+              deathEventsRef.current = admitEventsWithCap(
+                deathEventsRef.current,
+                newDeathEvents,
+                deathEventCreatedAtRef.current,
+                performance.now(),
+                DEATH_EVENT_MAX_COUNT
+              ) as DeathEvent[];
             }
           }
           if (!earnedScrew.isZero()) {

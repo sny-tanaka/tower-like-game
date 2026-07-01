@@ -2,9 +2,11 @@ import { describe, expect, test } from 'vitest';
 
 import {
   DAMAGE_EVENT_MAX_AGE_MS,
+  DAMAGE_EVENT_MAX_COUNT,
   KNOCKBACK_DISTANCE_PCT,
   MAX_FRAME_GAME_SEC,
   NORMAL_BOLT_DROP_CHANCE,
+  admitEventsWithCap,
   applyKnockback,
   calcFrameGameSec,
   calcIntervalTicks,
@@ -672,5 +674,79 @@ describe('sweepExpiredEvents (v1.4.5 iOS メモリ枯渇クラッシュ対策)',
     expect(next.length).toBe(10);
     expect(next.every((e) => e.id.startsWith('fresh-'))).toBe(true);
     expect(map.size).toBe(10);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// v1.4.6: Fx イベント数のハードキャップ (バックプレッシャ)。 sweep GC の時間軸対策と
+// 相補的に、 瞬間ピークで events 配列が肥大化するのを止める。 iOS Safari には信頼できる
+// メモリ API がないため events の「見えている」 長さそのものに上限を設ける方針。
+// ---------------------------------------------------------------------------
+describe('admitEventsWithCap (v1.4.6 Fx バックプレッシャ)', () => {
+  type E = { id: string; x: number };
+
+  test('空 incoming は既存参照をそのまま返す (no-op)', () => {
+    const existing: E[] = [{ id: 'a', x: 0 }];
+    const map = new Map<string, number>();
+    const next = admitEventsWithCap(existing, [], map, 1000, 10);
+    expect(next).toBe(existing);
+    expect(map.size).toBe(0);
+  });
+
+  test('余裕十分なら全 event を admit + stamp する', () => {
+    const existing: E[] = [{ id: 'a', x: 0 }];
+    const incoming: E[] = [
+      { id: 'b', x: 1 },
+      { id: 'c', x: 2 },
+    ];
+    const map = new Map<string, number>();
+    const next = admitEventsWithCap(existing, incoming, map, 1234, 10);
+    expect(next.map((e) => e.id)).toEqual(['a', 'b', 'c']);
+    expect(map.get('b')).toBe(1234);
+    expect(map.get('c')).toBe(1234);
+    // 既存 event は stamp しない (呼出側が push サイトで stamp 済み)
+    expect(map.has('a')).toBe(false);
+  });
+
+  test('残スロット未満だけ admit、 溢れた分は捨てる', () => {
+    const existing: E[] = new Array(148).fill(null).map((_, i) => ({ id: `old-${i}`, x: 0 }));
+    const incoming: E[] = [
+      { id: 'new-1', x: 0 },
+      { id: 'new-2', x: 0 },
+      { id: 'new-3', x: 0 }, // 溢れる分 (150 上限 - 148 = 2 slot、 3 個目は捨て)
+      { id: 'new-4', x: 0 },
+    ];
+    const map = new Map<string, number>();
+    const next = admitEventsWithCap(existing, incoming, map, 100, 150);
+    expect(next.length).toBe(150);
+    expect(next[148]!.id).toBe('new-1');
+    expect(next[149]!.id).toBe('new-2');
+    // 溢れた分は map にも入れない
+    expect(map.has('new-3')).toBe(false);
+    expect(map.has('new-4')).toBe(false);
+  });
+
+  test('既存が既に満杯なら既存参照をそのまま返す (割り込み無効)', () => {
+    const existing: E[] = new Array(150).fill(null).map((_, i) => ({ id: `x-${i}`, x: 0 }));
+    const incoming: E[] = [{ id: 'blocked', x: 0 }];
+    const map = new Map<string, number>();
+    const next = admitEventsWithCap(existing, incoming, map, 100, 150);
+    expect(next).toBe(existing);
+    expect(map.size).toBe(0);
+  });
+
+  test('DAMAGE_EVENT_MAX_COUNT (150) は Fx が溢れた瞬間に新規を止める', () => {
+    // T5W30 相当のシナリオ: 60fps × 800ms アニメで理論最大 48 個。
+    // クリティカル + アクティブスキル同時発動で瞬間ピークが跳ねても 150 未満に
+    // 収まるのが正常プレイ。 これを超えたら onAnimationEnd が落ちている合図なので
+    // 新規を止めて配列が無限成長 → メモリ枯渇 → タイトル復帰、 を防ぐ。
+    const existing: E[] = new Array(DAMAGE_EVENT_MAX_COUNT)
+      .fill(null)
+      .map((_, i) => ({ id: `stuck-${i}`, x: 0 }));
+    const incoming: E[] = [{ id: 'newHit', x: 0 }];
+    const map = new Map<string, number>();
+    const next = admitEventsWithCap(existing, incoming, map, 100, DAMAGE_EVENT_MAX_COUNT);
+    expect(next.length).toBe(DAMAGE_EVENT_MAX_COUNT);
+    expect(map.has('newHit')).toBe(false);
   });
 });
