@@ -1,6 +1,7 @@
 import { describe, expect, test } from 'vitest';
 
 import {
+  DAMAGE_EVENT_MAX_AGE_MS,
   KNOCKBACK_DISTANCE_PCT,
   MAX_FRAME_GAME_SEC,
   NORMAL_BOLT_DROP_CHANCE,
@@ -12,6 +13,7 @@ import {
   distanceFromMachine,
   frameIntervalMs,
   shouldDrawFrame,
+  sweepExpiredEvents,
 } from './useBattleLoop';
 
 import { scaledReward } from '@/game/enemies';
@@ -559,5 +561,116 @@ describe('useBattleLoop tick シナリオ (entityStore 統合 — Phase 3-C フ�
     expect(entityStore.getEnemyListVersion()).toBe(4);
     entityStore.notifyFrame();
     expect(entityStore.getSnapshot()).toBe(4);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// v1.4.5: iOS Safari の onAnimationEnd 未発火で events が無限成長し WKWebView が
+// メモリ枯渇 → 強制リロード (プレイヤーには「戦闘中に真っ白 → タイトルに戻る」 と
+// 見える) 問題への対策として時間ベース GC を追加。 本 describe はその sweep 挙動を
+// 単体で検証する (Fx 完了通知に頼らず古い event が確実に消えることを保証)。
+// ---------------------------------------------------------------------------
+describe('sweepExpiredEvents (v1.4.5 iOS メモリ枯渇クラッシュ対策)', () => {
+  type E = { id: string; x: number };
+
+  test('全 event が maxAge 以内なら events / map どちらも変化しない', () => {
+    const events: E[] = [
+      { id: 'a', x: 0 },
+      { id: 'b', x: 1 },
+    ];
+    const map = new Map([
+      ['a', 900],
+      ['b', 950],
+    ]);
+    const now = 1000;
+    const maxAge = 500;
+    const next = sweepExpiredEvents(events, map, now, maxAge);
+    // 期限切れゼロなら参照そのまま (呼出側の React 再 render を発生させない)
+    expect(next).toBe(events);
+    expect(map.size).toBe(2);
+  });
+
+  test('期限切れの event は events からも map からも消える', () => {
+    const events: E[] = [
+      { id: 'old', x: 0 },
+      { id: 'fresh', x: 1 },
+    ];
+    const map = new Map([
+      ['old', 100], // 900ms 前 (> maxAge 500)
+      ['fresh', 800], // 200ms 前 (< maxAge 500)
+    ]);
+    const now = 1000;
+    const maxAge = 500;
+    const next = sweepExpiredEvents(events, map, now, maxAge);
+    expect(next.map((e) => e.id)).toEqual(['fresh']);
+    expect(map.has('old')).toBe(false);
+    expect(map.has('fresh')).toBe(true);
+  });
+
+  test('map に無い event (createdAt 未登録) は削除しない — 明示的期限切れのみ落とす', () => {
+    // 万が一 push サイトで stamp が漏れても、 sweep は「expired と判定した ID」
+    // のみを落とすため巻き添えにしない。 stamp 忘れの event は最終的に
+    // onAnimationEnd → queueRemoval のパスで消える。
+    const events: E[] = [
+      { id: 'expired', x: 0 },
+      { id: 'stamped-fresh', x: 1 },
+      { id: 'unstamped', x: 2 },
+    ];
+    const map = new Map([
+      ['expired', 0], // 1000ms 前 — 期限切れ
+      ['stamped-fresh', 900], // 100ms 前 — 期限内
+      // 'unstamped' は map になし
+    ]);
+    const now = 1000;
+    const maxAge = 500;
+    const next = sweepExpiredEvents(events, map, now, maxAge);
+    // expired だけ落ち、 unstamped は無関係に残る
+    expect(next.map((e) => e.id)).toEqual(['stamped-fresh', 'unstamped']);
+    expect(map.has('expired')).toBe(false);
+    expect(map.has('stamped-fresh')).toBe(true);
+  });
+
+  test('境界値: createdAt == cutoff (= now - maxAge) は残す (< 比較)', () => {
+    const events: E[] = [{ id: 'boundary', x: 0 }];
+    const map = new Map([['boundary', 500]]); // cutoff = 1000 - 500 = 500
+    const next = sweepExpiredEvents(events, map, 1000, 500);
+    expect(next).toBe(events);
+    expect(map.has('boundary')).toBe(true);
+  });
+
+  test('DAMAGE_EVENT_MAX_AGE_MS (800 + 500) は 1 tick 中の damage を消さない', () => {
+    // DamagePopFx の default duration=800ms より短命の想定シナリオ:
+    // 生成直後の event は onAnimationEnd が正常発火するはるか前 (< 1300ms) に
+    // sweep が走っても消えないことを保証。
+    const events: E[] = [{ id: 'newborn', x: 0 }];
+    const map = new Map([['newborn', 0]]);
+    // 800ms 経過 (onAnimationEnd 期待時刻ぴったり) → まだ maxAge 内
+    const next = sweepExpiredEvents(events, map, 800, DAMAGE_EVENT_MAX_AGE_MS);
+    expect(next).toBe(events);
+    // 1300ms 経過 (アニメ + 500ms 猶予) → まだ maxAge 境界 (== はセーフ)
+    const next2 = sweepExpiredEvents(events, map, 1300, DAMAGE_EVENT_MAX_AGE_MS);
+    expect(next2).toBe(events);
+    // 1301ms 経過 → 期限超過で消える
+    const next3 = sweepExpiredEvents(events, map, 1301, DAMAGE_EVENT_MAX_AGE_MS);
+    expect(next3).toEqual([]);
+  });
+
+  test('大量の期限切れ event を一括削除できる (T5W30 相当のスパイクシナリオ)', () => {
+    const events: E[] = [];
+    const map = new Map<string, number>();
+    // 500 個の 「期限切れ event」 (onAnimationEnd 未発火で滞留した状況)
+    for (let i = 0; i < 500; i++) {
+      events.push({ id: `stale-${i}`, x: i });
+      map.set(`stale-${i}`, 0);
+    }
+    // 10 個の 「フレッシュ event」
+    for (let i = 0; i < 10; i++) {
+      events.push({ id: `fresh-${i}`, x: i });
+      map.set(`fresh-${i}`, 5000);
+    }
+    const next = sweepExpiredEvents(events, map, 5100, 500);
+    expect(next.length).toBe(10);
+    expect(next.every((e) => e.id.startsWith('fresh-'))).toBe(true);
+    expect(map.size).toBe(10);
   });
 });
