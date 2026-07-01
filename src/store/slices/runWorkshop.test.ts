@@ -5,10 +5,21 @@ import { useStore } from '@/store/index';
 
 // ---------------------------------------------------------------------------
 // テスト前: 毎テスト store を初期状態に戻す
+// v1.4.4: AUTO 状態はセッション跨ぎ永続化のため endRun ではリセットされない。
+// テスト間のリークを防ぐため、 明示的に AUTO と isAutoActive を false に戻す。
 // ---------------------------------------------------------------------------
 
 beforeEach(() => {
-  useStore.getState().endRun(); // battle slice + RunWorkshop が defaults に戻る
+  useStore.getState().endRun(); // battle slice + RunWorkshop Lv が defaults に戻る
+  useStore.setState({
+    isAutoActive: false,
+    runWorkshopAutoEnabled: {
+      attackMul: false,
+      attackSpeedMul: false,
+      hpMul: false,
+      screwGainMul: false,
+    },
+  });
 });
 
 describe('RunWorkshop slice', () => {
@@ -223,24 +234,50 @@ describe('RunWorkshop AUTO', () => {
     expect(useStore.getState().runWorkshopLevels.hpMul).toBe(0);
   });
 
-  test('resetRunWorkshop: AUTO 状態も全 false に戻る', () => {
+  test('resetRunWorkshop: v1.4.4 で AUTO 状態は保持される (Lv のみリセット)', () => {
     useStore.getState().setRunWorkshopAuto('attackMul', true);
     useStore.getState().setRunWorkshopAuto('hpMul', true);
+    useStore.setState({
+      runWorkshopLevels: { attackMul: 5, attackSpeedMul: 0, hpMul: 3, screwGainMul: 0 },
+    });
     useStore.getState().resetRunWorkshop();
+    // Lv はリセット
+    expect(useStore.getState().runWorkshopLevels).toEqual({
+      attackMul: 0,
+      attackSpeedMul: 0,
+      hpMul: 0,
+      screwGainMul: 0,
+    });
+    // AUTO は保持 (v1.4.4 でセッション跨ぎ永続化に変更)
     expect(useStore.getState().runWorkshopAutoEnabled).toEqual({
-      attackMul: false,
+      attackMul: true,
       attackSpeedMul: false,
-      hpMul: false,
+      hpMul: true,
       screwGainMul: false,
     });
   });
 
-  test('startRun: AUTO 状態も全 false にリセットされる', () => {
+  test('startRun: v1.4.4 で AUTO 状態は保持される (Lv のみリセット)', () => {
     useStore.getState().setRunWorkshopAuto('attackMul', true);
+    useStore.getState().setRunWorkshopAuto('screwGainMul', true);
     useStore
       .getState()
       .startRun({ initialWeapon: 'laser', baseMachineMaxHp: BigNum.fromNumber(100) });
-    expect(useStore.getState().runWorkshopAutoEnabled.attackMul).toBe(false);
+    expect(useStore.getState().runWorkshopAutoEnabled.attackMul).toBe(true);
+    expect(useStore.getState().runWorkshopAutoEnabled.screwGainMul).toBe(true);
+    expect(useStore.getState().runWorkshopAutoEnabled.hpMul).toBe(false);
+    // Lv はリセット
+    expect(useStore.getState().runWorkshopLevels.attackMul).toBe(0);
+  });
+
+  test('endRun: v1.4.4 で AUTO 状態は保持される (Lv のみリセット)', () => {
+    useStore.getState().setRunWorkshopAuto('hpMul', true);
+    useStore.setState({
+      runWorkshopLevels: { attackMul: 0, attackSpeedMul: 0, hpMul: 4, screwGainMul: 0 },
+    });
+    useStore.getState().endRun();
+    expect(useStore.getState().runWorkshopAutoEnabled.hpMul).toBe(true);
+    expect(useStore.getState().runWorkshopLevels.hpMul).toBe(0);
   });
 
   test('hpMul AUTO ON: 自動強化でも machineMaxHp が再計算される (recalc 発火)', () => {

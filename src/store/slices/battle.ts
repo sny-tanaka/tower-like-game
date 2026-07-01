@@ -214,7 +214,8 @@ export const createBattleSlice: StateCreator<RootStore, [], [], BattleSlice> = (
       weaponSwitchCdSec: 0,
       // ラン開始時はゲージ 0 = CD 満タン (= activeCdReduction 適用後の秒数を待つ)
       activeCdSec: initialCdSec,
-      isAutoActive: false,
+      // isAutoActive は v1.4.4 でセッション跨ぎ永続化に変更。 startRun ではリセットしない
+      // (ユーザーの設定を保持する)。
       isPaused: false,
       // ラン開始時の bolt/alloy 残高をスナップショット (リザルト獲得量算出用)
       runStartBolt: currentState.bolt,
@@ -227,7 +228,9 @@ export const createBattleSlice: StateCreator<RootStore, [], [], BattleSlice> = (
   },
 
   endRun: () => {
-    set(defaultBattleState);
+    // v1.4.4: isAutoActive はセッション跨ぎ永続化のためリセット対象外。
+    // defaultBattleState.isAutoActive は初期値 (hydrate 前) 用途に限定される。
+    set((s) => ({ ...defaultBattleState, isAutoActive: s.isAutoActive }));
     get().resetRunWorkshop();
   },
 

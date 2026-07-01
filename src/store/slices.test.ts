@@ -867,6 +867,32 @@ describe('battle slice', () => {
     expect(store.getState().isPaused).toBe(false);
   });
 
+  it('isAutoActive: 初期値 false → setAutoActive で切替', () => {
+    const store = makeStore();
+    expect(store.getState().isAutoActive).toBe(false);
+    store.getState().setAutoActive(true);
+    expect(store.getState().isAutoActive).toBe(true);
+    store.getState().setAutoActive(false);
+    expect(store.getState().isAutoActive).toBe(false);
+  });
+
+  it('isAutoActive: v1.4.4 で startRun 後も保持される (セッション跨ぎ永続化)', () => {
+    const store = makeStore();
+    store.getState().setAutoActive(true);
+    store.getState().startRun({ initialWeapon: 'laser', baseMachineMaxHp: BigNum.fromNumber(100) });
+    expect(store.getState().isAutoActive).toBe(true);
+  });
+
+  it('isAutoActive: v1.4.4 で endRun 後も保持される (セッション跨ぎ永続化)', () => {
+    const store = makeStore();
+    store.getState().setAutoActive(true);
+    store.getState().startRun({ initialWeapon: 'laser', baseMachineMaxHp: BigNum.fromNumber(100) });
+    store.getState().endRun();
+    expect(store.getState().isAutoActive).toBe(true);
+    // ラン状態そのものはリセット
+    expect(store.getState().isRunActive).toBe(false);
+  });
+
   it('startRun: baseMachineMaxHp が保存され、 hpMul Lv 0 では machineMaxHp = base', () => {
     const store = makeStore();
     store.getState().startRun({ initialWeapon: 'laser', baseMachineMaxHp: BigNum.fromNumber(800) });

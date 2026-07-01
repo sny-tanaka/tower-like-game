@@ -11,6 +11,7 @@ import {
   DB_VERSION,
   DEFAULT_CURRENCIES,
   DEFAULT_PROFILE,
+  DEFAULT_RUN_WORKSHOP_AUTO,
   DEFAULT_SETTINGS,
   DEFAULT_WEAPONS,
   MACHINE_UPGRADE_KEYS,
@@ -115,6 +116,9 @@ export async function hydrateStore(): Promise<void> {
     seVolume: s.seVolume,
     muted: s.muted ?? false,
     targetFps: s.targetFps ?? DEFAULT_SETTINGS.targetFps ?? 60,
+    // v1.4.4: AUTO 状態のセッション跨ぎ復元。 未保存の旧データは全 false で補完。
+    isAutoActive: s.autoActive ?? false,
+    runWorkshopAutoEnabled: s.runWorkshopAuto ?? DEFAULT_RUN_WORKSHOP_AUTO,
   });
 }
 
@@ -152,13 +156,17 @@ export async function syncWeapons(): Promise<void> {
 /** settings slice を IndexedDB に書き戻す */
 export async function syncSettings(): Promise<void> {
   const db = await getDb();
-  const { bgmVolume, seVolume, muted, targetFps } = useStore.getState();
+  const { bgmVolume, seVolume, muted, targetFps, isAutoActive, runWorkshopAutoEnabled } =
+    useStore.getState();
   await putSettings(db, {
     id: 'singleton',
     bgmVolume,
     seVolume,
     muted,
     targetFps,
+    // v1.4.4: AUTO 状態のセッション跨ぎ永続化。
+    autoActive: isAutoActive,
+    runWorkshopAuto: runWorkshopAutoEnabled,
   });
 }
 
@@ -336,7 +344,10 @@ export function setupAutoSave(): void {
       state.bgmVolume !== prev.bgmVolume ||
       state.seVolume !== prev.seVolume ||
       state.muted !== prev.muted ||
-      state.targetFps !== prev.targetFps
+      state.targetFps !== prev.targetFps ||
+      // v1.4.4: AUTO 状態のセッション跨ぎ永続化
+      state.isAutoActive !== prev.isAutoActive ||
+      state.runWorkshopAutoEnabled !== prev.runWorkshopAutoEnabled
     ) {
       saveSettings();
     }
