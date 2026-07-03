@@ -60,9 +60,9 @@
   height: var(--blast-size);
   border-radius: 50%;
   border: 3px solid var(--blast-color);
-  box-shadow:
-    0 0 24px var(--blast-color-aa),
-    inset 0 0 24px var(--blast-color-66);
+  /* v1.4.7: iOS メモリ対策 — blur レイヤー削減。 外側 + inset の二重掛けだった
+     box-shadow を外側 1 本に統合 (inset は削除)。 */
+  box-shadow: 0 0 24px var(--blast-color-aa);
   animation: ring var(--blast-duration, 520ms) var(--blast-delay, 0ms) var(--ease-out) both;
 }
 
