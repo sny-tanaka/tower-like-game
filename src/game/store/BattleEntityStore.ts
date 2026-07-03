@@ -93,6 +93,19 @@ export class BattleEntityStore {
     projectile: new Set(),
     appearance: new Set(),
   };
+  /**
+   * v1.4.8: consumePendingRemovals の double-buffer 用「もう片方」 の Set (種別ごと)。
+   * 旧実装は `this.pendingRemovals[kind] = new Set()` で毎フレーム (tick 冒頭 × 4 種別)
+   * 新規 Set を生成していたが、 2 個の常駐 Set を swap して使い回す方式に変更する。
+   * 呼出し側 (useBattleLoop の tick) は戻り値の Set を同フレーム内の `.filter()` / `.has()` で
+   * 消費してすぐ破棄しており、 フレームを跨いで保持しないことを確認済み。
+   */
+  private pendingRemovalsSwap: Record<EventKind, Set<string>> = {
+    damage: new Set(),
+    death: new Set(),
+    projectile: new Set(),
+    appearance: new Set(),
+  };
 
   // -------------------------------------------------------------------------
   // v1.3.7 (Phase 3-A): 敵単位の listener / mutation
@@ -109,10 +122,30 @@ export class BattleEntityStore {
   private enemyPositionListeners: Map<string, Set<Listener>> = new Map();
   /** id → 「状態異常 / HP が変わった敵」 を購読する listener Set */
   private enemyStatusListeners: Map<string, Set<Listener>> = new Map();
+  /**
+   * v1.4.8: pendingMovedIds / pendingStatusChangedIds の double-buffer 用「もう片方」 の Set。
+   * notifyFrame() 内で毎フレーム `new Set()` していたのを、 2 個の常駐 Set を swap して使い回す
+   * 方式に変更 (GC 圧削減)。 詳細は notifyFrame() のコメント参照。
+   */
+  private pendingMovedIdsSwap: Set<string> = new Set();
+  private pendingStatusChangedIdsSwap: Set<string> = new Set();
   /** id → 敵オブジェクト (getEnemyById の O(1) lookup 用) */
   private enemyById: Map<string, SpawnedEnemy> = new Map();
   /** addEnemy / removeEnemy で +1 される、 敵リストの世代番号 */
   private enemyListVersion: number = 0;
+  /**
+   * v1.4.8: 描画キャップ (MAX_RENDERED_ENEMIES) の可視 ID 集合。
+   * `null` = キャップ非発動 (全敵可視、 従来どおり)。 useBattleLoop の tick が 250ms
+   * スロットルで計算し `setVisibleEnemyIds` を呼ぶ。 EnemyLayer は `isEnemyVisible(id)` で
+   * マウントする sprite を絞り込む (ゲームロジックには一切影響しない、 DOM/GPU コスト削減のみ)。
+   */
+  private visibleEnemyIds: Set<string> | null = null;
+  /**
+   * v1.4.8: `visibleEnemyIds` が実際に変化した回数。 EnemyLayer は `enemyListVersion` と
+   * 本カウンタの合算値を `getSnapshot` として購読し、 「敵リスト構造が変わった」 か
+   * 「可視集合が変わった (敵の増減なしでもキャップ境界を跨いだ)」 いずれかで再 render する。
+   */
+  private visibleEnemyIdsVersion: number = 0;
   /** notifyFrame で flush する markEnemyMoved の id 集合 */
   private pendingMovedIds: Set<string> = new Set();
   /** notifyFrame で flush する markEnemyStatusChanged の id 集合 */
@@ -205,10 +238,19 @@ export class BattleEntityStore {
     }
 
     // 敵単位 listener の一括通知 (Phase 3-A)。 listener 内 set state による listener 集合の
-    // 変更を防ぐため、 Set を一度コピーしてから iterate する。
+    // 変更を防ぐため、 「今フレーム分の pending id 集合」 を確定させてから iterate する。
+    //
+    // v1.4.8: 旧実装は `this.pendingMovedIds = new Set()` で毎フレーム新規 Set を生成して
+    // いたが、 double-buffer (pendingMovedIdsSwap との swap) に変更して GC 圧を削減する。
+    // `movedIds` (= 今フレーム分、 呼出し元スコープのローカル変数) はこのメソッド内の
+    // iterate でのみ使われフレームを跨いで保持されない (mark 系メソッドは常に
+    // `this.pendingMovedIds` という「現在の書き込み先」 の参照を見るため、 swap 後に
+    // 新規 mark が来ても混線しない)。
     if (this.pendingMovedIds.size > 0) {
       const movedIds = this.pendingMovedIds;
-      this.pendingMovedIds = new Set();
+      this.pendingMovedIds = this.pendingMovedIdsSwap;
+      this.pendingMovedIds.clear();
+      this.pendingMovedIdsSwap = movedIds;
       for (const id of movedIds) {
         const set = this.enemyPositionListeners.get(id);
         if (!set || set.size === 0) continue;
@@ -219,7 +261,9 @@ export class BattleEntityStore {
     }
     if (this.pendingStatusChangedIds.size > 0) {
       const statusIds = this.pendingStatusChangedIds;
-      this.pendingStatusChangedIds = new Set();
+      this.pendingStatusChangedIds = this.pendingStatusChangedIdsSwap;
+      this.pendingStatusChangedIds.clear();
+      this.pendingStatusChangedIdsSwap = statusIds;
       for (const id of statusIds) {
         const set = this.enemyStatusListeners.get(id);
         if (!set || set.size === 0) continue;
@@ -278,10 +322,19 @@ export class BattleEntityStore {
   /**
    * 指定種別の削除キューを取り出して内部 Set をクリアする (atomic)。
    * 戻り値の Set は呼び出し側で読み取り専用に扱う。
+   *
+   * v1.4.8: 旧実装は `new Set()` で差し替えていたが、 pendingRemovalsSwap との swap に
+   * 変更して毎フレーム ×4 種別のアロケーションを無くす。 戻り値の Set (= 旧書き込み先) は
+   * 次回 consumePendingRemovals(kind) 呼び出し時に「新しい書き込み先」 として再利用され
+   * clear() される。 呼び出し側 (useBattleLoop tick) がこの Set をフレームを跨いで保持
+   * しないことを確認済み (同フレーム内で filter/has に使うのみ)。
    */
   consumePendingRemovals(kind: EventKind): Set<string> {
     const consumed = this.pendingRemovals[kind];
-    this.pendingRemovals[kind] = new Set();
+    const swap = this.pendingRemovalsSwap[kind];
+    swap.clear();
+    this.pendingRemovals[kind] = swap;
+    this.pendingRemovalsSwap[kind] = consumed;
     return consumed;
   }
 
@@ -405,6 +458,13 @@ export class BattleEntityStore {
     this.statusSnapshotCache.clear();
     this.pendingMovedIds.clear();
     this.pendingStatusChangedIds.clear();
+    // v1.4.8: 敵が全クリアされたら可視キャップ集合も破棄 (= 次 Tier 開始時は fast path
+    // (null = 全敵可視) から再開する。 古い ID を握ったままでも実害はないが、 意味的に
+    // 「敵ゼロなのに可視 ID 集合が残る」 のは不自然なので明示的にリセットする)。
+    if (this.visibleEnemyIds !== null) {
+      this.visibleEnemyIds = null;
+      this.visibleEnemyIdsVersion += 1;
+    }
     this.enemyListVersion += 1;
   }
 
@@ -418,6 +478,48 @@ export class BattleEntityStore {
    */
   getEnemyListVersion = (): number => {
     return this.enemyListVersion;
+  };
+
+  /**
+   * v1.4.8: 描画キャップの可視 ID 集合をセットする。 `null` = キャップ非発動 (全敵可視)。
+   * 集合が「前回と異なる」 と判定された場合のみ `visibleEnemyIdsVersion` を +1 する
+   * (= 同じ集合を再セットしても無駄な再 render を起こさない)。
+   *
+   * 比較は「両方 null」 「サイズ違い」 「要素の有無」 で判定する簡易差分 (O(N))。 tick 側は
+   * 250ms スロットルでしか呼ばないため、 呼び出し頻度自体が低く O(N) 比較のコストは無視できる。
+   */
+  setVisibleEnemyIds(ids: Set<string> | null): void {
+    if (this.visibleEnemyIds === ids) return;
+    const changed = !areVisibleIdSetsEqual(this.visibleEnemyIds, ids);
+    this.visibleEnemyIds = ids;
+    if (changed) {
+      this.visibleEnemyIdsVersion += 1;
+    }
+  }
+
+  /** 現在の可視 ID 集合 (`null` = 全敵可視)。 テスト / debug 用に外部公開。 */
+  getVisibleEnemyIds(): Set<string> | null {
+    return this.visibleEnemyIds;
+  }
+
+  /** 指定 ID の敵が現在マウント対象か。 `visibleEnemyIds === null` なら常に true。 */
+  isEnemyVisible(id: string): boolean {
+    return this.visibleEnemyIds === null || this.visibleEnemyIds.has(id);
+  }
+
+  /**
+   * v1.4.8: EnemyLayer の `useSyncExternalStore` 用の統合バージョン。
+   * 「敵リスト構造が変わった (enemyListVersion)」 か 「可視集合が変わった
+   * (visibleEnemyIdsVersion、 敵の増減なしでもキャップ境界を跨ぐと変化する)」 の
+   * いずれかで単調増加する合成値を返す。 `getSnapshot` は number 1 個しか比較できない
+   * (useSyncExternalStore の Object.is 制約) ため、 2 つのカウンタを乗算合成する。
+   *
+   * アロー関数化の理由は `getEnemyListVersion` と同じ (this バインド漏れ防止)。
+   */
+  getEnemyListAndVisibilityVersion = (): number => {
+    // 各カウンタは単調増加の非負整数。 十分大きな係数で桁を分離して衝突を避ける
+    // (実運用で visibleEnemyIdsVersion が 1e6 回変化することは現実的にない)。
+    return this.enemyListVersion * 1_000_000 + this.visibleEnemyIdsVersion;
   };
 
   /** id → 敵オブジェクトの O(1) lookup */
@@ -479,8 +581,16 @@ export class BattleEntityStore {
     this.appearanceEvents = [];
     this.waveElapsedSec = 0;
     // v1.3.7 (Phase 2-A): 削除キューも掃除 (前ランの Fx onDone が遅れて queue したものを
-    // 次ランに持ち越さない)
+    // 次ランに持ち越さない)。 v1.4.8: reset() は低頻度パス (ラン開始/終了) なのでここでの
+    // 新規 Set 生成は許容 (double-buffer 対象外)。 swap 側も一緒に空にしておく
+    // (実害はないが、 次回 consumePendingRemovals で確実にクリーンな Set から始めるため)。
     this.pendingRemovals = {
+      damage: new Set(),
+      death: new Set(),
+      projectile: new Set(),
+      appearance: new Set(),
+    };
+    this.pendingRemovalsSwap = {
       damage: new Set(),
       death: new Set(),
       projectile: new Set(),
@@ -490,4 +600,19 @@ export class BattleEntityStore {
     // なし」 と誤判定されないよう単調増加を保つ)。
     this.notifyFrame();
   }
+}
+
+/**
+ * v1.4.8: 2 つの可視 ID 集合 (`null` = 全敵可視) が「同じ内容」 か判定する。
+ * `setVisibleEnemyIds` が無駄な `visibleEnemyIdsVersion` 加算 (= 無駄な EnemyLayer 再 render)
+ * を避けるために使う。 named export してテストからも直接検証できるようにする。
+ */
+export function areVisibleIdSetsEqual(a: Set<string> | null, b: Set<string> | null): boolean {
+  if (a === b) return true;
+  if (a === null || b === null) return false;
+  if (a.size !== b.size) return false;
+  for (const id of a) {
+    if (!b.has(id)) return false;
+  }
+  return true;
 }

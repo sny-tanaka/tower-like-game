@@ -119,6 +119,8 @@ export async function hydrateStore(): Promise<void> {
     // v1.4.4: AUTO 状態のセッション跨ぎ復元。 未保存の旧データは全 false で補完。
     isAutoActive: s.autoActive ?? false,
     runWorkshopAutoEnabled: s.runWorkshopAuto ?? DEFAULT_RUN_WORKSHOP_AUTO,
+    // v1.4.8: 診断モード ON/OFF。 未保存の旧データは false で補完。
+    diagnosticsEnabled: s.diagnosticsEnabled ?? false,
   });
 }
 
@@ -156,8 +158,15 @@ export async function syncWeapons(): Promise<void> {
 /** settings slice を IndexedDB に書き戻す */
 export async function syncSettings(): Promise<void> {
   const db = await getDb();
-  const { bgmVolume, seVolume, muted, targetFps, isAutoActive, runWorkshopAutoEnabled } =
-    useStore.getState();
+  const {
+    bgmVolume,
+    seVolume,
+    muted,
+    targetFps,
+    isAutoActive,
+    runWorkshopAutoEnabled,
+    diagnosticsEnabled,
+  } = useStore.getState();
   await putSettings(db, {
     id: 'singleton',
     bgmVolume,
@@ -167,6 +176,8 @@ export async function syncSettings(): Promise<void> {
     // v1.4.4: AUTO 状態のセッション跨ぎ永続化。
     autoActive: isAutoActive,
     runWorkshopAuto: runWorkshopAutoEnabled,
+    // v1.4.8: 診断モード ON/OFF の永続化。
+    diagnosticsEnabled,
   });
 }
 
@@ -347,7 +358,9 @@ export function setupAutoSave(): void {
       state.targetFps !== prev.targetFps ||
       // v1.4.4: AUTO 状態のセッション跨ぎ永続化
       state.isAutoActive !== prev.isAutoActive ||
-      state.runWorkshopAutoEnabled !== prev.runWorkshopAutoEnabled
+      state.runWorkshopAutoEnabled !== prev.runWorkshopAutoEnabled ||
+      // v1.4.8: 診断モード ON/OFF の永続化
+      state.diagnosticsEnabled !== prev.diagnosticsEnabled
     ) {
       saveSettings();
     }

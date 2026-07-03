@@ -64,6 +64,7 @@ beforeEach(async () => {
     seVolume: 0.8,
     muted: false,
     targetFps: 60,
+    diagnosticsEnabled: false,
   });
 
   // DB を開いてシードデータを投入
@@ -240,6 +241,31 @@ describe('sync: settings round-trip', () => {
       hpMul: true,
       screwGainMul: false,
     });
+  });
+
+  // ---- v1.4.8: 診断モードの永続化 ----
+
+  it('settings の diagnosticsEnabled を書いて読み直すと同じ値になる', async () => {
+    useStore.getState().setDiagnosticsEnabled(true);
+    await syncSettings();
+
+    useStore.setState({ diagnosticsEnabled: false });
+    await hydrateStore();
+
+    expect(useStore.getState().diagnosticsEnabled).toBe(true);
+  });
+
+  it('settings の diagnosticsEnabled=false を書いて読み直すと false が保持される', async () => {
+    useStore.getState().setDiagnosticsEnabled(true);
+    await syncSettings();
+
+    useStore.getState().setDiagnosticsEnabled(false);
+    await syncSettings();
+
+    useStore.setState({ diagnosticsEnabled: true });
+    await hydrateStore();
+
+    expect(useStore.getState().diagnosticsEnabled).toBe(false);
   });
 });
 

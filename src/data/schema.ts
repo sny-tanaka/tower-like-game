@@ -151,6 +151,10 @@ export type SettingsRecord = {
    * 未保存の旧データは全 false で補完。 ラン跨ぎで保持される。
    */
   runWorkshopAuto?: RunWorkshopAutoSettings;
+  /**
+   * 診断モード ON/OFF (v1.4.8)。 未保存の旧データは false で補完。
+   */
+  diagnosticsEnabled?: boolean;
 };
 
 // --- SaveState: 全ストアをまとめた型 ---
@@ -206,4 +210,5 @@ export const DEFAULT_SETTINGS: SettingsRecord = {
   targetFps: 60,
   autoActive: false,
   runWorkshopAuto: DEFAULT_RUN_WORKSHOP_AUTO,
+  diagnosticsEnabled: false,
 };

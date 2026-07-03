@@ -37,6 +37,8 @@ describe('schema 定数', () => {
     expect(DEFAULT_SETTINGS.seVolume).toBe(0.8);
     expect(DEFAULT_SETTINGS.muted).toBe(false);
     expect(DEFAULT_SETTINGS.targetFps).toBe(60);
+    // v1.4.8: 診断モードはデフォルト OFF
+    expect(DEFAULT_SETTINGS.diagnosticsEnabled).toBe(false);
   });
 
   it('DEFAULT_WEAPONS の初期武器は laser', () => {

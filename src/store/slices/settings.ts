@@ -13,6 +13,12 @@ export interface SettingsState {
   muted: boolean;
   /** 描画 fps の上限。 30 / 45 / 60 から選択 (発熱対策) */
   targetFps: TargetFps;
+  /**
+   * 診断モード (v1.4.8)。 ON で戦闘中に DiagnosticsOverlay (FPS / 敵数 / Fx イベント数 /
+   * DOM ノード数 / JS ヒープ) を表示する。 デフォルト false。
+   * クラッシュ検知・スナップショット記録自体はこのフラグに関わらず常時動作する。
+   */
+  diagnosticsEnabled: boolean;
 }
 
 // ---------------------------------------------------------------------------
@@ -24,6 +30,7 @@ export interface SettingsActions {
   setSeVolume: (volume: number) => void;
   setMuted: (muted: boolean) => void;
   setTargetFps: (fps: TargetFps) => void;
+  setDiagnosticsEnabled: (enabled: boolean) => void;
   resetSettings: () => void;
 }
 
@@ -38,6 +45,7 @@ export const defaultSettingsState: SettingsState = {
   seVolume: 0.8,
   muted: false,
   targetFps: 60,
+  diagnosticsEnabled: false,
 };
 
 // ---------------------------------------------------------------------------
@@ -58,6 +66,8 @@ export const createSettingsSlice: StateCreator<RootStore, [], [], SettingsSlice>
     if (!TARGET_FPS_OPTIONS.includes(fps)) return;
     set({ targetFps: fps });
   },
+
+  setDiagnosticsEnabled: (enabled) => set({ diagnosticsEnabled: enabled }),
 
   resetSettings: () => set(defaultSettingsState),
 });

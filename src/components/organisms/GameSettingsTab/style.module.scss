@@ -27,3 +27,9 @@
   height: 1px;
   background: var(--c-border-faint);
 }
+
+.crashLogList {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-xxs);
+}
