@@ -4,7 +4,10 @@ import {
   DAMAGE_EVENT_MAX_AGE_MS,
   DAMAGE_EVENT_MAX_COUNT,
   KNOCKBACK_DISTANCE_PCT,
+  MACHINE_CENTER_X,
+  MACHINE_CENTER_Y,
   MAX_FRAME_GAME_SEC,
+  MAX_RENDERED_ENEMIES,
   NORMAL_BOLT_DROP_CHANCE,
   admitEventsWithCap,
   applyKnockback,
@@ -14,6 +17,7 @@ import {
   decideWaveAdvance,
   distanceFromMachine,
   frameIntervalMs,
+  selectVisibleEnemyIds,
   shouldDrawFrame,
   sweepExpiredEvents,
 } from './useBattleLoop';
@@ -682,6 +686,123 @@ describe('sweepExpiredEvents (v1.4.5 iOS メモリ枯渇クラッシュ対策)',
 // 相補的に、 瞬間ピークで events 配列が肥大化するのを止める。 iOS Safari には信頼できる
 // メモリ API がないため events の「見えている」 長さそのものに上限を設ける方針。
 // ---------------------------------------------------------------------------
+// ---------------------------------------------------------------------------
+// v1.4.8: 敵スプライトの描画キャップ (iOS メモリ枯渇対策)
+// ---------------------------------------------------------------------------
+describe('selectVisibleEnemyIds (v1.4.8 敵スプライト描画キャップ)', () => {
+  const center = { x: MACHINE_CENTER_X, y: MACHINE_CENTER_Y };
+
+  function makeKindedEnemy(
+    id: string,
+    kind: 'normal' | 'elite' | 'miniboss' | 'boss',
+    x: number,
+    y: number
+  ): MutableEnemy {
+    const init = makeEnemyInit(id, 100, x, y);
+    init.kind = kind;
+    return new MutableEnemy(init);
+  }
+
+  test('同時敵数が maxCount 以下なら null を返す (fast path、 全員可視)', () => {
+    const enemies = Array.from({ length: MAX_RENDERED_ENEMIES }, (_, i) =>
+      makeKindedEnemy(`e-${i}`, 'normal', 50, 50)
+    );
+    expect(selectVisibleEnemyIds(enemies, center, MAX_RENDERED_ENEMIES)).toBeNull();
+  });
+
+  test('境界値: ちょうど maxCount 体なら null (fast path)', () => {
+    const enemies = Array.from({ length: 60 }, (_, i) =>
+      makeKindedEnemy(`e-${i}`, 'normal', 50, 50)
+    );
+    expect(selectVisibleEnemyIds(enemies, center, 60)).toBeNull();
+  });
+
+  test('maxCount+1 体になった瞬間からキャップが発動する', () => {
+    const enemies = Array.from({ length: 61 }, (_, i) =>
+      makeKindedEnemy(`e-${i}`, 'normal', 50, 50)
+    );
+    const visible = selectVisibleEnemyIds(enemies, center, 60);
+    expect(visible).not.toBeNull();
+    expect(visible!.size).toBe(60);
+  });
+
+  test('上位敵 (elite/miniboss/boss) は距離に関わらず必ず含まれる', () => {
+    const enemies: MutableEnemy[] = [
+      makeKindedEnemy('boss-1', 'boss', 99, 99), // マシンから最も遠い
+      makeKindedEnemy('elite-1', 'elite', 95, 95),
+      makeKindedEnemy('miniboss-1', 'miniboss', 90, 90),
+      ...Array.from({ length: 60 }, (_, i) => makeKindedEnemy(`normal-${i}`, 'normal', 51, 51)),
+    ];
+    const visible = selectVisibleEnemyIds(enemies, center, 60);
+    expect(visible).not.toBeNull();
+    expect(visible!.has('boss-1')).toBe(true);
+    expect(visible!.has('elite-1')).toBe(true);
+    expect(visible!.has('miniboss-1')).toBe(true);
+    // 合計 63 体中、上位敵 3 体は必ず含まれ、残り枠 57 体を normal で埋める
+    expect(visible!.size).toBe(60);
+  });
+
+  test('残り枠は center に近い順 (二乗距離) の normal 敵で埋まる', () => {
+    const enemies: MutableEnemy[] = [
+      makeKindedEnemy('boss-1', 'boss', 99, 99),
+      // near は center に近い、 far は遠い。 near だけが残り枠に入るよう体数を調整。
+      ...Array.from({ length: 3 }, (_, i) => makeKindedEnemy(`near-${i}`, 'normal', 51, 51)),
+      ...Array.from({ length: 3 }, (_, i) => makeKindedEnemy(`far-${i}`, 'normal', 90, 90)),
+    ];
+    // maxCount=4: boss (1) + normal 残り枠 3 → near 3 体のみ採用、 far は落ちる
+    const visible = selectVisibleEnemyIds(enemies, center, 4);
+    expect(visible).not.toBeNull();
+    expect(visible!.size).toBe(4);
+    expect(visible!.has('boss-1')).toBe(true);
+    expect(visible!.has('near-0')).toBe(true);
+    expect(visible!.has('near-1')).toBe(true);
+    expect(visible!.has('near-2')).toBe(true);
+    expect(visible!.has('far-0')).toBe(false);
+    expect(visible!.has('far-1')).toBe(false);
+    expect(visible!.has('far-2')).toBe(false);
+  });
+
+  test('境界: 上位敵だけで maxCount を超える場合、 上位敵は全員含まれ normal は 0 体', () => {
+    const enemies: MutableEnemy[] = [
+      ...Array.from({ length: 5 }, (_, i) => makeKindedEnemy(`boss-${i}`, 'boss', 60, 60)),
+      ...Array.from({ length: 10 }, (_, i) => makeKindedEnemy(`normal-${i}`, 'normal', 51, 51)),
+    ];
+    const visible = selectVisibleEnemyIds(enemies, center, 3);
+    expect(visible).not.toBeNull();
+    // 上位敵 5 体は maxCount(3) を超えていても全員含む
+    expect(visible!.size).toBe(5);
+    for (let i = 0; i < 5; i++) {
+      expect(visible!.has(`boss-${i}`)).toBe(true);
+    }
+    for (let i = 0; i < 10; i++) {
+      expect(visible!.has(`normal-${i}`)).toBe(false);
+    }
+  });
+
+  test('ボス戦中にボスが非表示になることは絶対にない (大量 normal + 単一 boss)', () => {
+    const enemies: MutableEnemy[] = [
+      makeKindedEnemy('the-boss', 'boss', 50, 95), // やや遠い位置
+      ...Array.from({ length: 200 }, (_, i) => makeKindedEnemy(`normal-${i}`, 'normal', 51, 51)),
+    ];
+    const visible = selectVisibleEnemyIds(enemies, center, 60);
+    expect(visible).not.toBeNull();
+    expect(visible!.has('the-boss')).toBe(true);
+  });
+
+  test('元の enemies 配列 / enemy オブジェクトを変更しない (副作用フリー)', () => {
+    const enemies = Array.from({ length: 65 }, (_, i) =>
+      makeKindedEnemy(`e-${i}`, 'normal', 50, 50)
+    );
+    const snapshot = enemies.map((e) => ({ x: e.position.x, y: e.position.y }));
+    selectVisibleEnemyIds(enemies, center, 60);
+    enemies.forEach((e, i) => {
+      expect(e.position.x).toBe(snapshot[i].x);
+      expect(e.position.y).toBe(snapshot[i].y);
+    });
+    expect(enemies).toHaveLength(65);
+  });
+});
+
 describe('admitEventsWithCap (v1.4.6 Fx バックプレッシャ)', () => {
   type E = { id: string; x: number };
 

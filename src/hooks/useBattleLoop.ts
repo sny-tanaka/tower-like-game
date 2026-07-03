@@ -245,6 +245,83 @@ export function distanceFromMachine(position: { x: number; y: number }): number 
   return Math.sqrt(dx * dx + dy * dy);
 }
 
+// ---------------------------------------------------------------------------
+// v1.4.8: 敵スプライトの描画キャップ (iOS メモリ枯渇対策)
+// ---------------------------------------------------------------------------
+//
+// 背景: 敵 1 体につき EnemySprite (SVG polygon 複数 + HP バー + 購読) の DOM/GPU コストが
+// 掛かるが、 同時描画数に上限がなかった。 時間無制限のボス戦などで敵が大量に湧くと iOS 実機で
+// jetsam (メモリ枯渇) → 白画面 → タイトルに戻る、が発生し得る。
+//
+// 重要な不変条件: 敵の存在・移動・攻撃・被弾などゲームロジックは一切変更しない。 難易度は
+// 完全に不変。 変わるのは「DOM にマウントする EnemySprite の数」 だけ (= enemiesRef / HP /
+// spawn / 当たり判定など全て従来どおり全敵に対して処理される)。
+//
+// 同時敵数が MAX_RENDERED_ENEMIES 以下 (= 通常プレイのほぼ 100%) のときは選定処理自体を
+// スキップして null (= 全敵可視) を返す fast path。 追加のアロケーション / 計算コストはほぼゼロ。
+
+/** 同時マウントする EnemySprite 数の上限。 これを超える同時敵数のときだけキャップが発動する。 */
+export const MAX_RENDERED_ENEMIES = 60;
+
+/**
+ * 可視集合の再計算を間引くスロットル間隔 (ms)。 敵の出入りで React 再レンダリングが起きる
+ * ため、 毎フレームでなく一定間隔でのみ選定し直す。
+ */
+export const VISIBLE_ENEMY_RECALC_INTERVAL_MS = 250;
+
+/**
+ * 描画キャップ用の可視 ID 集合を選定する純粋関数。
+ *
+ * - `enemies.length <= maxCount` なら選定処理をせず `null` を返す (= 全敵可視の fast path)。
+ * - 超過時: `kind !== 'normal'` の上位敵 (elite/miniboss/boss) は距離に関わらず必ず含める。
+ *   残り枠は `center` に近い順 (二乗距離、 sqrt 不要) の normal 敵で埋める。
+ *   → ボス戦中にボスが非表示になることは絶対にない。
+ * - 上位敵だけで maxCount を超えるケースでも、 上位敵は全員含める (仕様: 上位敵は距離に
+ *   関わらず必ず描画。 その場合 normal 敵は 0 体になる)。
+ *
+ * ゲームロジック (enemiesRef / HP / 当たり判定) には一切触れない、 「どの ID を DOM に
+ * マウントするか」 だけを決める副作用フリーな選定処理。
+ */
+export function selectVisibleEnemyIds(
+  enemies: readonly SpawnedEnemy[],
+  center: { x: number; y: number },
+  maxCount: number
+): Set<string> | null {
+  if (enemies.length <= maxCount) {
+    return null;
+  }
+
+  const upper: SpawnedEnemy[] = [];
+  const normal: SpawnedEnemy[] = [];
+  for (const e of enemies) {
+    if (e.kind !== 'normal') {
+      upper.push(e);
+    } else {
+      normal.push(e);
+    }
+  }
+
+  const visible = new Set<string>();
+  for (const e of upper) {
+    visible.add(e.id);
+  }
+
+  const remainingSlots = maxCount - upper.length;
+  if (remainingSlots > 0 && normal.length > 0) {
+    // 二乗距離で近い順ソート (sqrt 不要)。 元配列は変更しない。
+    const sortedNormal = [...normal].sort((a, b) => {
+      const da = (a.position.x - center.x) ** 2 + (a.position.y - center.y) ** 2;
+      const db = (b.position.x - center.x) ** 2 + (b.position.y - center.y) ** 2;
+      return da - db;
+    });
+    for (let i = 0; i < Math.min(remainingSlots, sortedNormal.length); i++) {
+      visible.add(sortedNormal[i].id);
+    }
+  }
+
+  return visible;
+}
+
 /** 仕様: 攻撃速度 hard cap = 10 attacks/sec (design-docs/04-run-workshop.md L64) */
 export const ATTACK_PER_SEC_CAP = 10;
 
@@ -517,6 +594,18 @@ export function useBattleLoop({
    */
   const prevContactSetRef = useRef<Set<string>>(new Set());
   /**
+   * v1.4.8: 接触判定用 double-buffer の「もう片方」 の Set。 prevContactSetRef と
+   * newContactSetRef を毎フレーム swap して使い回すことで `new Set()` の生成を無くす
+   * (GC 圧削減)。 詳細は tick 内の接触判定コメント参照。
+   */
+  const newContactSetRef = useRef<Set<string>>(new Set());
+  /**
+   * v1.4.8: 敵スプライト描画キャップ (MAX_RENDERED_ENEMIES) 用、 前回可視集合再計算時刻
+   * (performance.now())。 VISIBLE_ENEMY_RECALC_INTERVAL_MS 未満なら選定をスキップし、
+   * 前回の結果を entityStore に据え置く (= 毎フレーム selectVisibleEnemyIds を回さない)。
+   */
+  const lastVisibleRecalcMsRef = useRef<number>(0);
+  /**
    * Cutter Overdrive (8s AS×3 バフ) の現在状態。 active=true の間、 通常攻撃の
    * effectivePerSec に overdriveStateRef.current.attackSpeedMul を乗算する。
    */
@@ -748,7 +837,11 @@ export function useBattleLoop({
       pendingCutterPopsRef.current = [];
       // v1.3.7 Phase 2 フォローアップ: 旧 Tier の敵 ID が prevContactSetRef に残っていると
       // 新 Tier で同一 ID が衝突した場合の挙動が不定になる。 ID 重複は実害ないが掃除しておく。
-      prevContactSetRef.current = new Set();
+      // v1.4.8: double-buffer 化により prevContactSetRef / newContactSetRef の 2 個を
+      // 保持するようになったため、 参照差し替えではなく両方 clear() する (tick 外の低頻度
+      // パスなのでアロケーション削減の対象外)。
+      prevContactSetRef.current.clear();
+      newContactSetRef.current.clear();
       // v1.3.7 (Phase 3-B): `setEnemies([])` を `clearEnemies()` に置換 (Phase 3-B 新 API)。
       // 内部 enemies / enemyById / listener Set / snapshotCache / pending を一括掃除し
       // enemyListVersion を +1 する。 events (Fx) は触らない (= 再生中の DamagePop / Death Fx
@@ -803,6 +896,10 @@ export function useBattleLoop({
       // 浮動小数 accumulator も初期化して低 fps 時の累積誤差をリセット
       fireAccumulatorMsRef.current = 0;
       cutterAngleDegRef.current = 0;
+      // v1.4.8: 接触判定 double-buffer と可視集合キャップのスロットル時刻もラン跨ぎでリセット
+      prevContactSetRef.current.clear();
+      newContactSetRef.current.clear();
+      lastVisibleRecalcMsRef.current = 0;
     }
   }, [isRunActive, entityStore]);
 
@@ -1237,6 +1334,22 @@ export function useBattleLoop({
             if (mutateEnemyPosition(e, deltaSec, nowGameMs)) {
               entityStore.markEnemyMoved(e.id);
             }
+          }
+
+          // ---- v1.4.8: 敵スプライト描画キャップの可視集合再計算 (250ms スロットル) ----
+          // 同時敵数が MAX_RENDERED_ENEMIES 以下のときは selectVisibleEnemyIds 自体が
+          // 即座に null を返す fast path (通常プレイのほぼ 100%)。 超過時のみ 250ms ごとに
+          // 上位敵優先 + 近い順 normal 敵で可視 ID 集合を選定し直す。 ゲームロジック
+          // (enemiesRef / HP / spawn / 当たり判定) には一切影響しない、 DOM マウント数の
+          // 制御だけを行う (EnemyLayer が isEnemyVisible で絞り込む)。
+          if (nowMs - lastVisibleRecalcMsRef.current >= VISIBLE_ENEMY_RECALC_INTERVAL_MS) {
+            lastVisibleRecalcMsRef.current = nowMs;
+            const visibleIds = selectVisibleEnemyIds(
+              enemiesRef.current,
+              { x: MACHINE_CENTER_X, y: MACHINE_CENTER_Y },
+              MAX_RENDERED_ENEMIES
+            );
+            entityStore.setVisibleEnemyIds(visibleIds);
           }
 
           // ---- 状態異常 tick: 燃焼 DoT 適用 + 期限切れフィールドのクリア ----
@@ -1927,7 +2040,16 @@ export function useBattleLoop({
           // 動いた敵には markEnemyMoved を呼ぶ。 既存挙動どおり「新規接触フレームのみ」 適用。
           const machineStats = machineStatsRef.current;
           let totalReceived = BigNum.ZERO;
-          const newContactSet = new Set<string>();
+          // v1.4.8: 毎フレーム `new Set()` を生成していたのを double-buffer 化して GC 圧を
+          // 削減する。 newContactSetRef (書き込み先) は「今フレームの接触集合」 を溜め、
+          // prevContactSetRef (読み込み元) は「前フレームの接触集合」 を参照する。 2 つの Set
+          // を毎フレーム swap して使い回すことで新規アロケーションを無くす。 書き込み先を
+          // clear() してから使うので、 このフレームで取り出した prevContactSetRef.current
+          // (= 前フレームの newContactSetRef) は次フレームの書き込み先として再利用される
+          // (呼び出し側がフレームを跨いで Set 参照を保持していないことを確認済み — この
+          // ブロック内で読み書きが完結し、 tick 外に持ち出されない)。
+          const writeContactSet = newContactSetRef.current;
+          writeContactSet.clear();
           for (const enemy of enemiesRef.current) {
             const dist = distanceFromMachine(enemy.position);
             if (dist > MELEE_CONTACT_RANGE) {
@@ -1936,7 +2058,7 @@ export function useBattleLoop({
             // 接触中: DPS 加算
             const dmgPerSec = calcReceivedDamage(enemy.atk, machineStats);
             totalReceived = totalReceived.add(dmgPerSec.mulNumber(deltaSec));
-            newContactSet.add(enemy.id);
+            writeContactSet.add(enemy.id);
             // 継続接触はノックバックなし (毎フレーム押し戻すと不自然なため)
             if (prevContactSetRef.current.has(enemy.id)) {
               continue;
@@ -1953,7 +2075,10 @@ export function useBattleLoop({
             enemy.position.y = newPos.y;
             entityStore.markEnemyMoved(enemy.id);
           }
-          prevContactSetRef.current = newContactSet;
+          // swap: 今フレーム書いた集合が次フレームの「前フレーム集合」 になり、
+          // 前フレーム集合だった方 (もう不要) が次フレームの書き込み先として再利用される。
+          newContactSetRef.current = prevContactSetRef.current;
+          prevContactSetRef.current = writeContactSet;
           if (!totalReceived.isZero()) {
             // onHit パッチ評価 (damageImmune で overrideReceivedDamage = 0 になる可能性)
             const hitEffect = evaluatePatches(
