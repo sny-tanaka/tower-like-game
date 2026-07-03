@@ -1,3 +1,5 @@
+import { disconnectChainOnEnded } from '@/lib/audio/graphCleanup';
+
 export function createNoiseBuffer(ctx: AudioContext, durationSec: number): AudioBuffer {
   const length = Math.max(1, Math.floor(ctx.sampleRate * durationSec));
   const buffer = ctx.createBuffer(1, length, ctx.sampleRate);
@@ -48,18 +50,7 @@ export function tone(
   osc.stop(now + attackSec + releaseSec + 0.02);
   // v1.1.4: onended で disconnect。 旧実装は stop しても disconnect しないため、
   // ノードが audio graph から強参照されて GC されず audio thread の負荷が累積していた。
-  osc.onended = () => {
-    try {
-      osc.disconnect();
-    } catch {
-      /* already disconnected */
-    }
-    try {
-      gain.disconnect();
-    } catch {
-      /* already disconnected */
-    }
-  };
+  disconnectChainOnEnded(osc, gain);
 }
 
 export function noiseBurst(
@@ -89,23 +80,5 @@ export function noiseBurst(
   // AudioBufferSourceNode が audio graph から強参照されて GC されないまま蓄積し、
   // ラン跨ぎで audio thread 負荷増 → 発熱の主因になっていた。
   src.stop(now + durationSec + 0.05);
-  src.onended = () => {
-    try {
-      src.disconnect();
-    } catch {
-      /* already disconnected */
-    }
-    try {
-      gain.disconnect();
-    } catch {
-      /* already disconnected */
-    }
-    if (filterNode) {
-      try {
-        filterNode.disconnect();
-      } catch {
-        /* already disconnected */
-      }
-    }
-  };
+  disconnectChainOnEnded(src, gain, ...(filterNode ? [filterNode] : []));
 }

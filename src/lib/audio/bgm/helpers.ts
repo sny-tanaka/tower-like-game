@@ -6,6 +6,12 @@
  * - リズム系ユーティリティ
  */
 
+import { disconnectChainOnEnded, type StoppableNode } from '@/lib/audio/graphCleanup';
+
+// v1.4.7: disconnectChainOnEnded / StoppableNode は SE 側とも共有するため
+// graphCleanup.ts に切り出した。 既存 import 元を壊さないよう re-export を維持する。
+export { disconnectChainOnEnded, type StoppableNode };
+
 // ---- 音名 → 周波数 ----
 
 /** MIDI ノート番号 → 周波数 (Hz) */
@@ -125,43 +131,6 @@ export function createDroneOsc(
   osc.connect(gain).connect(dest);
   osc.start(startTime);
   return { osc, gain };
-}
-
-/**
- * 予約済み音源ノード (track.stop() で一括停止する対象) を表す最小インターフェース。
- * AudioBufferSourceNode / OscillatorNode のいずれも `stop(t)` を持つ。
- */
-export interface StoppableNode {
-  stop(t: number): void;
-}
-
-/**
- * v1.1.4: 音源ノードの再生終了 (stop or buffer 終端) で、 ぶら下がる全ノードを
- * audio graph から disconnect するヘルパー。
- *
- * Web Audio の重要な落とし穴: OscillatorNode / AudioBufferSourceNode は stop() しても
- * dest に connect されたまま強参照され、 後段の gain / filter ノードと一緒に GC されない。
- * BGM のように毎ループ大量にノードを生成する場合、 disconnect なしだと audio graph に
- * 数百〜数千個のノードが蓄積し audio thread の負荷増 → 発熱の主因になる。
- */
-export function disconnectChainOnEnded(
-  source: AudioScheduledSourceNode,
-  ...extras: { disconnect(): void }[]
-): void {
-  source.onended = () => {
-    try {
-      source.disconnect();
-    } catch {
-      /* already disconnected */
-    }
-    for (const node of extras) {
-      try {
-        node.disconnect();
-      } catch {
-        /* already disconnected */
-      }
-    }
-  };
 }
 
 /**

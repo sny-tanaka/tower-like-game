@@ -1,7 +1,19 @@
 import { act, render } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 
-import { CannonShellFx } from './index';
+import { CannonShellFx, formatShellTransform } from './index';
+
+describe('formatShellTransform', () => {
+  test('dx/dy から cqmin 換算 (1% = 1.4cqmin) の translate3d + 中央寄せ translate を生成する', () => {
+    expect(formatShellTransform(10, -5)).toBe(
+      'translate3d(14cqmin, -7cqmin, 0) translate(-50%, -50%)'
+    );
+  });
+
+  test('dx=0, dy=0 のとき移動なし (中央寄せのみ) の transform を生成する', () => {
+    expect(formatShellTransform(0, 0)).toBe('translate3d(0cqmin, 0cqmin, 0) translate(-50%, -50%)');
+  });
+});
 
 describe('CannonShellFx', () => {
   beforeEach(() => {
@@ -25,7 +37,9 @@ describe('CannonShellFx', () => {
     expect(shell.style.top).toBe('20%');
   });
 
-  test('20ms 後に着弾位置 (x2%, y2%) に切り替わる', () => {
+  // v1.4.7: iOS メモリ対策 — left/top は layout 再計算を誘発するため、 移動は transform で
+  // 行い left/top はマウント時の値に固定したまま変化しないことを検証する。
+  test('移動は transform で行われ、 left/top は moved 前後で変化しない (layout thrashing 回避)', () => {
     const { container } = render(
       <CannonShellFx
         x1={10}
@@ -34,12 +48,36 @@ describe('CannonShellFx', () => {
         y2={70}
       />
     );
+    const shell = container.querySelector('[class*="shell"]') as HTMLElement;
+    expect(shell.style.left).toBe('10%');
+    expect(shell.style.top).toBe('20%');
+    expect(shell.style.transform).toBe(formatShellTransform(0, 0));
+
     act(() => {
       vi.advanceTimersByTime(30);
     });
+
+    // left/top は変化しない
+    expect(shell.style.left).toBe('10%');
+    expect(shell.style.top).toBe('20%');
+    // transform が移動量 (x2-x1, y2-y1) の cqmin 換算値に切り替わる
+    expect(shell.style.transform).toBe(formatShellTransform(70, 50));
+  });
+
+  test('transition は transform に対して指定され、 left/top を含まない', () => {
+    const { container } = render(
+      <CannonShellFx
+        x1={10}
+        y1={20}
+        x2={80}
+        y2={70}
+        duration={480}
+      />
+    );
     const shell = container.querySelector('[class*="shell"]') as HTMLElement;
-    expect(shell.style.left).toBe('80%');
-    expect(shell.style.top).toBe('70%');
+    expect(shell.style.transition).toContain('transform');
+    expect(shell.style.transition).not.toContain('left');
+    expect(shell.style.transition).not.toContain('top');
   });
 
   test('duration + 20ms 経過で onDone が呼ばれる', () => {

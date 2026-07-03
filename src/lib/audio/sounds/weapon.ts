@@ -1,6 +1,7 @@
-import type { Sound } from 'src/lib/audio/types';
-
 import { envelope, noiseBurst, tone } from './helpers';
+
+import { disconnectChainOnEnded } from '@/lib/audio/graphCleanup';
+import type { Sound } from '@/lib/audio/types';
 
 // Laser: 高周波のこぎり波スイープ、シャープ
 export const laserShoot: Sound = (ctx, dest, now) => {
@@ -16,6 +17,8 @@ export const laserShoot: Sound = (ctx, dest, now) => {
   osc.connect(hp).connect(gain).connect(dest);
   osc.start(now);
   osc.stop(now + 0.12);
+  // v1.4.7: 戦闘中毎秒最大 20 回発火するため disconnect 漏れが顕著な蓄積になる。
+  disconnectChainOnEnded(osc, gain, hp);
 };
 
 // Cannon: 低音ブーム + ノイズバースト
@@ -45,6 +48,8 @@ export const cutterShoot: Sound = (ctx, dest, now) => {
   osc.connect(bp).connect(gain).connect(dest);
   osc.start(now);
   osc.stop(now + 0.1);
+  // v1.4.7: 戦闘中毎秒最大 20 回発火するため disconnect 漏れが顕著な蓄積になる。
+  disconnectChainOnEnded(osc, gain, bp);
   noiseBurst(ctx, dest, 0.05, now, 0.12, { type: 'highpass', frequency: 4000 });
 };
 

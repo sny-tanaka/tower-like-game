@@ -1,6 +1,7 @@
-import type { Sound } from 'src/lib/audio/types';
-
 import { envelope, noiseBurst, tone } from './helpers';
+
+import { disconnectChainOnEnded } from '@/lib/audio/graphCleanup';
+import type { Sound } from '@/lib/audio/types';
 
 // Active Laser: 連続ビーム + 高音スイープ
 export const activeLaser: Sound = (ctx, dest, now) => {
@@ -21,6 +22,10 @@ export const activeLaser: Sound = (ctx, dest, now) => {
   osc2.start(now);
   osc1.stop(now + 0.55);
   osc2.stop(now + 0.55);
+  // v1.4.7: source が 2 本あるため、それぞれの onended で共有 gain を disconnect する。
+  // disconnect は try/catch で二重呼び出し安全なので、両方から呼んでよい。
+  disconnectChainOnEnded(osc1, gain);
+  disconnectChainOnEnded(osc2, gain);
 };
 
 // Active Cannon (Volley): 連続ブームを 4 発
@@ -56,5 +61,6 @@ export const activeCutter: Sound = (ctx, dest, now) => {
     osc.connect(bp).connect(gain).connect(dest);
     osc.start(t);
     osc.stop(t + 0.08);
+    disconnectChainOnEnded(osc, gain, bp);
   }
 };

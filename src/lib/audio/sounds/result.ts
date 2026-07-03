@@ -1,6 +1,7 @@
-import type { Sound } from 'src/lib/audio/types';
-
 import { envelope, noiseBurst, tone } from './helpers';
+
+import { disconnectChainOnEnded } from '@/lib/audio/graphCleanup';
+import type { Sound } from '@/lib/audio/types';
 
 // クリア: 大きく派手なファンファーレ風
 export const resultClear: Sound = (ctx, dest, now) => {
@@ -30,5 +31,6 @@ export const resultRetreat: Sound = (ctx, dest, now) => {
   osc.connect(gain).connect(dest);
   osc.start(now);
   osc.stop(now + 0.45);
+  disconnectChainOnEnded(osc, gain);
   noiseBurst(ctx, dest, 0.5, now, 0.1, { type: 'highpass', frequency: 2000 });
 };

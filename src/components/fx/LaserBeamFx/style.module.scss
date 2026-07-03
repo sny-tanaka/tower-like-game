@@ -32,9 +32,9 @@
   height: 2px;
   background: var(--beam-color);
   transform-origin: 0 50%;
-  box-shadow:
-    0 0 6px var(--beam-color),
-    0 0 14px var(--beam-color);
+  /* v1.4.7: iOS メモリ対策 — blur レイヤー削減。 6px/14px の二重掛けを、
+     間を取った 10px 1 本に統合 (グロー感を維持しつつレイヤー数を減らす)。 */
+  box-shadow: 0 0 10px var(--beam-color);
   animation: beam var(--beam-duration, 220ms) var(--ease-out) both;
   pointer-events: none;
   z-index: var(--z-fx-field);

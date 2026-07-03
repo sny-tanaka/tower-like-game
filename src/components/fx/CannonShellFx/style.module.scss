@@ -1,6 +1,8 @@
 .shell {
   position: absolute;
-  transform: translate(-50%, -50%);
+  /* v1.4.7: iOS メモリ対策 — transform (translate3d による移動 + 中央寄せ translate) は
+   * index.tsx 側でインライン style として `formatShellTransform` が生成するため、
+   * ここでは静的に指定しない (指定すると inline style で上書きされ効かなくなる)。 */
   pointer-events: none;
   z-index: var(--z-fx-field);
 }
@@ -23,10 +25,11 @@
     #2a2f37 80%,
     #15181d 100%
   );
+  /* v1.4.7: iOS メモリ対策 — blur レイヤー削減。 inset ハイライトは維持しつつ、
+     外側 2 本 (4px/10px) を間を取った 8px 1 本に統合。 */
   box-shadow:
     inset -1px -1px 2px rgba(0, 0, 0, 0.6),
-    0 0 4px rgba(255, 140, 60, 0.4),
-    0 0 10px rgba(255, 100, 40, 0.25),
+    0 0 8px rgba(255, 120, 50, 0.3),
     0 1px 2px rgba(0, 0, 0, 0.6);
   border: 1px solid rgba(0, 0, 0, 0.5);
 }
