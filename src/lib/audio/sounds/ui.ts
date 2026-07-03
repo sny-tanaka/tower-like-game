@@ -1,6 +1,7 @@
-import type { Sound } from 'src/lib/audio/types';
-
 import { envelope, tone } from './helpers';
+
+import { disconnectChainOnEnded } from '@/lib/audio/graphCleanup';
+import type { Sound } from '@/lib/audio/types';
 
 // 汎用ボタンタップ: 短いピッ
 export const tap: Sound = (ctx, dest, now) => {
@@ -35,6 +36,7 @@ export const dialogOpen: Sound = (ctx, dest, now) => {
   osc.connect(gain).connect(dest);
   osc.start(now);
   osc.stop(now + 0.15);
+  disconnectChainOnEnded(osc, gain);
 };
 
 // ダイアログ閉: 下降スイープ
@@ -48,6 +50,7 @@ export const dialogClose: Sound = (ctx, dest, now) => {
   osc.connect(gain).connect(dest);
   osc.start(now);
   osc.stop(now + 0.13);
+  disconnectChainOnEnded(osc, gain);
 };
 
 // 出撃ボタン: 重めの開幕音

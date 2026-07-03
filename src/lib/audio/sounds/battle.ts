@@ -1,6 +1,7 @@
-import type { Sound } from 'src/lib/audio/types';
-
 import { envelope, noiseBurst, tone } from './helpers';
+
+import { disconnectChainOnEnded } from '@/lib/audio/graphCleanup';
+import type { Sound } from '@/lib/audio/types';
 
 // 雑魚撃破: 短いパフッ
 export const enemyKill: Sound = (ctx, dest, now) => {
@@ -19,6 +20,7 @@ export const bossWarn: Sound = (ctx, dest, now) => {
   osc.connect(gain).connect(dest);
   osc.start(now);
   osc.stop(now + 0.85);
+  disconnectChainOnEnded(osc, gain);
   tone(ctx, dest, 'square', 320, now + 0.2, 0.15, 0.02, 0.4);
 };
 
@@ -47,6 +49,7 @@ export const machineDown: Sound = (ctx, dest, now) => {
   osc.connect(gain).connect(dest);
   osc.start(now);
   osc.stop(now + 1.3);
+  disconnectChainOnEnded(osc, gain);
   noiseBurst(ctx, dest, 0.8, now, 0.25, { type: 'lowpass', frequency: 800 });
 };
 
