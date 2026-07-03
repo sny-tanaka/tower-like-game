@@ -75,14 +75,16 @@ describe('PatchCard', () => {
     expect(onClick).toHaveBeenCalledOnce();
   });
 
-  test('tier が 5 を超えると "T5" バッジ表示（クランプ）', () => {
+  test('tier が 5 を超えてもバッジ表示は元の tier (v1.4.9: 表示クランプの不具合修正)', () => {
     render(
       <PatchCard
         {...defaultProps}
         tier={10}
       />
     );
-    expect(screen.getByText('T5')).toBeInTheDocument();
+    expect(screen.getByText('T10')).toBeInTheDocument();
+    // T5 として表示される旧不具合の再現がないこと
+    expect(screen.queryByText('T5')).toBeNull();
   });
 
   test('tier が 1 未満は "T1" 表示（クランプ）', () => {

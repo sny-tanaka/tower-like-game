@@ -71,8 +71,14 @@ export function PatchCard({
   size = 'md',
   onClick,
 }: PatchCardProps) {
-  const clampedTier = Math.min(Math.max(1, Math.floor(tier)), 5);
-  const tierColorVar = `var(--c-patch-t${clampedTier})`;
+  // 色トークン (--c-patch-t1..5) は T5 までしか用意されていないので、 色計算用の
+  // tier は 1..5 にクランプする。 表示テキストのクランプではないので注意 (v1.4.9:
+  // 従来はここでクランプした値を Badge の text にも渡していたため、 T6 以上のパッチ
+  // バッジが "T5" と表示される不具合があった)。
+  const clampedTierForColor = Math.min(Math.max(1, Math.floor(tier)), 5);
+  const tierColorVar = `var(--c-patch-t${clampedTierForColor})`;
+  // 表示テキスト用: 上限クランプはしない。 下限は既存挙動を維持して 1 に丸める。
+  const displayTier = Math.max(1, Math.floor(tier));
 
   const isInteractive = onClick != null && !disabled && !locked;
 
@@ -139,7 +145,7 @@ export function PatchCard({
         {!locked && (
           <span className={styles.tierBadge}>
             <Badge
-              text={`T${clampedTier}`}
+              text={`T${displayTier}`}
               variant="patch-tier"
               tier={tier}
             />
