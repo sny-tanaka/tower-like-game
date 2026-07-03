@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 
 import styles from './style.module.scss';
 
+import { DiagnosticsOverlay } from '@/components/atoms/DiagnosticsOverlay';
 import { PerfOverlay } from '@/components/atoms/PerfOverlay';
 import { AppearanceBannerFx } from '@/components/fx/AppearanceBannerFx';
 import { TierClearFx } from '@/components/fx/TierClearFx';
@@ -34,6 +35,7 @@ import { useBossPhase } from '@/hooks/useBossPhase';
 import { useDerivedMachineStats } from '@/hooks/useDerivedMachineStats';
 import { useResultStatus } from '@/hooks/useResultStatus';
 import { soundEngine } from '@/lib/audio';
+import { useDiagnosticsStats } from '@/lib/diagnostics/useDiagnosticsStats';
 import { useStore } from '@/store/index';
 import { useNavigation } from '@/store/navigation';
 
@@ -250,6 +252,12 @@ export function Page() {
   // useBattleLoop の戻り値を ref に同期 (useResultStatus.getter から読まれる)
   battleLoopRef.current = { killCount, runElapsedSec, droppedPatches };
 
+  // v1.4.8: 診断モード (設定トグル) + クラッシュ検知連携。
+  // diagnosticsEnabled=false でもクラッシュ検知連携 (isRunActive 購読 + 5秒毎スナップショット)
+  // は常時動作する (hook 内部で責務を分離済み)。 オーバーレイ用データ収集のみ ON 時に動く。
+  const diagnosticsEnabled = useStore((s) => s.diagnosticsEnabled);
+  const diagnosticsStats = useDiagnosticsStats(diagnosticsEnabled, runElapsedSec, entityStore);
+
   // Tier クリア通知: tierCleared が true になった瞬間に TierClearFx をマウント。
   // 演出終了 (onDone) は handleTierClearFxDone で処理 (次 Tier 解放 + ラン終了 + ResultDialog)。
   useEffect(() => {
@@ -416,6 +424,17 @@ export function Page() {
         {/* v1.3.7 (Phase 0): dev サーバ起動時 (import.meta.env.DEV=true) のみ自動表示。
           production ビルドでは絶対に表示されない (= 描画コスト 0)。 */}
         <PerfOverlay />
+        {/* v1.4.8: 設定画面の「診断モード」トグルが ON のときだけ表示。 production でも
+          使える軽量診断オーバーレイ (画面左下、 PerfOverlay とは反対の角に配置)。 */}
+        {diagnosticsEnabled && diagnosticsStats && (
+          <DiagnosticsOverlay
+            fps={diagnosticsStats.fps}
+            enemyCount={diagnosticsStats.enemyCount}
+            fxEventCount={diagnosticsStats.fxEventCount}
+            domCount={diagnosticsStats.domCount}
+            heapMB={diagnosticsStats.heapMB}
+          />
+        )}
         {/* v1.3.6: スクリーンセーバー中は AppShell 全体 (= BattleHudTop / BattleHudBottom /
           RunWorkshopBottomSheet / BattleField) を unmount。 これらは store selector を
           subscribe しているため、 tickCooldowns が毎フレーム activeCdSec を setState するたび

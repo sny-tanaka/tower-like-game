@@ -511,6 +511,28 @@ describe('settings slice', () => {
     expect(store.getState().seVolume).toBe(0.8);
     expect(store.getState().targetFps).toBe(60);
   });
+
+  // ---- v1.4.8: 診断モード ----
+
+  it('初期値: diagnosticsEnabled=false', () => {
+    const s = makeStore().getState();
+    expect(s.diagnosticsEnabled).toBe(false);
+  });
+
+  it('setDiagnosticsEnabled: true/false で切り替えられる', () => {
+    const store = makeStore();
+    store.getState().setDiagnosticsEnabled(true);
+    expect(store.getState().diagnosticsEnabled).toBe(true);
+    store.getState().setDiagnosticsEnabled(false);
+    expect(store.getState().diagnosticsEnabled).toBe(false);
+  });
+
+  it('resetSettings: diagnosticsEnabled も false にリセットされる', () => {
+    const store = makeStore();
+    store.getState().setDiagnosticsEnabled(true);
+    store.getState().resetSettings();
+    expect(store.getState().diagnosticsEnabled).toBe(false);
+  });
 });
 
 // ---------------------------------------------------------------------------
