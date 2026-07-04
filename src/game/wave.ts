@@ -93,34 +93,60 @@ export function buildTierWaves(tier: number): WaveSchedule[] {
 }
 
 // ---------------------------------------------------------------------------
+// v1.5.2: 非 boss wave の湧きを前半に圧縮 (SPAWN_WINDOW_SEC / NON_BOSS_SPAWN_COMPRESSION)
+// ---------------------------------------------------------------------------
+//
+// 非 boss wave の通常敵は wave 前半 SPAWN_WINDOW_SEC 秒で湧き終わり、 後半は
+// 「倒すための予備時間」となる (design-docs/15-balance-v1.5.0.md §3)。
+//
+// - v1.5.1 まで: 湧きは wave 全長 (26 秒) に均等に散らばっており、 1 発で倒せる強
+//   プレイヤーでも 26 秒間かけて 1 体ずつ湧いていた。 wave 早回しを機能させるため
+//   v1.5.1 で +5 バーストを入れたが、 逆に序盤の同時接触数が増えて通常プレイヤーの
+//   体感難易度が上がる問題があった。
+// - v1.5.2: 非 boss wave の time-based 湧きケイデンスを NON_BOSS_SPAWN_COMPRESSION 倍
+//   速く (2 倍) して、 全 quota を前半 SPAWN_WINDOW_SEC (13 秒) に詰める。 後半は
+//   追加スポーンなしの kill バッファ。 強プレイヤーは湧き終了と同時に殲滅を終えて
+//   wave を ~15 秒で早回しでき、 通常プレイヤーの同時接触数は v1.5.0 相当に戻る。
+// - quota (総湧き数) は不変: 13 = floor(13 / 1) = floor(26 / 2)。
+// - boss wave (W30) はこの圧縮の対象外。 countBossNormalSpawns はそのまま
+//   schedule.spawnIntervalSec を使用する。
+export const SPAWN_WINDOW_SEC = 13;
+export const NON_BOSS_SPAWN_COMPRESSION = 2;
+
+/**
+ * 非 boss wave での「実効スポーン間隔」を返す (v1.5.2)。
+ * schedule.spawnIntervalSec を NON_BOSS_SPAWN_COMPRESSION で割って圧縮する。
+ */
+export function effectiveNonBossIntervalSec(schedule: WaveSchedule): number {
+  return schedule.spawnIntervalSec / NON_BOSS_SPAWN_COMPRESSION;
+}
+
+// ---------------------------------------------------------------------------
 // v1.5.1: 撃破連鎖の前倒し湧きバースト上限
 // ---------------------------------------------------------------------------
 //
 // 場の敵が 0 になった瞬間、 spawnedNormalCount + EARLY_SPAWN_BURST_MAX を目標に
-// 一気にバースト湧きする。 敵が画面外周から weapon 射程に入るまでの歩き時間
-// (通常敵で数秒) を短縮するのが目的で、 「1 体倒す → 1 体湧く → また歩き待ち」
-// の serialization を「N 体倒す → N 体湧く」の並列パイプラインに変える。
-//
-// 総湧き数は waveQuota で必ずキャップされるため、 報酬総量・難易度は不変。
-// 弱いプレイヤーで場が埋まったままの状況では発火しないので体験不変。
-export const EARLY_SPAWN_BURST_MAX = 5;
+// バースト湧きする。 v1.5.2 で SPAWN_WINDOW_SEC の圧縮により自然な湧きケイデンスが
+// walk 時間に追いつくため、 バーストは +1 (v1.5.0 相当) に縮小した。
+export const EARLY_SPAWN_BURST_MAX = 1;
 
 // ---------------------------------------------------------------------------
-// waveQuota（v1.5.0: Wave クォータ制）
+// waveQuota（v1.5.0: Wave クォータ制、 v1.5.2 で SPAWN_WINDOW_SEC ベースに変更）
 // ---------------------------------------------------------------------------
 
 /**
  * ウェーブで湧く通常敵の総数（クォータ）を返す（design-docs/15-balance-v1.5.0.md §3）。
  *
- * `N(W) = floor(durationSec / spawnIntervalSec)`。
- * 現行の pull モデル（`Math.floor(elapsedSec / spawnIntervalSec)`）で
- * `elapsedSec = durationSec` まで進めたときの累積数と完全に一致する定義であり、
- * 湧き総量は現行と変わらない（wave.test.ts で実測して保証する）。
+ * v1.5.2: `N(W) = floor(SPAWN_WINDOW_SEC / effectiveNonBossIntervalSec(schedule))`。
+ * v1.5.1 までは wave 全長 26 秒 / 基準 interval 2 秒 = 13 だったが、 v1.5.2 で
+ * 前半 13 秒 / 実効 interval 1 秒 = 13 に組み替えた。 値は v1.5.1 と一致 (W1=13,
+ * W30=26 相当) で、 湧き総量・報酬・難易度スケールは不変。 タイミングだけが
+ * wave 前半に集約される。
  *
  * boss wave (W30) はクォータ制の適用外（呼び出し側で使用しないこと）。
  */
 export function waveQuota(schedule: WaveSchedule): number {
-  return Math.floor(schedule.durationSec / schedule.spawnIntervalSec);
+  return Math.floor(SPAWN_WINDOW_SEC / effectiveNonBossIntervalSec(schedule));
 }
 
 // ---------------------------------------------------------------------------
@@ -218,8 +244,12 @@ export function getSpawnsAtTime(
     // v1.5.0: 「実際に湧いた累積数 (spawnedNormalCount)」 を基準にした pull モデル。
     // 前倒しで湧いた分も spawnedNormalCount に反映される (呼び出し側が加算する) ため、
     // 時間ベースの増分として二重に湧くことがなく、 総湧き数は必ず quota 以下になる。
+    // v1.5.2: 非 boss wave は圧縮された実効 interval で time-based を計算し、 全 quota を
+    // 前半 SPAWN_WINDOW_SEC に詰める。 timeBasedCount は quota で clamp されるため、
+    // elapsedSec が SPAWN_WINDOW_SEC を超えた後は新規スポーンなし (kill バッファ)。
     const quota = waveQuota(schedule);
-    const timeBasedCount = Math.min(Math.floor(elapsedSec / schedule.spawnIntervalSec), quota);
+    const effectiveIntervalSec = effectiveNonBossIntervalSec(schedule);
+    const timeBasedCount = Math.min(Math.floor(elapsedSec / effectiveIntervalSec), quota);
     // 撃破連鎖の前倒し湧き (v1.5.1 で +1 → +EARLY_SPAWN_BURST_MAX に拡張):
     // 場が空なら spawnedNormalCount + EARLY_SPAWN_BURST_MAX 体を目標にバースト湧きする。
     // v1.5.0 では 1 体/tick に絞っていたが、 敵が画面外周から歩いて射程に入る時間 (数秒)
