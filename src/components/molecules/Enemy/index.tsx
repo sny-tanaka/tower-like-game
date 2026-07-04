@@ -3,6 +3,7 @@ import type { ComponentType, CSSProperties } from 'react';
 
 import styles from './style.module.scss';
 
+import { BOSS_ENRAGE_STEP_MUL } from '@/game/balance/bossEnrage';
 import type { EnemyKind, NormalSubtype } from '@/game/types';
 
 // ---------------------------------------------------------------------------
@@ -37,6 +38,12 @@ export interface EnemyProps {
   facing?: number;
   /** 状態 tint */
   status?: EnemyStatus;
+  /**
+   * ソフトエンレイジ段階数 (v1.5.0、 design-docs/15-balance-v1.5.0.md §2.1)。
+   * `type === 'boss'` かつ 1 以上のときのみ HP バーを警告色に変え、 ENRAGE ラベルを表示する。
+   * 0 (既定) or boss 以外では無視される。
+   */
+  enrageStage?: number;
 }
 
 // ---------------------------------------------------------------------------
@@ -368,7 +375,15 @@ export function spawnedEnemyToVisualType(
  * たびに何もせず skip できる。 facing が微小変動する移動中の敵については Enemy 自体は
  * 再 render されるが、 内部の Shape 6 種も memo 済みなので SVG 関数実行は省ける。
  */
-function EnemyImpl({ type, size, hp, showHp, facing = 0, status = 'normal' }: EnemyProps) {
+function EnemyImpl({
+  type,
+  size,
+  hp,
+  showHp,
+  facing = 0,
+  status = 'normal',
+  enrageStage = 0,
+}: EnemyProps) {
   const preset = TYPE_PRESETS[type];
   const finalSize: number | string = size ?? preset.size;
   // CSS 値 (length) として両対応: number → px、 string → そのまま
@@ -377,6 +392,11 @@ function EnemyImpl({ type, size, hp, showHp, facing = 0, status = 'normal' }: En
   const renderHp = showHp ?? preset.defaultHp;
   const facingDeg = ROTATABLE[type] ? `${(facing * 180) / Math.PI}deg` : '0deg';
   const dropShadowPx = type === 'boss' ? 8 : type === 'miniboss' ? 6 : 4;
+  // v1.5.0: ソフトエンレイジ発動中 (boss かつ stage >= 1) は HP バーを警告色に変える
+  const isEnraged = type === 'boss' && enrageStage >= 1;
+  const enrageMultiplierLabel = isEnraged
+    ? `×${Math.pow(BOSS_ENRAGE_STEP_MUL, enrageStage).toFixed(1)}`
+    : null;
 
   // glow の太さ・色は CSS variable で渡し、 filter 値は CSS 側 (data-status セレクタ) に
   // 閉じ込めることで位置変化のたびに filter ラスタライズが再実行されないようにする (Issue #79 M-1)。
@@ -401,8 +421,9 @@ function EnemyImpl({ type, size, hp, showHp, facing = 0, status = 'normal' }: En
 
   const hpFillStyle: CSSProperties = {
     width: `${Math.max(0, Math.min(1, hp ?? 0)) * 100}%`,
-    background:
-      type === 'boss'
+    background: isEnraged
+      ? 'var(--c-warning)'
+      : type === 'boss'
         ? 'var(--c-danger)'
         : type === 'miniboss'
           ? '#ffa726'
@@ -414,9 +435,10 @@ function EnemyImpl({ type, size, hp, showHp, facing = 0, status = 'normal' }: En
   return (
     <div
       role="img"
-      aria-label={`${type} enemy`}
+      aria-label={isEnraged ? `${type} enemy (enraged)` : `${type} enemy`}
       data-enemy-type={type}
       data-status={status}
+      data-enraged={isEnraged || undefined}
       className={styles.root}
       style={wrapperStyle}
     >
@@ -437,6 +459,7 @@ function EnemyImpl({ type, size, hp, showHp, facing = 0, status = 'normal' }: En
           />
         </div>
       )}
+      {isEnraged && <span className={styles.enrageLabel}>ENRAGE {enrageMultiplierLabel}</span>}
     </div>
   );
 }

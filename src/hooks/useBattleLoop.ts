@@ -6,6 +6,7 @@ import {
   calcEffectValue,
 } from '@/components/organisms/MachineUpgradeList/items';
 import { calcRunWorkshopMultiplier } from '@/components/organisms/RunWorkshopBottomSheet/items';
+import { applyBossEnrageToAtk, bossEnrageStage } from '@/game/balance/bossEnrage';
 import { calcReceivedDamage, calcTapDamage, rollCrit } from '@/game/damage';
 import type { MachineStats } from '@/game/damage.types';
 import { scaledReward } from '@/game/enemies';
@@ -380,6 +381,20 @@ export function applyBurnToEnemy(
  * wave.ts の countBossNormalSpawns 経由で雑魚スポーンが通常頻度で再開する。
  */
 export const BOSS_WEAKENED_HP_THRESHOLD = 0.6;
+
+/**
+ * 敵の「実効 ATK」を返す (v1.5.0 ソフトエンレイジ)。
+ * `enemy.kind === 'boss'` のときだけ bossEnrageMultiplier を乗算する
+ * (elite / miniboss は対象外)。 `enemy.atk` 自体は mutate しない (読み取り時の乗算のみ)。
+ *
+ * @param enemy               対象の敵
+ * @param waveElapsedMs       現在の wave 内経過 ms (= enemy.spawnedAtMs と同じ基準)
+ */
+export function getEffectiveEnemyAtk(enemy: SpawnedEnemy, waveElapsedMs: number): BigNum {
+  if (enemy.kind !== 'boss') return enemy.atk;
+  const elapsedSecSinceSpawn = (waveElapsedMs - enemy.spawnedAtMs) / 1000;
+  return applyBossEnrageToAtk(enemy.atk, elapsedSecSinceSpawn);
+}
 
 /**
  * 敵接触時のノックバック距離 (%)。 マシン中心から離れる方向に enemy.position をこの値だけ押し戻す。
@@ -2203,7 +2218,10 @@ export function useBattleLoop({
             if (immunizedBeforeStep.has(enemy.id)) {
               continue;
             }
-            const dmgPerSec = calcReceivedDamage(enemy.atk, machineStats);
+            const dmgPerSec = calcReceivedDamage(
+              getEffectiveEnemyAtk(enemy, waveElapsedMsRef.current),
+              machineStats
+            );
             totalReceived = totalReceived.add(dmgPerSec.mulNumber(deltaSec));
           }
 
@@ -2225,7 +2243,10 @@ export function useBattleLoop({
             if (barrierImmunizedIdsRef.current.has(id)) continue;
             const enemy = entityStore.getEnemyById(id);
             if (enemy == null) continue;
-            const dmgPerSec = calcReceivedDamage(enemy.atk, machineStats);
+            const dmgPerSec = calcReceivedDamage(
+              getEffectiveEnemyAtk(enemy, waveElapsedMsRef.current),
+              machineStats
+            );
             totalReceived = totalReceived.add(dmgPerSec.mulNumber(deltaSec));
           }
 
@@ -2277,6 +2298,17 @@ export function useBattleLoop({
             if (hpMax > 0 && hpCurrent / hpMax < BOSS_WEAKENED_HP_THRESHOLD) {
               state.markBossWeakened(waveElapsedMsRef.current);
             }
+          }
+          // v1.5.0: ソフトエンレイジ段階を計算し、 前回と変わったときだけ store に反映する
+          // (毎フレーム set しない)。 ボスが居なくなったら 0 に戻す。
+          if (bossEnemy != null) {
+            const elapsedSecSinceSpawn = (waveElapsedMsRef.current - bossEnemy.spawnedAtMs) / 1000;
+            const nextStage = bossEnrageStage(elapsedSecSinceSpawn);
+            if (nextStage !== useStore.getState().bossEnrageStage) {
+              state.setBossEnrageStage(nextStage);
+            }
+          } else if (useStore.getState().bossEnrageStage !== 0) {
+            state.setBossEnrageStage(0);
           }
           const decision = decideWaveAdvance(
             waveElapsedMsRef.current,

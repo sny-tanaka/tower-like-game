@@ -19,6 +19,7 @@ import {
   decideWaveAdvance,
   distanceFromMachine,
   frameIntervalMs,
+  getEffectiveEnemyAtk,
   selectVisibleEnemyIds,
   shouldDrawFrame,
   sweepExpiredEvents,
@@ -955,5 +956,46 @@ describe('applyBurnToEnemy', () => {
     // T10 相当: burnDotFraction = 0.30 + 0.03*10 = 0.6
     applyBurnToEnemy(enemy, 3, 0.6, BigNum.fromNumber(1000), 0);
     expect(enemy.burnPerSec?.toString()).toBe('600');
+  });
+});
+
+describe('getEffectiveEnemyAtk (design-docs/15-balance-v1.5.0.md §2.1 ボスソフトエンレイジ)', () => {
+  test('boss 以外 (normal/elite/miniboss) は経過時間に関わらず atk がそのまま返る', () => {
+    for (const kind of ['normal', 'elite', 'miniboss'] as const) {
+      const init = { ...makeEnemyInit('e1', 100), kind, subtype: undefined };
+      const enemy = new MutableEnemy(init);
+      // wave 経過 300 秒 (= boss なら大幅エンレイジする時間) でも変化しない
+      const effective = getEffectiveEnemyAtk(enemy, 300_000);
+      expect(effective.toString()).toBe(enemy.atk.toString());
+    }
+  });
+
+  test('boss かつ猶予中 (spawn から 60 秒未満) は atk がそのまま返る', () => {
+    const init = { ...makeEnemyInit('boss1', 1000), kind: 'boss' as const, subtype: undefined };
+    const boss = new MutableEnemy(init); // spawnedAtMs = 0
+    const effective = getEffectiveEnemyAtk(boss, 59_000); // wave 経過 59 秒
+    expect(effective.toString()).toBe(boss.atk.toString());
+  });
+
+  test('boss かつ spawn から 90 秒経過で atk が ×1.4 になる', () => {
+    const init = { ...makeEnemyInit('boss1', 1000), kind: 'boss' as const, subtype: undefined };
+    const boss = new MutableEnemy(init); // spawnedAtMs = 0
+    const effective = getEffectiveEnemyAtk(boss, 90_000);
+    expect(parseFloat(effective.toString())).toBeCloseTo(14); // atk=10 × 1.4
+  });
+
+  test('spawnedAtMs を起点に経過時間を計算する (wave 内で途中スポーンしたケース)', () => {
+    const init = { ...makeEnemyInit('boss1', 1000), kind: 'boss' as const, subtype: undefined };
+    const boss = new MutableEnemy({ ...init, spawnedAtMs: 25_000 }); // W30 は 25 秒時点で boss 出現
+    // wave 経過 115 秒 = spawn から 90 秒 → stage 1 (×1.4)
+    const effective = getEffectiveEnemyAtk(boss, 115_000);
+    expect(parseFloat(effective.toString())).toBeCloseTo(14);
+  });
+
+  test('元の enemy.atk は mutate されない (読み取り時のみの乗算)', () => {
+    const init = { ...makeEnemyInit('boss1', 1000), kind: 'boss' as const, subtype: undefined };
+    const boss = new MutableEnemy(init);
+    getEffectiveEnemyAtk(boss, 300_000);
+    expect(boss.atk.toString()).toBe('10');
   });
 });

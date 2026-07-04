@@ -65,6 +65,13 @@ export interface BattleState {
    * 1 枚につき接触ダメージ 1 回分（新規接触エピソード 1 回分）を完全無効化する。
    */
   barrierStock: number;
+  /**
+   * Tier ボス (W30) のソフトエンレイジ段階数（design-docs/15-balance-v1.5.0.md §2.1）。
+   * 0 = 未発動。 useBattleLoop が毎フレーム bossEnrageStage() で計算し、 値が変わったときだけ
+   * setBossEnrageStage で更新する（UI のボス HP バー警告表示用）。
+   * ラン開始 / advanceWave / advanceTier で 0 にリセットされる。
+   */
+  bossEnrageStage: number;
 }
 
 // ---------------------------------------------------------------------------
@@ -104,6 +111,11 @@ export interface BattleActions {
    * 値は保持)。 useBattleLoop の毎フレームから「初回検知時のみ」 呼ばれることを想定。
    */
   markBossWeakened: (waveElapsedMs: number) => void;
+  /**
+   * ボスのソフトエンレイジ段階数を更新する（design-docs/15-balance-v1.5.0.md §2.1）。
+   * useBattleLoop から毎フレーム計算した段階数が前回と変わったときだけ呼ばれる想定。
+   */
+  setBossEnrageStage: (stage: number) => void;
   /**
    * バリアを容量 (getBarrierCapacity の戻り値) まで全充填する。
    * ラン開始時 / advanceWave / advanceTier の直後に useBattleLoop から呼ばれる。
@@ -189,6 +201,7 @@ export const defaultBattleState: BattleState = {
   runPatchDropped: false,
   bossWeakenedAtMs: null,
   barrierStock: 0,
+  bossEnrageStage: 0,
 };
 
 // ---------------------------------------------------------------------------
@@ -251,6 +264,8 @@ export const createBattleSlice: StateCreator<RootStore, [], [], BattleSlice> = (
       // バリア残数はここでは 0 のまま (useBattleLoop が startRun 直後に
       // refillBarrier(getBarrierCapacity(...)) を呼んで容量まで充填する)
       barrierStock: 0,
+      // ボスのソフトエンレイジ段階数をリセット
+      bossEnrageStage: 0,
     });
   },
 
@@ -272,6 +287,8 @@ export const createBattleSlice: StateCreator<RootStore, [], [], BattleSlice> = (
 
   markBossWeakened: (waveElapsedMs) =>
     set((s) => (s.bossWeakenedAtMs == null ? { bossWeakenedAtMs: waveElapsedMs } : {})),
+
+  setBossEnrageStage: (stage) => set({ bossEnrageStage: Math.max(0, stage) }),
 
   refillBarrier: (capacity) => set({ barrierStock: refillBarrierStock(capacity) }),
 
@@ -314,9 +331,10 @@ export const createBattleSlice: StateCreator<RootStore, [], [], BattleSlice> = (
     set({ machineMaxHp: newMax, machineHp: newCurrent });
   },
 
-  advanceWave: () => set((s) => ({ currentWave: s.currentWave + 1 })),
+  advanceWave: () => set((s) => ({ currentWave: s.currentWave + 1, bossEnrageStage: 0 })),
 
-  advanceTier: () => set((s) => ({ currentTier: s.currentTier + 1, currentWave: 1 })),
+  advanceTier: () =>
+    set((s) => ({ currentTier: s.currentTier + 1, currentWave: 1, bossEnrageStage: 0 })),
 
   switchWeapon: (weapon) => {
     const s = get();

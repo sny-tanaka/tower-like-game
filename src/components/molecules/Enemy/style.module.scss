@@ -45,3 +45,19 @@
    * HP バー width transition machinery が連続起動 → ブラウザ内 transition pipeline が
    * 常時動いて発熱寄与。 即時反映に変更 (補間なしでも視認影響は最小)。 */
 }
+
+/* v1.5.0: ソフトエンレイジ警告ラベル (boss かつ stage>=1 のときのみ表示)。
+ * CLAUDE.md の Fx ルールに従い、 このコンポーネントに @keyframes は書かない
+ * (静的な色変化 + ラベルのみに留める)。 */
+.enrageLabel {
+  position: absolute;
+  /* .hpBar (top:100% + margin-top:3px + height:4px) の直下に表示する */
+  top: calc(100% + 10px);
+  font-family: var(--ff-display);
+  font-size: var(--fs-label);
+  font-weight: var(--fw-bold);
+  letter-spacing: var(--ls-loose);
+  color: var(--c-warning);
+  text-shadow: 0 0 6px rgba(246, 185, 74, 0.7);
+  white-space: nowrap;
+}
