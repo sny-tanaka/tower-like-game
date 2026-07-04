@@ -10,6 +10,8 @@ import {
   MAX_RENDERED_ENEMIES,
   NORMAL_BOLT_DROP_CHANCE,
   admitEventsWithCap,
+  applyBurnToEnemy,
+  applyFreezeToEnemy,
   applyKnockback,
   calcFrameGameSec,
   calcIntervalTicks,
@@ -869,5 +871,89 @@ describe('admitEventsWithCap (v1.4.6 Fx バックプレッシャ)', () => {
     const next = admitEventsWithCap(existing, incoming, map, 100, DAMAGE_EVENT_MAX_COUNT);
     expect(next.length).toBe(DAMAGE_EVENT_MAX_COUNT);
     expect(map.has('newHit')).toBe(false);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// v1.5.0: applyFreezeToEnemy / applyBurnToEnemy (敵オブジェクトへの状態異常付与)
+// ---------------------------------------------------------------------------
+
+describe('applyFreezeToEnemy (design-docs/15-balance-v1.5.0.md §2.2 凍結耐性)', () => {
+  test('免疫なしの敵に凍結を付与 → frozenUntilMs / freezeImmuneUntilMs が設定される', () => {
+    const enemy = new MutableEnemy(makeEnemyInit('e1', 100));
+    applyFreezeToEnemy(enemy, 2, 0);
+    expect(enemy.frozenUntilMs).toBe(2000);
+    expect(enemy.freezeImmuneUntilMs).toBe(2000 + 2 * 2 * 1000);
+  });
+
+  test('免疫中の敵には付与されない (frozenUntilMs は変化しない)', () => {
+    const enemy = new MutableEnemy(makeEnemyInit('e1', 100));
+    enemy.freezeImmuneUntilMs = 5000;
+    applyFreezeToEnemy(enemy, 2, 1000); // nowGameMs=1000 < 5000 → 免疫中
+    expect(enemy.frozenUntilMs).toBeUndefined();
+  });
+
+  test('上位敵 (elite/miniboss/boss) は凍結時間が半減する', () => {
+    const bossInit = { ...makeEnemyInit('boss1', 1000), kind: 'boss' as const, subtype: undefined };
+    const boss = new MutableEnemy(bossInit);
+    applyFreezeToEnemy(boss, 2, 0);
+    expect(boss.frozenUntilMs).toBe(1000); // 2*0.5*1000
+  });
+
+  test('凍結の重ねがけ不可: 既存の frozenUntilMs より短くても新規上書きされる', () => {
+    const enemy = new MutableEnemy(makeEnemyInit('e1', 100));
+    enemy.frozenUntilMs = 99999; // 旧仕様なら Math.max で維持されていた高い値
+    applyFreezeToEnemy(enemy, 1, 0);
+    // 新規上書きなので 99999 ではなく 1000 になる
+    expect(enemy.frozenUntilMs).toBe(1000);
+  });
+
+  test('免疫期限ちょうど経過後は再度付与できる', () => {
+    const enemy = new MutableEnemy(makeEnemyInit('e1', 100));
+    enemy.freezeImmuneUntilMs = 1000;
+    applyFreezeToEnemy(enemy, 2, 1000); // nowGameMs === freezeImmuneUntilMs → 免疫終了
+    expect(enemy.frozenUntilMs).toBe(1000 + 2000);
+  });
+});
+
+describe('applyBurnToEnemy', () => {
+  test('未燃焼の敵に燃焼を付与 → burnUntilMs / burnPerSec / burnAccumulatorMs=0', () => {
+    const enemy = new MutableEnemy(makeEnemyInit('e1', 100));
+    applyBurnToEnemy(enemy, 2, 0.3, BigNum.fromNumber(100), 0);
+    expect(enemy.burnUntilMs).toBe(2000);
+    expect(enemy.burnPerSec?.toString()).toBe('30');
+    expect(enemy.burnAccumulatorMs).toBe(0);
+  });
+
+  test('既に燃焼中: 期限は長い方を採用', () => {
+    const enemy = new MutableEnemy(makeEnemyInit('e1', 100));
+    enemy.burnUntilMs = 5000;
+    enemy.burnPerSec = BigNum.fromNumber(10);
+    applyBurnToEnemy(enemy, 1, 0.3, BigNum.fromNumber(100), 0); // newBurnUntil=1000 < 5000
+    expect(enemy.burnUntilMs).toBe(5000);
+  });
+
+  test('既に燃焼中: burnPerSec は強い方を採用', () => {
+    const enemy = new MutableEnemy(makeEnemyInit('e1', 100));
+    enemy.burnUntilMs = 500;
+    enemy.burnPerSec = BigNum.fromNumber(50);
+    applyBurnToEnemy(enemy, 5, 0.3, BigNum.fromNumber(100), 0); // newBurnPerSec=30 < 50
+    expect(enemy.burnPerSec?.toString()).toBe('50');
+  });
+
+  test('新規燃焼開始時のみ burnAccumulatorMs を 0 リセット (継続中は触らない)', () => {
+    const enemy = new MutableEnemy(makeEnemyInit('e1', 100));
+    enemy.burnUntilMs = 5000;
+    enemy.burnPerSec = BigNum.fromNumber(10);
+    enemy.burnAccumulatorMs = 500;
+    applyBurnToEnemy(enemy, 1, 0.3, BigNum.fromNumber(100), 0);
+    expect(enemy.burnAccumulatorMs).toBe(500);
+  });
+
+  test('burnDotFraction が新仕様の係数 (30+3×T)% を反映する', () => {
+    const enemy = new MutableEnemy(makeEnemyInit('e1', 100));
+    // T10 相当: burnDotFraction = 0.30 + 0.03*10 = 0.6
+    applyBurnToEnemy(enemy, 3, 0.6, BigNum.fromNumber(1000), 0);
+    expect(enemy.burnPerSec?.toString()).toBe('600');
   });
 });

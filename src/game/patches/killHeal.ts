@@ -1,21 +1,20 @@
 import type { EquippedPatch, PatchEffect, PatchTrigger } from '@/game/patches.types';
-import { BigNum } from '@/lib/bignum/BigNum';
 
 /**
- * キル時回復:
- * 敵撃破時に HP +(0.5×T) 回復。
- * スケール: 線形 → heal = 0.5 * T
- * 小数は切り上げ（最低 1 以上）。
+ * キル時回復（design-docs/15-balance-v1.5.0.md §1.2）:
+ * 敵撃破時、 `現在のリジェネ/秒 × 0.2 × T` を回復する。
+ * リジェネ永続強化 (×1.02/Lv) と乗算で伸びるため恒久投資と噛み合う無限軸。
+ * shieldRegen によるリジェネ倍率パッシブは適用しない（素のリジェネ基準で統一）。
+ * BigNum の mulNumber は天井丸め。
  */
 export function applyPatchKillHeal(
   patch: EquippedPatch,
   trigger: PatchTrigger,
-  _rng: () => number,
+  _rng: () => number
 ): PatchEffect | null {
   if (trigger.type !== 'onKill') return null;
 
   const T = patch.tier;
-  // 0.5 * T → 2T/4 → mulRational で整数計算。最低 1
-  const healAmount = Math.ceil(0.5 * T);
-  return { heal: BigNum.fromNumber(healAmount) };
+  const heal = trigger.hpRegen.mulNumber(0.2 * T);
+  return { heal };
 }

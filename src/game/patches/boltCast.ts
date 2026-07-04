@@ -1,20 +1,27 @@
 import type { EquippedPatch, PatchEffect, PatchTrigger } from '@/game/patches.types';
-import { BigNum } from '@/lib/bignum/BigNum';
 
 /**
- * ボルト鋳造:
- * 仕様書「ウェーブクリア時にボルト +(5×T) 獲得」。
- * トリガーは onWaveClear。 効果は boltGain (BigNum) として currencies.bolt に加算される。
- *
- * スケール: 線形 → boltGain = 5 * T
+ * ボルト鋳造（design-docs/15-balance-v1.5.0.md §1.2）:
+ * onWaveClear の boltGain トリガーは廃止し、 常時パッシブ (ボルト獲得量 ×(1 + 0.02×T)) に変更した。
+ * applyPatch* 関数自体は「何も発火しない」ため常に null を返す。
+ * 実際の倍率は getBoltGainMultiplier() で取得し、 useBattleLoop の敵撃破ボルト報酬計算箇所で乗算する。
  */
 export function applyPatchBoltCast(
-  patch: EquippedPatch,
-  trigger: PatchTrigger,
+  _patch: EquippedPatch,
+  _trigger: PatchTrigger,
   _rng: () => number
 ): PatchEffect | null {
-  if (trigger.type !== 'onWaveClear') return null;
+  return null;
+}
 
-  const T = patch.tier;
-  return { boltGain: BigNum.fromNumber(5 * T) };
+/**
+ * ボルト獲得倍率 (1 + 0.02×T)。 boltCast 未装着なら 1.0 (無補正)。
+ */
+export function getBoltGainMultiplier(patches: EquippedPatch[]): number {
+  let maxTier = 0;
+  for (const p of patches) {
+    if (p.name === 'boltCast' && p.tier > maxTier) maxTier = p.tier;
+  }
+  if (maxTier <= 0) return 1;
+  return 1 + 0.02 * maxTier;
 }

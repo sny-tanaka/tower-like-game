@@ -1,25 +1,31 @@
+import { rollOverflowCount } from '@/game/patches/overflow';
 import type { EquippedPatch, PatchEffect, PatchTrigger } from '@/game/patches.types';
 
 /**
- * インスタントキル:
- * 攻撃時 X% で雑魚 (normal) を即死させる。
- * スケール: 漸近確率 T1=2%, max=20%, K=20
- * p(T) = T1 + (max - T1) * T / (T + 20)
+ * インスタントキル — オーバーフロー型（design-docs/15-balance-v1.5.0.md §1.2）:
+ * 発動率 p = 2% + 0.6%×(T-1)、上限なし。 対象は雑魚 (normal) のみ (現行どおり)。
+ * 超過分は「フィールド上のランダムな雑魚 1 体を追加即死」に繰り越す:
+ *   kills = floor(p) + (rng < frac(p) ? 1 : 0)
+ * kills >= 1 なら攻撃対象を即死 (instantKill: true) + 残り (kills - 1) 体を
+ * extraInstantKills としてループ側 (フィールド上のランダム抽選) に渡す。
  */
 export function applyPatchInstantKill(
   patch: EquippedPatch,
   trigger: PatchTrigger,
-  rng: () => number,
+  rng: () => number
 ): PatchEffect | null {
   if (trigger.type !== 'onAttack') return null;
   // ボス類（elite / miniboss / boss）には発動しない
   if (trigger.enemyKind !== 'normal') return null;
 
   const T = patch.tier;
-  const T1 = 0.02;
-  const max = 0.2;
-  const prob = T1 + (max - T1) * T / (T + 20);
+  const prob = 0.02 + 0.006 * (T - 1);
+  const kills = rollOverflowCount(prob, rng);
+  if (kills <= 0) return null;
 
-  if (rng() >= prob) return null;
-  return { instantKill: true };
+  const effect: PatchEffect = { instantKill: true };
+  if (kills > 1) {
+    effect.extraInstantKills = kills - 1;
+  }
+  return effect;
 }

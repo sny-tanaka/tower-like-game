@@ -1,20 +1,28 @@
 import type { EquippedPatch, PatchEffect, PatchTrigger } from '@/game/patches.types';
-import { BigNum } from '@/lib/bignum/BigNum';
 
 /**
- * シールド再生:
- * 仕様書「ウェーブクリア時に HP +(5×T) 回復」。
- * トリガーは onWaveClear。 効果は heal (BigNum) として HP に加算される。
- *
- * スケール: 線形 → heal = 5 * T
+ * シールド再生（design-docs/15-balance-v1.5.0.md §1.2）:
+ * onWaveClear の heal トリガーは廃止し、 常時パッシブ (リジェネ ×(1 + 0.05×T)) に変更した。
+ * applyPatch* 関数自体は「何も発火しない」ため常に null を返す
+ * (evaluatePatches の onWaveClear / onAttack 等どのトリガーにも反応しない)。
+ * 実際の倍率は getShieldRegenMultiplier() で取得し、 useBattleLoop の HP リジェネ適用箇所で乗算する。
  */
 export function applyPatchShieldRegen(
-  patch: EquippedPatch,
-  trigger: PatchTrigger,
+  _patch: EquippedPatch,
+  _trigger: PatchTrigger,
   _rng: () => number
 ): PatchEffect | null {
-  if (trigger.type !== 'onWaveClear') return null;
+  return null;
+}
 
-  const T = patch.tier;
-  return { heal: BigNum.fromNumber(5 * T) };
+/**
+ * リジェネ倍率 (1 + 0.05×T)。 shieldRegen 未装着なら 1.0 (無補正)。
+ */
+export function getShieldRegenMultiplier(patches: EquippedPatch[]): number {
+  let maxTier = 0;
+  for (const p of patches) {
+    if (p.name === 'shieldRegen' && p.tier > maxTier) maxTier = p.tier;
+  }
+  if (maxTier <= 0) return 1;
+  return 1 + 0.05 * maxTier;
 }

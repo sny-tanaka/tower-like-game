@@ -1,6 +1,7 @@
 import type { StateCreator } from 'zustand';
 
 import { calcRunWorkshopMultiplier } from '@/components/organisms/RunWorkshopBottomSheet/items';
+import { consumeBarrierStock, refillBarrierStock } from '@/game/patches/barrier';
 import { BigNum } from '@/lib/bignum';
 import type { RootStore } from '@/store/index';
 import type { WeaponType } from '@/store/slices/weapons';
@@ -58,6 +59,12 @@ export interface BattleState {
    * 切替時に null にリセットされる。
    */
   bossWeakenedAtMs: number | null;
+  /**
+   * ダメージバリア残数（damageImmune パッチ、design-docs/15-balance-v1.5.0.md §1.2, §4）。
+   * Wave 開始時 (ラン開始 / advanceWave / advanceTier) に容量 (1×T) で全充填される。
+   * 1 枚につき接触ダメージ 1 回分（新規接触エピソード 1 回分）を完全無効化する。
+   */
+  barrierStock: number;
 }
 
 // ---------------------------------------------------------------------------
@@ -97,6 +104,22 @@ export interface BattleActions {
    * 値は保持)。 useBattleLoop の毎フレームから「初回検知時のみ」 呼ばれることを想定。
    */
   markBossWeakened: (waveElapsedMs: number) => void;
+  /**
+   * バリアを容量 (getBarrierCapacity の戻り値) まで全充填する。
+   * ラン開始時 / advanceWave / advanceTier の直後に useBattleLoop から呼ばれる。
+   */
+  refillBarrier: (capacity: number) => void;
+  /**
+   * バリアを 1 枚消費する。 残数が 0 の場合は何もしない (false を返す)。
+   * @returns 消費できたか
+   */
+  consumeBarrier: () => boolean;
+  /**
+   * バリア残数を直接上書きする。 useBattleLoop の tick 内で
+   * `stepBarrierEpisodes` (複数体の新規接触消費をまとめて計算する純粋関数) の結果を
+   * 1 回の set で反映するために使う (consumeBarrier を複数回呼ぶより効率的)。
+   */
+  setBarrierStock: (stock: number) => void;
   spendScrew: (amount: BigNum) => boolean;
   setMachineHp: (hp: BigNum) => void;
   damageHp: (amount: BigNum) => void;
@@ -165,6 +188,7 @@ export const defaultBattleState: BattleState = {
   runStartAlloy: BigNum.ZERO,
   runPatchDropped: false,
   bossWeakenedAtMs: null,
+  barrierStock: 0,
 };
 
 // ---------------------------------------------------------------------------
@@ -224,6 +248,9 @@ export const createBattleSlice: StateCreator<RootStore, [], [], BattleSlice> = (
       runPatchDropped: false,
       // ボス HP 60% 切ったタイミングをリセット
       bossWeakenedAtMs: null,
+      // バリア残数はここでは 0 のまま (useBattleLoop が startRun 直後に
+      // refillBarrier(getBarrierCapacity(...)) を呼んで容量まで充填する)
+      barrierStock: 0,
     });
   },
 
@@ -245,6 +272,16 @@ export const createBattleSlice: StateCreator<RootStore, [], [], BattleSlice> = (
 
   markBossWeakened: (waveElapsedMs) =>
     set((s) => (s.bossWeakenedAtMs == null ? { bossWeakenedAtMs: waveElapsedMs } : {})),
+
+  refillBarrier: (capacity) => set({ barrierStock: refillBarrierStock(capacity) }),
+
+  consumeBarrier: () => {
+    const { consumed, nextStock } = consumeBarrierStock(get().barrierStock);
+    if (consumed) set({ barrierStock: nextStock });
+    return consumed;
+  },
+
+  setBarrierStock: (stock) => set({ barrierStock: Math.max(0, stock) }),
 
   spendScrew: (amount) => {
     const cur = get().screw;
