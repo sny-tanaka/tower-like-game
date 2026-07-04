@@ -116,12 +116,12 @@ describe('decideWaveAdvance', () => {
     expect(decideWaveAdvance(60_000, 26, 30, 30, true)).toBe('continue');
   });
 
-  test('最終 wave: ボススポーン時刻 (25s) 前は bossAlive=false でも continue (まだ未登場)', () => {
-    expect(decideWaveAdvance(20_000, 26, 30, 30, false)).toBe('continue');
+  test('最終 wave: ボススポーン時刻 (2s、 v1.5.3) 前は bossAlive=false でも continue (まだ未登場)', () => {
+    expect(decideWaveAdvance(1_500, 26, 30, 30, false)).toBe('continue');
   });
 
-  test('最終 wave: ボススポーン (25s) 後でボス不在 → advanceTier', () => {
-    expect(decideWaveAdvance(25_500, 26, 30, 30, false)).toBe('advanceTier');
+  test('最終 wave: ボススポーン (2s、 v1.5.3) 後でボス不在 → advanceTier', () => {
+    expect(decideWaveAdvance(2_500, 26, 30, 30, false)).toBe('advanceTier');
   });
 
   test('最終 wave: ボス撃破まで時間が長引いても advanceTier', () => {

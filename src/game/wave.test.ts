@@ -192,70 +192,70 @@ describe('getSpawnsAtTime', () => {
     expect(spawns).toHaveLength(0);
   });
 
-  it('elite ウェーブ（W5）の末尾でエリートが 1 体スポーンする', () => {
+  it('elite ウェーブ（W5）の 2 秒後にエリートが 1 体スポーンする (v1.5.3)', () => {
     idCounter = 0;
     const w5 = waves[4]!; // eliteKind = 'elite', durationSec = 26
-    // UPPER_ENEMY_LEAD_SEC = 1 → upperSpawnSec = 25
-    // prevElapsed = 24.9s, elapsed = 25.1s でエリートが出現
-    const spawns = getSpawnsAtTime(w5, 25100, 24900, constRng, idGen);
+    // v1.5.3: UPPER_SPAWN_OFFSET_SEC = 2 → upperSpawnSec = 2
+    // prevElapsed = 1.9s, elapsed = 2.1s でエリートが出現
+    const spawns = getSpawnsAtTime(w5, 2100, 1900, constRng, idGen);
     const elites = spawns.filter((s) => s.kind === 'elite');
     expect(elites).toHaveLength(1);
   });
 
-  it('elite は 1 秒前後を跨がなければスポーンしない', () => {
+  it('elite は 2 秒前後を跨がなければスポーンしない (v1.5.3)', () => {
     idCounter = 0;
     const w5 = waves[4]!;
-    // 24s〜24.9s: まだ upperSpawnSec=25 を跨いでいない
-    const spawns = getSpawnsAtTime(w5, 24900, 24000, constRng, idGen);
+    // 1.0s〜1.9s: まだ upperSpawnSec=2 を跨いでいない
+    const spawns = getSpawnsAtTime(w5, 1900, 1000, constRng, idGen);
     const elites = spawns.filter((s) => s.kind === 'elite');
     expect(elites).toHaveLength(0);
   });
 
-  it('boss ウェーブ（W30）の末尾でボスが 1 体スポーンする', () => {
+  it('boss ウェーブ（W30）の 2 秒後にボスが 1 体スポーンする (v1.5.3)', () => {
     idCounter = 0;
     const w30 = waves[29]!; // eliteKind = 'boss'
-    const spawns = getSpawnsAtTime(w30, 25100, 24900, constRng, idGen);
+    const spawns = getSpawnsAtTime(w30, 2100, 1900, constRng, idGen);
     const bosses = spawns.filter((s) => s.kind === 'boss');
     expect(bosses).toHaveLength(1);
   });
 
-  // ボス wave の通常敵スポーン仕様 (v1.1.2):
-  // ボスは upperSpawnSec=25s に出現。 それ以降は通常敵スポーンを「通常 wave の半分の頻度」
-  // (= spawnIntervalSec × 2) で継続する。 advanceTier は bossAlive===false で判定するので
+  // ボス wave の通常敵スポーン仕様 (v1.1.2、 v1.5.3 で 25s → 2s に前倒し):
+  // ボスは upperSpawnSec=2s に出現。 それ以降は通常敵スポーンをボス HP 60% 未満まで停止し、
+  // HP 60% を切った後は半頻度で再開する。 advanceTier は bossAlive===false で判定するので
   // 通常敵が残っていても tier クリアを阻害しない。
   //
   // W30 の spawnIntervalSec = TIER_BASE.SPAWN_INTERVAL(=2) / waveSpawnFactor(30)(≒2.0) ≒ 1.0 秒。
   // ボス後の半頻度 = 1.0 × 2 = 2.0 秒/体。
-  it('W30: ボス出現タイミング (25s) 以降も半頻度で通常敵が湧き続ける', () => {
+  it('W30: ボス出現タイミング (2s) 以降も HP 60% 前は雑魚 0 (v1.5.3)', () => {
     idCounter = 0;
     const w30 = waves[29]!;
     // v1.3.1: ボス出現後はボス HP 60% 切るまで雑魚 0。 bossWeakenedAtMs を渡さない
-    // ケースでは、 ボス出現後 (25.0s 以降) の雑魚は 0 体。
-    const spawns = getSpawnsAtTime(w30, 60_000, 25_000, constRng, idGen);
+    // ケースでは、 ボス出現後 (2s 以降) の雑魚は 0 体。
+    const spawns = getSpawnsAtTime(w30, 60_000, 2_000, constRng, idGen);
     const normals = spawns.filter((s) => s.kind === 'normal');
     expect(normals).toHaveLength(0);
   });
 
-  it('W30: ボス HP 60% を切った後は半頻度で雑魚スポーン再開 (v1.3.1、 v1.5.0 で半頻度化)', () => {
+  it('W30: ボス HP 60% を切った後は半頻度で雑魚スポーン再開 (v1.3.1、 v1.5.0 で半頻度化、 v1.5.3 でボス出現 2s)', () => {
     idCounter = 0;
     const w30 = waves[29]!;
-    // bossWeakenedAtMs = 30_000 (ボス出現の 5 秒後に HP 60% を切ったと仮定)。
-    // 25.0s → 60.0s: ボス出現後の 35 秒間のうち、 30s〜60s = 30 秒間が半頻度
+    // v1.5.3: ボス出現 2s。 bossWeakenedAtMs = 7_000 (ボス出現の 5 秒後に HP 60% を切ったと仮定)。
+    // 2.0s → 37.0s: ボス出現後の 35 秒間のうち、 7s〜37s = 30 秒間が半頻度
     // (intervalSec = 1.0s × BOSS_WEAKENED_SPAWN_INTERVAL_MUL(=2) = 2.0s/体)。
     // floor(30/2) = 15 体。
-    const spawns = getSpawnsAtTime(w30, 60_000, 25_000, constRng, idGen, 30_000);
+    const spawns = getSpawnsAtTime(w30, 37_000, 2_000, constRng, idGen, 7_000);
     const normals = spawns.filter((s) => s.kind === 'normal');
     expect(normals).toHaveLength(15);
   });
 
-  it('W30: ボス出現を跨ぐフレームは「ボス前累積」 のみ反映 (HP 60% まだ切ってない)', () => {
+  it('W30: ボス出現を跨ぐフレームは「ボス前累積」 のみ反映 (HP 60% まだ切ってない、 v1.5.3)', () => {
     idCounter = 0;
     const w30 = waves[29]!;
-    // 24.9s → 25.5s をまたぐ。
-    // - 24.9s 時点: ボス前累積 = floor(24.9/1.0) = 24
-    // - 25.5s 時点: ボス前累積 = floor(25/1.0) = 25 (ボス後は HP 60% 未満なので 0)
-    // 差分 = 1 体 (ボス出現タイミング 25s に湧く 1 体のみ)
-    const spawns = getSpawnsAtTime(w30, 25_500, 24_900, constRng, idGen);
+    // v1.5.3: 1.9s → 2.5s をまたぐ (ボス出現タイミングは 2s)。
+    // - 1.9s 時点: ボス前累積 = floor(1.9/1.0) = 1
+    // - 2.5s 時点: ボス前累積 = floor(2/1.0) = 2 (ボス後は HP 60% 未満なので 0)
+    // 差分 = 1 体 (ボス出現タイミング 2s に湧く 1 体のみ)
+    const spawns = getSpawnsAtTime(w30, 2_500, 1_900, constRng, idGen);
     const normals = spawns.filter((s) => s.kind === 'normal');
     expect(normals).toHaveLength(1);
   });
@@ -437,18 +437,18 @@ describe('getSpawnsAtTime (v1.5.0 Wave クォータ制)', () => {
     expect(elites).toHaveLength(0);
   });
 
-  it('W5: 通常どおり 25 秒経過でエリートが湧く (間に合わなかった場合、 fieldEmpty=false)', () => {
+  it('W5: 通常どおり 2 秒経過でエリートが湧く (v1.5.3、 fieldEmpty=false)', () => {
     idCounter = 0;
-    const spawns = getSpawnsAtTime(w5, 25_100, 24_900, constRng, idGen, null, false);
+    const spawns = getSpawnsAtTime(w5, 2_100, 1_900, constRng, idGen, null, false);
     const elites = spawns.filter((s) => s.kind === 'elite');
     expect(elites).toHaveLength(1);
   });
 
-  it('W5: upperSpawned=true なら 25 秒跨ぎでも重複して湧かない (前倒し湧き後の時間経過)', () => {
+  it('W5: upperSpawned=true なら 2 秒跨ぎでも重複して湧かない (前倒し湧き後の時間経過)', () => {
     idCounter = 0;
-    // 前倒しでエリートが湧いた後、 wave が 25 秒まで長引いたケース。
+    // 前倒しでエリートが湧いた後、 wave が 2 秒を跨いだケース。
     // upperSpawned=true が渡されるため時刻跨ぎでも二重スポーンしない。
-    const spawns = getSpawnsAtTime(w5, 25_100, 24_900, constRng, idGen, null, false, quotaW5, true);
+    const spawns = getSpawnsAtTime(w5, 2_100, 1_900, constRng, idGen, null, false, quotaW5, true);
     const elites = spawns.filter((s) => s.kind === 'elite');
     expect(elites).toHaveLength(0);
   });
@@ -465,21 +465,22 @@ describe('getSpawnsAtTime (v1.5.0 Wave クォータ制)', () => {
   // --- boss wave (W30) はクォータ制の適用外 ---
   const w30 = waves[29]!;
 
-  it('W30: fieldEmpty=true を渡してもクォータ制は適用されない (現行の連続湧きロジック維持)', () => {
+  it('W30: fieldEmpty=true を渡してもクォータ制は適用されない (現行の連続湧きロジック維持、 v1.5.3)', () => {
     idCounter = 0;
-    // ボス出現前 (0〜25s) は fieldEmpty の有無に関わらず通常テンポで湧き続ける
+    // v1.5.3: ボス出現前 (0〜2s) は fieldEmpty の有無に関わらず通常テンポで湧き続ける
     // (クォータでキャップされない = W30 の湧き数は quota(=waveQuota) を上回りうる)
-    const spawnsEmptyTrue = getSpawnsAtTime(w30, 25_000, 0, constRng, idGen, null, true);
+    const spawnsEmptyTrue = getSpawnsAtTime(w30, 2_000, 0, constRng, idGen, null, true);
     idCounter = 0;
-    const spawnsEmptyFalse = getSpawnsAtTime(w30, 25_000, 0, constRng, idGen, null, false);
+    const spawnsEmptyFalse = getSpawnsAtTime(w30, 2_000, 0, constRng, idGen, null, false);
     const normalsTrue = spawnsEmptyTrue.filter((s) => s.kind === 'normal').length;
     const normalsFalse = spawnsEmptyFalse.filter((s) => s.kind === 'normal').length;
     expect(normalsTrue).toBe(normalsFalse);
   });
 
-  it('W30: fieldEmpty=true でもボスは 25 秒前には湧かない (boss wave は前倒し対象外)', () => {
+  it('W30: fieldEmpty=true でもボスは UPPER_SPAWN_OFFSET_SEC (2s) 前には湧かない (boss wave は前倒し対象外、 v1.5.3)', () => {
     idCounter = 0;
-    const spawns = getSpawnsAtTime(w30, 20_000, 19_900, constRng, idGen, null, true);
+    // v1.5.3: 上位敵の出現時刻を 2s に変更したので、 1.9s 以前でボスは湧かない
+    const spawns = getSpawnsAtTime(w30, 1_900, 0, constRng, idGen, null, true);
     expect(spawns.filter((s) => s.kind === 'boss')).toHaveLength(0);
   });
 

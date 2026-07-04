@@ -113,6 +113,17 @@ export function buildTierWaves(tier: number): WaveSchedule[] {
 export const SPAWN_WINDOW_SEC = 13;
 export const NON_BOSS_SPAWN_COMPRESSION = 2;
 
+// ---------------------------------------------------------------------------
+// v1.5.3: 上位敵の出現タイミング (wave 開始からの経過秒)
+// ---------------------------------------------------------------------------
+//
+// 上位敵 (elite/miniboss/boss) は wave 開始 UPPER_SPAWN_OFFSET_SEC 秒後に出現する。
+// 旧仕様 (v1.5.2 まで) は durationSec - 1 秒 = 25 秒後で、 前半 25 秒は「ボス出現前
+// の助走」 として通常敵だけを湧かせていたが、 テンポが悪い (待ち時間が長い) との
+// フィードバックにより wave 序盤に前倒しした。 boss wave (W30) では
+// countBossNormalSpawns もこの値を境目として振る舞いを切り替える。
+export const UPPER_SPAWN_OFFSET_SEC = 2;
+
 /**
  * 非 boss wave での「実効スポーン間隔」を返す (v1.5.2)。
  * schedule.spawnIntervalSec を NON_BOSS_SPAWN_COMPRESSION で割って圧縮する。
@@ -212,9 +223,10 @@ export function getSpawnsAtTime(
   const prevElapsedSec = prevElapsedMs / 1000;
   const isBossWave = schedule.eliteKind === 'boss';
 
-  // 上位敵スポーン: ウェーブの終了 1 秒前（UPPER_ENEMY_LEAD_SEC = 1）に出現
-  const UPPER_ENEMY_LEAD_SEC = 1;
-  const upperSpawnSec = schedule.durationSec - UPPER_ENEMY_LEAD_SEC;
+  // v1.5.3: 上位敵 (elite/miniboss/boss) は wave 開始 UPPER_SPAWN_OFFSET_SEC 秒後に出現。
+  // 旧仕様 (v1.5.2 まで) は durationSec - 1 = 25 秒後だったが、 テンポ改善のため
+  // wave 序盤に前倒しした (design-docs/15-balance-v1.5.0.md §3)。
+  const upperSpawnSec = UPPER_SPAWN_OFFSET_SEC;
 
   // 通常敵スポーン
   // boss wave (W30, v1.3.1): ボス出現後はボス HP 60% を切るまで雑魚 0、
