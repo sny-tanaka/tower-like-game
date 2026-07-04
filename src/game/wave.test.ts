@@ -3,6 +3,7 @@ import { describe, it, expect } from 'vitest';
 import { TIER_BASE } from './tier';
 import {
   BOSS_WEAKENED_SPAWN_INTERVAL_MUL,
+  NON_BOSS_SPAWN_COMPRESSION,
   WAVE_DURATION_SEC,
   buildTierWaves,
   countBossNormalSpawns,
@@ -148,8 +149,9 @@ describe('getSpawnsAtTime', () => {
   const waves = buildTierWaves(1);
   const w1 = waves[0]!; // W1: spawnIntervalSec = TIER_BASE.SPAWN_INTERVAL
 
-  // W1 での 1 体あたりの spawn 間隔 (ms)。 定数調整に追従するよう TIER_BASE 由来で計算。
-  const intervalMs = TIER_BASE.SPAWN_INTERVAL * 1000;
+  // v1.5.2: 非 boss wave の実効 spawn 間隔 (ms)。 TIER_BASE.SPAWN_INTERVAL を
+  // NON_BOSS_SPAWN_COMPRESSION で圧縮した値。 W1: 2s / 2 = 1s = 1000ms。
+  const intervalMs = (TIER_BASE.SPAWN_INTERVAL / NON_BOSS_SPAWN_COMPRESSION) * 1000;
 
   // deterministic rng: 常に 0.3 を返す → x=0, y=30
   const constRng = () => 0.3;
@@ -162,20 +164,20 @@ describe('getSpawnsAtTime', () => {
     expect(spawns).toHaveLength(0);
   });
 
-  it('0 〜 spawn 間隔 1 回分の間に通常敵が 1 体スポーンする', () => {
+  it('0 〜 実効 spawn 間隔 1 回分の間に通常敵が 1 体スポーンする', () => {
     idCounter = 0;
     const spawns = getSpawnsAtTime(w1, intervalMs, 0, constRng, idGen);
     expect(spawns).toHaveLength(1);
     expect(spawns[0]!.kind).toBe('normal');
   });
 
-  it('0 〜 spawn 間隔 2 回分の間に通常敵が 2 体スポーンする', () => {
+  it('0 〜 実効 spawn 間隔 2 回分の間に通常敵が 2 体スポーンする', () => {
     idCounter = 0;
     const spawns = getSpawnsAtTime(w1, intervalMs * 2, 0, constRng, idGen);
     expect(spawns).toHaveLength(2);
   });
 
-  it('差分計算: 間隔 1 回分 〜 間隔 2 回分の間に 1 体スポーンする', () => {
+  it('差分計算: 実効間隔 1 回分 〜 2 回分の間に 1 体スポーンする', () => {
     idCounter = 0;
     // v1.5.0: 非 boss wave の差分基準は prevElapsedMs ではなく「実際に湧いた累積数」
     // (spawnedNormalCount)。 間隔 1 回分時点で 1 体湧いた状態を渡す。
@@ -185,7 +187,7 @@ describe('getSpawnsAtTime', () => {
 
   it('差分計算: 湧き済み累積数が時間ベースに追いついていれば敵が出ない', () => {
     idCounter = 0;
-    // 間隔 1 回分の時点で既に 1 体湧いている → 追加スポーンなし
+    // 実効間隔 1 回分の時点で既に 1 体湧いている → 追加スポーンなし
     const spawns = getSpawnsAtTime(w1, intervalMs, intervalMs, constRng, idGen, null, false, 1);
     expect(spawns).toHaveLength(0);
   });
@@ -350,7 +352,9 @@ describe('waveQuota', () => {
 describe('getSpawnsAtTime (v1.5.0 Wave クォータ制)', () => {
   const waves = buildTierWaves(1);
   const w1 = waves[0]!;
-  const intervalMs = TIER_BASE.SPAWN_INTERVAL * 1000; // W1: 2000ms/体
+  // v1.5.2: W1 の実効 spawn 間隔 = TIER_BASE.SPAWN_INTERVAL / NON_BOSS_SPAWN_COMPRESSION
+  //         = 2s / 2 = 1s = 1000ms
+  const intervalMs = (TIER_BASE.SPAWN_INTERVAL / NON_BOSS_SPAWN_COMPRESSION) * 1000;
   const constRng = () => 0.3;
   let idCounter = 0;
   const idGen = () => `enemy-${++idCounter}`;
@@ -358,30 +362,31 @@ describe('getSpawnsAtTime (v1.5.0 Wave クォータ制)', () => {
   it('時間ベースの湧きはクォータ (13 体) でキャップされる (fieldEmpty=false)', () => {
     idCounter = 0;
     const quota = waveQuota(w1); // 13
-    // durationSec(26s) を大幅に超える elapsedMs を渡しても quota を超えない
+    // 実効 SPAWN_WINDOW (13s) を大幅に超える elapsedMs を渡しても quota を超えない
     const spawns = getSpawnsAtTime(w1, 60_000, 0, constRng, idGen, null, false);
     const normals = spawns.filter((s) => s.kind === 'normal');
     expect(normals).toHaveLength(quota);
   });
 
-  it('fieldEmpty=false のときは現行と完全に同一挙動 (キャップ前の範囲で)', () => {
+  it('fieldEmpty=false のときは 実効 interval で自然湧きする', () => {
     idCounter = 0;
-    // 0 〜 intervalMs (2000ms) の間に 1 体だけスポーンする (現行どおり)
+    // v1.5.2: 0 〜 実効 intervalMs (1000ms) の間に 1 体だけスポーンする
     const spawns = getSpawnsAtTime(w1, intervalMs, 0, constRng, idGen, null, false);
     expect(spawns.filter((s) => s.kind === 'normal')).toHaveLength(1);
   });
 
-  it('fieldEmpty=true でクォータ未消化なら、 EARLY_SPAWN_BURST_MAX (5) 体まで前倒しで湧く', () => {
+  it('fieldEmpty=true でクォータ未消化なら、 EARLY_SPAWN_BURST_MAX (1) 体前倒しで湧く', () => {
     idCounter = 0;
-    // v1.5.1: 経過 500ms (通常は 0 体) でも fieldEmpty=true なら 5 体まで前倒しで湧く
+    // v1.5.2: 経過 500ms (実効 interval 1000ms なので通常は 0 体) でも
+    //         fieldEmpty=true なら +1 体前倒しで湧く
     const spawns = getSpawnsAtTime(w1, 500, 0, constRng, idGen, null, true);
-    expect(spawns.filter((s) => s.kind === 'normal')).toHaveLength(5);
+    expect(spawns.filter((s) => s.kind === 'normal')).toHaveLength(1);
   });
 
-  it('fieldEmpty=true でも 1 tick のバースト上限は EARLY_SPAWN_BURST_MAX (5) 体', () => {
+  it('fieldEmpty=true でも 1 tick のバースト上限は EARLY_SPAWN_BURST_MAX (1) 体', () => {
     idCounter = 0;
-    // v1.5.1: 時間どおり 3 体湧いた直後 (spawned=3、 t=intervalMs*3) に場が空になったケース。
-    // 前倒しは spawned+5 = 8 体目までの 5 体。
+    // v1.5.2: 時間どおり 3 体湧いた直後 (spawned=3、 t=intervalMs*3=3000ms) に場が空になったケース。
+    // timeBased=3、 spawned+burst=3+1=4 なので、 target=max(3,4)=4 → toSpawn=4-3=1。
     const spawns = getSpawnsAtTime(
       w1,
       intervalMs * 3,
@@ -392,7 +397,7 @@ describe('getSpawnsAtTime (v1.5.0 Wave クォータ制)', () => {
       true,
       3
     );
-    expect(spawns.filter((s) => s.kind === 'normal')).toHaveLength(5);
+    expect(spawns.filter((s) => s.kind === 'normal')).toHaveLength(1);
   });
 
   it('fieldEmpty=true でもクォータ (13 体) を超えて前倒しされない', () => {
@@ -405,12 +410,12 @@ describe('getSpawnsAtTime (v1.5.0 Wave クォータ制)', () => {
 
   it('前倒し分は spawnedNormalCount に記憶され、 時間ベースの増分として二重に湧かない', () => {
     idCounter = 0;
-    // 1 tick目: fieldEmpty=true で 5 体前倒し (t=500ms, 時間ベースなら 0 体、 v1.5.1)
+    // 1 tick目: fieldEmpty=true で 1 体前倒し (t=500ms, 実効 timeBased=0)
     const first = getSpawnsAtTime(w1, 500, 0, constRng, idGen, null, true, 0);
-    expect(first.filter((s) => s.kind === 'normal')).toHaveLength(5);
-    // 2 tick目: t=10000ms (時間ベースなら 5 体目の時刻)。 前倒し分が累積 (spawned=5) に
-    // 反映されているため、 時間ベースが追いつくまでは追加で湧かない (target=max(5,5)=5)。
-    const second = getSpawnsAtTime(w1, 10000, 500, constRng, idGen, null, false, 5);
+    expect(first.filter((s) => s.kind === 'normal')).toHaveLength(1);
+    // 2 tick目: t=1000ms (実効 timeBased=1)。 前倒し分が累積 (spawned=1) に
+    // 反映されているため、 時間ベースが追いつくまでは追加で湧かない (target=max(1,1)=1)。
+    const second = getSpawnsAtTime(w1, intervalMs, 500, constRng, idGen, null, false, 1);
     expect(second.filter((s) => s.kind === 'normal')).toHaveLength(0);
   });
 
@@ -481,20 +486,21 @@ describe('getSpawnsAtTime (v1.5.0 Wave クォータ制)', () => {
   // --- ディレクターレビュー指摘の回帰テスト ---
 
   it('回帰 (不具合1): 前倒し湧きが累積に記憶され、 26 秒まで進めても総湧き数がちょうど quota になる', () => {
-    // 再現シナリオ: Wave 開始直後にバーストで数体湧く (fieldEmpty=true が 1 tick 発生)
+    // 再現シナリオ: Wave 開始直後にバーストで 1 体湧く (fieldEmpty=true が 1 tick 発生)
     // → その後 fieldEmpty=false のまま 26 秒まで時間ベースで進める。
     // 前倒し分が累積カウントに記憶されないと、 時間ベースの増分として二重に湧き、
-    // 総量が quota を超える (旧実装では 13 + 前倒し 5 = 18 体)。
-    // v1.5.1: バースト上限が EARLY_SPAWN_BURST_MAX = 5 に拡張された。
+    // 総量が quota を超える (旧実装 v1.4 では 13 + 前倒し = 14 体)。
+    // v1.5.2: バースト上限は EARLY_SPAWN_BURST_MAX = 1 に復帰し、 実効 interval が
+    // 半減 (2s → 1s) して湧きは前半 13 秒に集約される。
     idCounter = 0;
     const quota = waveQuota(w1); // 13
     let spawned = 0;
     let prevMs = 0;
-    // tick 1 (t=100ms): 場が空 → バーストで 5 体 (EARLY_SPAWN_BURST_MAX) 前倒し
+    // tick 1 (t=100ms): 場が空 → バーストで 1 体前倒し
     const burst = getSpawnsAtTime(w1, 100, prevMs, constRng, idGen, null, true, spawned);
     spawned += burst.filter((s) => s.kind === 'normal').length;
     prevMs = 100;
-    expect(spawned).toBe(5);
+    expect(spawned).toBe(1);
     // 以降 26 秒まで fieldEmpty=false (tough が残って場が埋まったままのケース)
     for (let ms = 200; ms <= 26_000; ms += 100) {
       const spawns = getSpawnsAtTime(w1, ms, prevMs, constRng, idGen, null, false, spawned);

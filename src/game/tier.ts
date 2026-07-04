@@ -17,7 +17,12 @@ export const TIER_BASE = {
   ATK: 200,
   /** T1W1 Standard の移動速度（px/s） */
   SPD: 10,
-  /** T1W1 のスポーン間隔（秒/体） */
+  /** T1W1 のスポーン間隔（秒/体） — 基準ケイデンス。
+   *  v1.5.2 で「非 boss wave は前半 SPAWN_WINDOW_SEC (13 秒) に湧きを詰める」 仕様に
+   *  変更したが、 その圧縮 (NON_BOSS_SPAWN_COMPRESSION) は wave.ts 側で適用するため、
+   *  この基準値は据え置き。 boss wave (W30) の雑魚湧きロジックはこの基準値をそのまま使う
+   *  (design-docs/15-balance-v1.5.0.md §3)。
+   */
   SPAWN_INTERVAL: 2,
   /** HP の Tier ごとの成長倍率 */
   HP_GROWTH: 1.8,
