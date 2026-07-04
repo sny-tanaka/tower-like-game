@@ -497,6 +497,23 @@ export function calcIntervalTicks(
   return { ticks, nextAccumulatorMs };
 }
 
+// gameover (machineHp=0) のフレームで heal 適用が同時に成立すると、
+// heal で復活してゲームオーバーがキャンセルされてしまう。 isZero ガードで防ぐ。
+// onWaveClear heal (v1.4.9) と同じ意図・同じ書き方を onKill heal にも適用する。
+export function shouldApplyMachineHeal(healAmount: BigNum, machineHp: BigNum): boolean {
+  return !healAmount.isZero() && !machineHp.isZero();
+}
+
+/**
+ * v1.5.0 (レビュー対応): このフレームでバリア (damageImmune) 関連の処理
+ * (newContactIds 配列 / Array.from / stepBarrierEpisodes) を行う必要があるかを判定する。
+ * damageImmune 未装着 (barrierCapacity<=0) かつ 無効化中エピソードも残っていなければ
+ * バリアはこのフレームに一切関与しないため、 v1.4.8 相当の軽量フロー (即 DPS 加算) にできる。
+ */
+export function isBarrierActive(barrierCapacity: number, immunizedIdsSize: number): boolean {
+  return barrierCapacity > 0 || immunizedIdsSize > 0;
+}
+
 // 射程は武器別マップ (WEAPON_RANGE_PCT) で管理。
 // Cutter の 14% は CutterOrbitFx の length=14vmin と一致 (視覚的な刃の範囲)。
 
@@ -2187,8 +2204,10 @@ export function useBattleLoop({
           if (killedThisFrame > 0) {
             setKillCount((c) => c + killedThisFrame);
           }
-          // onKill heal を機体 HP に加算 (atomic、 同 tick 内の他の更新と競合しない)
-          if (!totalKillHeal.isZero()) {
+          // onKill heal を機体 HP に加算 (atomic、 同 tick 内の他の更新と競合しない)。
+          // v1.5.0: 撃破と同時に machineHp が 0 になったフレームで heal してしまうと
+          // ゲームオーバーが復活でキャンセルされるため、 onWaveClear heal と同じ isZero ガードを適用する。
+          if (shouldApplyMachineHeal(totalKillHeal, useStore.getState().machineHp)) {
             state.addMachineHp(totalKillHeal);
           }
           if (newDeathEvents.length > 0) {
@@ -2235,8 +2254,18 @@ export function useBattleLoop({
           // ブロック内で読み書きが完結し、 tick 外に持ち出されない)。
           const writeContactSet = newContactSetRef.current;
           writeContactSet.clear();
+          // v1.5.0 (レビュー対応): damageImmune 未装着 (barrierStock を消費するエピソードが
+          // 存在しない) 時にまで、 毎 tick `newContactIds` 配列 / `Array.from(writeContactSet)`
+          // / stepBarrierEpisodes (内部で Set×2 生成) を走らせるのは v1.4.8 の GC 圧削減方針に
+          // 逆行する。 barrierActive を tick 先頭で 1 度だけ算出し、 false のときは v1.4.8 相当の
+          // 旧フロー (新規接触の敵もループ内で即 DPS 加算) にフォールバックする。
+          const barrierActive = isBarrierActive(
+            getBarrierCapacity(equippedPatchesArr),
+            barrierImmunizedIdsRef.current.size
+          );
           // v1.5.0: バリア (damageImmune) 用に「今フレーム新規接触した敵 id」 を集める。
           // stepBarrierEpisodes に渡して、 新規接触エピソードごとに 1 枚消費する。
+          // barrierActive=false のときは使わない (常に空のまま)。
           const newContactIds: string[] = [];
           // 「バリア判定より前の無効化中集合」 を固定参照しておく (継続接触の判定に使う)。
           // stepBarrierEpisodes は新規消費後の Set を返すため、 継続接触の要否判定は
@@ -2250,7 +2279,6 @@ export function useBattleLoop({
             writeContactSet.add(enemy.id);
             const isNewContact = !prevContactSetRef.current.has(enemy.id);
             if (isNewContact) {
-              newContactIds.push(enemy.id);
               // v1.3.1: 新規接触時、 敵 kind に応じたノックバック距離で押し戻す
               // (normal 5% / elite 6% / miniboss 7.5% / boss 10%)
               const kbDistance = KNOCKBACK_DISTANCE_PCT_BY_KIND[enemy.kind];
@@ -2262,6 +2290,16 @@ export function useBattleLoop({
               enemy.position.x = newPos.x;
               enemy.position.y = newPos.y;
               entityStore.markEnemyMoved(enemy.id);
+              if (!barrierActive) {
+                // v1.4.8 相当の旧フロー: バリアが無関係なので新規接触フレームでも即 DPS 加算する。
+                const dmgPerSec = calcReceivedDamage(
+                  getEffectiveEnemyAtk(enemy, waveElapsedMsRef.current),
+                  machineStats
+                );
+                totalReceived = totalReceived.add(dmgPerSec.mulNumber(deltaSec));
+                continue;
+              }
+              newContactIds.push(enemy.id);
               // 新規接触フレームの DPS 加算はバリア消費判定 (下記) の結果を見てから決める。
               continue;
             }
@@ -2277,29 +2315,33 @@ export function useBattleLoop({
             totalReceived = totalReceived.add(dmgPerSec.mulNumber(deltaSec));
           }
 
-          // v1.5.0: バリアエピソードの状態遷移をまとめて計算 (純粋関数、 game/patches/barrier.ts)。
-          // 新規接触した敵ごとにバリアを 1 枚消費し、 無効化中エピソード集合に追加する。
-          // 無効化中の敵は接触ダメージを加算しない (ノックバックは通常どおり適用済み)。
-          const currentContactIds = Array.from(writeContactSet);
-          const barrierStep = stepBarrierEpisodes({
-            newContactIds,
-            currentContactIds,
-            barrierStock: useStore.getState().barrierStock,
-            immunizedIds: immunizedBeforeStep,
-          });
-          useStore.getState().setBarrierStock(barrierStep.nextBarrierStock);
-          barrierImmunizedIdsRef.current = barrierStep.nextImmunizedIds;
+          if (barrierActive) {
+            // v1.5.0: バリアエピソードの状態遷移をまとめて計算 (純粋関数、 game/patches/barrier.ts)。
+            // 新規接触した敵ごとにバリアを 1 枚消費し、 無効化中エピソード集合に追加する。
+            // 無効化中の敵は接触ダメージを加算しない (ノックバックは通常どおり適用済み)。
+            const currentContactIds = Array.from(writeContactSet);
+            const barrierStep = stepBarrierEpisodes({
+              newContactIds,
+              currentContactIds,
+              barrierStock: useStore.getState().barrierStock,
+              immunizedIds: immunizedBeforeStep,
+            });
+            if (barrierStep.nextBarrierStock !== useStore.getState().barrierStock) {
+              useStore.getState().setBarrierStock(barrierStep.nextBarrierStock);
+            }
+            barrierImmunizedIdsRef.current = barrierStep.nextImmunizedIds;
 
-          // 新規接触した敵のうち、 バリアで無効化されなかった敵の DPS を加算する。
-          for (const id of newContactIds) {
-            if (barrierImmunizedIdsRef.current.has(id)) continue;
-            const enemy = entityStore.getEnemyById(id);
-            if (enemy == null) continue;
-            const dmgPerSec = calcReceivedDamage(
-              getEffectiveEnemyAtk(enemy, waveElapsedMsRef.current),
-              machineStats
-            );
-            totalReceived = totalReceived.add(dmgPerSec.mulNumber(deltaSec));
+            // 新規接触した敵のうち、 バリアで無効化されなかった敵の DPS を加算する。
+            for (const id of newContactIds) {
+              if (barrierImmunizedIdsRef.current.has(id)) continue;
+              const enemy = entityStore.getEnemyById(id);
+              if (enemy == null) continue;
+              const dmgPerSec = calcReceivedDamage(
+                getEffectiveEnemyAtk(enemy, waveElapsedMsRef.current),
+                machineStats
+              );
+              totalReceived = totalReceived.add(dmgPerSec.mulNumber(deltaSec));
+            }
           }
 
           // swap: 今フレーム書いた集合が次フレームの「前フレーム集合」 になり、

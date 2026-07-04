@@ -1,4 +1,5 @@
 import { rollOverflowCount } from '@/game/patches/overflow';
+import { PROB_PARAMS, linearProb } from '@/game/patches/probability';
 import type { EquippedPatch, PatchEffect, PatchTrigger } from '@/game/patches.types';
 
 /**
@@ -16,7 +17,7 @@ export function applyPatchBonusDrop(
   if (trigger.type !== 'onDropRoll') return null;
 
   const T = patch.tier;
-  const prob = 0.05 + 0.015 * (T - 1);
+  const prob = linearProb(T, PROB_PARAMS.doubleShotLike);
   const count = rollOverflowCount(prob, rng);
   if (count <= 0) return null;
   return { dropMultiplier: 1 + count };

@@ -1,3 +1,4 @@
+import { findPatchTier } from '@/game/patches/patchUtils';
 import type { EquippedPatch, PatchEffect, PatchTrigger } from '@/game/patches.types';
 
 /**
@@ -18,10 +19,7 @@ export function applyPatchBoltCast(
  * ボルト獲得倍率 (1 + 0.02×T)。 boltCast 未装着なら 1.0 (無補正)。
  */
 export function getBoltGainMultiplier(patches: EquippedPatch[]): number {
-  let maxTier = 0;
-  for (const p of patches) {
-    if (p.name === 'boltCast' && p.tier > maxTier) maxTier = p.tier;
-  }
+  const maxTier = findPatchTier(patches, 'boltCast');
   if (maxTier <= 0) return 1;
   return 1 + 0.02 * maxTier;
 }

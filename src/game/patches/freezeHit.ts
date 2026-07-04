@@ -1,3 +1,5 @@
+import { findPatchTier } from '@/game/patches/patchUtils';
+import { PROB_PARAMS, linearProb } from '@/game/patches/probability';
 import type { EquippedPatch, PatchEffect, PatchTrigger } from '@/game/patches.types';
 
 /**
@@ -16,7 +18,7 @@ export function applyPatchFreezeHit(
   if (trigger.type !== 'onAttack') return null;
 
   const T = patch.tier;
-  const prob = Math.min(1, 0.05 + 0.015 * (T - 1));
+  const prob = Math.min(1, linearProb(T, PROB_PARAMS.doubleShotLike));
 
   if (rng() >= prob) return null;
   const freezeSec = 1 + 0.2 * T;
@@ -28,10 +30,7 @@ export function applyPatchFreezeHit(
  * 複数装着はできない前提 (同名パッチ重複装着不可) だが、 念のため最大 Tier のものを採用する。
  */
 export function getFrozenDamageBonusMul(patches: EquippedPatch[]): number {
-  let maxTier = 0;
-  for (const p of patches) {
-    if (p.name === 'freezeHit' && p.tier > maxTier) maxTier = p.tier;
-  }
+  const maxTier = findPatchTier(patches, 'freezeHit');
   if (maxTier <= 0) return 1;
   return 1 + 0.02 * maxTier;
 }

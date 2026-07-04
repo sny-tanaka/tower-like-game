@@ -1,4 +1,5 @@
 import { rollOverflowCount } from '@/game/patches/overflow';
+import { PROB_PARAMS, linearProb } from '@/game/patches/probability';
 import type { EquippedPatch, PatchEffect, PatchTrigger } from '@/game/patches.types';
 
 /**
@@ -19,7 +20,7 @@ export function applyPatchInstantKill(
   if (trigger.enemyKind !== 'normal') return null;
 
   const T = patch.tier;
-  const prob = 0.02 + 0.006 * (T - 1);
+  const prob = linearProb(T, PROB_PARAMS.instantKill);
   const kills = rollOverflowCount(prob, rng);
   if (kills <= 0) return null;
 

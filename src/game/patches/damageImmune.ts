@@ -1,3 +1,4 @@
+import { findPatchTier } from '@/game/patches/patchUtils';
 import type { EquippedPatch, PatchEffect, PatchTrigger } from '@/game/patches.types';
 
 /**
@@ -19,9 +20,5 @@ export function applyPatchDamageImmune(
  * バリア容量 (1×T)。 damageImmune 未装着なら 0。
  */
 export function getBarrierCapacity(patches: EquippedPatch[]): number {
-  let maxTier = 0;
-  for (const p of patches) {
-    if (p.name === 'damageImmune' && p.tier > maxTier) maxTier = p.tier;
-  }
-  return maxTier;
+  return findPatchTier(patches, 'damageImmune');
 }

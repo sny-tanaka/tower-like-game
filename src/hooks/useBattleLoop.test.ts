@@ -20,7 +20,9 @@ import {
   distanceFromMachine,
   frameIntervalMs,
   getEffectiveEnemyAtk,
+  isBarrierActive,
   selectVisibleEnemyIds,
+  shouldApplyMachineHeal,
   shouldDrawFrame,
   sweepExpiredEvents,
 } from './useBattleLoop';
@@ -255,6 +257,41 @@ describe('applyKnockback', () => {
 
   test('KNOCKBACK_DISTANCE_PCT のデフォルト = 5 で 20px 相当 (短辺 ~400px 想定)', () => {
     expect(KNOCKBACK_DISTANCE_PCT).toBe(5);
+  });
+});
+
+describe('shouldApplyMachineHeal (v1.5.0 killHeal 死亡フレーム蘇生ガード)', () => {
+  // BUG regression: 撃破と同時に machineHp が 0 になったフレームで onKill heal を
+  // 適用すると、 死亡直後に蘇生してしまいゲームオーバーがキャンセルされる。
+  // v1.4.9 の onWaveClear heal と同じ isZero ガードを onKill heal にも適用する。
+  test('machineHp が 0 のときは heal 量が正でも適用しない', () => {
+    expect(shouldApplyMachineHeal(BigNum.fromNumber(100), BigNum.ZERO)).toBe(false);
+  });
+
+  test('machineHp が 0 でなければ heal を適用する', () => {
+    expect(shouldApplyMachineHeal(BigNum.fromNumber(100), BigNum.fromNumber(1))).toBe(true);
+  });
+
+  test('heal 量が 0 なら machineHp の値に関わらず適用しない (無駄な addMachineHp 呼び出しを避ける)', () => {
+    expect(shouldApplyMachineHeal(BigNum.ZERO, BigNum.fromNumber(100))).toBe(false);
+  });
+});
+
+describe('isBarrierActive (v1.5.0 レビュー対応: barrierActive=false 時の GC 圧削減)', () => {
+  test('capacity=0 かつ 無効化中エピソードも 0 件 → false (damageImmune 未装着)', () => {
+    expect(isBarrierActive(0, 0)).toBe(false);
+  });
+
+  test('capacity>0 (damageImmune 装着) → true', () => {
+    expect(isBarrierActive(3, 0)).toBe(true);
+  });
+
+  test('capacity=0 でも無効化中エピソードが残っていれば true (Tier ダウン直後の残存エピソード継続処理)', () => {
+    expect(isBarrierActive(0, 1)).toBe(true);
+  });
+
+  test('capacity>0 かつ 無効化中エピソードもある → true', () => {
+    expect(isBarrierActive(2, 2)).toBe(true);
   });
 });
 

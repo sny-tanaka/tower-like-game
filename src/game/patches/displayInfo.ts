@@ -1,5 +1,6 @@
 import type { IconName } from '@/components/atoms/Icon';
 import type { PatchName } from '@/data/schema';
+import { PROB_PARAMS, linearProb } from '@/game/patches/probability';
 
 // ---------------------------------------------------------------------------
 // パッチ表示情報 (Tier 連動)
@@ -16,16 +17,6 @@ import type { PatchName } from '@/data/schema';
 //   - boltCast:    ボルト獲得 +2% × T (常時パッシブ)
 //   - damageImmune: バリア 1 × T 枚 / Wave (確定型)
 //
-
-/** 発動率の線形式パラメータ (t1 + step×(T-1)) */
-const PROB_PARAMS: Record<'doubleShotLike' | 'instantKill', { t1: number; step: number }> = {
-  doubleShotLike: { t1: 0.05, step: 0.015 }, // doubleShot / bonusDrop / freezeHit / burnHit
-  instantKill: { t1: 0.02, step: 0.006 },
-};
-
-function linearProb(tier: number, params: { t1: number; step: number }): number {
-  return params.t1 + params.step * (tier - 1);
-}
 
 export interface PatchDisplayInfo {
   /** 日本語表示名 */

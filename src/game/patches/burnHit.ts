@@ -1,3 +1,4 @@
+import { PROB_PARAMS, linearProb } from '@/game/patches/probability';
 import type { EquippedPatch, PatchEffect, PatchTrigger } from '@/game/patches.types';
 
 /**
@@ -14,7 +15,7 @@ export function applyPatchBurnHit(
   if (trigger.type !== 'onAttack') return null;
 
   const T = patch.tier;
-  const prob = Math.min(1, 0.05 + 0.015 * (T - 1));
+  const prob = Math.min(1, linearProb(T, PROB_PARAMS.doubleShotLike));
 
   if (rng() >= prob) return null;
   const burnSec = 1 + 0.2 * T;

@@ -1,3 +1,4 @@
+import { findPatchTier } from '@/game/patches/patchUtils';
 import type { EquippedPatch, PatchEffect, PatchTrigger } from '@/game/patches.types';
 
 /**
@@ -19,10 +20,7 @@ export function applyPatchShieldRegen(
  * リジェネ倍率 (1 + 0.05×T)。 shieldRegen 未装着なら 1.0 (無補正)。
  */
 export function getShieldRegenMultiplier(patches: EquippedPatch[]): number {
-  let maxTier = 0;
-  for (const p of patches) {
-    if (p.name === 'shieldRegen' && p.tier > maxTier) maxTier = p.tier;
-  }
+  const maxTier = findPatchTier(patches, 'shieldRegen');
   if (maxTier <= 0) return 1;
   return 1 + 0.05 * maxTier;
 }
