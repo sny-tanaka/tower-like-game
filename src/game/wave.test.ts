@@ -371,17 +371,17 @@ describe('getSpawnsAtTime (v1.5.0 Wave クォータ制)', () => {
     expect(spawns.filter((s) => s.kind === 'normal')).toHaveLength(1);
   });
 
-  it('fieldEmpty=true でクォータ未消化なら、 時間ベース数 + 1 体が前倒しで湧く', () => {
+  it('fieldEmpty=true でクォータ未消化なら、 EARLY_SPAWN_BURST_MAX (5) 体まで前倒しで湧く', () => {
     idCounter = 0;
-    // 経過 500ms (通常は 0 体) でも fieldEmpty=true なら 1 体前倒しで湧く
+    // v1.5.1: 経過 500ms (通常は 0 体) でも fieldEmpty=true なら 5 体まで前倒しで湧く
     const spawns = getSpawnsAtTime(w1, 500, 0, constRng, idGen, null, true);
-    expect(spawns.filter((s) => s.kind === 'normal')).toHaveLength(1);
+    expect(spawns.filter((s) => s.kind === 'normal')).toHaveLength(5);
   });
 
-  it('fieldEmpty=true でも 1 tick に前倒しで湧くのは 1 体のみ (spawnedNormalCount + 1 を超えない)', () => {
+  it('fieldEmpty=true でも 1 tick のバースト上限は EARLY_SPAWN_BURST_MAX (5) 体', () => {
     idCounter = 0;
-    // 時間どおり 3 体湧いた直後 (spawned=3、 t=intervalMs*3) に場が空になったケース。
-    // 前倒しは spawned+1 = 4 体目の 1 体だけ。
+    // v1.5.1: 時間どおり 3 体湧いた直後 (spawned=3、 t=intervalMs*3) に場が空になったケース。
+    // 前倒しは spawned+5 = 8 体目までの 5 体。
     const spawns = getSpawnsAtTime(
       w1,
       intervalMs * 3,
@@ -392,7 +392,7 @@ describe('getSpawnsAtTime (v1.5.0 Wave クォータ制)', () => {
       true,
       3
     );
-    expect(spawns.filter((s) => s.kind === 'normal')).toHaveLength(1);
+    expect(spawns.filter((s) => s.kind === 'normal')).toHaveLength(5);
   });
 
   it('fieldEmpty=true でもクォータ (13 体) を超えて前倒しされない', () => {
@@ -405,12 +405,12 @@ describe('getSpawnsAtTime (v1.5.0 Wave クォータ制)', () => {
 
   it('前倒し分は spawnedNormalCount に記憶され、 時間ベースの増分として二重に湧かない', () => {
     idCounter = 0;
-    // 1 tick目: fieldEmpty=true で 1 体前倒し (t=500ms, 時間ベースなら 0 体)
+    // 1 tick目: fieldEmpty=true で 5 体前倒し (t=500ms, 時間ベースなら 0 体、 v1.5.1)
     const first = getSpawnsAtTime(w1, 500, 0, constRng, idGen, null, true, 0);
-    expect(first.filter((s) => s.kind === 'normal')).toHaveLength(1);
-    // 2 tick目: t=2000ms (時間ベース 1 体目の時刻)。 前倒し分が累積 (spawned=1) に
-    // 反映されているため、 時間ベースの 1 体目としては湧かない (target=max(1,1)=1)。
-    const second = getSpawnsAtTime(w1, 2000, 500, constRng, idGen, null, false, 1);
+    expect(first.filter((s) => s.kind === 'normal')).toHaveLength(5);
+    // 2 tick目: t=10000ms (時間ベースなら 5 体目の時刻)。 前倒し分が累積 (spawned=5) に
+    // 反映されているため、 時間ベースが追いつくまでは追加で湧かない (target=max(5,5)=5)。
+    const second = getSpawnsAtTime(w1, 10000, 500, constRng, idGen, null, false, 5);
     expect(second.filter((s) => s.kind === 'normal')).toHaveLength(0);
   });
 
@@ -481,23 +481,22 @@ describe('getSpawnsAtTime (v1.5.0 Wave クォータ制)', () => {
   // --- ディレクターレビュー指摘の回帰テスト ---
 
   it('回帰 (不具合1): 前倒し湧きが累積に記憶され、 26 秒まで進めても総湧き数がちょうど quota になる', () => {
-    // 再現シナリオ: Wave 開始直後に前倒しで数体湧く (fieldEmpty=true が数 tick 続く)
+    // 再現シナリオ: Wave 開始直後にバーストで数体湧く (fieldEmpty=true が 1 tick 発生)
     // → その後 fieldEmpty=false のまま 26 秒まで時間ベースで進める。
     // 前倒し分が累積カウントに記憶されないと、 時間ベースの増分として二重に湧き、
-    // 総量が quota を超える (旧実装では 13 + 前倒し 3 = 16 体)。
+    // 総量が quota を超える (旧実装では 13 + 前倒し 5 = 18 体)。
+    // v1.5.1: バースト上限が EARLY_SPAWN_BURST_MAX = 5 に拡張された。
     idCounter = 0;
     const quota = waveQuota(w1); // 13
     let spawned = 0;
     let prevMs = 0;
-    // tick 1〜3 (t=100/200/300ms): 場が空 (即殲滅の連鎖) → 前倒しで 1 体ずつ湧く
-    for (let ms = 100; ms <= 300; ms += 100) {
-      const spawns = getSpawnsAtTime(w1, ms, prevMs, constRng, idGen, null, true, spawned);
-      spawned += spawns.filter((s) => s.kind === 'normal').length;
-      prevMs = ms;
-    }
-    expect(spawned).toBe(3);
+    // tick 1 (t=100ms): 場が空 → バーストで 5 体 (EARLY_SPAWN_BURST_MAX) 前倒し
+    const burst = getSpawnsAtTime(w1, 100, prevMs, constRng, idGen, null, true, spawned);
+    spawned += burst.filter((s) => s.kind === 'normal').length;
+    prevMs = 100;
+    expect(spawned).toBe(5);
     // 以降 26 秒まで fieldEmpty=false (tough が残って場が埋まったままのケース)
-    for (let ms = 400; ms <= 26_000; ms += 100) {
+    for (let ms = 200; ms <= 26_000; ms += 100) {
       const spawns = getSpawnsAtTime(w1, ms, prevMs, constRng, idGen, null, false, spawned);
       spawned += spawns.filter((s) => s.kind === 'normal').length;
       prevMs = ms;

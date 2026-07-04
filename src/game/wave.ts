@@ -93,6 +93,19 @@ export function buildTierWaves(tier: number): WaveSchedule[] {
 }
 
 // ---------------------------------------------------------------------------
+// v1.5.1: 撃破連鎖の前倒し湧きバースト上限
+// ---------------------------------------------------------------------------
+//
+// 場の敵が 0 になった瞬間、 spawnedNormalCount + EARLY_SPAWN_BURST_MAX を目標に
+// 一気にバースト湧きする。 敵が画面外周から weapon 射程に入るまでの歩き時間
+// (通常敵で数秒) を短縮するのが目的で、 「1 体倒す → 1 体湧く → また歩き待ち」
+// の serialization を「N 体倒す → N 体湧く」の並列パイプラインに変える。
+//
+// 総湧き数は waveQuota で必ずキャップされるため、 報酬総量・難易度は不変。
+// 弱いプレイヤーで場が埋まったままの状況では発火しないので体験不変。
+export const EARLY_SPAWN_BURST_MAX = 5;
+
+// ---------------------------------------------------------------------------
 // waveQuota（v1.5.0: Wave クォータ制）
 // ---------------------------------------------------------------------------
 
@@ -207,12 +220,17 @@ export function getSpawnsAtTime(
     // 時間ベースの増分として二重に湧くことがなく、 総湧き数は必ず quota 以下になる。
     const quota = waveQuota(schedule);
     const timeBasedCount = Math.min(Math.floor(elapsedSec / schedule.spawnIntervalSec), quota);
-    // 撃破連鎖の前倒し湧き: 場が空なら spawnedNormalCount + 1 を目標にする
-    // (1 tick に前倒しで湧くのは 1 体のみ。 全滅→1 体湧く→即殲滅→次 tick でまた 1 体、
-    //  の連鎖で十分速い)。 時間ベースが先行していればそちらに追従する。
+    // 撃破連鎖の前倒し湧き (v1.5.1 で +1 → +EARLY_SPAWN_BURST_MAX に拡張):
+    // 場が空なら spawnedNormalCount + EARLY_SPAWN_BURST_MAX 体を目標にバースト湧きする。
+    // v1.5.0 では 1 体/tick に絞っていたが、 敵が画面外周から歩いて射程に入る時間 (数秒)
+    // が bottleneck となり、 1 発で倒せる強プレイヤーでも wave が最大時間まで詰まる問題を
+    // 解消するため、 「場が空になった瞬間にパイプラインを N 体で埋める」 挙動に変更した。
+    // 弱いプレイヤーは field が埋まったままなのでバーストは発火せず、 時間ベースの湧きに
+    // フォールバックする (現行体験不変)。 総量は quota で必ずキャップされ、 総湧き数と
+    // 報酬は不変。
     const target = Math.min(
       quota,
-      Math.max(timeBasedCount, spawnedNormalCount + (fieldEmpty ? 1 : 0))
+      Math.max(timeBasedCount, spawnedNormalCount + (fieldEmpty ? EARLY_SPAWN_BURST_MAX : 0))
     );
     toSpawn = Math.max(0, target - spawnedNormalCount);
   }
