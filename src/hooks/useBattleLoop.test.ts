@@ -133,6 +133,38 @@ describe('decideWaveAdvance', () => {
     // bossAlive=false で advanceTier。 通常敵の生存有無は引数で表現されない (= 関与しない)
     expect(decideWaveAdvance(30_000, 26, 30, 30, false)).toBe('advanceTier');
   });
+
+  // --- v1.5.0（Wave クォータ制、早回し）: allSpawnsDone / fieldEmpty による早期 advanceWave ---
+
+  test('通常 wave: allSpawnsDone && fieldEmpty なら 26 秒未満でも即 advanceWave', () => {
+    expect(decideWaveAdvance(10_000, 26, 5, 30, false, true, true)).toBe('advanceWave');
+  });
+
+  test('通常 wave: allSpawnsDone=true でも fieldEmpty=false なら continue (敵が残っている)', () => {
+    expect(decideWaveAdvance(10_000, 26, 5, 30, false, true, false)).toBe('continue');
+  });
+
+  test('通常 wave: fieldEmpty=true でも allSpawnsDone=false なら continue (クォータ未消化)', () => {
+    expect(decideWaveAdvance(10_000, 26, 5, 30, false, false, true)).toBe('continue');
+  });
+
+  test('通常 wave: allSpawnsDone/fieldEmpty を渡さない場合 (デフォルト) は従来どおり時間判定のみ', () => {
+    expect(decideWaveAdvance(10_000, 26, 5, 30, false)).toBe('continue');
+    expect(decideWaveAdvance(26_000, 26, 5, 30, false)).toBe('advanceWave');
+  });
+
+  test('通常 wave: 26 秒経過していれば allSpawnsDone/fieldEmpty が false でも従来どおり advanceWave', () => {
+    expect(decideWaveAdvance(26_000, 26, 5, 30, false, false, false)).toBe('advanceWave');
+  });
+
+  test('最終 wave (boss wave): allSpawnsDone && fieldEmpty を渡してもボス生存中なら continue (適用外)', () => {
+    // W30 はクォータ制の適用外。 allSpawnsDone/fieldEmpty がボス生存中の判定を上書きしない。
+    expect(decideWaveAdvance(10_000, 26, 30, 30, true, true, true)).toBe('continue');
+  });
+
+  test('最終 wave (boss wave): ボス不在なら従来どおり advanceTier (allSpawnsDone 無視)', () => {
+    expect(decideWaveAdvance(25_500, 26, 30, 30, false, true, true)).toBe('advanceTier');
+  });
 });
 
 describe('decideTransitionReset', () => {

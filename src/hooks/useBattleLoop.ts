@@ -26,7 +26,7 @@ import type { EquippedPatch } from '@/game/patches.types';
 import { BattleEntityStore } from '@/game/store/BattleEntityStore';
 import type { AppearanceEvent } from '@/game/store/BattleEntityStore';
 import type { EnemyKind, SpawnedEnemy } from '@/game/types';
-import { buildTierWaves, getSpawnsAtTime } from '@/game/wave';
+import { buildTierWaves, getSpawnsAtTime, waveQuota } from '@/game/wave';
 import { cannonApplySplash, cannonStats, cannonVolley } from '@/game/weapons/cannon';
 import {
   cutterStartOverdrive,
@@ -175,8 +175,11 @@ export const BOSS_SPAWN_LEAD_SEC = 1;
 
 /**
  * ウェーブ進行判定。
- *  - 通常 wave (1〜totalWaves-1): waveElapsedMs >= durationSec*1000 で advanceWave
- *  - 最終 wave (= totalWaves、 boss wave): 時間カウントダウンしない。
+ *  - 通常 wave (1〜totalWaves-1):
+ *    - waveElapsedMs >= durationSec*1000 で advanceWave（従来どおり。未殲滅の残敵持ち越し）
+ *    - v1.5.0（早回し）: 上記より前でも `allSpawnsDone && fieldEmpty` なら即 advanceWave
+ *      （その wave で湧くべきものが全て湧き切り、 かつ場の敵が 0）
+ *  - 最終 wave (= totalWaves、 boss wave): 時間カウントダウンしない。 クォータ制の対象外。
  *    「ボススポーン時刻を過ぎている」 かつ 「ボスが残っていない」 で advanceTier。
  *    通常敵 (normal) の生存は無視する。 仕様: ボス撃破で Victory (通常敵が残っていても OK)。
  *    (BUG-W30-1: 旧実装は enemiesCount===0 必須で、 ボス出現後も通常敵が湧き続ける wave.ts の
@@ -187,13 +190,19 @@ export const BOSS_SPAWN_LEAD_SEC = 1;
  * @param currentWave      1〜totalWaves
  * @param totalWaves       1 tier の wave 数
  * @param bossAlive        ボス (kind==='boss') が enemiesRef に生存しているか
+ * @param allSpawnsDone    v1.5.0: その wave のクォータ N 体 + 上位敵（該当があれば）が
+ *   すべて湧き切ったか。 通常 wave でのみ参照する（boss wave では無視）。
+ * @param fieldEmpty       v1.5.0: enemiesRef.current が空か（前 wave からの持ち越し敵・
+ *   上位敵を含む）。 通常 wave でのみ参照する（boss wave では無視）。
  */
 export function decideWaveAdvance(
   waveElapsedMs: number,
   durationSec: number,
   currentWave: number,
   totalWaves: number,
-  bossAlive: boolean
+  bossAlive: boolean,
+  allSpawnsDone = false,
+  fieldEmpty = false
 ): AdvanceDecision {
   if (currentWave >= totalWaves) {
     // 最終 wave: ボス出現時刻を過ぎていてボス不在で advanceTier。 時間経過は無視
@@ -203,7 +212,9 @@ export function decideWaveAdvance(
     }
     return 'continue';
   }
-  // 通常 wave: 時間経過で次へ
+  // v1.5.0: クォータ + 上位敵を湧き切り済み かつ 場の敵が 0 なら即進行（早回し）
+  if (allSpawnsDone && fieldEmpty) return 'advanceWave';
+  // 通常 wave: 時間経過で次へ（従来どおり。 未殲滅の残敵は持ち越し）
   if (waveElapsedMs < durationSec * 1000) return 'continue';
   return 'advanceWave';
 }
@@ -615,6 +626,19 @@ export function useBattleLoop({
   const lastFrameMsRef = useRef<number>(0);
   const waveElapsedMsRef = useRef<number>(0);
   const prevWaveElapsedMsRef = useRef<number>(0);
+  /**
+   * v1.5.0（Wave クォータ制）: 現 wave でこれまでに湧いた「通常敵」の累積数。
+   * getSpawnsAtTime の戻り値から集計する。 wave 切替のたびに 0 にリセットする
+   * (decideTransitionReset の resetElapsed ブロックで waveElapsedMsRef と併せてリセット)。
+   * boss wave (W30) ではクォータ制の対象外のため参照しない。
+   */
+  const waveSpawnedNormalCountRef = useRef<number>(0);
+  /**
+   * v1.5.0（Wave クォータ制）: 現 wave の上位敵（elite/miniboss/boss）が
+   * 既に湧いたか。 getSpawnsAtTime の戻り値に該当 kind が含まれたら true にする。
+   * wave 切替のたびに false にリセットする。
+   */
+  const waveUpperSpawnedRef = useRef<boolean>(false);
   const enemiesRef = useRef<SpawnedEnemy[]>([]);
   // v1.4.0: 手動タップ攻撃の pending キュー。 enqueueTap() でインクリメントされ、 tick で消費される。
   const pendingTapCountRef = useRef<number>(0);
@@ -893,6 +917,9 @@ export function useBattleLoop({
     if (reset.resetElapsed) {
       waveElapsedMsRef.current = 0;
       prevWaveElapsedMsRef.current = 0;
+      // v1.5.0（Wave クォータ制）: 新しい wave の湧き累積カウンタをリセット。
+      waveSpawnedNormalCountRef.current = 0;
+      waveUpperSpawnedRef.current = false;
       // v1.3.7 (Phase 5): React state 廃止に伴い entityStore に直接書き込む。
       // notifyFrame は同 useEffect 末尾で呼ばれないため、 ここではブロードキャストせず
       // 次フレームの tick 末尾の notifyFrame でまとめて配信される (= ラン開始直後は
@@ -976,6 +1003,9 @@ export function useBattleLoop({
       prevContactSetRef.current.clear();
       newContactSetRef.current.clear();
       lastVisibleRecalcMsRef.current = 0;
+      // v1.5.0（Wave クォータ制）: ラン開始時に湧き累積カウンタもリセット
+      waveSpawnedNormalCountRef.current = 0;
+      waveUpperSpawnedRef.current = false;
       // v1.5.0: ラン開始時にバリアを容量まで充填 + 無効化中エピソード集合をクリア
       useStore.getState().refillBarrier(getBarrierCapacity(equippedPatchesArrRef.current));
       barrierImmunizedIdsRef.current.clear();
@@ -1359,6 +1389,11 @@ export function useBattleLoop({
 
         const schedule = tierWaves[state.currentWave - 1];
         if (schedule != null) {
+          const isBossWave = schedule.eliteKind === 'boss';
+          // v1.5.0（Wave クォータ制）: 「場に生存敵が 0」 かを spawn 計算に渡し、 撃破連鎖の
+          // 前倒し湧きを判定する。 boss wave はクォータ制の適用外なので常に false を渡す
+          // (getSpawnsAtTime 側でも boss wave は無視するが、 二重に安全側へ倒す)。
+          const fieldEmptyForSpawn = !isBossWave && enemiesRef.current.length === 0;
           // 敵 spawn
           const newSpawns = getSpawnsAtTime(
             schedule,
@@ -1370,9 +1405,20 @@ export function useBattleLoop({
               return `e-${state.currentTier}-${state.currentWave}-${enemyIdCounterRef.current}`;
             },
             // v1.3.1: boss wave 中のボス HP 60% フラグ。 null の間はボス出現後の雑魚 0、
-            // 値が入ったらそこから通常頻度で雑魚再開。 詳細は wave.ts countBossNormalSpawns。
-            state.bossWeakenedAtMs
+            // 値が入ったらそこから半頻度 (v1.5.0) で雑魚再開。 詳細は wave.ts countBossNormalSpawns。
+            state.bossWeakenedAtMs,
+            fieldEmptyForSpawn
           );
+          if (!isBossWave) {
+            // v1.5.0（Wave クォータ制）: 湧き累積カウンタを更新（early advance 判定用）。
+            for (const s of newSpawns) {
+              if (s.kind === 'normal') {
+                waveSpawnedNormalCountRef.current += 1;
+              } else {
+                waveUpperSpawnedRef.current = true;
+              }
+            }
+          }
           if (newSpawns.length > 0) {
             // v1.3.7 (Phase 3-B): スプレッドを廃止し push + entityStore.addEnemy に分解。
             // addEnemy で entityStore 側の enemies / enemyById / enemyListVersion がフレーム内
@@ -2310,12 +2356,23 @@ export function useBattleLoop({
           } else if (useStore.getState().bossEnrageStage !== 0) {
             state.setBossEnrageStage(0);
           }
+          // v1.5.0（Wave クォータ制、早回し）: 通常 wave で「クォータ N 体 + 該当があれば
+          // 上位敵」が全て湧き切ったか。 boss wave はクォータ制の適用外なので常に false。
+          const allSpawnsDone =
+            !isBossWave &&
+            waveSpawnedNormalCountRef.current >= waveQuota(schedule) &&
+            (schedule.eliteKind === undefined || waveUpperSpawnedRef.current);
+          // v1.5.0: 「場の敵が 0」 は今 tick の撃破処理後の enemiesRef.current で判定する
+          // (前 wave からの持ち越し敵・上位敵を含む)。
+          const fieldEmptyForAdvance = enemiesRef.current.length === 0;
           const decision = decideWaveAdvance(
             waveElapsedMsRef.current,
             schedule.durationSec,
             state.currentWave,
             tierWaves.length,
-            bossAlive
+            bossAlive,
+            allSpawnsDone,
+            fieldEmptyForAdvance
           );
           if (decision === 'advanceWave' || decision === 'advanceTier') {
             // v1.5.0: shieldRegen / boltCast は常時パッシブ化され、 onWaveClear トリガーで
@@ -2334,6 +2391,11 @@ export function useBattleLoop({
               //  が「残量 0 近く」で再マウントされ、 バーが満タンに戻らない。)
               waveElapsedMsRef.current = 0;
               prevWaveElapsedMsRef.current = 0;
+              // v1.5.0（Wave クォータ制）: 同フレームで湧き累積カウンタもリセット
+              // (currentWave 変化検知の useEffect でも reset されるが、 同フレームの
+              //  ズレ防止のためここでも即時リセットする)。
+              waveSpawnedNormalCountRef.current = 0;
+              waveUpperSpawnedRef.current = false;
             } else {
               // Tier クリア: state.advanceTier() は呼ばない (= currentTier を勝手に進めない)。
               // 親 (pages/battle) が tierCleared フラグを検知して TierClearFx → ResultDialog の
