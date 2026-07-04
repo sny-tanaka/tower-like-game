@@ -6,6 +6,7 @@ import {
   calcEffectValue,
 } from '@/components/organisms/MachineUpgradeList/items';
 import { calcRunWorkshopMultiplier } from '@/components/organisms/RunWorkshopBottomSheet/items';
+import { applyBossEnrageToAtk, bossEnrageStage } from '@/game/balance/bossEnrage';
 import { calcReceivedDamage, calcTapDamage, rollCrit } from '@/game/damage';
 import type { MachineStats } from '@/game/damage.types';
 import { scaledReward } from '@/game/enemies';
@@ -13,13 +14,19 @@ import { mutateEnemyPosition } from '@/game/loop/enemyMovement';
 import { buildMachineStats } from '@/game/loop/machineStats';
 import { fireWeapon, getAttackPerSec } from '@/game/loop/weaponDispatch';
 import { evaluatePatches } from '@/game/patches';
+import { stepBarrierEpisodes } from '@/game/patches/barrier';
+import { getBoltGainMultiplier } from '@/game/patches/boltCast';
+import { getBarrierCapacity } from '@/game/patches/damageImmune';
 import { dropPatch } from '@/game/patches/drops';
 import type { PatchDrop } from '@/game/patches/drops';
+import { calcFreezeApply } from '@/game/patches/freezeApply';
+import { getFrozenDamageBonusMul } from '@/game/patches/freezeHit';
+import { getShieldRegenMultiplier } from '@/game/patches/shieldRegen';
 import type { EquippedPatch } from '@/game/patches.types';
 import { BattleEntityStore } from '@/game/store/BattleEntityStore';
 import type { AppearanceEvent } from '@/game/store/BattleEntityStore';
 import type { EnemyKind, SpawnedEnemy } from '@/game/types';
-import { buildTierWaves, getSpawnsAtTime } from '@/game/wave';
+import { buildTierWaves, getSpawnsAtTime, waveQuota } from '@/game/wave';
 import { cannonApplySplash, cannonStats, cannonVolley } from '@/game/weapons/cannon';
 import {
   cutterStartOverdrive,
@@ -168,8 +175,11 @@ export const BOSS_SPAWN_LEAD_SEC = 1;
 
 /**
  * ウェーブ進行判定。
- *  - 通常 wave (1〜totalWaves-1): waveElapsedMs >= durationSec*1000 で advanceWave
- *  - 最終 wave (= totalWaves、 boss wave): 時間カウントダウンしない。
+ *  - 通常 wave (1〜totalWaves-1):
+ *    - waveElapsedMs >= durationSec*1000 で advanceWave（従来どおり。未殲滅の残敵持ち越し）
+ *    - v1.5.0（早回し）: 上記より前でも `allSpawnsDone && fieldEmpty` なら即 advanceWave
+ *      （その wave で湧くべきものが全て湧き切り、 かつ場の敵が 0）
+ *  - 最終 wave (= totalWaves、 boss wave): 時間カウントダウンしない。 クォータ制の対象外。
  *    「ボススポーン時刻を過ぎている」 かつ 「ボスが残っていない」 で advanceTier。
  *    通常敵 (normal) の生存は無視する。 仕様: ボス撃破で Victory (通常敵が残っていても OK)。
  *    (BUG-W30-1: 旧実装は enemiesCount===0 必須で、 ボス出現後も通常敵が湧き続ける wave.ts の
@@ -180,13 +190,19 @@ export const BOSS_SPAWN_LEAD_SEC = 1;
  * @param currentWave      1〜totalWaves
  * @param totalWaves       1 tier の wave 数
  * @param bossAlive        ボス (kind==='boss') が enemiesRef に生存しているか
+ * @param allSpawnsDone    v1.5.0: その wave のクォータ N 体 + 上位敵（該当があれば）が
+ *   すべて湧き切ったか。 通常 wave でのみ参照する（boss wave では無視）。
+ * @param fieldEmpty       v1.5.0: enemiesRef.current が空か（前 wave からの持ち越し敵・
+ *   上位敵を含む）。 通常 wave でのみ参照する（boss wave では無視）。
  */
 export function decideWaveAdvance(
   waveElapsedMs: number,
   durationSec: number,
   currentWave: number,
   totalWaves: number,
-  bossAlive: boolean
+  bossAlive: boolean,
+  allSpawnsDone = false,
+  fieldEmpty = false
 ): AdvanceDecision {
   if (currentWave >= totalWaves) {
     // 最終 wave: ボス出現時刻を過ぎていてボス不在で advanceTier。 時間経過は無視
@@ -196,7 +212,9 @@ export function decideWaveAdvance(
     }
     return 'continue';
   }
-  // 通常 wave: 時間経過で次へ
+  // v1.5.0: クォータ + 上位敵を湧き切り済み かつ 場の敵が 0 なら即進行（早回し）
+  if (allSpawnsDone && fieldEmpty) return 'advanceWave';
+  // 通常 wave: 時間経過で次へ（従来どおり。 未殲滅の残敵は持ち越し）
   if (waveElapsedMs < durationSec * 1000) return 'continue';
   return 'advanceWave';
 }
@@ -328,12 +346,66 @@ export const ATTACK_PER_SEC_CAP = 10;
 /** マシン本体への被ダメ近接判定距離 (%)。 距離 ≤ この値で敵がマシンに「接触」している扱い */
 export const MELEE_CONTACT_RANGE = 5;
 
+// ---------------------------------------------------------------------------
+// v1.5.0: 凍結 / 燃焼付与ヘルパー (敵オブジェクトへの mutation)
+// ---------------------------------------------------------------------------
+//
+// hit 適用ブロックが 2 箇所 (cannon splash / 通常武器) あるため、 凍結免疫判定を含む
+// 付与ロジックを共通化する。 純粋な判定自体は `calcFreezeApply` (game/patches/freezeApply.ts)
+// に切り出し済みで、 ここでは「敵オブジェクトへの反映」 だけを担当する。
+
+/** 凍結を敵に付与する (免疫判定込み)。 免疫中は何もしない (演出も出さない = 呼び出し側で freeze フラグを見て判断)。 */
+export function applyFreezeToEnemy(
+  enemy: SpawnedEnemy,
+  baseFreezeSec: number,
+  nowGameMs: number
+): void {
+  const result = calcFreezeApply(enemy.kind, baseFreezeSec, nowGameMs, enemy.freezeImmuneUntilMs);
+  if (!result.shouldApply) return;
+  // v1.5.0: 凍結の重ねがけは不可 (旧 Math.max 延長は廃止)。 常に新規上書き。
+  enemy.frozenUntilMs = result.frozenUntilMs;
+  enemy.freezeImmuneUntilMs = result.freezeImmuneUntilMs;
+}
+
+/** 燃焼 (DoT) を敵に付与する。 期限は長い方、 burnPerSec は強い方を採用 (現行どおり)。 */
+export function applyBurnToEnemy(
+  enemy: SpawnedEnemy,
+  burnSec: number,
+  burnDotFraction: number,
+  hitDamage: BigNum,
+  nowGameMs: number
+): void {
+  const newBurnUntil = nowGameMs + burnSec * 1000;
+  const newBurnPerSec = hitDamage.mulNumber(burnDotFraction);
+  const prev = enemy.burnPerSec;
+  const wasBurning = enemy.burnUntilMs != null;
+  enemy.burnUntilMs = Math.max(enemy.burnUntilMs ?? 0, newBurnUntil);
+  enemy.burnPerSec = prev != null && prev.gt(newBurnPerSec) ? prev : newBurnPerSec;
+  if (!wasBurning) {
+    enemy.burnAccumulatorMs = 0;
+  }
+}
+
 /**
  * ボス HP 60% 閾値 (v1.3.1)。 ボス wave 中、 ボス HP がこの比率を切ると
  * battle slice の bossWeakenedAtMs に現フレーム時刻が記録され、
  * wave.ts の countBossNormalSpawns 経由で雑魚スポーンが通常頻度で再開する。
  */
 export const BOSS_WEAKENED_HP_THRESHOLD = 0.6;
+
+/**
+ * 敵の「実効 ATK」を返す (v1.5.0 ソフトエンレイジ)。
+ * `enemy.kind === 'boss'` のときだけ bossEnrageMultiplier を乗算する
+ * (elite / miniboss は対象外)。 `enemy.atk` 自体は mutate しない (読み取り時の乗算のみ)。
+ *
+ * @param enemy               対象の敵
+ * @param waveElapsedMs       現在の wave 内経過 ms (= enemy.spawnedAtMs と同じ基準)
+ */
+export function getEffectiveEnemyAtk(enemy: SpawnedEnemy, waveElapsedMs: number): BigNum {
+  if (enemy.kind !== 'boss') return enemy.atk;
+  const elapsedSecSinceSpawn = (waveElapsedMs - enemy.spawnedAtMs) / 1000;
+  return applyBossEnrageToAtk(enemy.atk, elapsedSecSinceSpawn);
+}
 
 /**
  * 敵接触時のノックバック距離 (%)。 マシン中心から離れる方向に enemy.position をこの値だけ押し戻す。
@@ -423,6 +495,23 @@ export function calcIntervalTicks(
   const ticks = Math.floor(next / thresholdMs);
   const nextAccumulatorMs = next - ticks * thresholdMs;
   return { ticks, nextAccumulatorMs };
+}
+
+// gameover (machineHp=0) のフレームで heal 適用が同時に成立すると、
+// heal で復活してゲームオーバーがキャンセルされてしまう。 isZero ガードで防ぐ。
+// onWaveClear heal (v1.4.9) と同じ意図・同じ書き方を onKill heal にも適用する。
+export function shouldApplyMachineHeal(healAmount: BigNum, machineHp: BigNum): boolean {
+  return !healAmount.isZero() && !machineHp.isZero();
+}
+
+/**
+ * v1.5.0 (レビュー対応): このフレームでバリア (damageImmune) 関連の処理
+ * (newContactIds 配列 / Array.from / stepBarrierEpisodes) を行う必要があるかを判定する。
+ * damageImmune 未装着 (barrierCapacity<=0) かつ 無効化中エピソードも残っていなければ
+ * バリアはこのフレームに一切関与しないため、 v1.4.8 相当の軽量フロー (即 DPS 加算) にできる。
+ */
+export function isBarrierActive(barrierCapacity: number, immunizedIdsSize: number): boolean {
+  return barrierCapacity > 0 || immunizedIdsSize > 0;
 }
 
 // 射程は武器別マップ (WEAPON_RANGE_PCT) で管理。
@@ -554,6 +643,19 @@ export function useBattleLoop({
   const lastFrameMsRef = useRef<number>(0);
   const waveElapsedMsRef = useRef<number>(0);
   const prevWaveElapsedMsRef = useRef<number>(0);
+  /**
+   * v1.5.0（Wave クォータ制）: 現 wave でこれまでに湧いた「通常敵」の累積数。
+   * getSpawnsAtTime の戻り値から集計する。 wave 切替のたびに 0 にリセットする
+   * (decideTransitionReset の resetElapsed ブロックで waveElapsedMsRef と併せてリセット)。
+   * boss wave (W30) ではクォータ制の対象外のため参照しない。
+   */
+  const waveSpawnedNormalCountRef = useRef<number>(0);
+  /**
+   * v1.5.0（Wave クォータ制）: 現 wave の上位敵（elite/miniboss/boss）が
+   * 既に湧いたか。 getSpawnsAtTime の戻り値に該当 kind が含まれたら true にする。
+   * wave 切替のたびに false にリセットする。
+   */
+  const waveUpperSpawnedRef = useRef<boolean>(false);
   const enemiesRef = useRef<SpawnedEnemy[]>([]);
   // v1.4.0: 手動タップ攻撃の pending キュー。 enqueueTap() でインクリメントされ、 tick で消費される。
   const pendingTapCountRef = useRef<number>(0);
@@ -599,6 +701,14 @@ export function useBattleLoop({
    * (GC 圧削減)。 詳細は tick 内の接触判定コメント参照。
    */
   const newContactSetRef = useRef<Set<string>>(new Set());
+  /**
+   * v1.5.0: ダメージバリア (damageImmune) の「無効化中エピソード」 集合。
+   * 新規接触フレームでバリアを 1 枚消費した敵の id を保持し、 接触が続く間はその敵の
+   * 接触ダメージを totalReceived に加算しない (ノックバックは通常どおり適用)。
+   * 敵が接触圏から離れたら stepBarrierEpisodes が集合から除去する。
+   * 純粋関数 (barrier.ts) の入出力を tick を跨いで保持するための ref。
+   */
+  const barrierImmunizedIdsRef = useRef<Set<string>>(new Set());
   /**
    * v1.4.8: 敵スプライト描画キャップ (MAX_RENDERED_ENEMIES) 用、 前回可視集合再計算時刻
    * (performance.now())。 VISIBLE_ENEMY_RECALC_INTERVAL_MS 未満なら選定をスキップし、
@@ -824,11 +934,21 @@ export function useBattleLoop({
     if (reset.resetElapsed) {
       waveElapsedMsRef.current = 0;
       prevWaveElapsedMsRef.current = 0;
+      // v1.5.0（Wave クォータ制）: 新しい wave の湧き累積カウンタをリセット。
+      waveSpawnedNormalCountRef.current = 0;
+      waveUpperSpawnedRef.current = false;
       // v1.3.7 (Phase 5): React state 廃止に伴い entityStore に直接書き込む。
       // notifyFrame は同 useEffect 末尾で呼ばれないため、 ここではブロードキャストせず
       // 次フレームの tick 末尾の notifyFrame でまとめて配信される (= ラン開始直後は
       // tick が即時に再 sync するので 1 フレームのラグも実害なし)。
       entityStore.setWaveElapsedSec(0);
+      // v1.5.0: Wave 進行 (advanceWave / advanceTier) のたびにバリアを全充填する
+      // (design-docs/15-balance-v1.5.0.md §1.2 damageImmune「Wave クリアで全充填」)。
+      // damageImmune 未装着なら getBarrierCapacity が 0 を返し barrierStock も 0 のまま。
+      useStore.getState().refillBarrier(getBarrierCapacity(equippedPatchesArrRef.current));
+      // バリア無効化中エピソード集合も Wave 進行のたびにクリアする
+      // (旧 Wave の接触エピソードを新 Wave に持ち越さない)。
+      barrierImmunizedIdsRef.current.clear();
     }
     if (reset.resetEnemies) {
       enemiesRef.current = [];
@@ -900,6 +1020,12 @@ export function useBattleLoop({
       prevContactSetRef.current.clear();
       newContactSetRef.current.clear();
       lastVisibleRecalcMsRef.current = 0;
+      // v1.5.0（Wave クォータ制）: ラン開始時に湧き累積カウンタもリセット
+      waveSpawnedNormalCountRef.current = 0;
+      waveUpperSpawnedRef.current = false;
+      // v1.5.0: ラン開始時にバリアを容量まで充填 + 無効化中エピソード集合をクリア
+      useStore.getState().refillBarrier(getBarrierCapacity(equippedPatchesArrRef.current));
+      barrierImmunizedIdsRef.current.clear();
     }
   }, [isRunActive, entityStore]);
 
@@ -1223,6 +1349,16 @@ export function useBattleLoop({
         // ---- 装着パッチ配列 (v1.3.6: ref キャッシュから読む。 Map 参照が変化したときだけ rebuild) ----
         const equippedPatchesArr: EquippedPatch[] = equippedPatchesArrRef.current;
 
+        // ---- v1.5.0: パッシブ倍率 (shieldRegen / boltCast / freezeHit) を tick 冒頭で 1 度だけ算出 ----
+        // 装着パッチ配列が変わらない限り毎フレーム同じ値なので、 tick 内の複数箇所で使い回す。
+        const shieldRegenMul = getShieldRegenMultiplier(equippedPatchesArr);
+        const boltGainPatchMul = getBoltGainMultiplier(equippedPatchesArr);
+        const frozenDamageBonusMul = getFrozenDamageBonusMul(equippedPatchesArr);
+
+        // ---- v1.5.0: instantKill のオーバーフロー分 (extraInstantKills) を tick 内で集計する ----
+        // 撃破処理の直前に「フィールド上の生存 normal 敵からランダムに N 体」即死させる。
+        let pendingExtraInstantKills = 0;
+
         // ---- interval パッチトリガー ----
         {
           const { ticks, nextAccumulatorMs } = calcIntervalTicks(
@@ -1270,6 +1406,11 @@ export function useBattleLoop({
 
         const schedule = tierWaves[state.currentWave - 1];
         if (schedule != null) {
+          const isBossWave = schedule.eliteKind === 'boss';
+          // v1.5.0（Wave クォータ制）: 「場に生存敵が 0」 かを spawn 計算に渡し、 撃破連鎖の
+          // 前倒し湧きを判定する。 boss wave はクォータ制の適用外なので常に false を渡す
+          // (getSpawnsAtTime 側でも boss wave は無視するが、 二重に安全側へ倒す)。
+          const fieldEmptyForSpawn = !isBossWave && enemiesRef.current.length === 0;
           // 敵 spawn
           const newSpawns = getSpawnsAtTime(
             schedule,
@@ -1281,9 +1422,26 @@ export function useBattleLoop({
               return `e-${state.currentTier}-${state.currentWave}-${enemyIdCounterRef.current}`;
             },
             // v1.3.1: boss wave 中のボス HP 60% フラグ。 null の間はボス出現後の雑魚 0、
-            // 値が入ったらそこから通常頻度で雑魚再開。 詳細は wave.ts countBossNormalSpawns。
-            state.bossWeakenedAtMs
+            // 値が入ったらそこから半頻度 (v1.5.0) で雑魚再開。 詳細は wave.ts countBossNormalSpawns。
+            state.bossWeakenedAtMs,
+            fieldEmptyForSpawn,
+            // v1.5.0（Wave クォータ制）: 実際に湧いた累積数と上位敵の湧き済みフラグを渡す。
+            // 前倒し湧きの二重カウント防止と、 上位敵の前倒し判定 (実クォータ基準) に使う。
+            // boss wave では getSpawnsAtTime 側で無視される。
+            waveSpawnedNormalCountRef.current,
+            waveUpperSpawnedRef.current
           );
+          if (!isBossWave) {
+            // v1.5.0（Wave クォータ制）: 湧き累積カウンタを更新（getSpawnsAtTime の
+            // spawnedNormalCount / upperSpawned 入力 + early advance 判定用）。
+            for (const s of newSpawns) {
+              if (s.kind === 'normal') {
+                waveSpawnedNormalCountRef.current += 1;
+              } else {
+                waveUpperSpawnedRef.current = true;
+              }
+            }
+          }
           if (newSpawns.length > 0) {
             // v1.3.7 (Phase 3-B): スプレッドを廃止し push + entityStore.addEnemy に分解。
             // addEnemy で entityStore 側の enemies / enemyById / enemyListVersion がフレーム内
@@ -1441,6 +1599,7 @@ export function useBattleLoop({
                 let freeze = false;
                 let freezeSec: number | undefined;
                 let burnSec: number | undefined;
+                let burnDotFraction: number | undefined;
                 if (target != null) {
                   const effect = evaluatePatches(
                     equippedPatchesArr,
@@ -1450,17 +1609,29 @@ export function useBattleLoop({
                   if (effect.damageMultiplier != null && effect.damageMultiplier !== 1) {
                     damage = damage.mulNumber(effect.damageMultiplier);
                   }
-                  if (effect.extraShot) {
-                    damage = damage.add(hit.damage);
+                  // v1.5.0: extraShots (旧 extraShot) — ダメージを (1 + extraShots) 倍に一般化
+                  if (effect.extraShots != null && effect.extraShots > 0) {
+                    damage = damage.mulNumber(1 + effect.extraShots);
                   }
                   if (effect.instantKill) {
                     damage = target.hp;
                   }
+                  // v1.5.0: instantKill のオーバーフロー分は tick スコープで集計し、
+                  // 撃破処理の直前にフィールド上のランダム normal 敵へまとめて適用する。
+                  if (effect.extraInstantKills != null && effect.extraInstantKills > 0) {
+                    pendingExtraInstantKills += effect.extraInstantKills;
+                  }
+                  // v1.5.0: 凍結中の敵への与ダメ増 (freezeHit の別軸)。 ヒット適用時点で
+                  // 対象が既に凍結中なら乗算する (同 tick で凍結を付与した hit 自体には乗らない)。
+                  if (target.frozenUntilMs != null && target.frozenUntilMs > nowGameMs) {
+                    damage = damage.mulNumber(frozenDamageBonusMul);
+                  }
                   freeze = effect.freeze === true;
                   freezeSec = effect.freezeSec;
                   burnSec = effect.burnSec;
+                  burnDotFraction = effect.burnDotFraction;
                 }
-                return { ...hit, damage, freeze, freezeSec, burnSec };
+                return { ...hit, damage, freeze, freezeSec, burnSec, burnDotFraction };
               });
 
               for (const hit of augmentedHits) {
@@ -1468,20 +1639,16 @@ export function useBattleLoop({
                 if (enemy != null) {
                   enemy.hp = enemy.hp.sub(hit.damage);
                   if (hit.freeze && hit.freezeSec != null && hit.freezeSec > 0) {
-                    const newFrozenUntil = nowGameMs + hit.freezeSec * 1000;
-                    enemy.frozenUntilMs = Math.max(enemy.frozenUntilMs ?? 0, newFrozenUntil);
+                    applyFreezeToEnemy(enemy, hit.freezeSec, nowGameMs);
                   }
-                  if (hit.burnSec != null && hit.burnSec > 0) {
-                    const newBurnUntil = nowGameMs + hit.burnSec * 1000;
-                    const newBurnPerSec = hit.damage.mulNumber(0.3);
-                    const prev = enemy.burnPerSec;
-                    const wasBurning = enemy.burnUntilMs != null;
-                    enemy.burnUntilMs = Math.max(enemy.burnUntilMs ?? 0, newBurnUntil);
-                    enemy.burnPerSec =
-                      prev != null && prev.gt(newBurnPerSec) ? prev : newBurnPerSec;
-                    if (!wasBurning) {
-                      enemy.burnAccumulatorMs = 0;
-                    }
+                  if (hit.burnSec != null && hit.burnSec > 0 && hit.burnDotFraction != null) {
+                    applyBurnToEnemy(
+                      enemy,
+                      hit.burnSec,
+                      hit.burnDotFraction,
+                      hit.damage,
+                      nowGameMs
+                    );
                   }
                   entityStore.markEnemyStatusChanged(enemy.id);
                 }
@@ -1633,6 +1800,7 @@ export function useBattleLoop({
                         freeze: false as const,
                         freezeSec: undefined as number | undefined,
                         burnSec: undefined as number | undefined,
+                        burnDotFraction: undefined as number | undefined,
                       };
                     }
                     const effect = evaluatePatches(
@@ -1644,13 +1812,26 @@ export function useBattleLoop({
                     if (effect.damageMultiplier != null && effect.damageMultiplier !== 1) {
                       finalDamage = finalDamage.mulNumber(effect.damageMultiplier);
                     }
-                    if (effect.extraShot) {
-                      // 簡略実装: 2 発相当の合計ダメージ
-                      finalDamage = finalDamage.add(hit.damage);
+                    // v1.5.0: extraShots (旧 extraShot) — ダメージを (1 + extraShots) 倍に一般化
+                    if (effect.extraShots != null && effect.extraShots > 0) {
+                      finalDamage = finalDamage.mulNumber(1 + effect.extraShots);
                     }
                     if (effect.instantKill) {
                       // 雑魚を即死させる: 敵 HP 以上のダメージで上書き
                       finalDamage = targetEnemy.hp;
+                    }
+                    // v1.5.0: instantKill のオーバーフロー分は tick スコープで集計し、
+                    // 撃破処理の直前にフィールド上のランダム normal 敵へまとめて適用する。
+                    if (effect.extraInstantKills != null && effect.extraInstantKills > 0) {
+                      pendingExtraInstantKills += effect.extraInstantKills;
+                    }
+                    // v1.5.0: 凍結中の敵への与ダメ増 (freezeHit の別軸)。 ヒット適用時点で
+                    // 対象が既に凍結中なら乗算する (同 tick で凍結を付与した hit 自体には乗らない)。
+                    if (
+                      targetEnemy.frozenUntilMs != null &&
+                      targetEnemy.frozenUntilMs > nowGameMs
+                    ) {
+                      finalDamage = finalDamage.mulNumber(frozenDamageBonusMul);
                     }
                     // Laser 上位敵バフ (v1.2.0): 装備武器が Laser かつ ターゲットが
                     // elite/miniboss/boss なら、 最終ダメに LASER_UPPER_ENEMY_BONUS (= ×2.0)。
@@ -1664,6 +1845,7 @@ export function useBattleLoop({
                       freeze: effect.freeze === true,
                       freezeSec: effect.freezeSec,
                       burnSec: effect.burnSec,
+                      burnDotFraction: effect.burnDotFraction,
                     };
                   });
 
@@ -1681,26 +1863,20 @@ export function useBattleLoop({
                         if (hit.thunderStackAfter != null) {
                           enemy.thunderStacks = hit.thunderStackAfter;
                         }
-                        // 凍結付与: 既存があれば長い方を採用
+                        // 凍結付与 (v1.5.0: 免疫判定込み。 重ねがけ不可 = 常に新規上書き)
                         if (hit.freeze && hit.freezeSec != null && hit.freezeSec > 0) {
-                          const newFrozenUntil = nowGameMs + hit.freezeSec * 1000;
-                          enemy.frozenUntilMs = Math.max(enemy.frozenUntilMs ?? 0, newFrozenUntil);
+                          applyFreezeToEnemy(enemy, hit.freezeSec, nowGameMs);
                         }
-                        // 燃焼付与: 期限は長い方、 burnPerSec は強い方
-                        if (hit.burnSec != null && hit.burnSec > 0) {
-                          const newBurnUntil = nowGameMs + hit.burnSec * 1000;
-                          const newBurnPerSec = hit.damage.mulNumber(0.3);
-                          const prevBurnPerSec = enemy.burnPerSec;
-                          const wasBurning = enemy.burnUntilMs != null;
-                          enemy.burnUntilMs = Math.max(enemy.burnUntilMs ?? 0, newBurnUntil);
-                          enemy.burnPerSec =
-                            prevBurnPerSec != null && prevBurnPerSec.gt(newBurnPerSec)
-                              ? prevBurnPerSec
-                              : newBurnPerSec;
-                          // 新規燃焼開始時のみ accumulator を 0 リセット
-                          if (!wasBurning) {
-                            enemy.burnAccumulatorMs = 0;
-                          }
+                        // 燃焼付与: 期限は長い方、 burnPerSec は強い方 (v1.5.0: DoT 係数は
+                        // burnHit の burnDotFraction を使う)
+                        if (hit.burnSec != null && hit.burnSec > 0 && hit.burnDotFraction != null) {
+                          applyBurnToEnemy(
+                            enemy,
+                            hit.burnSec,
+                            hit.burnDotFraction,
+                            hit.damage,
+                            nowGameMs
+                          );
                         }
                         entityStore.markEnemyStatusChanged(enemy.id);
                       }
@@ -1867,6 +2043,26 @@ export function useBattleLoop({
             ) as ProjectileEvent[];
           }
 
+          // ---- v1.5.0: instantKill オーバーフロー分の追加即死 (extraInstantKills) ----
+          // フィールド上の生存 normal 敵からランダムに pendingExtraInstantKills 体を選んで
+          // HP を 0 に上書きする (即死)。 撃破処理ループ (HP<=0 判定) より前に適用することで
+          // 同フレーム内の onKill / 報酬 / ドロップ処理にそのまま乗る。
+          if (pendingExtraInstantKills > 0) {
+            const aliveNormals = enemiesRef.current.filter(
+              (e) => e.kind === 'normal' && e.hp.gt(BigNum.ZERO)
+            );
+            // Fisher-Yates 風に必要数だけシャッフルして先頭 N 体を選ぶ (全体ソート不要)
+            for (let i = 0; i < aliveNormals.length && i < pendingExtraInstantKills; i++) {
+              const swapIdx = i + Math.floor(Math.random() * (aliveNormals.length - i));
+              const tmp = aliveNormals[i]!;
+              aliveNormals[i] = aliveNormals[swapIdx]!;
+              aliveNormals[swapIdx] = tmp;
+              const target = aliveNormals[i]!;
+              target.hp = BigNum.ZERO;
+              entityStore.markEnemyStatusChanged(target.id);
+            }
+          }
+
           // ---- 撃破処理 (HP <= 0) + onKill / onDropRoll パッチ評価 + 報酬獲得 + 各 Event ----
           // machineLevels 由来の倍率は 1 フレーム中変化しないので、 撃破ループ前に 1 度だけ
           // calcEffectValue を呼んで O(4N) → O(4) にキャッシュする (敵 N 体撃破時の発熱対策)。
@@ -1908,9 +2104,11 @@ export function useBattleLoop({
               });
 
               // --- onKill パッチ評価 (killHeal の heal を集計) ---
+              // v1.5.0: killHeal は「現在のリジェネ/秒 × 0.2 × T」を回復する仕様に変更されたため、
+              // trigger payload に現在の hpRegen (BigNum、素の値。 shieldRegen 倍率は掛けない) を渡す。
               const killEffect = evaluatePatches(
                 equippedPatchesArr,
-                { type: 'onKill', enemyKind: enemy.kind },
+                { type: 'onKill', enemyKind: enemy.kind, hpRegen: machineTick.hpRegen },
                 Math.random
               );
               if (killEffect.heal != null) {
@@ -1940,14 +2138,18 @@ export function useBattleLoop({
                 );
               }
 
-              // --- ボルト (bolt): 通常敵は 50% 確率、 上位敵は 100% + boltGainMul ---
+              // --- ボルト (bolt): 通常敵は 50% 確率、 上位敵は 100% + boltGainMul + boltGainPatchMul ---
+              // v1.5.0: boltCast がパッシブ化 (常時 ×(1 + 0.02×T)) されたため、 マシン強化の
+              // boltGainMul と乗算で重ねがけする (design-docs/15-balance-v1.5.0.md §1.2)。
               const baseBolt = enemy.reward.bolt;
               if (baseBolt > 0) {
                 const boltDropRoll =
                   enemy.kind === 'normal' ? Math.random() < NORMAL_BOLT_DROP_CHANCE : true;
                 if (boltDropRoll) {
                   const scaledBolt = scaledReward(baseBolt, state.currentTier);
-                  earnedBolt = earnedBolt.add(BigNum.fromNumber(scaledBolt * boltGainMul));
+                  earnedBolt = earnedBolt.add(
+                    BigNum.fromNumber(scaledBolt * boltGainMul * boltGainPatchMul)
+                  );
                 }
               }
 
@@ -2002,8 +2204,10 @@ export function useBattleLoop({
           if (killedThisFrame > 0) {
             setKillCount((c) => c + killedThisFrame);
           }
-          // onKill heal を機体 HP に加算 (atomic、 同 tick 内の他の更新と競合しない)
-          if (!totalKillHeal.isZero()) {
+          // onKill heal を機体 HP に加算 (atomic、 同 tick 内の他の更新と競合しない)。
+          // v1.5.0: 撃破と同時に machineHp が 0 になったフレームで heal してしまうと
+          // ゲームオーバーが復活でキャンセルされるため、 onWaveClear heal と同じ isZero ガードを適用する。
+          if (shouldApplyMachineHeal(totalKillHeal, useStore.getState().machineHp)) {
             state.addMachineHp(totalKillHeal);
           }
           if (newDeathEvents.length > 0) {
@@ -2050,55 +2254,111 @@ export function useBattleLoop({
           // ブロック内で読み書きが完結し、 tick 外に持ち出されない)。
           const writeContactSet = newContactSetRef.current;
           writeContactSet.clear();
+          // v1.5.0 (レビュー対応): damageImmune 未装着 (barrierStock を消費するエピソードが
+          // 存在しない) 時にまで、 毎 tick `newContactIds` 配列 / `Array.from(writeContactSet)`
+          // / stepBarrierEpisodes (内部で Set×2 生成) を走らせるのは v1.4.8 の GC 圧削減方針に
+          // 逆行する。 barrierActive を tick 先頭で 1 度だけ算出し、 false のときは v1.4.8 相当の
+          // 旧フロー (新規接触の敵もループ内で即 DPS 加算) にフォールバックする。
+          const barrierActive = isBarrierActive(
+            getBarrierCapacity(equippedPatchesArr),
+            barrierImmunizedIdsRef.current.size
+          );
+          // v1.5.0: バリア (damageImmune) 用に「今フレーム新規接触した敵 id」 を集める。
+          // stepBarrierEpisodes に渡して、 新規接触エピソードごとに 1 枚消費する。
+          // barrierActive=false のときは使わない (常に空のまま)。
+          const newContactIds: string[] = [];
+          // 「バリア判定より前の無効化中集合」 を固定参照しておく (継続接触の判定に使う)。
+          // stepBarrierEpisodes は新規消費後の Set を返すため、 継続接触の要否判定は
+          // 消費が起きる前のスナップショットで行う必要がある。
+          const immunizedBeforeStep = barrierImmunizedIdsRef.current;
           for (const enemy of enemiesRef.current) {
             const dist = distanceFromMachine(enemy.position);
             if (dist > MELEE_CONTACT_RANGE) {
               continue;
             }
-            // 接触中: DPS 加算
-            const dmgPerSec = calcReceivedDamage(enemy.atk, machineStats);
-            totalReceived = totalReceived.add(dmgPerSec.mulNumber(deltaSec));
             writeContactSet.add(enemy.id);
-            // 継続接触はノックバックなし (毎フレーム押し戻すと不自然なため)
-            if (prevContactSetRef.current.has(enemy.id)) {
+            const isNewContact = !prevContactSetRef.current.has(enemy.id);
+            if (isNewContact) {
+              // v1.3.1: 新規接触時、 敵 kind に応じたノックバック距離で押し戻す
+              // (normal 5% / elite 6% / miniboss 7.5% / boss 10%)
+              const kbDistance = KNOCKBACK_DISTANCE_PCT_BY_KIND[enemy.kind];
+              const newPos = applyKnockback(
+                enemy.position,
+                { x: MACHINE_CENTER_X, y: MACHINE_CENTER_Y },
+                kbDistance
+              );
+              enemy.position.x = newPos.x;
+              enemy.position.y = newPos.y;
+              entityStore.markEnemyMoved(enemy.id);
+              if (!barrierActive) {
+                // v1.4.8 相当の旧フロー: バリアが無関係なので新規接触フレームでも即 DPS 加算する。
+                const dmgPerSec = calcReceivedDamage(
+                  getEffectiveEnemyAtk(enemy, waveElapsedMsRef.current),
+                  machineStats
+                );
+                totalReceived = totalReceived.add(dmgPerSec.mulNumber(deltaSec));
+                continue;
+              }
+              newContactIds.push(enemy.id);
+              // 新規接触フレームの DPS 加算はバリア消費判定 (下記) の結果を見てから決める。
               continue;
             }
-            // v1.3.1: 新規接触時、 敵 kind に応じたノックバック距離で押し戻す
-            // (normal 5% / elite 6% / miniboss 7.5% / boss 10%)
-            const kbDistance = KNOCKBACK_DISTANCE_PCT_BY_KIND[enemy.kind];
-            const newPos = applyKnockback(
-              enemy.position,
-              { x: MACHINE_CENTER_X, y: MACHINE_CENTER_Y },
-              kbDistance
+            // 継続接触: 既に無効化中エピソードに入っている敵はダメージを加算しない
+            // (ノックバックは新規接触時のみなのでここでは適用しない)。
+            if (immunizedBeforeStep.has(enemy.id)) {
+              continue;
+            }
+            const dmgPerSec = calcReceivedDamage(
+              getEffectiveEnemyAtk(enemy, waveElapsedMsRef.current),
+              machineStats
             );
-            enemy.position.x = newPos.x;
-            enemy.position.y = newPos.y;
-            entityStore.markEnemyMoved(enemy.id);
+            totalReceived = totalReceived.add(dmgPerSec.mulNumber(deltaSec));
           }
+
+          if (barrierActive) {
+            // v1.5.0: バリアエピソードの状態遷移をまとめて計算 (純粋関数、 game/patches/barrier.ts)。
+            // 新規接触した敵ごとにバリアを 1 枚消費し、 無効化中エピソード集合に追加する。
+            // 無効化中の敵は接触ダメージを加算しない (ノックバックは通常どおり適用済み)。
+            const currentContactIds = Array.from(writeContactSet);
+            const barrierStep = stepBarrierEpisodes({
+              newContactIds,
+              currentContactIds,
+              barrierStock: useStore.getState().barrierStock,
+              immunizedIds: immunizedBeforeStep,
+            });
+            if (barrierStep.nextBarrierStock !== useStore.getState().barrierStock) {
+              useStore.getState().setBarrierStock(barrierStep.nextBarrierStock);
+            }
+            barrierImmunizedIdsRef.current = barrierStep.nextImmunizedIds;
+
+            // 新規接触した敵のうち、 バリアで無効化されなかった敵の DPS を加算する。
+            for (const id of newContactIds) {
+              if (barrierImmunizedIdsRef.current.has(id)) continue;
+              const enemy = entityStore.getEnemyById(id);
+              if (enemy == null) continue;
+              const dmgPerSec = calcReceivedDamage(
+                getEffectiveEnemyAtk(enemy, waveElapsedMsRef.current),
+                machineStats
+              );
+              totalReceived = totalReceived.add(dmgPerSec.mulNumber(deltaSec));
+            }
+          }
+
           // swap: 今フレーム書いた集合が次フレームの「前フレーム集合」 になり、
           // 前フレーム集合だった方 (もう不要) が次フレームの書き込み先として再利用される。
           newContactSetRef.current = prevContactSetRef.current;
           prevContactSetRef.current = writeContactSet;
           if (!totalReceived.isZero()) {
-            // onHit パッチ評価 (damageImmune で overrideReceivedDamage = 0 になる可能性)
-            const hitEffect = evaluatePatches(
-              equippedPatchesArr,
-              { type: 'onHit', receivedDamage: totalReceived },
-              Math.random
-            );
-            const actualReceived = hitEffect.overrideReceivedDamage ?? totalReceived;
-            if (!actualReceived.isZero()) {
-              const hpBefore = state.machineHp;
-              state.damageHp(actualReceived);
-              // 被ダメ SE: マシンが落ちたら machineDown / それ以外は machineHit
-              // v1.3.5: スクリーンセーバー中は SE を抑止 (発熱対策)
-              const hpAfter = useStore.getState().machineHp;
-              if (!suspendRenderingRef.current) {
-                if (hpAfter.isZero() && !hpBefore.isZero()) {
-                  soundEngine.play('machineDown');
-                } else {
-                  soundEngine.play('machineHit');
-                }
+            const hpBefore = state.machineHp;
+            state.damageHp(totalReceived);
+            // 被ダメ SE: マシンが落ちたら machineDown / それ以外は machineHit
+            // v1.3.5: スクリーンセーバー中は SE を抑止 (発熱対策)
+            const hpAfter = useStore.getState().machineHp;
+            if (!suspendRenderingRef.current) {
+              if (hpAfter.isZero() && !hpBefore.isZero()) {
+                soundEngine.play('machineDown');
+              } else {
+                soundEngine.play('machineHit');
               }
             }
           }
@@ -2106,6 +2366,7 @@ export function useBattleLoop({
           // ---- HP リジェネ (1 秒ごとに hpRegen 量を加算) ----
           // BigNum は整数しか持てず、 `hpRegen.mulNumber(deltaSec)` は天井丸めで毎フレーム +1
           // (= +60/秒) になってしまう。 そのため 1 秒ごとに 1 回 atomic に加算する方式にする。
+          // v1.5.0: shieldRegen パッシブ倍率 (1 + 0.05×T) を乗算する (BigNum.mulNumber は天井丸め)。
           {
             const { ticks, nextAccumulatorMs } = calcIntervalTicks(
               hpRegenAccumulatorMsRef.current,
@@ -2113,7 +2374,8 @@ export function useBattleLoop({
             );
             hpRegenAccumulatorMsRef.current = nextAccumulatorMs;
             if (ticks > 0 && !useStore.getState().machineHp.isZero()) {
-              state.addMachineHp(machineStats.hpRegen.mulInt(ticks));
+              const regenAmount = machineStats.hpRegen.mulInt(ticks).mulNumber(shieldRegenMul);
+              state.addMachineHp(regenAmount);
             }
           }
 
@@ -2131,32 +2393,40 @@ export function useBattleLoop({
               state.markBossWeakened(waveElapsedMsRef.current);
             }
           }
+          // v1.5.0: ソフトエンレイジ段階を計算し、 前回と変わったときだけ store に反映する
+          // (毎フレーム set しない)。 ボスが居なくなったら 0 に戻す。
+          if (bossEnemy != null) {
+            const elapsedSecSinceSpawn = (waveElapsedMsRef.current - bossEnemy.spawnedAtMs) / 1000;
+            const nextStage = bossEnrageStage(elapsedSecSinceSpawn);
+            if (nextStage !== useStore.getState().bossEnrageStage) {
+              state.setBossEnrageStage(nextStage);
+            }
+          } else if (useStore.getState().bossEnrageStage !== 0) {
+            state.setBossEnrageStage(0);
+          }
+          // v1.5.0（Wave クォータ制、早回し）: 通常 wave で「クォータ N 体 + 該当があれば
+          // 上位敵」が全て湧き切ったか。 boss wave はクォータ制の適用外なので常に false。
+          const allSpawnsDone =
+            !isBossWave &&
+            waveSpawnedNormalCountRef.current >= waveQuota(schedule) &&
+            (schedule.eliteKind === undefined || waveUpperSpawnedRef.current);
+          // v1.5.0: 「場の敵が 0」 は今 tick の撃破処理後の enemiesRef.current で判定する
+          // (前 wave からの持ち越し敵・上位敵を含む)。
+          const fieldEmptyForAdvance = enemiesRef.current.length === 0;
           const decision = decideWaveAdvance(
             waveElapsedMsRef.current,
             schedule.durationSec,
             state.currentWave,
             tierWaves.length,
-            bossAlive
+            bossAlive,
+            allSpawnsDone,
+            fieldEmptyForAdvance
           );
           if (decision === 'advanceWave' || decision === 'advanceTier') {
-            // onWaveClear パッチ評価 (shieldRegen: HP heal、 boltCast: bolt gain)
-            const clearEffect = evaluatePatches(
-              equippedPatchesArr,
-              { type: 'onWaveClear' },
-              Math.random
-            );
-            // gameover (machineHp=0) のフレームで wave クリア判定が同時に成立すると、
-            // heal で復活してゲームオーバーがキャンセルされてしまう。 isZero ガードで防ぐ。
-            if (
-              clearEffect.heal != null &&
-              !clearEffect.heal.isZero() &&
-              !useStore.getState().machineHp.isZero()
-            ) {
-              state.addMachineHp(clearEffect.heal);
-            }
-            if (clearEffect.boltGain != null && !clearEffect.boltGain.isZero()) {
-              state.addBolt(clearEffect.boltGain);
-            }
+            // v1.5.0: shieldRegen / boltCast は常時パッシブ化され、 onWaveClear トリガーで
+            // 発火する効果は無くなった (HP リジェネ倍率 / ボルト獲得倍率として別途適用済み)。
+            // バリア (damageImmune) の全充填は currentTier/currentWave の変化を検知する
+            // useEffect 側で行う (advanceWave/advanceTier の store 更新後に反応するため)。
             if (decision === 'advanceWave') {
               state.advanceWave();
               // v1.3.5: スクリーンセーバー中は SE を抑止 (発熱対策)
@@ -2169,6 +2439,11 @@ export function useBattleLoop({
               //  が「残量 0 近く」で再マウントされ、 バーが満タンに戻らない。)
               waveElapsedMsRef.current = 0;
               prevWaveElapsedMsRef.current = 0;
+              // v1.5.0（Wave クォータ制）: 同フレームで湧き累積カウンタもリセット
+              // (currentWave 変化検知の useEffect でも reset されるが、 同フレームの
+              //  ズレ防止のためここでも即時リセットする)。
+              waveSpawnedNormalCountRef.current = 0;
+              waveUpperSpawnedRef.current = false;
             } else {
               // Tier クリア: state.advanceTier() は呼ばない (= currentTier を勝手に進めない)。
               // 親 (pages/battle) が tierCleared フラグを検知して TierClearFx → ResultDialog の

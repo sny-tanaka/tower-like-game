@@ -1,7 +1,14 @@
 import { describe, it, expect } from 'vitest';
 
 import { TIER_BASE } from './tier';
-import { WAVE_DURATION_SEC, buildTierWaves, getSpawnsAtTime } from './wave';
+import {
+  BOSS_WEAKENED_SPAWN_INTERVAL_MUL,
+  WAVE_DURATION_SEC,
+  buildTierWaves,
+  countBossNormalSpawns,
+  getSpawnsAtTime,
+  waveQuota,
+} from './wave';
 
 // ---------------------------------------------------------------------------
 // buildTierWaves
@@ -170,13 +177,16 @@ describe('getSpawnsAtTime', () => {
 
   it('差分計算: 間隔 1 回分 〜 間隔 2 回分の間に 1 体スポーンする', () => {
     idCounter = 0;
-    const spawns = getSpawnsAtTime(w1, intervalMs * 2, intervalMs, constRng, idGen);
+    // v1.5.0: 非 boss wave の差分基準は prevElapsedMs ではなく「実際に湧いた累積数」
+    // (spawnedNormalCount)。 間隔 1 回分時点で 1 体湧いた状態を渡す。
+    const spawns = getSpawnsAtTime(w1, intervalMs * 2, intervalMs, constRng, idGen, null, false, 1);
     expect(spawns).toHaveLength(1);
   });
 
-  it('差分計算: 同一時刻では敵が出ない', () => {
+  it('差分計算: 湧き済み累積数が時間ベースに追いついていれば敵が出ない', () => {
     idCounter = 0;
-    const spawns = getSpawnsAtTime(w1, intervalMs, intervalMs, constRng, idGen);
+    // 間隔 1 回分の時点で既に 1 体湧いている → 追加スポーンなし
+    const spawns = getSpawnsAtTime(w1, intervalMs, intervalMs, constRng, idGen, null, false, 1);
     expect(spawns).toHaveLength(0);
   });
 
@@ -224,17 +234,16 @@ describe('getSpawnsAtTime', () => {
     expect(normals).toHaveLength(0);
   });
 
-  it('W30: ボス HP 60% を切った後は通常頻度で雑魚スポーン再開 (v1.3.1)', () => {
+  it('W30: ボス HP 60% を切った後は半頻度で雑魚スポーン再開 (v1.3.1、 v1.5.0 で半頻度化)', () => {
     idCounter = 0;
     const w30 = waves[29]!;
     // bossWeakenedAtMs = 30_000 (ボス出現の 5 秒後に HP 60% を切ったと仮定)。
-    // 25.0s → 60.0s: ボス出現後の 35 秒間のうち、 30s〜60s = 30 秒間が通常頻度
-    // (intervalSec = 1.0s)。 floor(30/1) = 30 体湧くはずだが、 累積差分の計算式は
-    // 「current = beforeBoss + floor((60-30)/1)= 25 + 30 = 55」 -
-    // 「prev = beforeBoss + floor((25-30)/1)= 25 + 0 (negative→0) = 25」 = 30 体。
+    // 25.0s → 60.0s: ボス出現後の 35 秒間のうち、 30s〜60s = 30 秒間が半頻度
+    // (intervalSec = 1.0s × BOSS_WEAKENED_SPAWN_INTERVAL_MUL(=2) = 2.0s/体)。
+    // floor(30/2) = 15 体。
     const spawns = getSpawnsAtTime(w30, 60_000, 25_000, constRng, idGen, 30_000);
     const normals = spawns.filter((s) => s.kind === 'normal');
-    expect(normals).toHaveLength(30);
+    expect(normals).toHaveLength(15);
   });
 
   it('W30: ボス出現を跨ぐフレームは「ボス前累積」 のみ反映 (HP 60% まだ切ってない)', () => {
@@ -263,7 +272,18 @@ describe('getSpawnsAtTime', () => {
     idCounter = 0;
     const w29 = waves[28]!; // eliteKind = undefined
     // 25.5s → 26.0s: w30 と同じレンジでも、 W29 では通常敵が湧き続ける
-    const spawns = getSpawnsAtTime(w29, 26_000, 25_500, constRng, idGen);
+    // (時間どおり湧いてきた場合の 25.5s 時点の累積 = floor(25.5/interval) = 24 体)
+    const spawnedAt25_5 = Math.floor(25.5 / w29.spawnIntervalSec);
+    const spawns = getSpawnsAtTime(
+      w29,
+      26_000,
+      25_500,
+      constRng,
+      idGen,
+      null,
+      false,
+      spawnedAt25_5
+    );
     const normals = spawns.filter((s) => s.kind === 'normal');
     expect(normals.length).toBeGreaterThan(0);
   });
@@ -274,5 +294,268 @@ describe('getSpawnsAtTime', () => {
     const ids = spawns.map((s) => s.id);
     const uniqueIds = new Set(ids);
     expect(uniqueIds.size).toBe(ids.length);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// waveQuota (v1.5.0: Wave クォータ制)
+// ---------------------------------------------------------------------------
+
+describe('waveQuota', () => {
+  it('W1〜W29 の全 wave で、 現行の 26 秒間の総湧き数と一致する', () => {
+    // 「現行の 26 秒間の総湧き数」 は旧実装と同じ Math.floor(durationSec / spawnIntervalSec)
+    // で計算できる (= 現行 pull モデルで 26 秒まで進めたときの累積値)。 これを複数 tier /
+    // 複数 wave で実測し、 waveQuota の戻り値と突き合わせる。
+    for (const tier of [1, 3, 10]) {
+      const waves = buildTierWaves(tier);
+      for (let i = 0; i < 29; i++) {
+        const schedule = waves[i]!;
+        const legacyTotal = Math.floor(schedule.durationSec / schedule.spawnIntervalSec);
+        expect(waveQuota(schedule)).toBe(legacyTotal);
+      }
+    }
+  });
+
+  it('W1 のクォータは 13 体 (26 / 2.0)', () => {
+    const waves = buildTierWaves(1);
+    expect(waveQuota(waves[0]!)).toBe(13);
+  });
+
+  it('実際に getSpawnsAtTime を 26 秒分回して集計した総数と waveQuota が一致する (W1〜W29)', () => {
+    // fieldEmpty=false (現行と同一挙動) で、 0〜26 秒を 100ms 刻みで進めて集計する。
+    // 実ループと同様に「湧いた累積数」 (spawnedNormalCount) を tick を跨いで渡す。
+    const rng = () => 0.3;
+    let idCounter = 0;
+    const idGen = () => `e-${++idCounter}`;
+    const waves = buildTierWaves(1);
+    for (let i = 0; i < 29; i++) {
+      const schedule = waves[i]!;
+      idCounter = 0;
+      let prevMs = 0;
+      let total = 0;
+      for (let ms = 100; ms <= 26_000; ms += 100) {
+        const spawns = getSpawnsAtTime(schedule, ms, prevMs, rng, idGen, null, false, total);
+        total += spawns.filter((s) => s.kind === 'normal').length;
+        prevMs = ms;
+      }
+      expect(total).toBe(waveQuota(schedule));
+    }
+  });
+});
+
+// ---------------------------------------------------------------------------
+// getSpawnsAtTime: クォータキャップ / 撃破連鎖の前倒し湧き (v1.5.0)
+// ---------------------------------------------------------------------------
+
+describe('getSpawnsAtTime (v1.5.0 Wave クォータ制)', () => {
+  const waves = buildTierWaves(1);
+  const w1 = waves[0]!;
+  const intervalMs = TIER_BASE.SPAWN_INTERVAL * 1000; // W1: 2000ms/体
+  const constRng = () => 0.3;
+  let idCounter = 0;
+  const idGen = () => `enemy-${++idCounter}`;
+
+  it('時間ベースの湧きはクォータ (13 体) でキャップされる (fieldEmpty=false)', () => {
+    idCounter = 0;
+    const quota = waveQuota(w1); // 13
+    // durationSec(26s) を大幅に超える elapsedMs を渡しても quota を超えない
+    const spawns = getSpawnsAtTime(w1, 60_000, 0, constRng, idGen, null, false);
+    const normals = spawns.filter((s) => s.kind === 'normal');
+    expect(normals).toHaveLength(quota);
+  });
+
+  it('fieldEmpty=false のときは現行と完全に同一挙動 (キャップ前の範囲で)', () => {
+    idCounter = 0;
+    // 0 〜 intervalMs (2000ms) の間に 1 体だけスポーンする (現行どおり)
+    const spawns = getSpawnsAtTime(w1, intervalMs, 0, constRng, idGen, null, false);
+    expect(spawns.filter((s) => s.kind === 'normal')).toHaveLength(1);
+  });
+
+  it('fieldEmpty=true でクォータ未消化なら、 時間ベース数 + 1 体が前倒しで湧く', () => {
+    idCounter = 0;
+    // 経過 500ms (通常は 0 体) でも fieldEmpty=true なら 1 体前倒しで湧く
+    const spawns = getSpawnsAtTime(w1, 500, 0, constRng, idGen, null, true);
+    expect(spawns.filter((s) => s.kind === 'normal')).toHaveLength(1);
+  });
+
+  it('fieldEmpty=true でも 1 tick に前倒しで湧くのは 1 体のみ (spawnedNormalCount + 1 を超えない)', () => {
+    idCounter = 0;
+    // 時間どおり 3 体湧いた直後 (spawned=3、 t=intervalMs*3) に場が空になったケース。
+    // 前倒しは spawned+1 = 4 体目の 1 体だけ。
+    const spawns = getSpawnsAtTime(
+      w1,
+      intervalMs * 3,
+      intervalMs * 3,
+      constRng,
+      idGen,
+      null,
+      true,
+      3
+    );
+    expect(spawns.filter((s) => s.kind === 'normal')).toHaveLength(1);
+  });
+
+  it('fieldEmpty=true でもクォータ (13 体) を超えて前倒しされない', () => {
+    idCounter = 0;
+    const quota = waveQuota(w1);
+    // 実クォータ全量を湧き切った後は、 fieldEmpty=true でも追加で湧かない
+    const spawns = getSpawnsAtTime(w1, 60_000, 59_900, constRng, idGen, null, true, quota);
+    expect(spawns.filter((s) => s.kind === 'normal')).toHaveLength(0);
+  });
+
+  it('前倒し分は spawnedNormalCount に記憶され、 時間ベースの増分として二重に湧かない', () => {
+    idCounter = 0;
+    // 1 tick目: fieldEmpty=true で 1 体前倒し (t=500ms, 時間ベースなら 0 体)
+    const first = getSpawnsAtTime(w1, 500, 0, constRng, idGen, null, true, 0);
+    expect(first.filter((s) => s.kind === 'normal')).toHaveLength(1);
+    // 2 tick目: t=2000ms (時間ベース 1 体目の時刻)。 前倒し分が累積 (spawned=1) に
+    // 反映されているため、 時間ベースの 1 体目としては湧かない (target=max(1,1)=1)。
+    const second = getSpawnsAtTime(w1, 2000, 500, constRng, idGen, null, false, 1);
+    expect(second.filter((s) => s.kind === 'normal')).toHaveLength(0);
+  });
+
+  // --- 上位敵の前倒し湧き (W5) ---
+  const w5 = waves[4]!; // eliteKind = 'elite'
+  const quotaW5 = waveQuota(w5);
+
+  it('W5: 実クォータ全滅済み (spawned=quota, fieldEmpty=true) なら 25 秒より前でもエリートが湧く', () => {
+    idCounter = 0;
+    const spawns = getSpawnsAtTime(w5, 15_000, 14_900, constRng, idGen, null, true, quotaW5);
+    const elites = spawns.filter((s) => s.kind === 'elite');
+    expect(elites).toHaveLength(1);
+  });
+
+  it('W5: 実クォータ未消化 (spawned=quota-1) なら fieldEmpty=true でもエリートは湧かない', () => {
+    idCounter = 0;
+    const spawns = getSpawnsAtTime(w5, 15_000, 14_900, constRng, idGen, null, true, quotaW5 - 1);
+    const elites = spawns.filter((s) => s.kind === 'elite');
+    expect(elites).toHaveLength(0);
+  });
+
+  it('W5: 通常どおり 25 秒経過でエリートが湧く (間に合わなかった場合、 fieldEmpty=false)', () => {
+    idCounter = 0;
+    const spawns = getSpawnsAtTime(w5, 25_100, 24_900, constRng, idGen, null, false);
+    const elites = spawns.filter((s) => s.kind === 'elite');
+    expect(elites).toHaveLength(1);
+  });
+
+  it('W5: upperSpawned=true なら 25 秒跨ぎでも重複して湧かない (前倒し湧き後の時間経過)', () => {
+    idCounter = 0;
+    // 前倒しでエリートが湧いた後、 wave が 25 秒まで長引いたケース。
+    // upperSpawned=true が渡されるため時刻跨ぎでも二重スポーンしない。
+    const spawns = getSpawnsAtTime(w5, 25_100, 24_900, constRng, idGen, null, false, quotaW5, true);
+    const elites = spawns.filter((s) => s.kind === 'elite');
+    expect(elites).toHaveLength(0);
+  });
+
+  it('W5: upperSpawned=true なら fieldEmpty=true でも前倒し条件で重複しない', () => {
+    idCounter = 0;
+    // 前倒しエリートを即撃破 → 場が空、 という tick でも再スポーンしない
+    // (実ループではこの tick の進行判定で advanceWave するので通常は到達しないが、 防衛的に保証)
+    const spawns = getSpawnsAtTime(w5, 15_100, 15_000, constRng, idGen, null, true, quotaW5, true);
+    const elites = spawns.filter((s) => s.kind === 'elite');
+    expect(elites).toHaveLength(0);
+  });
+
+  // --- boss wave (W30) はクォータ制の適用外 ---
+  const w30 = waves[29]!;
+
+  it('W30: fieldEmpty=true を渡してもクォータ制は適用されない (現行の連続湧きロジック維持)', () => {
+    idCounter = 0;
+    // ボス出現前 (0〜25s) は fieldEmpty の有無に関わらず通常テンポで湧き続ける
+    // (クォータでキャップされない = W30 の湧き数は quota(=waveQuota) を上回りうる)
+    const spawnsEmptyTrue = getSpawnsAtTime(w30, 25_000, 0, constRng, idGen, null, true);
+    idCounter = 0;
+    const spawnsEmptyFalse = getSpawnsAtTime(w30, 25_000, 0, constRng, idGen, null, false);
+    const normalsTrue = spawnsEmptyTrue.filter((s) => s.kind === 'normal').length;
+    const normalsFalse = spawnsEmptyFalse.filter((s) => s.kind === 'normal').length;
+    expect(normalsTrue).toBe(normalsFalse);
+  });
+
+  it('W30: fieldEmpty=true でもボスは 25 秒前には湧かない (boss wave は前倒し対象外)', () => {
+    idCounter = 0;
+    const spawns = getSpawnsAtTime(w30, 20_000, 19_900, constRng, idGen, null, true);
+    expect(spawns.filter((s) => s.kind === 'boss')).toHaveLength(0);
+  });
+
+  // --- ディレクターレビュー指摘の回帰テスト ---
+
+  it('回帰 (不具合1): 前倒し湧きが累積に記憶され、 26 秒まで進めても総湧き数がちょうど quota になる', () => {
+    // 再現シナリオ: Wave 開始直後に前倒しで数体湧く (fieldEmpty=true が数 tick 続く)
+    // → その後 fieldEmpty=false のまま 26 秒まで時間ベースで進める。
+    // 前倒し分が累積カウントに記憶されないと、 時間ベースの増分として二重に湧き、
+    // 総量が quota を超える (旧実装では 13 + 前倒し 3 = 16 体)。
+    idCounter = 0;
+    const quota = waveQuota(w1); // 13
+    let spawned = 0;
+    let prevMs = 0;
+    // tick 1〜3 (t=100/200/300ms): 場が空 (即殲滅の連鎖) → 前倒しで 1 体ずつ湧く
+    for (let ms = 100; ms <= 300; ms += 100) {
+      const spawns = getSpawnsAtTime(w1, ms, prevMs, constRng, idGen, null, true, spawned);
+      spawned += spawns.filter((s) => s.kind === 'normal').length;
+      prevMs = ms;
+    }
+    expect(spawned).toBe(3);
+    // 以降 26 秒まで fieldEmpty=false (tough が残って場が埋まったままのケース)
+    for (let ms = 400; ms <= 26_000; ms += 100) {
+      const spawns = getSpawnsAtTime(w1, ms, prevMs, constRng, idGen, null, false, spawned);
+      spawned += spawns.filter((s) => s.kind === 'normal').length;
+      prevMs = ms;
+    }
+    // 総湧き数は quota ちょうど (湧き総量は現行と同一、 15-balance-v1.5.0.md §3)
+    expect(spawned).toBe(quota);
+  });
+
+  it('回帰 (不具合2): 実クォータ消化済みなら時間ベースが quota 未満でも上位敵が前倒しで湧く', () => {
+    // 再現シナリオ: 撃破連鎖で 10 秒までに実クォータ (spawnedNormalCount=quota) を
+    // 早期消化した場合。 時間ベースカウントは quota 未満だが、 実際に湧いた累積数が
+    // quota に達していれば上位敵は前倒しで湧くべき (時間ベース判定だと 25 秒まで湧かない)。
+    idCounter = 0;
+    const timeBasedAt10s = Math.floor(10 / w5.spawnIntervalSec);
+    expect(timeBasedAt10s).toBeLessThan(quotaW5); // 前提: 時間ベースでは未消化
+    const spawns = getSpawnsAtTime(w5, 10_000, 9_900, constRng, idGen, null, true, quotaW5);
+    const elites = spawns.filter((s) => s.kind === 'elite');
+    expect(elites).toHaveLength(1);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// countBossNormalSpawns: ボス戦中の雑魚湧き半減 (v1.5.0 §2.1 追記分)
+// ---------------------------------------------------------------------------
+
+describe('countBossNormalSpawns (v1.5.0: HP60%未満での雑魚湧き半減)', () => {
+  const upperSpawnSec = 25;
+  const intervalSec = 1.0;
+
+  it('BOSS_WEAKENED_SPAWN_INTERVAL_MUL は 2 (頻度半分)', () => {
+    expect(BOSS_WEAKENED_SPAWN_INTERVAL_MUL).toBe(2);
+  });
+
+  it('HP60%未満再開後、 intervalSec×2 ごとに 1 体湧く (半頻度)', () => {
+    // bossWeakenedSec=25 (ボス出現と同時に弱体化したケース)。
+    // 25 → 25 + intervalSec*2 = 27 で 1 体目
+    const before = countBossNormalSpawns(26.9, upperSpawnSec, intervalSec, 25);
+    const at = countBossNormalSpawns(27.0, upperSpawnSec, intervalSec, 25);
+    const beforeBoss = Math.floor(upperSpawnSec / intervalSec);
+    expect(before - beforeBoss).toBe(0);
+    expect(at - beforeBoss).toBe(1);
+  });
+
+  it('境界値: intervalSec×2 のちょうど直前では増えない', () => {
+    const beforeBoss = Math.floor(upperSpawnSec / intervalSec);
+    const justBefore = countBossNormalSpawns(26.999, upperSpawnSec, intervalSec, 25);
+    expect(justBefore - beforeBoss).toBe(0);
+  });
+
+  it('境界値: intervalSec×2 の 2 倍 (4 秒後) で 2 体目', () => {
+    const beforeBoss = Math.floor(upperSpawnSec / intervalSec);
+    const count = countBossNormalSpawns(29.0, upperSpawnSec, intervalSec, 25);
+    expect(count - beforeBoss).toBe(2);
+  });
+
+  it('ボス出現前 (0〜upperSpawnSec) の湧き頻度は半減の影響を受けない', () => {
+    // 0〜25s は通常テンポ (intervalSec=1.0) のまま: floor(25/1.0)=25
+    const count = countBossNormalSpawns(25, upperSpawnSec, intervalSec, null);
+    expect(count).toBe(25);
   });
 });

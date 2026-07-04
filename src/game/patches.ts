@@ -43,8 +43,9 @@ const PATCH_APPLY_MAP: Record<string, PatchApplyFn> = {
  * - 数値: 加算
  * - 倍率 (damageMultiplier, dropMultiplier): 乗算ではなく各パッチ値の加算（仕様書§効果スタック「加算」）
  * - BigNum: add
- * - フラグ (instantKill, extraShot, freeze): OR
- * - overrideReceivedDamage: 先に発動した無効化を優先（ZERO を維持）
+ * - フラグ (instantKill, freeze): OR
+ * - extraShots, extraInstantKills: 加算
+ * - burnDotFraction: 大きい方
  */
 function mergeEffects(a: PatchEffect, b: PatchEffect): PatchEffect {
   const result: PatchEffect = { ...a };
@@ -57,16 +58,9 @@ function mergeEffects(a: PatchEffect, b: PatchEffect): PatchEffect {
   // instantKill: OR
   if (b.instantKill) result.instantKill = true;
 
-  // overrideReceivedDamage: どちらかが ZERO なら ZERO を維持
-  if (b.overrideReceivedDamage !== undefined) {
-    if (result.overrideReceivedDamage === undefined) {
-      result.overrideReceivedDamage = b.overrideReceivedDamage;
-    } else {
-      // 両方あれば小さい方（= 無効化優先）
-      const aVal = result.overrideReceivedDamage;
-      const bVal = b.overrideReceivedDamage;
-      result.overrideReceivedDamage = aVal.lte(bVal) ? aVal : bVal;
-    }
+  // extraInstantKills: 加算
+  if (b.extraInstantKills !== undefined) {
+    result.extraInstantKills = (result.extraInstantKills ?? 0) + b.extraInstantKills;
   }
 
   // heal: BigNum 加算
@@ -84,8 +78,10 @@ function mergeEffects(a: PatchEffect, b: PatchEffect): PatchEffect {
     result.boltGain = (result.boltGain ?? BigNum.ZERO).add(b.boltGain);
   }
 
-  // extraShot: OR
-  if (b.extraShot) result.extraShot = true;
+  // extraShots: 加算
+  if (b.extraShots !== undefined) {
+    result.extraShots = (result.extraShots ?? 0) + b.extraShots;
+  }
 
   // freeze: OR（凍結秒数は長い方を採用）
   if (b.freeze) {
@@ -96,6 +92,11 @@ function mergeEffects(a: PatchEffect, b: PatchEffect): PatchEffect {
   // burnSec: 長い方を採用
   if (b.burnSec !== undefined) {
     result.burnSec = Math.max(result.burnSec ?? 0, b.burnSec);
+  }
+
+  // burnDotFraction: 大きい方を採用
+  if (b.burnDotFraction !== undefined) {
+    result.burnDotFraction = Math.max(result.burnDotFraction ?? 0, b.burnDotFraction);
   }
 
   return result;

@@ -58,6 +58,11 @@ export interface SpawnedEnemyInit extends EnemyTemplate {
   maxHp: BigNum;
   hp: BigNum;
   frozenUntilMs?: number;
+  /**
+   * 凍結耐性 (design-docs/15-balance-v1.5.0.md §2.2): この時刻までは凍結を新規付与できない。
+   * 直近の凍結終了時刻 + (凍結時間×2) で算出される。
+   */
+  freezeImmuneUntilMs?: number;
   burnUntilMs?: number;
   burnPerSec?: BigNum;
   burnAccumulatorMs?: number;
@@ -107,6 +112,7 @@ export class MutableEnemy {
    */
   position: { x: number; y: number };
   frozenUntilMs?: number;
+  freezeImmuneUntilMs?: number;
   burnUntilMs?: number;
   burnPerSec?: BigNum;
   burnAccumulatorMs?: number;
@@ -125,6 +131,7 @@ export class MutableEnemy {
     this.hp = init.hp;
     this.position = init.position;
     this.frozenUntilMs = init.frozenUntilMs;
+    this.freezeImmuneUntilMs = init.freezeImmuneUntilMs;
     this.burnUntilMs = init.burnUntilMs;
     this.burnPerSec = init.burnPerSec;
     this.burnAccumulatorMs = init.burnAccumulatorMs;

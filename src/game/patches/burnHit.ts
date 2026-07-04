@@ -1,25 +1,24 @@
+import { PROB_PARAMS, linearProb } from '@/game/patches/probability';
 import type { EquippedPatch, PatchEffect, PatchTrigger } from '@/game/patches.types';
 
 /**
- * 燃焼ヒット:
- * 攻撃時 X% で (1 + 0.2×T) 秒間 燃焼（毎秒 通常ダメの 30%）。
- * スケール: 漸近確率 T1=5%, max=50%, K=20 + 時間線形
- * p(T) = T1 + (max - T1) * T / (T + 20)
- * sec(T) = 1 + 0.2 * T
+ * 燃焼ヒット — 別軸型（design-docs/15-balance-v1.5.0.md §1.2）:
+ * 発動率 p = 5% + 1.5%×(T-1)。 100% で自然飽和 (min(p, 1))。
+ * 燃焼時間 sec(T) = 1 + 0.2×T (現行維持)。
+ * DoT 係数 burnDotFraction(T) = 0.30 + 0.03×T （線形・上限なし、T24 で毎秒 100%）。
  */
 export function applyPatchBurnHit(
   patch: EquippedPatch,
   trigger: PatchTrigger,
-  rng: () => number,
+  rng: () => number
 ): PatchEffect | null {
   if (trigger.type !== 'onAttack') return null;
 
   const T = patch.tier;
-  const T1 = 0.05;
-  const max = 0.5;
-  const prob = T1 + (max - T1) * T / (T + 20);
+  const prob = Math.min(1, linearProb(T, PROB_PARAMS.doubleShotLike));
 
   if (rng() >= prob) return null;
   const burnSec = 1 + 0.2 * T;
-  return { burnSec };
+  const burnDotFraction = 0.3 + 0.03 * T;
+  return { burnSec, burnDotFraction };
 }

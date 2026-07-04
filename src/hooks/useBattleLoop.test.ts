@@ -10,6 +10,8 @@ import {
   MAX_RENDERED_ENEMIES,
   NORMAL_BOLT_DROP_CHANCE,
   admitEventsWithCap,
+  applyBurnToEnemy,
+  applyFreezeToEnemy,
   applyKnockback,
   calcFrameGameSec,
   calcIntervalTicks,
@@ -17,7 +19,10 @@ import {
   decideWaveAdvance,
   distanceFromMachine,
   frameIntervalMs,
+  getEffectiveEnemyAtk,
+  isBarrierActive,
   selectVisibleEnemyIds,
+  shouldApplyMachineHeal,
   shouldDrawFrame,
   sweepExpiredEvents,
 } from './useBattleLoop';
@@ -130,6 +135,38 @@ describe('decideWaveAdvance', () => {
     // bossAlive=false で advanceTier。 通常敵の生存有無は引数で表現されない (= 関与しない)
     expect(decideWaveAdvance(30_000, 26, 30, 30, false)).toBe('advanceTier');
   });
+
+  // --- v1.5.0（Wave クォータ制、早回し）: allSpawnsDone / fieldEmpty による早期 advanceWave ---
+
+  test('通常 wave: allSpawnsDone && fieldEmpty なら 26 秒未満でも即 advanceWave', () => {
+    expect(decideWaveAdvance(10_000, 26, 5, 30, false, true, true)).toBe('advanceWave');
+  });
+
+  test('通常 wave: allSpawnsDone=true でも fieldEmpty=false なら continue (敵が残っている)', () => {
+    expect(decideWaveAdvance(10_000, 26, 5, 30, false, true, false)).toBe('continue');
+  });
+
+  test('通常 wave: fieldEmpty=true でも allSpawnsDone=false なら continue (クォータ未消化)', () => {
+    expect(decideWaveAdvance(10_000, 26, 5, 30, false, false, true)).toBe('continue');
+  });
+
+  test('通常 wave: allSpawnsDone/fieldEmpty を渡さない場合 (デフォルト) は従来どおり時間判定のみ', () => {
+    expect(decideWaveAdvance(10_000, 26, 5, 30, false)).toBe('continue');
+    expect(decideWaveAdvance(26_000, 26, 5, 30, false)).toBe('advanceWave');
+  });
+
+  test('通常 wave: 26 秒経過していれば allSpawnsDone/fieldEmpty が false でも従来どおり advanceWave', () => {
+    expect(decideWaveAdvance(26_000, 26, 5, 30, false, false, false)).toBe('advanceWave');
+  });
+
+  test('最終 wave (boss wave): allSpawnsDone && fieldEmpty を渡してもボス生存中なら continue (適用外)', () => {
+    // W30 はクォータ制の適用外。 allSpawnsDone/fieldEmpty がボス生存中の判定を上書きしない。
+    expect(decideWaveAdvance(10_000, 26, 30, 30, true, true, true)).toBe('continue');
+  });
+
+  test('最終 wave (boss wave): ボス不在なら従来どおり advanceTier (allSpawnsDone 無視)', () => {
+    expect(decideWaveAdvance(25_500, 26, 30, 30, false, true, true)).toBe('advanceTier');
+  });
 });
 
 describe('decideTransitionReset', () => {
@@ -220,6 +257,41 @@ describe('applyKnockback', () => {
 
   test('KNOCKBACK_DISTANCE_PCT のデフォルト = 5 で 20px 相当 (短辺 ~400px 想定)', () => {
     expect(KNOCKBACK_DISTANCE_PCT).toBe(5);
+  });
+});
+
+describe('shouldApplyMachineHeal (v1.5.0 killHeal 死亡フレーム蘇生ガード)', () => {
+  // BUG regression: 撃破と同時に machineHp が 0 になったフレームで onKill heal を
+  // 適用すると、 死亡直後に蘇生してしまいゲームオーバーがキャンセルされる。
+  // v1.4.9 の onWaveClear heal と同じ isZero ガードを onKill heal にも適用する。
+  test('machineHp が 0 のときは heal 量が正でも適用しない', () => {
+    expect(shouldApplyMachineHeal(BigNum.fromNumber(100), BigNum.ZERO)).toBe(false);
+  });
+
+  test('machineHp が 0 でなければ heal を適用する', () => {
+    expect(shouldApplyMachineHeal(BigNum.fromNumber(100), BigNum.fromNumber(1))).toBe(true);
+  });
+
+  test('heal 量が 0 なら machineHp の値に関わらず適用しない (無駄な addMachineHp 呼び出しを避ける)', () => {
+    expect(shouldApplyMachineHeal(BigNum.ZERO, BigNum.fromNumber(100))).toBe(false);
+  });
+});
+
+describe('isBarrierActive (v1.5.0 レビュー対応: barrierActive=false 時の GC 圧削減)', () => {
+  test('capacity=0 かつ 無効化中エピソードも 0 件 → false (damageImmune 未装着)', () => {
+    expect(isBarrierActive(0, 0)).toBe(false);
+  });
+
+  test('capacity>0 (damageImmune 装着) → true', () => {
+    expect(isBarrierActive(3, 0)).toBe(true);
+  });
+
+  test('capacity=0 でも無効化中エピソードが残っていれば true (Tier ダウン直後の残存エピソード継続処理)', () => {
+    expect(isBarrierActive(0, 1)).toBe(true);
+  });
+
+  test('capacity>0 かつ 無効化中エピソードもある → true', () => {
+    expect(isBarrierActive(2, 2)).toBe(true);
   });
 });
 
@@ -869,5 +941,130 @@ describe('admitEventsWithCap (v1.4.6 Fx バックプレッシャ)', () => {
     const next = admitEventsWithCap(existing, incoming, map, 100, DAMAGE_EVENT_MAX_COUNT);
     expect(next.length).toBe(DAMAGE_EVENT_MAX_COUNT);
     expect(map.has('newHit')).toBe(false);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// v1.5.0: applyFreezeToEnemy / applyBurnToEnemy (敵オブジェクトへの状態異常付与)
+// ---------------------------------------------------------------------------
+
+describe('applyFreezeToEnemy (design-docs/15-balance-v1.5.0.md §2.2 凍結耐性)', () => {
+  test('免疫なしの敵に凍結を付与 → frozenUntilMs / freezeImmuneUntilMs が設定される', () => {
+    const enemy = new MutableEnemy(makeEnemyInit('e1', 100));
+    applyFreezeToEnemy(enemy, 2, 0);
+    expect(enemy.frozenUntilMs).toBe(2000);
+    expect(enemy.freezeImmuneUntilMs).toBe(2000 + 2 * 2 * 1000);
+  });
+
+  test('免疫中の敵には付与されない (frozenUntilMs は変化しない)', () => {
+    const enemy = new MutableEnemy(makeEnemyInit('e1', 100));
+    enemy.freezeImmuneUntilMs = 5000;
+    applyFreezeToEnemy(enemy, 2, 1000); // nowGameMs=1000 < 5000 → 免疫中
+    expect(enemy.frozenUntilMs).toBeUndefined();
+  });
+
+  test('上位敵 (elite/miniboss/boss) は凍結時間が半減する', () => {
+    const bossInit = { ...makeEnemyInit('boss1', 1000), kind: 'boss' as const, subtype: undefined };
+    const boss = new MutableEnemy(bossInit);
+    applyFreezeToEnemy(boss, 2, 0);
+    expect(boss.frozenUntilMs).toBe(1000); // 2*0.5*1000
+  });
+
+  test('凍結の重ねがけ不可: 既存の frozenUntilMs より短くても新規上書きされる', () => {
+    const enemy = new MutableEnemy(makeEnemyInit('e1', 100));
+    enemy.frozenUntilMs = 99999; // 旧仕様なら Math.max で維持されていた高い値
+    applyFreezeToEnemy(enemy, 1, 0);
+    // 新規上書きなので 99999 ではなく 1000 になる
+    expect(enemy.frozenUntilMs).toBe(1000);
+  });
+
+  test('免疫期限ちょうど経過後は再度付与できる', () => {
+    const enemy = new MutableEnemy(makeEnemyInit('e1', 100));
+    enemy.freezeImmuneUntilMs = 1000;
+    applyFreezeToEnemy(enemy, 2, 1000); // nowGameMs === freezeImmuneUntilMs → 免疫終了
+    expect(enemy.frozenUntilMs).toBe(1000 + 2000);
+  });
+});
+
+describe('applyBurnToEnemy', () => {
+  test('未燃焼の敵に燃焼を付与 → burnUntilMs / burnPerSec / burnAccumulatorMs=0', () => {
+    const enemy = new MutableEnemy(makeEnemyInit('e1', 100));
+    applyBurnToEnemy(enemy, 2, 0.3, BigNum.fromNumber(100), 0);
+    expect(enemy.burnUntilMs).toBe(2000);
+    expect(enemy.burnPerSec?.toString()).toBe('30');
+    expect(enemy.burnAccumulatorMs).toBe(0);
+  });
+
+  test('既に燃焼中: 期限は長い方を採用', () => {
+    const enemy = new MutableEnemy(makeEnemyInit('e1', 100));
+    enemy.burnUntilMs = 5000;
+    enemy.burnPerSec = BigNum.fromNumber(10);
+    applyBurnToEnemy(enemy, 1, 0.3, BigNum.fromNumber(100), 0); // newBurnUntil=1000 < 5000
+    expect(enemy.burnUntilMs).toBe(5000);
+  });
+
+  test('既に燃焼中: burnPerSec は強い方を採用', () => {
+    const enemy = new MutableEnemy(makeEnemyInit('e1', 100));
+    enemy.burnUntilMs = 500;
+    enemy.burnPerSec = BigNum.fromNumber(50);
+    applyBurnToEnemy(enemy, 5, 0.3, BigNum.fromNumber(100), 0); // newBurnPerSec=30 < 50
+    expect(enemy.burnPerSec?.toString()).toBe('50');
+  });
+
+  test('新規燃焼開始時のみ burnAccumulatorMs を 0 リセット (継続中は触らない)', () => {
+    const enemy = new MutableEnemy(makeEnemyInit('e1', 100));
+    enemy.burnUntilMs = 5000;
+    enemy.burnPerSec = BigNum.fromNumber(10);
+    enemy.burnAccumulatorMs = 500;
+    applyBurnToEnemy(enemy, 1, 0.3, BigNum.fromNumber(100), 0);
+    expect(enemy.burnAccumulatorMs).toBe(500);
+  });
+
+  test('burnDotFraction が新仕様の係数 (30+3×T)% を反映する', () => {
+    const enemy = new MutableEnemy(makeEnemyInit('e1', 100));
+    // T10 相当: burnDotFraction = 0.30 + 0.03*10 = 0.6
+    applyBurnToEnemy(enemy, 3, 0.6, BigNum.fromNumber(1000), 0);
+    expect(enemy.burnPerSec?.toString()).toBe('600');
+  });
+});
+
+describe('getEffectiveEnemyAtk (design-docs/15-balance-v1.5.0.md §2.1 ボスソフトエンレイジ)', () => {
+  test('boss 以外 (normal/elite/miniboss) は経過時間に関わらず atk がそのまま返る', () => {
+    for (const kind of ['normal', 'elite', 'miniboss'] as const) {
+      const init = { ...makeEnemyInit('e1', 100), kind, subtype: undefined };
+      const enemy = new MutableEnemy(init);
+      // wave 経過 300 秒 (= boss なら大幅エンレイジする時間) でも変化しない
+      const effective = getEffectiveEnemyAtk(enemy, 300_000);
+      expect(effective.toString()).toBe(enemy.atk.toString());
+    }
+  });
+
+  test('boss かつ猶予中 (spawn から 60 秒未満) は atk がそのまま返る', () => {
+    const init = { ...makeEnemyInit('boss1', 1000), kind: 'boss' as const, subtype: undefined };
+    const boss = new MutableEnemy(init); // spawnedAtMs = 0
+    const effective = getEffectiveEnemyAtk(boss, 59_000); // wave 経過 59 秒
+    expect(effective.toString()).toBe(boss.atk.toString());
+  });
+
+  test('boss かつ spawn から 90 秒経過で atk が ×1.4 になる', () => {
+    const init = { ...makeEnemyInit('boss1', 1000), kind: 'boss' as const, subtype: undefined };
+    const boss = new MutableEnemy(init); // spawnedAtMs = 0
+    const effective = getEffectiveEnemyAtk(boss, 90_000);
+    expect(parseFloat(effective.toString())).toBeCloseTo(14); // atk=10 × 1.4
+  });
+
+  test('spawnedAtMs を起点に経過時間を計算する (wave 内で途中スポーンしたケース)', () => {
+    const init = { ...makeEnemyInit('boss1', 1000), kind: 'boss' as const, subtype: undefined };
+    const boss = new MutableEnemy({ ...init, spawnedAtMs: 25_000 }); // W30 は 25 秒時点で boss 出現
+    // wave 経過 115 秒 = spawn から 90 秒 → stage 1 (×1.4)
+    const effective = getEffectiveEnemyAtk(boss, 115_000);
+    expect(parseFloat(effective.toString())).toBeCloseTo(14);
+  });
+
+  test('元の enemy.atk は mutate されない (読み取り時のみの乗算)', () => {
+    const init = { ...makeEnemyInit('boss1', 1000), kind: 'boss' as const, subtype: undefined };
+    const boss = new MutableEnemy(init);
+    getEffectiveEnemyAtk(boss, 300_000);
+    expect(boss.atk.toString()).toBe('10');
   });
 });

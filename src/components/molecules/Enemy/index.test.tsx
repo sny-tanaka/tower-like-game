@@ -95,6 +95,78 @@ describe('Enemy', () => {
     const fill = container.querySelector('[class*="hpFill"]') as HTMLElement;
     expect(fill.style.width).toBe('0%');
   });
+
+  describe('ソフトエンレイジ (v1.5.0 §2.1)', () => {
+    test('boss かつ enrageStage=0 (既定) では ENRAGE ラベルを表示しない', () => {
+      const { container } = render(
+        <Enemy
+          type="boss"
+          hp={0.5}
+        />
+      );
+      expect(container.querySelector('[class*="enrageLabel"]')).toBeNull();
+      expect(screen.getByRole('img').getAttribute('data-enraged')).toBeNull();
+    });
+
+    test('boss かつ enrageStage>=1 で ENRAGE ラベルと data-enraged が付く', () => {
+      const { container } = render(
+        <Enemy
+          type="boss"
+          hp={0.5}
+          enrageStage={1}
+        />
+      );
+      const label = container.querySelector('[class*="enrageLabel"]');
+      expect(label).not.toBeNull();
+      expect(label?.textContent).toContain('ENRAGE');
+      expect(label?.textContent).toContain('×1.4');
+      expect(screen.getByRole('img').getAttribute('data-enraged')).toBe('true');
+    });
+
+    test('boss かつ enrageStage=2 で倍率ラベルが ×1.96 になる', () => {
+      const { container } = render(
+        <Enemy
+          type="boss"
+          hp={0.5}
+          enrageStage={2}
+        />
+      );
+      const label = container.querySelector('[class*="enrageLabel"]');
+      expect(label?.textContent).toContain('×2.0'); // 1.96 → toFixed(1) で "2.0"
+    });
+
+    test('boss 以外 (elite/miniboss) は enrageStage>=1 でもラベルを表示しない (対象外)', () => {
+      const { container: eliteContainer } = render(
+        <Enemy
+          type="elite"
+          hp={0.5}
+          enrageStage={3}
+        />
+      );
+      expect(eliteContainer.querySelector('[class*="enrageLabel"]')).toBeNull();
+
+      const { container: minibossContainer } = render(
+        <Enemy
+          type="miniboss"
+          hp={0.5}
+          enrageStage={3}
+        />
+      );
+      expect(minibossContainer.querySelector('[class*="enrageLabel"]')).toBeNull();
+    });
+
+    test('エンレイジ中は HP バー色が警告色 (var(--c-warning)) になる', () => {
+      const { container } = render(
+        <Enemy
+          type="boss"
+          hp={0.5}
+          enrageStage={1}
+        />
+      );
+      const fill = container.querySelector('[class*="hpFill"]') as HTMLElement;
+      expect(fill.style.background).toBe('var(--c-warning)');
+    });
+  });
 });
 
 describe('spawnedEnemyToVisualType', () => {

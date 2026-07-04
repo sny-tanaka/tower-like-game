@@ -964,4 +964,54 @@ describe('battle slice', () => {
     // 開戦直後はダメージ受けてない → machineHp = 110 (満タンも 110 に追従)
     expect(store.getState().machineHp.eq(BigNum.fromNumber(110))).toBe(true);
   });
+
+  describe('bossEnrageStage (v1.5.0 §2.1)', () => {
+    it('初期値は 0', () => {
+      expect(makeStore().getState().bossEnrageStage).toBe(0);
+    });
+
+    it('setBossEnrageStage: 値を更新する', () => {
+      const store = makeStore();
+      store.getState().setBossEnrageStage(3);
+      expect(store.getState().bossEnrageStage).toBe(3);
+    });
+
+    it('setBossEnrageStage: 負値は 0 にクランプされる', () => {
+      const store = makeStore();
+      store.getState().setBossEnrageStage(-2);
+      expect(store.getState().bossEnrageStage).toBe(0);
+    });
+
+    it('startRun: bossEnrageStage が 0 にリセットされる', () => {
+      const store = makeStore();
+      store.getState().setBossEnrageStage(5);
+      store
+        .getState()
+        .startRun({ initialWeapon: 'laser', baseMachineMaxHp: BigNum.fromNumber(100) });
+      expect(store.getState().bossEnrageStage).toBe(0);
+    });
+
+    it('advanceWave: bossEnrageStage が 0 にリセットされる (wave 進行のたび解除)', () => {
+      const store = makeStore();
+      store
+        .getState()
+        .startRun({ initialWeapon: 'laser', baseMachineMaxHp: BigNum.fromNumber(100) });
+      store.getState().setBossEnrageStage(2);
+      store.getState().advanceWave();
+      expect(store.getState().bossEnrageStage).toBe(0);
+      expect(store.getState().currentWave).toBe(2);
+    });
+
+    it('advanceTier: bossEnrageStage が 0 にリセットされる', () => {
+      const store = makeStore();
+      store
+        .getState()
+        .startRun({ initialWeapon: 'laser', baseMachineMaxHp: BigNum.fromNumber(100) });
+      store.getState().setBossEnrageStage(4);
+      store.getState().advanceTier();
+      expect(store.getState().bossEnrageStage).toBe(0);
+      expect(store.getState().currentTier).toBe(2);
+      expect(store.getState().currentWave).toBe(1);
+    });
+  });
 });

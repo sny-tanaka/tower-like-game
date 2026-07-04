@@ -1,24 +1,24 @@
+import { findPatchTier } from '@/game/patches/patchUtils';
 import type { EquippedPatch, PatchEffect, PatchTrigger } from '@/game/patches.types';
-import { BigNum } from '@/lib/bignum/BigNum';
 
 /**
- * ダメージ無効:
- * 被ダメ時 X% で完全無効化（受けたダメージを 0 に上書き）。
- * スケール: 漸近確率 T1=3%, max=30%, K=20
- * p(T) = T1 + (max - T1) * T / (T + 20)
+ * ダメージ無効 → ダメージバリア（design-docs/15-balance-v1.5.0.md §1.2, §4）:
+ * 確率判定は廃止し、 Wave 開始時にバリア `1×T` 枚を展開する確定型の機構に置換した。
+ * applyPatch* 関数自体は「何も発火しない」ため常に null を返す (onHit トリガー自体を廃止)。
+ * バリア枚数の算出は getBarrierCapacity()、 消費 / 充填ロジックは
+ * `src/game/patches/barrier.ts` の純粋関数 + store (`barrierStock`) 側で行う。
  */
 export function applyPatchDamageImmune(
-  patch: EquippedPatch,
-  trigger: PatchTrigger,
-  rng: () => number,
+  _patch: EquippedPatch,
+  _trigger: PatchTrigger,
+  _rng: () => number
 ): PatchEffect | null {
-  if (trigger.type !== 'onHit') return null;
+  return null;
+}
 
-  const T = patch.tier;
-  const T1 = 0.03;
-  const max = 0.3;
-  const prob = T1 + (max - T1) * T / (T + 20);
-
-  if (rng() >= prob) return null;
-  return { overrideReceivedDamage: BigNum.ZERO };
+/**
+ * バリア容量 (1×T)。 damageImmune 未装着なら 0。
+ */
+export function getBarrierCapacity(patches: EquippedPatch[]): number {
+  return findPatchTier(patches, 'damageImmune');
 }

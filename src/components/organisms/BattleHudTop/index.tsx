@@ -3,6 +3,7 @@ import { memo, useMemo } from 'react';
 import styles from './style.module.scss';
 
 import { Badge } from '@/components/atoms/Badge';
+import { Icon } from '@/components/atoms/Icon';
 import { IconButton } from '@/components/atoms/IconButton';
 import { NumericDisplay } from '@/components/atoms/NumericDisplay';
 import { ProgressBar } from '@/components/atoms/ProgressBar';
@@ -79,6 +80,13 @@ function BattleHudTopImpl({
   const currentTier = useStore((s) => s.currentTier);
   const currentWave = useStore((s) => s.currentWave);
   const isPaused = useStore((s) => s.isPaused);
+  // v1.5.0: ダメージバリア (damageImmune) 残数表示。 装着中のみヘッダー行に表示する。
+  const barrierStock = useStore((s) => s.barrierStock);
+  const equippedPatchesMap = useStore((s) => s.equippedPatches);
+  const hasBarrierPatch = useMemo(
+    () => Array.from(equippedPatchesMap.values()).some((p) => p.name === 'damageImmune'),
+    [equippedPatchesMap]
+  );
 
   // ── wave 残り秒数: entityStore から直接取得 (Page を経由しない、 reactive 購読もしない) ──
   // AnimatedTimerBar はマウント時 (= 親 component が key={waveNumber} 切替で再マウント) の
@@ -154,6 +162,23 @@ function BattleHudTopImpl({
             </Text>
             <NumericDisplay
               value={shieldCurrent}
+              size="xs"
+              accentColor="primary"
+            />
+          </span>
+        )}
+        {/* v1.5.0: ダメージバリア (damageImmune) 残数。 装着中のみ表示する */}
+        {hasBarrierPatch && (
+          <span
+            className={styles.barrierBlock}
+            aria-label={`バリア残数 ${barrierStock}`}
+          >
+            <Icon
+              name="shield"
+              size={12}
+            />
+            <NumericDisplay
+              value={BigNum.fromNumber(barrierStock)}
               size="xs"
               accentColor="primary"
             />

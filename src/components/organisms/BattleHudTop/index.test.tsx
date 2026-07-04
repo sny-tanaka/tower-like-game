@@ -124,4 +124,41 @@ describe('BattleHudTop', () => {
     // assertion が難しいため、 ここでは render が落ちないことだけ確認 (回帰検出用の smoke test)。
     expect(container.firstChild).toBeTruthy();
   });
+
+  // -------------------------------------------------------------------------
+  // v1.5.0: ダメージバリア (damageImmune) 残数表示
+  // -------------------------------------------------------------------------
+
+  it('damageImmune 未装着なら バリア残数は表示されない', () => {
+    seedBattleState({ barrierStock: 3 });
+    renderWithEntityStore(<BattleHudTop {...makeParentProps()} />);
+    expect(screen.queryByLabelText(/バリア残数/)).not.toBeInTheDocument();
+  });
+
+  it('damageImmune 装着中はバリア残数が表示される', () => {
+    seedBattleState({
+      barrierStock: 5,
+      equippedPatches: new Map([[0, { name: 'damageImmune', tier: 5 }]]),
+    });
+    renderWithEntityStore(<BattleHudTop {...makeParentProps()} />);
+    expect(screen.getByLabelText('バリア残数 5')).toBeInTheDocument();
+  });
+
+  it('バリア残数が 0 でも装着中なら表示され続ける (使い切り状態)', () => {
+    seedBattleState({
+      barrierStock: 0,
+      equippedPatches: new Map([[0, { name: 'damageImmune', tier: 3 }]]),
+    });
+    renderWithEntityStore(<BattleHudTop {...makeParentProps()} />);
+    expect(screen.getByLabelText('バリア残数 0')).toBeInTheDocument();
+  });
+
+  it('damageImmune 以外のパッチのみ装着中はバリア残数が表示されない', () => {
+    seedBattleState({
+      barrierStock: 0,
+      equippedPatches: new Map([[0, { name: 'bossKiller', tier: 5 }]]),
+    });
+    renderWithEntityStore(<BattleHudTop {...makeParentProps()} />);
+    expect(screen.queryByLabelText(/バリア残数/)).not.toBeInTheDocument();
+  });
 });

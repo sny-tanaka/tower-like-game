@@ -5,6 +5,7 @@ import { ENEMY_SIZE_CQMIN, spawnedEnemyToVisualType } from './visualTypes';
 
 import { Enemy } from '@/components/molecules/Enemy';
 import { useEntityStore } from '@/game/store/BattleEntityStoreContext';
+import { useStore } from '@/store/index';
 
 // ---------------------------------------------------------------------------
 // EnemySprite
@@ -88,6 +89,10 @@ export const EnemySprite = memo(function EnemySprite({ id, machinePosition }: En
     () => store.getEnemyStatusSnapshot(id)
   );
 
+  // v1.5.0: ボスのソフトエンレイジ段階数 (design-docs/15-balance-v1.5.0.md §2.1)。
+  // boss 以外の敵にも hook 自体は呼ぶが (hooks ルール順守)、 表示には使わない。
+  const bossEnrageStage = useStore((s) => s.bossEnrageStage);
+
   if (snapshot == null) return null;
 
   const visualType = spawnedEnemyToVisualType(snapshot.kind, snapshot.subtype);
@@ -116,6 +121,7 @@ export const EnemySprite = memo(function EnemySprite({ id, machinePosition }: En
         hp={snapshot.hpRatio}
         status={status}
         facing={facing}
+        enrageStage={visualType === 'boss' ? bossEnrageStage : 0}
       />
     </div>
   );

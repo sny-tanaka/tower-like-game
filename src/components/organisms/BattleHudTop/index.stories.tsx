@@ -38,6 +38,10 @@ interface StoryArgs {
   nextMilestoneWave?: number;
   isPaused?: boolean;
   isResultOpen?: boolean;
+  /** v1.5.0: damageImmune 装着 Tier (未指定 = 未装着、バリア表示なし) */
+  damageImmuneTier?: number;
+  /** v1.5.0: バリア残数 (damageImmuneTier 指定時のみ意味を持つ) */
+  barrierStock?: number;
 }
 
 function StoryHarness(args: StoryArgs) {
@@ -51,8 +55,21 @@ function StoryHarness(args: StoryArgs) {
       currentTier: args.tier,
       currentWave: args.wave,
       isPaused: args.isPaused ?? false,
+      barrierStock: args.barrierStock,
+      equippedPatches:
+        args.damageImmuneTier != null
+          ? new Map([[0, { name: 'damageImmune' as const, tier: args.damageImmuneTier }]])
+          : undefined,
     });
-  }, [args.hp, args.hpMax, args.tier, args.wave, args.isPaused]);
+  }, [
+    args.hp,
+    args.hpMax,
+    args.tier,
+    args.wave,
+    args.isPaused,
+    args.barrierStock,
+    args.damageImmuneTier,
+  ]);
 
   // v1.3.7 Phase 5: BattleHudTop は内部で `useEntityStore()` を呼ぶため Provider が必須。
   // secondsRemaining args は entityStore.setWaveElapsedSec(WAVE_DURATION_SEC - secondsRemaining)
@@ -188,5 +205,24 @@ export const HighTier: Story = {
     isBossWave: false,
     nextMilestoneKind: 'tier-up',
     nextMilestoneWave: 30,
+  },
+};
+
+// ---------------------------------------------------------------------------
+// v1.5.0: ダメージバリア (damageImmune) 装着中 — 残数表示あり
+// ---------------------------------------------------------------------------
+
+export const WithBarrier: Story = {
+  name: 'バリアあり (damageImmune 装着中)',
+  args: {
+    hp: 700,
+    hpMax: 1000,
+    tier: 8,
+    wave: 14,
+    totalWaves: 30,
+    secondsRemaining: 12,
+    isBossWave: false,
+    damageImmuneTier: 8,
+    barrierStock: 5,
   },
 };

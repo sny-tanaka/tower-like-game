@@ -4,6 +4,8 @@ import { BigNum } from '@/lib/bignum/BigNum';
 import { useStore } from '@/store/index';
 import { defaultBattleState } from '@/store/slices/battle';
 import { defaultCurrenciesState } from '@/store/slices/currencies';
+import type { EquippedPatchEntry } from '@/store/slices/equippedPatches';
+import { defaultEquippedPatchesState } from '@/store/slices/equippedPatches';
 import { defaultMachineState, type MachineLevels } from '@/store/slices/machine';
 import { defaultRunWorkshopState, type RunWorkshopAutoEnabled } from '@/store/slices/runWorkshop';
 import { defaultSettingsState } from '@/store/slices/settings';
@@ -70,6 +72,16 @@ export interface BattleStateSeed {
   bgmVolume?: number;
   /** SE 音量 (0.0〜1.0、 デフォルト: 0.8)。 Phase 4-C で BattleMenuOverlay が内部 selector 化したため追加 */
   seVolume?: number;
+  /**
+   * ダメージバリア (damageImmune) 残数 (デフォルト: 0)。
+   * v1.5.0 で BattleHudTop がバリア残数を購読するようになったため追加。
+   */
+  barrierStock?: number;
+  /**
+   * 装着中パッチ (slotIndex → {name, tier})。 デフォルト: 空 (未装着)。
+   * v1.5.0 で BattleHudTop が damageImmune 装着有無を判定するために追加。
+   */
+  equippedPatches?: Map<number, EquippedPatchEntry>;
 }
 
 /**
@@ -112,6 +124,8 @@ export function seedBattleState(seed: BattleStateSeed = {}): void {
     },
     bgmVolume: seed.bgmVolume ?? defaultSettingsState.bgmVolume,
     seVolume: seed.seVolume ?? defaultSettingsState.seVolume,
+    barrierStock: seed.barrierStock ?? defaultBattleState.barrierStock,
+    equippedPatches: seed.equippedPatches ?? defaultEquippedPatchesState.equippedPatches,
   });
 }
 
@@ -138,5 +152,6 @@ export function resetBattleState(): void {
     bgmVolume: defaultSettingsState.bgmVolume,
     seVolume: defaultSettingsState.seVolume,
     alloy: defaultCurrenciesState.alloy,
+    equippedPatches: defaultEquippedPatchesState.equippedPatches,
   });
 }

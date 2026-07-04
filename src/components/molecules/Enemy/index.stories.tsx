@@ -18,6 +18,7 @@ const meta: Meta<typeof Enemy> = {
     showHp: { control: 'boolean' },
     facing: { control: { type: 'range', min: 0, max: 6.283, step: 0.1 } },
     status: { control: 'select', options: ['normal', 'frozen', 'burning'] },
+    enrageStage: { control: { type: 'range', min: 0, max: 8, step: 1 } },
   },
   decorators: [
     (Story) => (
@@ -59,6 +60,15 @@ export const Miniboss: Story = {
 
 export const Boss: Story = {
   args: { type: 'boss', hp: 0.85, facing: 0 },
+};
+
+// v1.5.0 §2.1: ソフトエンレイジ発動中 (HP バー警告色 + ENRAGE ラベル表示)
+export const BossEnraged: Story = {
+  args: { type: 'boss', hp: 0.45, facing: 0, enrageStage: 1 },
+};
+
+export const BossDeeplyEnraged: Story = {
+  args: { type: 'boss', hp: 0.2, facing: 0, enrageStage: 4 },
 };
 
 export const FrozenStandard: Story = {
