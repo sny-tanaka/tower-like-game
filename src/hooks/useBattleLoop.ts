@@ -26,7 +26,7 @@ import type { EquippedPatch } from '@/game/patches.types';
 import { BattleEntityStore } from '@/game/store/BattleEntityStore';
 import type { AppearanceEvent } from '@/game/store/BattleEntityStore';
 import type { EnemyKind, SpawnedEnemy } from '@/game/types';
-import { buildTierWaves, getSpawnsAtTime, waveQuota } from '@/game/wave';
+import { UPPER_SPAWN_OFFSET_SEC, buildTierWaves, getSpawnsAtTime, waveQuota } from '@/game/wave';
 import { cannonApplySplash, cannonStats, cannonVolley } from '@/game/weapons/cannon';
 import {
   cutterStartOverdrive,
@@ -169,9 +169,10 @@ export type AdvanceDecision = 'continue' | 'advanceWave' | 'advanceTier';
 
 /**
  * ボススポーン時刻 (wave 開始から何秒後にボスが出るか)。
- * src/game/wave.ts の UPPER_ENEMY_LEAD_SEC=1 と同じく「wave 終了 1 秒前」 を前提とする。
+ * v1.5.3: `UPPER_SPAWN_OFFSET_SEC` (wave.ts) と同一の値。
+ * 「ボス出現時刻を過ぎている」判定のためだけに useBattleLoop 側でも参照する。
  */
-export const BOSS_SPAWN_LEAD_SEC = 1;
+export const BOSS_SPAWN_LEAD_SEC = UPPER_SPAWN_OFFSET_SEC;
 
 /**
  * ウェーブ進行判定。
@@ -205,8 +206,10 @@ export function decideWaveAdvance(
   fieldEmpty = false
 ): AdvanceDecision {
   if (currentWave >= totalWaves) {
-    // 最終 wave: ボス出現時刻を過ぎていてボス不在で advanceTier。 時間経過は無視
-    const bossSpawnedMs = Math.max(0, (durationSec - BOSS_SPAWN_LEAD_SEC) * 1000);
+    // 最終 wave: ボス出現時刻を過ぎていてボス不在で advanceTier。 時間経過は無視。
+    // v1.5.3: ボスは wave 開始 BOSS_SPAWN_LEAD_SEC 秒後に出現する (旧仕様の
+    // `durationSec - lead` から、 wave 開始からの絶対経過秒に変更)。
+    const bossSpawnedMs = BOSS_SPAWN_LEAD_SEC * 1000;
     if (waveElapsedMs >= bossSpawnedMs && !bossAlive) {
       return 'advanceTier';
     }
