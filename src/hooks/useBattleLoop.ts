@@ -1407,10 +1407,16 @@ export function useBattleLoop({
             // v1.3.1: boss wave 中のボス HP 60% フラグ。 null の間はボス出現後の雑魚 0、
             // 値が入ったらそこから半頻度 (v1.5.0) で雑魚再開。 詳細は wave.ts countBossNormalSpawns。
             state.bossWeakenedAtMs,
-            fieldEmptyForSpawn
+            fieldEmptyForSpawn,
+            // v1.5.0（Wave クォータ制）: 実際に湧いた累積数と上位敵の湧き済みフラグを渡す。
+            // 前倒し湧きの二重カウント防止と、 上位敵の前倒し判定 (実クォータ基準) に使う。
+            // boss wave では getSpawnsAtTime 側で無視される。
+            waveSpawnedNormalCountRef.current,
+            waveUpperSpawnedRef.current
           );
           if (!isBossWave) {
-            // v1.5.0（Wave クォータ制）: 湧き累積カウンタを更新（early advance 判定用）。
+            // v1.5.0（Wave クォータ制）: 湧き累積カウンタを更新（getSpawnsAtTime の
+            // spawnedNormalCount / upperSpawned 入力 + early advance 判定用）。
             for (const s of newSpawns) {
               if (s.kind === 'normal') {
                 waveSpawnedNormalCountRef.current += 1;

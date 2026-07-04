@@ -125,15 +125,24 @@ export function waveQuota(schedule: WaveSchedule): number {
  *   ここでは「ウェーブ終了時刻 - UPPER_ENEMY_LEAD_SEC」で判定する。
  *
  * v1.5.0（Wave クォータ制、design-docs/15-balance-v1.5.0.md §3）:
- * - boss wave (W30) 以外は、通常敵の時間ベース累積数を `waveQuota(schedule)` でキャップする。
- * - `fieldEmpty=true`（場に生存敵が 0）かつクォータ未消化なら、時間ベース数 + 1 を目標にする
+ * - boss wave (W30) 以外は、「その wave で実際に湧いた通常敵の累積数」(`spawnedNormalCount`、
+ *   呼び出し側が tick を跨いで保持) を基準にした pull モデルで湧かす:
+ *   `target = min(quota, max(timeBasedCount, spawnedNormalCount + (fieldEmpty ? 1 : 0)))`、
+ *   `toSpawn = max(0, target - spawnedNormalCount)`。
+ *   前倒し分が spawnedNormalCount に反映されるため二重湧きが構造的に起きず、
+ *   総湧き数は必ず quota 以下（= 湧き総量は現行と同一）。
+ * - `fieldEmpty=true`（場に生存敵が 0）かつクォータ未消化なら +1 体前倒しで湧く
  *   （撃破連鎖の前倒し湧き。1 tick に前倒しで湧くのは 1 体のみ）。
- * - 上位敵も同様に、「通常の 25 秒（durationSec - 1）」または
- *   「クォータを湧き切り済み かつ fieldEmpty」の早い方でスポーンする。
+ * - 上位敵は「通常の 25 秒（durationSec - 1）」または
+ *   「実クォータを湧き切り済み (spawnedNormalCount >= quota) かつ fieldEmpty」の早い方で
+ *   スポーンする。既に湧いた場合は `upperSpawned=true` を渡して重複スポーンを防ぐ。
+ * - prevElapsedMs は boss wave（W30、現行の prev/current 差分方式を維持）と
+ *   上位敵の時刻跨ぎ判定でのみ使用する。
  *
  * @param schedule       buildTierWaves で生成したスケジュール
  * @param elapsedMs      ウェーブ開始からの経過ミリ秒
- * @param prevElapsedMs  前回 getSpawnsAtTime を呼んだときの経過ミリ秒（差分計算用）
+ * @param prevElapsedMs  前回 getSpawnsAtTime を呼んだときの経過ミリ秒
+ *   （boss wave の差分計算・上位敵の時刻跨ぎ判定用）
  * @param rng            0〜1 の擬似乱数（再現性のため外部注入）
  * @param idGenerator    ユニーク ID 生成関数（外部注入）
  * @param bossWeakenedAtMs ボス HP が 60% を切った wave 内経過 ms (boss wave 専用)。
@@ -142,6 +151,11 @@ export function waveQuota(schedule: WaveSchedule): number {
  *   boss wave 以外では無視される。
  * @param fieldEmpty     場（enemiesRef.current）に生存敵が 0 か（v1.5.0 早回し用）。
  *   boss wave では無視される（クォータ制の適用外のため）。デフォルト false = 現行と同一挙動。
+ * @param spawnedNormalCount その wave で実際に湧いた通常敵の累積数（v1.5.0、
+ *   ループ側の waveSpawnedNormalCountRef.current）。 boss wave では無視される。
+ * @param upperSpawned   その wave の上位敵が既に湧いたか（v1.5.0、
+ *   ループ側の waveUpperSpawnedRef.current）。 boss wave では無視される
+ *   （W30 は従来どおり prev/current の時刻跨ぎで 1 回だけ湧く）。
  */
 export function getSpawnsAtTime(
   schedule: WaveSchedule,
@@ -150,7 +164,9 @@ export function getSpawnsAtTime(
   rng: () => number,
   idGenerator: () => string,
   bossWeakenedAtMs: number | null = null,
-  fieldEmpty = false
+  fieldEmpty = false,
+  spawnedNormalCount = 0,
+  upperSpawned = false
 ): SpawnedEnemy[] {
   const spawns: SpawnedEnemy[] = [];
   const elapsedSec = elapsedMs / 1000;
@@ -169,33 +185,37 @@ export function getSpawnsAtTime(
   // 通常敵が湧き続けても tier クリアを阻害しない (= ボスさえ倒せば残雑魚は無視できる)。
   const bossWeakenedSec = bossWeakenedAtMs != null ? bossWeakenedAtMs / 1000 : null;
 
-  let normalCount: number;
-  let prevNormalCount: number;
+  let toSpawn: number;
   if (isBossWave) {
-    // v1.5.0: クォータ制の適用外。 現行の連続湧きロジックを維持する。
-    normalCount = countBossNormalSpawns(
+    // v1.5.0: クォータ制の適用外。 現行の prev/current 差分方式を維持する。
+    const normalCount = countBossNormalSpawns(
       elapsedSec,
       upperSpawnSec,
       schedule.spawnIntervalSec,
       bossWeakenedSec
     );
-    prevNormalCount = countBossNormalSpawns(
+    const prevNormalCount = countBossNormalSpawns(
       prevElapsedSec,
       upperSpawnSec,
       schedule.spawnIntervalSec,
       bossWeakenedSec
     );
+    toSpawn = normalCount - prevNormalCount;
   } else {
+    // v1.5.0: 「実際に湧いた累積数 (spawnedNormalCount)」 を基準にした pull モデル。
+    // 前倒しで湧いた分も spawnedNormalCount に反映される (呼び出し側が加算する) ため、
+    // 時間ベースの増分として二重に湧くことがなく、 総湧き数は必ず quota 以下になる。
     const quota = waveQuota(schedule);
     const timeBasedCount = Math.min(Math.floor(elapsedSec / schedule.spawnIntervalSec), quota);
-    // v1.5.0: 撃破連鎖の前倒し湧き。 場が空でクォータ未消化なら +1 体前倒しする
+    // 撃破連鎖の前倒し湧き: 場が空なら spawnedNormalCount + 1 を目標にする
     // (1 tick に前倒しで湧くのは 1 体のみ。 全滅→1 体湧く→即殲滅→次 tick でまた 1 体、
-    //  の連鎖で十分速い)。
-    normalCount =
-      fieldEmpty && timeBasedCount < quota ? Math.min(timeBasedCount + 1, quota) : timeBasedCount;
-    prevNormalCount = Math.min(Math.floor(prevElapsedSec / schedule.spawnIntervalSec), quota);
+    //  の連鎖で十分速い)。 時間ベースが先行していればそちらに追従する。
+    const target = Math.min(
+      quota,
+      Math.max(timeBasedCount, spawnedNormalCount + (fieldEmpty ? 1 : 0))
+    );
+    toSpawn = Math.max(0, target - spawnedNormalCount);
   }
-  const toSpawn = normalCount - prevNormalCount;
 
   for (let i = 0; i < toSpawn; i++) {
     const subtype = pickSubtype(schedule.normalSpawnTable, rng);
@@ -204,19 +224,22 @@ export function getSpawnsAtTime(
   }
 
   if (schedule.eliteKind !== undefined) {
-    // v1.5.0: 上位敵の前倒し湧き判定。 boss wave は対象外 (クォータ制の適用外のため
-    // 常に従来どおり durationSec-1 秒で判定する)。
-    // 上位敵はまだ湧いていない前提 (prevElapsedSec < upperSpawnSec) のもとで、
-    // 今 tick が次のいずれかを満たせばスポーンする:
-    // - 通常の 25 秒 (upperSpawnSec) を跨いだ
-    // - または、 fieldEmpty かつクォータ N 体を湧き切り済み（早倒し湧き）
-    const quota = isBossWave ? null : waveQuota(schedule);
-    const quotaExhausted =
-      quota != null &&
-      Math.min(Math.floor(prevElapsedSec / schedule.spawnIntervalSec), quota) >= quota;
-    const shouldSpawnUpperNow =
-      prevElapsedSec < upperSpawnSec &&
-      (elapsedSec >= upperSpawnSec || (!isBossWave && fieldEmpty && quotaExhausted));
+    let shouldSpawnUpperNow: boolean;
+    if (isBossWave) {
+      // W30: 現行どおり (prev/current の時刻跨ぎ判定のみ。 前倒しなし)。
+      shouldSpawnUpperNow = prevElapsedSec < upperSpawnSec && elapsedSec >= upperSpawnSec;
+    } else {
+      // v1.5.0: 上位敵の前倒し湧き。 まだ湧いていない (upperSpawned=false) 前提で、
+      // 次のいずれかを満たせばスポーンする:
+      // - 通常の 25 秒 (upperSpawnSec) を跨いだ
+      // - または、 fieldEmpty かつ実クォータ N 体を湧き切り済み
+      //   (spawnedNormalCount >= quota。 時間ベースではなく実際に湧いた数で判定する)
+      const quota = waveQuota(schedule);
+      shouldSpawnUpperNow =
+        !upperSpawned &&
+        ((prevElapsedSec < upperSpawnSec && elapsedSec >= upperSpawnSec) ||
+          (fieldEmpty && spawnedNormalCount >= quota));
+    }
     if (shouldSpawnUpperNow) {
       const template = createEnemyTemplate(schedule.tier, schedule.waveIndex, schedule.eliteKind);
       spawns.push(spawnEnemy(template, idGenerator(), elapsedMs, rng));
