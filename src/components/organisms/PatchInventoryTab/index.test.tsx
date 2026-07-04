@@ -68,11 +68,13 @@ describe('PatchInventoryTab', () => {
   it('選択済みカードをもう一度クリックすると null で onSelect が呼ばれる', async () => {
     const user = userEvent.setup();
     const onSelect = vi.fn();
+    // v1.5.4: カードは種別 (PATCH_POOL 順) → tier 降順で並ぶ。
+    // instantKill が最先頭に来るのでそれを selected にして再クリック挙動を検証する。
     render(
       <PatchInventoryTab
         overridePatches={makePatches()}
         overrideEquipped={new Map()}
-        selectedId={'damageImmune#1'}
+        selectedId={'instantKill#3'}
         onSelect={onSelect}
       />
     );

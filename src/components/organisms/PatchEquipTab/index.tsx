@@ -11,6 +11,7 @@ import { PatchSlot } from '@/components/molecules/PatchSlot';
 import type { PatchInfo } from '@/components/molecules/PatchSlot';
 import type { PatchName } from '@/data/schema';
 import { getPatchDisplayInfo } from '@/game/patches/displayInfo';
+import { maxTierPerKind } from '@/game/patches/sort';
 import { soundEngine } from '@/lib/audio';
 import { useStore } from '@/store';
 import { MAX_PATCH_SLOTS } from '@/store/slices/equippedPatches';
@@ -88,9 +89,13 @@ export function PatchEquipTab({
     setPickerSlotIndex(slotIndex);
   };
 
-  // 装着候補: 在庫にあり、 かつ同名が他スロットに装着されてないもの
+  // 装着候補: 在庫にあり、 かつ同名が他スロットに装着されてないもの。
+  // v1.5.4: 種別ごとに tier 最大のものだけを候補にする (低 tier を装備することはないため)。
+  //         並び順は「種別 (PATCH_POOL 順) → tier 降順」 で統一する。
   const equippedNames = new Set(Array.from(equipped.values()).map((e) => e.name));
-  const candidates = Array.from(patches.values()).filter((p) => !equippedNames.has(p.name));
+  const candidates = maxTierPerKind(
+    Array.from(patches.values()).filter((p) => !equippedNames.has(p.name))
+  );
 
   const handlePickPatch = (name: PatchEntry['name'], tier: number) => {
     if (pickerSlotIndex == null) return;

@@ -4,6 +4,7 @@ import { Text } from '@/components/atoms/Text';
 import { PatchCard } from '@/components/molecules/PatchCard';
 import type { PatchName } from '@/data/schema';
 import { getPatchDisplayInfo } from '@/game/patches/displayInfo';
+import { sortByKindThenTier } from '@/game/patches/sort';
 import { useStore } from '@/store';
 import type { PatchEntry } from '@/store/slices/patches';
 
@@ -38,7 +39,9 @@ export function PatchInventoryTab({
   // 装着済みのパッチ名セット
   const equippedNames = new Set<string>(Array.from(equipped.values()).map((e) => e.name));
 
-  const entries = Array.from(patches.values());
+  // v1.5.4: 種別 (PATCH_POOL 順) → tier 降順で並べる。
+  // 例: T5 freezeHit → T4 freezeHit → T5 burnHit → T2 burnHit。
+  const entries = sortByKindThenTier(Array.from(patches.values()));
 
   if (entries.length === 0) {
     return (
